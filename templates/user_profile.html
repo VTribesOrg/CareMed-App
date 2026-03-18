@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=0.8">
+    <title>My Profile | CareMed</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <link rel="stylesheet" href="static/css/user_profile.css">
+
+</head>
+
+<body class="{% if current_user.is_authenticated %}logged-in{% else %}guest{% endif %}">
+
+    <input type="checkbox" id="nav-toggle" style="display: none;">
+
+    <div class="side-drawer">
+        <div class="drawer-header">
+            <a href="{{ url_for('user.homepage')}}" style="text-decoration: none;">
+                <div class="nav-logo">
+                    <img src="" alt="CareMed Logo" class="nav-logo-img"
+                        style="display: none; height: 30px; width: auto;">
+                    Care<span>Med</span>
+                </div>
+            </a>
+            <label for="nav-toggle" class="close-drawer">
+                <i class="fa-solid fa-xmark"></i>
+            </label>
+        </div>
+
+        <div class="drawer-links">
+            <div class="mobile-user-info auth-only">
+                <div class="user-avatar mobile-user-avatar" id="mobileAvatarContainer">
+                    {% if current_user.is_authenticated and current_user.profile_pic %}
+                        {% if current_user.profile_pic.startswith('http') %}
+                            <img src="{{ current_user.profile_pic }}" class="user-photo-img">
+                        {% else %}
+                            <img src="{{ url_for('static', filename=current_user.profile_pic) }}" class="user-photo-img">
+                        {% endif %}
+                    {% else %}
+                        <i class="fa-solid fa-circle-user icon-placeholder"></i>
+                    {% endif %}
+                </div>
+
+                <div class="user-details">
+                    <span class="user-name">
+                        {% if current_user.is_authenticated %}
+                            {{ current_user.first_name }} {{ current_user.last_name }}
+                        {% else %}
+                            Welcome, Guest
+                        {% endif %}
+                    </span>
+                    {% if not current_user.is_authenticated %}
+                        <span class="user-role">Sign in to manage rentals</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="mobile-user-info guest-only">
+                <div class="user-avatar mobile-user-avatar" id="mobileAvatarGuest">
+                    <i class="fa-solid fa-circle-user icon-placeholder"></i>
+                </div>
+                <div class="user-details">
+                    <span class="user-name">Welcome, Guest</span>
+                    <span class="user-role">Sign in to manage rentals</span>
+                </div>
+            </div>
+
+            <a href="{{ url_for('user.user_products')}}"><i class="fa-solid fa-bag-shopping"></i> Shop Equipment</a>
+
+            <a href="{{ url_for('user.user_profile')}}" class="auth-only active"><i class="fa-solid fa-user"></i> My Profile</a>
+            <a href="orders.html" class="auth-only"><i class="fa-solid fa-clock-rotate-left"></i> My Rentals</a>
+
+            <hr class="auth-only" style="border: none; border-top: 1px solid #eee; margin: 10px 0;">
+
+            {% if current_user.is_authenticated %}
+                <a href="{{ url_for('auth.logout') }}" class="logout-link-mobile">
+                    <i class="fa-solid fa-right-from-bracket"></i> Sign Out
+                </a>
+            {% else %}
+                <a href="{{ url_for('auth.login') }}" class="login-link-mobile guest-only">
+                    <i class="fa-solid fa-right-to-bracket"></i> Sign In / Register
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <label for="nav-toggle" class="drawer-overlay"></label>
+
+    <nav>
+        <a href="{{ url_for('user.homepage')}}" style="text-decoration: none;">
+            <div class="nav-logo">Care<span>Med</span></div>
+        </a>
+
+        <div class="nav-links">
+            <a href="{{ url_for('user.user_products')}}" class="nav-shop-link">
+                <i class="fa-solid fa-bag-shopping"></i> Shop Equipment
+            </a>
+
+            <a href="{{ url_for('auth.login')}}" class="nav-account-btn guest-only">
+                <i class="fa-solid fa-right-to-bracket"></i> Sign In / Register
+            </a>
+            <a href="product_gallery.html" class="nav-cta-btn guest-only">Rent Now</a>
+
+            <div class="user-profile-widget auth-only" id="profileDropdown">
+                <div class="profile-trigger" id="profileTrigger">
+                    <div class="user-avatar" id="navAvatarContainer">
+                        {% if current_user.is_authenticated and current_user.profile_pic %}
+                            {% if current_user.profile_pic.startswith('http') %}
+                                <img src="{{ current_user.profile_pic }}" class="user-photo-img">
+                            {% else %}
+                                <img src="{{ url_for('static', filename=current_user.profile_pic) }}" class="user-photo-img">
+                            {% endif %}
+                        {% else %}
+                            <i class="fa-solid fa-circle-user icon-placeholder"></i>
+                        {% endif %}
+                    </div>
+                    <div class="user-info">
+                        <span class="user-name">
+                            {% if current_user.is_authenticated %}
+                                Hello, {{ current_user.first_name }}
+                            {% else %}
+                                Guest
+                            {% endif %}
+                        </span>
+                    </div>
+                    <i class="fa-solid fa-chevron-down"></i>
+                </div>
+
+                <div class="dropdown-menu" id="dropdownMenu">
+                    {% if current_user.is_authenticated %}
+                        <a href="{{ url_for('user.user_profile')}}">
+                            <i class="fa-solid fa-user"></i> My Profile
+                        </a>
+                        <a href="orders.html">
+                            <i class="fa-solid fa-clock-rotate-left"></i> My Rentals
+                        </a>
+                        <hr>
+                        <a href="{{ url_for('auth.logout') }}" class="logout-item">
+                            <i class="fa-solid fa-right-from-bracket"></i> Sign Out
+                        </a>
+                    {% else %}
+                        <a href="{{ url_for('auth.login') }}">
+                            <i class="fa-solid fa-right-to-bracket"></i> Sign In / Register
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <label for="nav-toggle" class="hamburger-icon">
+            <i class="fa-solid fa-bars"></i>
+        </label>
+    </nav>
+
+    <section class="profile-section">
+        <div class="profile-grid">
+            <aside class="profile-sidebar">
+                <div class="profile-avatar-large" id="sidebarAvatarContainer">
+                    {% if current_user.is_authenticated and current_user.profile_pic %}
+                        {% if current_user.profile_pic.startswith('http') %}
+                            <img src="{{ current_user.profile_pic }}" class="user-photo-img" alt="Profile Picture">
+                        {% else %}
+                            <img src="{{ url_for('static', filename=current_user.profile_pic) }}" class="user-photo-img" alt="Profile Picture">
+                        {% endif %}
+                    {% else %}
+                        <span class="material-symbols-outlined icon-placeholder">account_circle</span>
+                    {% endif %}                
+                </div>
+                <h2 style="color: #002347;">{{ current_user.first_name }} {{ current_user.last_name }}</h2>
+                <p style="color: #52B788; font-weight: bold; font-size: 14px;">Verified Member</p>
+
+                <div class="profile-menu">
+                    <a href="{{ url_for('user.user_profile')}}" class="active"><span class="material-symbols-outlined">person</span> Account
+                        Details</a>
+                    <a href="orders.html"><span class="material-symbols-outlined">history</span> Rental History</a>
+                    <a href="#"><span class="material-symbols-outlined">settings</span> Settings</a>
+                    <a href="logout" style="color: #e63946;"><span class="material-symbols-outlined">logout</span>
+                        Logout</a>
+                </div>
+            </aside>
+
+            <div class="profile-content">
+
+                <div class="info-card">
+                    <div class="info-header">
+                        <h2 style="color: #002347;">Personal Information</h2>
+                        <button id="editProfileBtn"
+                            style="background: none; border: 1px solid #ddd; padding: 6px 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 5px; font-weight: 600;">
+                            <span class="material-symbols-outlined" style="font-size: 18px;">edit</span> Edit
+                        </button>
+                    </div>
+                    <div class="details-grid">
+                        <div class="detail-item"><label>Full Name</label>
+                            <p>{{ current_user.first_name }} {{ current_user.last_name }}</p>
+                        </div>
+                        <div class="detail-item"><label>Email Address</label>
+                            <p>{{ current_user.email }} </p>
+                        </div>
+                        <div class="detail-item"><label>Phone Number</label>
+                            <p>{{ current_user.phone }} </p>
+                        </div>
+                        <div class="detail-item" style="grid-column: span 2;"><label>Default Shipping Address</label>
+                            <p>{{ current_user.address }} </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-card" style="margin-top: 20px;">
+                    <div class="info-header">
+                        <h2 style="color: #002347;">Account Security</h2>
+                        <span class="material-symbols-outlined" style="color: #38BDF8;">shield_lock</span>
+                    </div>
+                    
+                    <div class="details-grid">
+                        <div class="detail-item" style="grid-column: span 2;">
+                            <label>Password</label>
+                            <div style="display: flex; align-items: center; justify-content: space-between; background: #f0f9ff; padding: 15px; border-radius: 12px; border: 1px dashed #38BDF8;">
+                                <div>
+                                    <p style="font-size: 14px; margin: 0;">
+                                        {% if current_user.password_hash %}
+                                            Manage your login credentials
+                                        {% else %}
+                                            <strong>OAuth Account:</strong> No password set yet.
+                                        {% endif %}
+                                    </p>
+                                </div>
+                                <button id="openPassBtn" 
+                                        style="background: #002347; color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 13px; transition: 0.3s;">
+                                    {% if current_user.password_hash %}
+                                        Change Password
+                                    {% else %}
+                                        Set Local Password
+                                    {% endif %}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="modal-overlay" id="editModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2 style="color: #002347; font-size: 20px;">Update Profile</h2>
+                <span class="material-symbols-outlined close-modal-trigger" style="cursor: pointer; color: #888;">close</span>
+            </div>
+
+            <form class="modal-form" method="POST" action="{{ url_for('user.user_profile') }}" enctype="multipart/form-data">
+                {{ profile_form.hidden_tag() }}
+
+                <div style="text-align: center; margin-bottom: 25px;">
+                    <div style="position: relative; width: 110px; height: 110px; margin: 0 auto;">
+                        <div id="imagePreview">
+                            {% if current_user.is_authenticated and current_user.profile_pic %}
+                                {% if current_user.profile_pic.startswith('http') %}
+                                    <img src="{{ current_user.profile_pic }}" class="user-photo-img" alt="Profile Picture">
+                                {% else %}
+                                    <img src="{{ url_for('static', filename=current_user.profile_pic) }}" class="user-photo-img" alt="Profile Picture">
+                                {% endif %}
+                            {% else %}
+                                <span class="material-symbols-outlined icon-placeholder">account_circle</span>
+                            {% endif %}
+                        </div>
+                        <label for="profilePicInput"
+                            style="position: absolute; bottom: 5px; right: 5px; background: #52B788; color: white; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.15); transition: 0.2s;">
+                            <span class="material-symbols-outlined" style="font-size: 18px;">photo_camera</span>
+                        </label>
+                        <input type="file" name="profile_pic" id="profilePicInput" accept="image/*" style="display: none;">
+                    </div>
+                    <button type="button" id="removePhotoBtn"
+                        style="background: none; border: none; color: #e63946; font-size: 12px; font-weight: 700; margin-top: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+                        <span class="material-symbols-outlined" style="font-size: 14px;">delete</span> Remove Photo
+                    </button>
+                    <input type="hidden" name="remove_photo" id="removePhotoInput" value="false">
+                </div>
+
+                <div class="name-row">
+                    <div class="form-group">
+                        <label for="first_name">First Name</label>
+                         {{ profile_form.first_name(id="first_name", class="form-control") }}
+                    </div>
+                    <div class="form-group">
+                        <label for="last_name">Last Name</label>
+                        {{ profile_form.last_name(id="last_name", class="form-control") }}
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Phone Number</label>
+                    {{ profile_form.phone(class="form-control", placeholder="N/A") }}
+                </div>
+
+                <div class="form-group">
+                    <label>Shipping Address</label>
+                    {{ profile_form.address(class="form-control", rows="3", placeholder="N/A") }}
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel">Cancel</button>
+                    {{ profile_form.submit_profile(class="btn-save", id="saveProfileBtn", disabled=True) }}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="passwordModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2 style="color: #002347; font-size: 20px;">
+                    {% if current_user.password_hash %}Update Password{% else %}Set New Password{% endif %}
+                </h2>
+                <span class="material-symbols-outlined close-modal-trigger" style="cursor: pointer; color: #888;">close</span>
+            </div>
+            
+            <form class="modal-form" action="{{ url_for('user.change_password') }}" method="POST">
+                {{ password_form.hidden_tag() }}
+
+                {% if current_user.password_hash %}
+                <div class="form-group input-field" style="flex: 1; position: relative;">
+                    <label>Current Password</label>
+                    <div class="password-wrapper input-group" style="position: relative;">
+                        {{ password_form.current_password(
+                            id="current_password",
+                            class="form-control",
+                            placeholder="••••••••",
+                            style="padding-right: 40px; width: 100%;"
+                        ) }}
+                        <i class="fa-solid fa-eye-slash toggle-password" data-target="current_password"
+                        style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; color: #888;"></i>
+                    </div>
+                    <span class="error-msg" id="error_current_password"></span>
+                </div>
+                {% endif %}
+
+                <div class="form-group input-field">
+                    <label>New Password</label>
+                    <div class="password-wrapper input-group" style="position: relative;">
+                        {{ password_form.new_password(
+                            id="new_password",
+                            class="form-control",
+                            placeholder="At least 8 characters",
+                            style="padding-right: 40px; width: 100%;"
+                        ) }}
+                        <i class="fa-solid fa-eye-slash toggle-password" data-target="new_password"
+                        style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; color: #888;"></i>
+                    </div>
+                    <span class="error-msg" id="error_new_password"></span>
+                </div>
+
+                <div class="form-group input-field" style="flex: 1; position: relative;">
+                    <label>Confirm New Password</label>
+                    <div class="password-wrapper input-group" style="position: relative;">
+                        {{ password_form.confirm_password(
+                            id="confirm_password",
+                            class="form-control",
+                            placeholder="Repeat new password",
+                            style="padding-right: 40px; width: 100%;"
+                        ) }}
+                        <i class="fa-solid fa-eye-slash toggle-password" data-target="confirm_password"
+                        style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; color: #888;"></i>
+                    </div>
+                    <span class="error-msg" id="error_confirm_password"></span>
+                    <span id="match-message"></span>
+                </div>
+
+                <p style="font-size: 12px; color: #666; margin-top: -10px;">
+                    <i class="fa-solid fa-circle-info" style="color: #38BDF8;"></i> 
+                    Setting a password allows you to log in with your email directly.
+                </p>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel">Cancel</button>
+                    {{ password_form.submit_password(class="btn-save") }}
+                </div>
+            </form>
+        </div>
+    </div>
+
+<script nonce="{{ csp_nonce() }}">
+document.addEventListener("DOMContentLoaded", function () {
+    // --- Elements ---
+    const editModal = document.getElementById('editModal');
+    const passModal = document.getElementById('passwordModal');
+    const initialImageHTML = document.getElementById('imagePreview')?.innerHTML;
+    const profileInput = document.getElementById('profilePicInput');
+    const removePhotoInput = document.getElementById('removePhotoInput');
+    const dropdownMenu = document.getElementById('dropdownMenu');
+
+    // Password modal elements
+    const newPass = document.getElementById('new_password');
+    const confirmPass = document.getElementById('confirm_password');
+    const currentPass = document.getElementById('current_password');
+    const matchMsg = document.getElementById('match-message');
+    const passwordSaveBtn = document.querySelector('#passwordModal .btn-save');
+    const passwordForm = passModal?.querySelector("form");
+
+    // --- Create per-field error elements ---
+    ['current_password', 'new_password', 'confirm_password'].forEach(id => {
+        const inputEl = document.getElementById(id);
+        if(inputEl && !document.getElementById(`error_${id}`)) {
+            const errorDiv = document.createElement('div');
+            errorDiv.id = `error_${id}`;
+            errorDiv.className = 'error-msg';
+            inputEl.parentElement.parentElement.appendChild(errorDiv);
+        }
+    });
+
+    // Profile modal submit button
+    const submitBtn = document.getElementById('saveProfileBtn');
+    const btnText = document.getElementById('btnText');
+
+    // --- Modal Open/Close ---
+    const openModal = () => { 
+        editModal?.classList.add('active'); 
+        document.body.style.overflow = 'hidden'; 
+    };
+    const closeModal = () => { 
+        resetProfileModal();
+        editModal?.classList.remove('active'); 
+        document.body.style.overflow = 'auto'; 
+    };
+    const openPassModal = () => { 
+        passModal?.classList.add('active'); 
+        document.body.style.overflow = 'hidden'; 
+    };
+    const closePassModal = () => { 
+        passModal?.classList.remove('active'); 
+        document.body.style.overflow = 'auto'; 
+
+        [newPass, confirmPass, currentPass].forEach(el => { 
+            if(el) el.value = ""; 
+        });
+
+        if(matchMsg) { 
+            matchMsg.textContent = ""; 
+            matchMsg.style.opacity = "0"; 
+        }
+
+        if(passwordSaveBtn) passwordSaveBtn.disabled = false;
+
+        // Clear all per-field errors
+        ['current_password', 'new_password', 'confirm_password'].forEach(id => {
+            const err = document.getElementById(`error_${id}`);
+            if(err) err.textContent = "";
+        });
+
+        // ✅ RESET EYE ICONS + INPUT TYPE
+        document.querySelectorAll('#passwordModal .toggle-password').forEach(icon => {
+            const targetId = icon.getAttribute('data-target');
+            const input = document.getElementById(targetId);
+
+            if (input) {
+                input.type = "password";
+            }
+
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+        });
+    };
+
+    // --- Reset Profile Modal ---
+    const resetProfileModal = () => {
+        if (profileInput) profileInput.value = "";
+        if (removePhotoInput) removePhotoInput.value = "false";
+        const preview = document.getElementById('imagePreview');
+        if (preview && initialImageHTML) preview.innerHTML = initialImageHTML;
+
+        const form = document.querySelector(".modal-form");
+        if (form) {
+            form.querySelectorAll("input, textarea, select").forEach(input => {
+                if (input.type === "file") return;
+                if (input.defaultValue !== undefined) input.value = input.defaultValue;
+            });
+        }
+        if (submitBtn) submitBtn.disabled = true;
+    };
+
+    // --- Event Listeners for Modal Open ---
+    document.getElementById('editProfileBtn')?.addEventListener('click', openModal);
+    document.getElementById('openPassBtn')?.addEventListener('click', openPassModal);
+
+    // Close buttons and cancel buttons
+    document.querySelectorAll('.close-modal-trigger, .btn-cancel').forEach(btn => {
+        btn.addEventListener('click', () => {
+            closeModal();
+            closePassModal();
+        });
+    });
+
+    // Click outside to close modals
+    window.addEventListener("click", (event) => {
+        if (event.target === editModal) closeModal();
+        if (event.target === passModal) closePassModal();
+        if (!event.target.closest('.user-profile-widget')) {
+            dropdownMenu?.classList.remove('show');
+        }
+    });
+
+    // --- Dropdown toggle ---
+    document.getElementById("profileTrigger")?.addEventListener("click", (e) => {
+        e.stopPropagation();
+        dropdownMenu?.classList.toggle('show');
+    });
+
+    // --- Password validation ---
+    const validatePasswordMatch = () => {
+        if (!confirmPass || confirmPass.value.length === 0) {
+            if(matchMsg) { matchMsg.textContent = ""; matchMsg.style.opacity = "0"; }
+            if(passwordSaveBtn) passwordSaveBtn.disabled = false;
+            return;
+        }
+        matchMsg.style.opacity = "1"; 
+        if (newPass.value === confirmPass.value) {
+            matchMsg.textContent = "✓ Passwords match";
+            matchMsg.style.color = "#10b981";
+            passwordSaveBtn.disabled = false;
+        } else {
+            matchMsg.textContent = "✕ Passwords do not match";
+            matchMsg.style.color = "#ef4444";
+            passwordSaveBtn.disabled = true;
+        }
+    };
+    newPass?.addEventListener('keyup', validatePasswordMatch);
+    confirmPass?.addEventListener('keyup', validatePasswordMatch);
+
+    // --- Password visibility toggle ---
+    document.querySelectorAll('.toggle-password').forEach(icon => {
+        icon.addEventListener('click', function() {
+            const targetId = this.getAttribute('data-target');
+            const input = document.getElementById(targetId);
+            if (input && input.type === "password") {
+                input.type = "text";
+                this.classList.replace('fa-eye-slash', 'fa-eye');
+            } else if (input) {
+                input.type = "password";
+                this.classList.replace('fa-eye', 'fa-eye-slash');
+            }
+        });
+    });
+
+    // --- Image Preview & Remove ---
+    profileInput?.addEventListener('change', function() {
+        if (this.files && this.files[0]) {
+            if (removePhotoInput) removePhotoInput.value = "false";
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                document.getElementById('imagePreview').innerHTML = `<img src="${e.target.result}" class="user-photo-img">`;
+            };
+            reader.readAsDataURL(this.files[0]);
+        }
+    });
+    document.getElementById('removePhotoBtn')?.addEventListener('click', () => {
+        if (confirm("Are you sure you want to remove your profile photo? This cannot be undone.")) {
+            if (removePhotoInput) removePhotoInput.value = "true";
+            if (profileInput) profileInput.value = "";
+            const iconHTML = '<span class="material-symbols-outlined icon-placeholder">account_circle</span>';
+            ['imagePreview', 'navAvatarContainer', 'mobileAvatarContainer', 'sidebarAvatarContainer'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.innerHTML = iconHTML;
+            });
+        }
+    });
+
+    // --- Enable submit on changes ---
+    const form = document.querySelector(".modal-form");
+    if (form && submitBtn) {
+        const inputs = form.querySelectorAll("input, textarea, select");
+        const initialValues = {};
+        inputs.forEach(input => { if (input.type !== "file") initialValues[input.name] = input.value; });
+        const checkChanges = () => {
+            let changed = false;
+            inputs.forEach(input => {
+                if (input.type === "file" && input.files.length > 0) changed = true;
+                else if(input.value !== initialValues[input.name]) changed = true;
+            });
+            submitBtn.disabled = !changed;
+        };
+        inputs.forEach(input => input.addEventListener("input", checkChanges));
+        submitBtn.disabled = true;
+    }
+
+    // --- Profile submit with AJAX and Toast ---
+    const profileForm = document.querySelector(".modal-form"); // Ensure this selects the correct form
+
+    profileForm?.addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const submitBtn = document.getElementById('saveProfileBtn');
+    submitBtn.disabled = true;
+    const originalText = submitBtn.innerText;
+    submitBtn.innerText = "Updating...";
+
+    const formData = new FormData(this);
+    // IMPORTANT: Manually add the submit button key so Flask recognizes the form
+    formData.append('submit_profile', 'true'); 
+
+    fetch(this.action, { 
+        method: "POST", 
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest' // Helps Flask identify AJAX
+        }
+    })
+    .then(res => {
+        // Safety check: if we got HTML back, something went wrong in the route logic
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.indexOf("application/json") !== -1) {
+            return res.json();
+        } else {
+            throw new TypeError("Oops, we haven't got JSON!");
+        }
+    })
+    .then(data => {
+        if(data.status === "success") {
+            closeModal();
+            showToast(data.message, "success");
+
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
+
+        } else {
+            showToast(data.message || "Update failed", "error");
+        }
+    })
+    .catch(err => {
+        console.error("Error:", err);
+        showToast("An error occurred. Check console.", "error");
+    })
+    .finally(() => {
+        submitBtn.disabled = false;
+        submitBtn.innerText = originalText;
+    });
+});
+    // --- Password modal AJAX submission ---
+    passwordForm?.addEventListener('submit', function(e) {
+        e.preventDefault();
+        if(!passwordSaveBtn) return;
+
+        passwordSaveBtn.disabled = true;
+        const originalText = passwordSaveBtn.innerText;
+        passwordSaveBtn.innerText = "Saving...";
+
+        // Clear previous errors
+        ['current_password', 'new_password', 'confirm_password'].forEach(id => {
+            const err = document.getElementById(`error_${id}`);
+            if(err) err.textContent = "";
+        });
+
+        const formData = new FormData(passwordForm);
+        fetch(passwordForm.action, { method: "POST", body: formData })
+            .then(res => res.json())
+            .then(data => {
+                if(data.status === "success") {
+                    passwordForm.reset();
+                    matchMsg.textContent = "";
+                    closePassModal(); 
+                    showToast(data.message, "success"); 
+                } else if(data.status === "error") {
+                    // Show server-side errors under respective input
+                    if(data.errors) {
+                        Object.keys(data.errors).forEach(field => {
+                            const errEl = document.getElementById(`error_${field}`);
+                            if(errEl) errEl.textContent = data.errors[field][0];
+                        });
+                    }
+                }
+            })
+            .catch(err => {
+                console.error(err);
+            })
+            .finally(() => {
+                passwordSaveBtn.disabled = false;
+                passwordSaveBtn.innerText = originalText;
+            });
+    });
+});
+
+    function showToast(message, type="success") {
+        const toast = document.getElementById("toast");
+
+        if (!toast) {
+            console.error("Toast element not found!");
+            return;
+        }
+
+        toast.textContent = message;
+
+        toast.style.background = type === "success" ? "#10b981" : "#ef4444";
+
+        toast.classList.add("show");
+
+        setTimeout(() => {
+            toast.classList.remove("show");
+        }, 3000);
+    }
+
+
+</script>
+
+<div id="toast" class="toast"></div>
+</body>
+
+</html>

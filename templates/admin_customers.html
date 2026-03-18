@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=0.9" />
+    <title>CareMed | Customer Management</title>
+    <link rel="stylesheet" href="static/css/admin_customer.css" />
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap">
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
+
+
+</head>
+
+<body>
+    <input type="checkbox" id="sidebar-state" checked hidden>
+
+    <div class="main-wrapper">
+
+        <aside class="medical-sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-brand">
+                    <span class="nav-label logo-text">Care<span>Med</span></span>
+                </div>
+                <label for="sidebar-state" class="nav-toggle-label">
+                    <span class="material-symbols-rounded">menu</span>
+                </label>
+            </div>
+
+            <div class="sidebar-navigation">
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="admin_dashboard.html" class="nav-link">
+                            <span class="material-symbols-rounded">monitoring</span>
+                            <span class="nav-label">Dashboard</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="admin_products.html" class="nav-link">
+                            <span class="material-symbols-rounded">inventory_2</span>
+                            <span class="nav-label">Product & Inventory</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="admin_orders.html" class="nav-link">
+                            <span class="material-symbols-rounded">shopping_cart</span>
+                            <span class="nav-label">Order Management</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="admin_customers.html" class="nav-link active">
+                            <span class="material-symbols-rounded">people</span>
+                            <span class="nav-label">Customer Management</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="admin_payments.html" class="nav-link">
+                            <span class="material-symbols-rounded">payment</span>
+                            <span class="nav-label">Payment Management</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="admin_reports.html" class="nav-link">
+                            <span class="material-symbols-rounded">analytics</span>
+                            <span class="nav-label">Reports & Analytics</span>
+                        </a>
+                    </li>
+                </ul>
+
+                <div class="sidebar-footer">
+                    <a href="javascript:void(0)" class="nav-link settings-link" id="settings-toggle-btn">
+                        <span class="material-symbols-rounded">settings</span>
+                        <span class="nav-label theme-label">Settings &amp; help</span>
+                    </a>
+
+                    <div id="settings-menu-popup" class="settings-menu-popup hidden">
+                        <ul>
+                            <li class="menu-item menu-theme-toggle">
+                                <span class="material-symbols-rounded theme-icon">light_mode</span>
+                                <span class="theme-text">Theme</span>
+                                <span class="material-symbols-rounded chevron">chevron_right</span>
+                            </li>
+                            <li class="menu-item">
+                                <span class="material-symbols-rounded">feedback</span>
+                                <span>Send feedback</span>
+                            </li>
+                            <li class="menu-item menu-help-sub">
+                                <span class="material-symbols-rounded">help</span>
+                                <span>Help</span>
+                                <span class="material-symbols-rounded chevron">chevron_right</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+
+        <div class="viewport-container">
+            <header class="system-header">
+                <h1>Customer Management</h1>
+
+                <div class="header-actions">
+                    <div class="action-item">
+                        <button class="icon-btn" id="notif-btn">
+                            <span class="material-symbols-rounded">notifications</span>
+                            <span class="notification-badge">3</span>
+                        </button>
+                        <div class="header-dropdown" id="notif-dropdown">
+                            <div class="dropdown-header">Notifications</div>
+                            <a href="#" class="dropdown-item">
+                                <span class="material-symbols-rounded" style="color:#f97316">warning</span>
+                                <div>
+                                    <p style="margin:0; font-weight:600">Overdue Return</p>
+                                    <small>Oxygen Tank #7721 is late</small>
+                                </div>
+                            </a>
+                            <a href="#" class="dropdown-item">
+                                <span class="material-symbols-rounded" style="color:#00a8cc">inventory</span>
+                                <div>
+                                    <p style="margin:0; font-weight:600">Low Stock</p>
+                                    <small>Wheelchairs below threshold</small>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="action-item">
+                        <div class="clinical-user" id="profile-btn">
+                            <div class="user-info">
+                                <span class="user-name">Arjun Deloterio</span>
+                                <span class="user-role">Administrator</span>
+                            </div>
+                            <div class="user-avatar" id="avatar-wrapper">
+                                <span class="material-symbols-rounded" id="avatar-icon">person</span>
+
+                                <img src="" alt="User" id="header-avatar-img" class="hidden">
+                            </div>
+                        </div>
+                        <div class="header-dropdown" id="profile-dropdown">
+                            <div class="dropdown-header">My Account</div>
+                            <a href="admin_profile.html" class="dropdown-item">
+                                <span class="material-symbols-rounded">person</span>Profile Settings
+                            </a>
+                            <a href="#" class="dropdown-item">
+                                <span class="material-symbols-rounded">security</span>Activity Log
+                            </a>
+                            <a href="logout.html" class="dropdown-item logout">
+                                <span class="material-symbols-rounded">logout</span>Logout
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <main class="content-area">
+                <div class="asset-registry-card">
+                    <div class="registry-controls">
+                        <button class="register-asset-btn" onclick="openRegisterModal()">
+                            <span class="material-symbols-rounded">person_add</span><span>Register Customer</span>
+                        </button>
+                        <div class="filter-search-container">
+                            <div class="search-wrapper">
+                                <span class="material-symbols-rounded search-icon">search</span>
+                                <input type="text" id="customerSearch" class="asset-search-input"
+                                    placeholder="Search Patients...">
+                            </div>
+                        </div>
+                    </div>
+                    <section class="table-scroll-container">
+                        <table class="medical-data-table">
+                            <thead>
+                                <tr>
+                                    <th>Customer Name</th>
+                                    <th>Patient ID</th>
+                                    <th>Email Address</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="customerTableBody">
+                                <tr>
+                                    <td>
+                                        <div class="customer-identity">
+                                            <div class="avatar-circle">MC</div><strong>Maria Clara</strong>
+                                        </div>
+                                    </td>
+                                    <td>PT-2026-8812</td>
+                                    <td>m.clara@email.com</td>
+                                    <td><span class="status-pill status-ready">Active</span></td>
+                                    <td class="col-actions">
+                                        <button class="asset-action-btn logs"
+                                            onclick="openProfileModal('Maria Clara', 'PT-2026-8812')"><span
+                                                class="material-symbols-rounded">visibility</span></button>
+                                        <button class="asset-action-btn edit"
+                                            onclick="openResetModal('Maria Clara')"><span
+                                                class="material-symbols-rounded">lock_reset</span></button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </section>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <div id="registerModal" class="medical-modal-overlay hidden">
+        <div class="medical-modal-content" style="max-width: 650px;">
+            <div class="modal-header-row">
+                <h2 class="modal-header">Register New Customer</h2>
+                <span class="material-symbols-rounded modal-close" onclick="closeRegisterModal()">close</span>
+            </div>
+
+            <form id="customerForm">
+                <div class="form-layout-grid">
+                    <div class="form-field full-width">
+                        <label>Full Name</label>
+                        <input type="text" class="clinical-input" placeholder="e.g. Juan Dela Cruz" required>
+                    </div>
+                    <div class="form-field">
+                        <label>Email Address</label>
+                        <input type="email" class="clinical-input" placeholder="name@example.com" required>
+                    </div>
+                    <div class="form-field">
+                        <label>Phone Number</label>
+                        <input type="tel" class="clinical-input" placeholder="+63 9xx xxx xxxx" required>
+                    </div>
+
+                    <div class="form-field full-width">
+                        <label>Identity Verification (Valid ID)</label>
+                        <div class="upload-container" id="id-dropzone"
+                            onclick="document.getElementById('id-upload').click()">
+                            <span class="material-symbols-rounded upload-icon">add_a_photo</span>
+                            <p><strong>Click to upload</strong> or drag and drop</p>
+                            <p style="font-size: 0.75rem;">PNG, JPG (Max 5MB)</p>
+
+                            <input type="file" id="id-upload" hidden accept="image/*"
+                                onchange="updateUploadUI('id-dropzone', 'id-preview-text', 'file-name-display', this)">
+
+                            <div id="registration-id-preview-container"
+                                style="display:none; margin: 10px auto; width: 120px; height: 80px; border-radius: 6px; overflow: hidden; border: 1px solid #e2e8f0;">
+                                <img id="registration-id-img" src=""
+                                    style="width: 100%; height: 100%; object-fit: cover;">
+                            </div>
+
+                            <div id="id-preview-text" class="preview-active-box" style="display:none;">
+                                <div class="preview-info">
+                                    <span class="material-symbols-rounded success-icon">check_circle</span>
+                                    <span id="file-name-display" class="file-name-text">File Selected</span>
+                                </div>
+                                <span class="material-symbols-rounded btn-file-reset"
+                                    onclick="resetUpload(event, 'id-upload', 'id-dropzone', 'id-preview-text')">cancel</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-field">
+                        <label>Initial Status</label>
+                        <select class="clinical-input">
+                            <option>Active</option>
+                            <option>On Hold</option>
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label>Patient ID</label>
+                        <input type="text" class="clinical-input" value="PT-2026-AUTO" readonly
+                            style="background: #f8fafc;">
+                    </div>
+                </div>
+
+                <div class="modal-footer-actions">
+                    <button type="button" class="btn-medical-outline" onclick="closeRegisterModal()">Cancel</button>
+                    <button type="submit" class="btn-medical-primary">Register Customer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="profileModal" class="medical-modal-overlay hidden">
+        <div class="medical-modal-content" style="max-width: 650px;">
+            <div class="modal-header-row">
+                <div class="customer-identity">
+                    <div class="avatar-circle" id="modalAvatarContainer"
+                        style="overflow: hidden; padding: 0; width: 100px; height: 100px ;">
+                        <img id="modalAvatarImg"
+                            src="https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=100&h=100&fit=crop"
+                            alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;">
+                    </div>
+                    <div>
+                        <h2 class="modal-header" id="modalName"></h2>
+                        <p id="modalID" style="font-size: 0.85rem; color: #64748b; margin: 0;"></p>
+                    </div>
+                </div>
+                <span class="material-symbols-rounded modal-close" onclick="closeProfileModal()">close</span>
+            </div>
+
+            <div class="section-divider">
+                <span class="material-symbols-rounded">contact_page</span>
+                Patient Information
+            </div>
+
+            <div class="form-layout-grid" style="padding: 15px 0;">
+                <div class="info-block">
+                    <label style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase;">Phone Number</label>
+                    <p id="modalPhone" style="font-weight: 600; color: #1e293b; margin: 4px 0;">--</p>
+                </div>
+                <div class="info-block">
+                    <label style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase;">Address</label>
+                    <p id="modalAddress" style="font-weight: 600; color: #1e293b; margin: 4px 0;">--</p>
+                </div>
+                <div class="form-field full-width">
+                    <label style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase;">Identity Verification
+                        (ID)</label>
+                    <div id="modalIDPreview"
+                        style="margin-top: 8px; border: 1px solid #e2e8f0; border-radius: 8px; height: 100px; width: 250px; display: flex; align-items: center; justify-content: center; background: #f8fafc; overflow: hidden;">
+                        <img id="modalIDImg"
+                            src="https://images.unsplash.com/photo-1557128928-66e300629463?w=600&h=300&fit=crop"
+                            alt="ID Card" style="width: 100%; height: 100%; object-fit: cover;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-divider"><span class="material-symbols-rounded">history</span> Rental History</div>
+            <div class="history-timeline-container">
+                <div class="timeline-item">
+                    <div class="timeline-marker info"></div>
+                    <div class="timeline-content">Active Rental: Oxygen Concentrator</div>
+                </div>
+            </div>
+
+            <div class="modal-footer-actions">
+                <button type="button" class="btn-medical-outline" onclick="closeProfileModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+
+
+    <div id="resetModal" class="medical-modal-overlay hidden">
+        <div class="medical-modal-content" style="max-width: 400px;">
+            <div class="modal-header-row">
+                <h2 class="modal-header">Security</h2><span class="material-symbols-rounded modal-close"
+                    onclick="closeResetModal()">close</span>
+            </div>
+            <p>Reset password for <strong id="resetName">User</strong>?</p>
+            <div class="modal-footer-actions"><button type="button" class="btn-medical-outline"
+                    onclick="closeResetModal()">Cancel</button><button type="button" class="btn-medical-primary">Confirm
+                    Reset</button></div>
+        </div>
+    </div>
+
+    <script nonce="{{ csp_nonce() }}">
+        const profileBtn = document.getElementById('profile-btn');
+        const profileDropdown = document.getElementById('profile-dropdown');
+        const notifBtn = document.getElementById('notif-btn');
+        const notifDropdown = document.getElementById('notif-dropdown');
+        const settingsBtn = document.getElementById('settings-toggle-btn');
+        const settingsPopup = document.getElementById('settings-menu-popup');
+
+        function toggleDropdown(dropdown) {
+            document.querySelectorAll('.header-dropdown').forEach(d => {
+                if (d !== dropdown) d.classList.remove('active');
+            });
+            dropdown.classList.toggle('active');
+        }
+
+        profileBtn?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleDropdown(profileDropdown);
+        });
+
+        notifBtn?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleDropdown(notifDropdown);
+        });
+
+        settingsBtn?.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            settingsPopup.classList.toggle('hidden');
+        });
+
+        window.addEventListener('click', (e) => {
+            if (!profileBtn.contains(e.target)) profileDropdown.classList.remove('active');
+            if (!notifBtn.contains(e.target)) notifDropdown.classList.remove('active');
+
+            if (!settingsPopup.contains(e.target) && e.target !== settingsBtn) {
+                settingsPopup.classList.add('hidden');
+            }
+        });
+
+        // --- UPLOAD LOGIC ---
+        function handleFileUpload(input) {
+            const display = document.getElementById('id-preview-text');
+            const nameSpan = document.getElementById('file-name-display');
+            if (input.files && input.files[0]) {
+                display.style.display = 'block';
+                nameSpan.innerText = input.files[0].name;
+            }
+        }
+
+        // --- MODAL TOGGLES ---
+        function openRegisterModal() { document.getElementById('registerModal').classList.remove('hidden'); }
+        function closeRegisterModal() { document.getElementById('registerModal').classList.add('hidden'); }
+        function openProfileModal(name, id) {
+            document.getElementById('modalName').innerText = name;
+            document.getElementById('modalID').innerText = "ID: " + id;
+            document.getElementById('profileModal').classList.remove('hidden');
+        }
+        function closeProfileModal() { document.getElementById('profileModal').classList.add('hidden'); }
+        function openResetModal(name) { document.getElementById('resetName').innerText = name; document.getElementById('resetModal').classList.remove('hidden'); }
+        function closeResetModal() { document.getElementById('resetModal').classList.add('hidden'); }
+
+        // --- SEARCH LOGIC ---
+        document.getElementById('customerSearch').addEventListener('input', function (e) {
+            const term = e.target.value.toLowerCase();
+            const rows = document.querySelectorAll('#customerTableBody tr');
+            rows.forEach(row => { row.style.display = row.innerText.toLowerCase().includes(term) ? '' : 'none'; });
+        });
+
+        function handleProductUpload(input) {
+            const previewContainer = document.getElementById('product-preview-text');
+            const fileNameDisplay = document.getElementById('product-file-name');
+
+            if (input.files && input.files[0]) {
+                previewContainer.style.display = 'block';
+                fileNameDisplay.innerText = input.files[0].name;
+
+                input.parentElement.style.borderColor = '#10b981';
+            }
+        }
+
+        // --- REUSABLE RESET LOGIC ---
+        function resetUpload(event, inputId, dropzoneId, previewId) {
+            event.stopPropagation();
+
+            const input = document.getElementById(inputId);
+            const dropzone = document.getElementById(dropzoneId);
+            const preview = document.getElementById(previewId);
+            const previewContainer = document.getElementById('registration-id-preview-container');
+
+            input.value = "";
+            preview.style.display = 'none';
+            if (previewContainer) previewContainer.style.display = 'none'; // Hide image preview
+
+            dropzone.style.borderColor = '#cbd5e1';
+            dropzone.style.background = '#f8fafc';
+        }
+        // --- UPDATED UI LOGIC ---
+        function updateUploadUI(dropzoneId, previewId, nameId, input) {
+            const files = input.files;
+            if (files && files[0]) {
+                // Handle Text & Colors
+                document.getElementById(previewId).style.display = 'flex';
+                document.getElementById(nameId).innerText = files[0].name;
+                const dropzone = document.getElementById(dropzoneId);
+                dropzone.style.borderColor = '#10b981';
+                dropzone.style.background = '#f0fdf4';
+
+                // Handle Image Preview
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    const previewImg = document.getElementById('registration-id-img');
+                    const previewContainer = document.getElementById('registration-id-preview-container');
+                    previewImg.src = e.target.result;
+                    previewContainer.style.display = 'block';
+                }
+                reader.readAsDataURL(files[0]);
+            }
+        }
+
+        // --- REUSABLE DRAG & DROP INITIALIZER ---
+        function initDragAndDrop(dropzoneId, inputId, previewId, nameId) {
+            const dropzone = document.getElementById(dropzoneId);
+            const input = document.getElementById(inputId);
+
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(name => {
+                dropzone.addEventListener(name, e => { e.preventDefault(); e.stopPropagation(); });
+            });
+
+            ['dragenter', 'dragover'].forEach(name => {
+                dropzone.addEventListener(name, () => dropzone.classList.add('upload-hover'));
+            });
+
+            ['dragleave', 'drop'].forEach(name => {
+                dropzone.addEventListener(name, () => dropzone.classList.remove('upload-hover'));
+            });
+
+            dropzone.addEventListener('drop', e => {
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    input.files = files;
+                    updateUploadUI(dropzoneId, previewId, nameId, files);
+                }
+            });
+        }
+
+        // Initialize for ID
+        initDragAndDrop('id-dropzone', 'id-upload', 'id-preview-text', 'file-name-display');
+
+        function previewFile(input, targetImageId) {
+            const file = input.files[0];
+            const previewImg = document.getElementById(targetImageId);
+            const container = previewImg.parentElement;
+
+            if (file) {
+                const reader = new FileReader();
+
+                reader.onload = function (e) {
+                    // Set the src of the <img> to the file's data
+                    previewImg.src = e.target.result;
+                    // Show the container
+                    container.style.display = 'block';
+                }
+
+                reader.readAsDataURL(file);
+            }
+        }
+    </script>
+</body>
+
+</html>

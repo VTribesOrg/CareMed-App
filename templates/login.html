@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale= 1, maximum-scale=1.0, user-scalable=no">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>CareMed | Login Page</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+</head>
+
+<body>
+
+    <div class="login-wrapper">
+        <div class="side-visual">
+            <div class="nav-header">
+                <a href="{{ url_for('user.homepage')}}" class="main-logo" title="Back to Homepage">
+                    Care<span>Med</span>
+                </a>
+                <a href="{{ url_for('user.homepage')}}" class="guest-btn-light">
+                    <i class="fa-solid fa-chevron-left"></i> Browse as Guest
+                </a>
+            </div>
+
+            <div class="visual-content">
+                <h1>Reliable care, <br>delivered to your door.</h1>
+                <p>Log in to manage your medical equipment rentals, track supplies, and access your secure patient
+                    dashboard.</p>
+
+                <div class="badge-group">
+                    <div class="trust-badge">
+                        <i class="fa-solid fa-truck-fast icon-blue"></i>
+                        <div>
+                            <strong>Same-Day Delivery</strong>
+                            <span>Available for local patients</span>
+                        </div>
+                    </div>
+
+                    <div class="trust-badge">
+                        <i class="fa-solid fa-shield-heart icon-blue"></i>
+                        <div>
+                            <strong>HIPAA Compliant</strong>
+                            <span>Your data is encrypted and secure</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="side-form">
+            <div class="form-container">
+
+                <div class="form-side-header">
+                    <a href="{{ url_for('user.homepage')}}" class="form-logo">Care<span>Med</span></a>
+                    <div class="form-tagline">Home Medical Equipment Rental Services</div>
+                </div>
+
+                <div class="mobile-logo-header">
+                    <a href="{{ url_for('user.homepage')}}" class="main-logo-dark">Care<span>Med</span></a>
+                    <a href="{{ url_for('user.homepage')}}" class="guest-pill">Guest Mode</a>
+                </div>
+
+
+                <div id="loginArea">
+                    <div class="header-text">
+                        <h2>Welcome Back</h2>
+                        <p class="subtitle">Log in to manage your orders and medical supplies.</p>
+                    </div>
+
+                    <form id="loginForm" action="{{ url_for('auth.login') }}" method="POST">
+                        {{ form.hidden_tag() }}
+
+                            <div class="input-field">
+                                <label>Email Address</label>
+                                <div class="input-group">
+                                    <i class="fa-solid fa-envelope"></i>
+                                    {{ form.email(value=email_value, placeholder="example@gmail.com") }}
+                                </div>
+                            </div>
+
+
+                            <div class="input-field">
+                                <div class="label-flex">
+                                    <label>Password</label>
+                                    <a href="javascript:void(0)" class="helper-link" id="forgotPasswordLink">Forgot Password?</a>
+                                </div>
+
+                                <div class="input-group">
+                                    <i class="fa-solid fa-lock"></i>
+                                    {{ form.password(placeholder="••••••••") }}
+                                    <i class="fa-solid fa-eye-slash toggle-pass"></i>
+                                </div>
+
+                                {% with messages = get_flashed_messages(with_categories=true) %}
+                                    {% if messages %}
+                                        {% for category, message in messages %}
+                                            {% if category == 'password-error' %}
+                                            <p class="error-msg">
+                                                <i class="fa-solid fa-circle-exclamation"></i> {{ message }}
+                                            </p>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endif %}
+                                {% endwith %}
+                            </div>
+
+                            {{ form.submit(class="btn-primary") }}
+
+                    </form>
+
+                    <div class="divider"><span>OR CONTINUE WITH</span></div>
+
+                    <a href="/google-login" class="google-btn" style="text-decoration: none;">
+                        <img src="{{ url_for('static', filename='icons/google-avatar.svg') }}" alt="Google" width="18">
+                        Sign in with Google
+                    </a>
+
+                    <p class="footer-note">
+                        Don't have an account? <a href="{{ url_for('auth.register') }}">Create one now</a>
+                    </p>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+
+    <!-- =============================================== MODAL SPACE ================================== -->
+
+    <div id="forgotPasswordModal" class="modal-overlay">
+        <div class="modal-container">
+            <button type="button" class="close-modal" id="closeModalBtn">&times;</button>
+
+            <div id="resetRequestStep">
+                <div class="header-text">
+                    <h2>Reset Password</h2>
+                    <p class="subtitle">Enter your email address and we'll send you a secure link to reset your password.</p>
+                </div>
+                
+                <div id="modal-flash-container" style="display: none; padding: 12px; margin-bottom: 20px; border-radius: 8px; text-align: left; font-size: 0.85rem;"></div>
+
+                <div class="input-field">
+                    <label>Email Address</label>
+                    <div class="input-group">
+                        <i class="fa-solid fa-envelope"></i>
+                        <input type="email" id="resetEmail" placeholder="example@gmail.com">
+                    </div>
+                </div>
+
+                <button class="btn-primary" id="sendLinkBtn">
+                    <span class="btn-text">Send Reset Link</span>
+                    <div class="spinner" id="btnSpinner" style="display: none;"></div>
+                </button>
+                
+                <p class="footer-note" style="margin-top: 20px;">
+                    Remember your password? <a href="javascript:void(0)" onclick="closeForgotModal()">Back to Login</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script nonce="{{ csp_nonce() }}">
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+        // --- Modal Functions ---
+        function openForgotModal() {
+            const modal = document.getElementById('forgotPasswordModal');
+            if (modal) {
+                modal.style.display = 'flex';
+                document.body.style.overflow = 'hidden';
+            }
+        }
+
+        function closeForgotModal() {
+            const modal = document.getElementById('forgotPasswordModal');
+            if (modal) {
+                modal.style.display = 'none';
+                document.body.style.overflow = 'auto';
+            }
+        }
+
+        function showModalMessage(message, isSuccess) {
+            const container = document.getElementById('modal-flash-container');
+            if (!container) return;
+            container.textContent = message;
+            container.style.display = 'block';
+            container.style.backgroundColor = isSuccess ? "#ecfdf5" : "#fef2f2";
+            container.style.color = isSuccess ? "#065f46" : "#991b1b";
+            container.style.border = isSuccess ? "1px solid #10b981" : "1px solid #ef4444";
+        }
+
+        // --- Reset Link Logic ---
+        async function handleSendResetLink() {
+            const emailInput = document.getElementById('resetEmail');
+            const btn = document.getElementById('sendLinkBtn');
+            const spinner = document.getElementById('btnSpinner');
+            const btnText = btn.querySelector('.btn-text');
+
+            if (!emailInput.value) {
+                showModalMessage("Please enter your email address.", false);
+                return;
+            }
+
+            btn.disabled = true;
+            if (spinner) spinner.style.display = 'inline-block';
+            if (btnText) btnText.style.opacity = '0.5';
+
+            const formData = new FormData();
+            formData.append('email', emailInput.value);
+
+            try {
+                const response = await fetch("{{ url_for('auth.send_reset_link') }}", {
+                    method: 'POST',
+                    headers: { "X-CSRFToken": csrfToken },
+                    body: formData
+                });
+                const data = await response.json();
+                showModalMessage(data.message, data.success);
+                if (data.success) emailInput.value = '';
+            } catch (error) {
+                showModalMessage("Connection error. Try again.", false);
+            } finally {
+                btn.disabled = false;
+                if (spinner) spinner.style.display = 'none';
+                if (btnText) btnText.style.opacity = '1';
+            }
+        }
+
+        // --- Main Initializer (Where the magic happens) ---
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            // 1. Forgot Password Click
+            const forgotLink = document.getElementById('forgotPasswordLink');
+            if (forgotLink) {
+                forgotLink.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    openForgotModal();
+                });
+            }
+
+            // 2. Close Modal Buttons (The X and the "Back to Login" link)
+            const closeSelectors = ['#closeModalBtn', '#backToLoginLink'];
+            closeSelectors.forEach(selector => {
+                const el = document.querySelector(selector);
+                if (el) el.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    closeForgotModal();
+                });
+            });
+
+            // 3. Send Reset Link Button
+            const sendBtn = document.getElementById('sendLinkBtn');
+            if (sendBtn) {
+                sendBtn.addEventListener('click', handleSendResetLink);
+            }
+
+            // 4. Password Visibility Toggle
+            const toggleIcons = document.querySelectorAll('.toggle-pass');
+            toggleIcons.forEach(icon => {
+                icon.addEventListener('click', function () {
+                    const passwordInput = this.parentElement.querySelector('input');
+                    if (passwordInput.type === 'password') {
+                        passwordInput.type = 'text';
+                        this.classList.replace('fa-eye-slash', 'fa-eye');
+                    } else {
+                        passwordInput.type = 'password';
+                        this.classList.replace('fa-eye', 'fa-eye-slash');
+                    }
+                });
+            });
+
+            // 5. Close modal if clicking outside the box
+            const modalOverlay = document.getElementById('forgotPasswordModal');
+            if (modalOverlay) {
+                modalOverlay.addEventListener('click', (e) => {
+                    if (e.target === modalOverlay) closeForgotModal();
+                });
+            }
+        });
+
+        setTimeout(() => {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(alert => {
+                alert.style.transition = "opacity 0.5s ease";
+                alert.style.opacity = "0";
+                setTimeout(() => alert.remove(), 500);
+            });
+        }, 5000);
+    </script>
+
+</body>
+
+</html>

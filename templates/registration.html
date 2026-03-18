@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=0.8">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>CareMed | Login Page</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/registration.css') }}">
+</head>
+
+<body>
+
+    <div class="login-wrapper">
+        <div class="side-visual">
+            <div class="nav-header">
+                <a href="{{ url_for('user.homepage')}}" class="main-logo" title="Back to Homepage">
+                    Care<span>Med</span>
+                </a>
+                <a href="{{ url_for('user.homepage')}}" class="guest-btn-light">
+                    <i class="fa-solid fa-chevron-left"></i> Browse as Guest
+                </a>
+            </div>
+
+            <div class="visual-content">
+                <h1>Reliable care, <br>delivered to your door.</h1>
+                <p>Log in to manage your medical equipment rentals, track supplies, and access your secure patient
+                    dashboard.</p>
+
+                <div class="badge-group">
+                    <div class="trust-badge">
+                        <i class="fa-solid fa-truck-fast icon-blue"></i>
+                        <div>
+                            <strong>Same-Day Delivery</strong>
+                            <span>Available for local patients</span>
+                        </div>
+                    </div>
+
+                    <div class="trust-badge">
+                        <i class="fa-solid fa-shield-heart icon-blue"></i>
+                        <div>
+                            <strong>HIPAA Compliant</strong>
+                            <span>Your data is encrypted and secure</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="side-form">
+            <div class="form-container">
+
+                <div class="form-side-header">
+                    <a href="{{ url_for('user.homepage')}}" class="form-logo">Care<span>Med</span></a>
+                    <div class="form-tagline">Home Medical Equipment Rental Services</div>
+                </div>
+
+                <div class="mobile-logo-header">
+                    <a href="{{ url_for('user.homepage')}}" class="main-logo-dark">Care<span>Med</span></a>
+                    <a href="{{ url_for('user.homepage')}}" class="guest-pill">Guest Mode</a>
+                </div>
+
+                <div id="signupForm">
+                    <div class="header-text">
+                        <h2>Join CareMed</h2>
+                        <p class="subtitle">Create an account for faster checkout and order tracking.</p>
+                    </div>
+
+                    <form id="registerForm" action="{{ url_for('auth.register') }}" method="POST">
+                         {{ form.hidden_tag() }}
+
+                        <div class="form-row" style="display: flex; gap: 15px;">
+                            <div class="input-field" style="flex: 1;">
+                                <label>First Name</label>
+                                <div class="input-group">
+                                    <i class="fa-solid fa-user"></i>
+                                    {{ form.first_name(placeholder="Arjun") }}
+                                </div>
+
+                                {% for error in form.first_name.errors %}
+                                    <p class="error-msg">
+                                        <i class="fa-solid fa-circle-exclamation"></i> {{ error }}
+                                    </p>
+                                {% endfor %}
+                            </div>
+
+                            <div class="input-field" style="flex: 1;">
+                                <label>Last Name</label>
+                                <div class="input-group">
+                                    <i class="fa-solid fa-user"></i>
+                                    {{ form.last_name(placeholder="Deloterio") }}
+                                </div>
+
+                                {% for error in form.last_name.errors %}
+                                <p class="error-msg">
+                                    <i class="fa-solid fa-circle-exclamation"></i> {{ error }}
+                                </p>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+
+                        <div class="input-field">
+                            <label>Email Address</label>
+                            <div class="input-group">
+                                <i class="fa-solid fa-envelope"></i>
+                                {{ form.email(placeholder="deloterio19@gmail.com") }}
+                            </div>
+
+                            {% for error in form.email.errors %}
+                            <p class="error-msg">
+                                <i class="fa-solid fa-circle-exclamation"></i> {{ error }}
+                            </p>
+                            {% endfor %}
+                        </div>
+
+
+                        <div class="input-field">
+                            <label>Phone Number</label>
+                            <div class="input-group">
+                                <i class="fa-solid fa-phone"></i>
+                                {{ form.phone(placeholder="+63 912 345 6789") }}
+                            </div>
+
+                            {% for error in form.phone.errors %}
+                            <p class="error-msg">
+                                <i class="fa-solid fa-circle-exclamation"></i> {{ error }}
+                            </p>
+                            {% endfor %}
+                        </div>
+
+
+                        <div class="input-field">
+                            <label>Delivery Address</label>
+                            <div class="input-group">
+                                <i class="fa-solid fa-location-dot"></i>
+                                {{ form.address(placeholder="Brgy. Baldoza, Lapaz Iloilo City") }}
+                            </div>
+
+                            {% for error in form.address.errors %}
+                            <p class="error-msg">
+                                <i class="fa-solid fa-circle-exclamation"></i> {{ error }}
+                            </p>
+                            {% endfor %}
+                        </div>
+
+
+                        <div class="form-row" style="display: flex; gap: 15px;">
+                            <div class="input-field" style="flex: 1;">
+                                <label>Password</label>
+                                <div class="input-group">
+                                    <i class="fa-solid fa-lock"></i>
+                                    {{ form.password(id="reg_password", placeholder="••••••••") }}
+                                    <i class="fa-solid fa-eye-slash toggle-pass"></i>
+                                </div>
+
+                                {% for error in form.password.errors %}
+                                <p class="error-msg">
+                                    <i class="fa-solid fa-circle-exclamation"></i> {{ error }}
+                                </p>
+                                {% endfor %}
+                            </div>
+
+
+                            <div class="input-field" style="flex: 1;">
+                                <label>Confirm Password</label>
+                                <div class="input-group">
+                                    <i class="fa-solid fa-lock"></i>
+                                    {{ form.confirm_password(id="reg_confirm_password", placeholder="••••••••") }}
+                                    <i class="fa-solid fa-eye-slash toggle-pass"></i>
+                                </div>
+
+                                <span id="reg-match-message"
+                                    style="font-size: 11px; display: block; margin-top: 4px; font-weight: 600; min-height: 15px;"></span>
+
+                                {% for error in form.confirm_password.errors %}
+                                <p class="error-msg">
+                                    <i class="fa-solid fa-circle-exclamation"></i> {{ error }}
+                                </p>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        {{ form.submit(id="regBtn", class="btn-primary") }}
+                    </form>
+
+                    <div class="divider"><span>OR JOIN WITH</span></div>
+
+                    <a href="/google-login" class="google-btn" style="text-decoration: none;">
+                        <img src="{{ url_for('static', filename='icons/google-avatar.svg') }}" alt="Google" width="18">
+                        Sign in with Google
+                    </a>
+
+                    <p class="footer-note">
+                        Already have an account? <a href="{{ url_for('auth.login') }}">Log in here</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+
+
+<script nonce="{{ csp_nonce() }}">
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+    function showModalMessage(message, isSuccess) {
+        const container = document.getElementById('modal-flash-container');
+        if (!container) return;
+        container.textContent = message;
+        container.style.display = 'block';
+        container.style.backgroundColor = isSuccess ? "#ecfdf5" : "#fef2f2";
+        container.style.color = isSuccess ? "#065f46" : "#991b1b";
+        container.style.border = isSuccess ? "1px solid #10b981" : "1px solid #ef4444";
+    }
+
+
+    // --- Main Initializer ---
+    document.addEventListener('DOMContentLoaded', () => {
+
+        // 2. Password Visibility Toggle (Works for all forms)
+        const toggleIcons = document.querySelectorAll('.toggle-pass');
+        toggleIcons.forEach(icon => {
+            icon.addEventListener('click', function () {
+                const passwordInput = this.parentElement.querySelector('input');
+                if (passwordInput.type === 'password') {
+                    passwordInput.type = 'text';
+                    this.classList.remove('fa-eye-slash');
+                    this.classList.add('fa-eye');
+                } else {
+                    passwordInput.type = 'password';
+                    this.classList.remove('fa-eye');
+                    this.classList.add('fa-eye-slash');
+                }
+            });
+        });
+
+
+        // 7. URL Parameter logic (Show Signup)
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('show_signup') === '1') {
+            // Check if toggleForms exists (if you use it for the login/register flip)
+            if (typeof toggleForms === 'function') {
+                toggleForms();
+            }
+            const newURL = window.location.href.split('?')[0];
+            window.history.replaceState({}, document.title, newURL);
+        }
+
+        // 8. Registration Password Matching Logic
+        const regPass = document.getElementById('reg_password');
+        const regConfirmPass = document.getElementById('reg_confirm_password');
+        const regMatchMsg = document.getElementById('reg-match-message');
+        const regBtn = document.getElementById('regBtn');
+
+        if (regPass && regConfirmPass) {
+            function validateRegistrationMatch() {
+                if (regConfirmPass.value.length === 0) {
+                    regMatchMsg.textContent = "";
+                    regBtn.disabled = false;
+                    return;
+                }
+
+                if (regPass.value === regConfirmPass.value) {
+                    regMatchMsg.textContent = "✓ Passwords match";
+                    regMatchMsg.style.color = "#10b981";
+                    regBtn.disabled = false;
+                    regBtn.style.opacity = "1";
+                    regBtn.style.cursor = "pointer";
+                } else {
+                    regMatchMsg.textContent = "✕ Passwords do not match";
+                    regMatchMsg.style.color = "#ef4444";
+                    regBtn.disabled = true;
+                    regBtn.style.opacity = "0.7";
+                    regBtn.style.cursor = "not-allowed";
+                }
+            }
+
+            regPass.addEventListener('keyup', validateRegistrationMatch);
+            regConfirmPass.addEventListener('keyup', validateRegistrationMatch);
+        }
+    });
+</script>
+
+</body>
+
+</html>

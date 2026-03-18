@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=0.8">
+    <title>Product Catalog | CareMed</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <link rel="stylesheet" href="static/css/user_products.css">
+
+</head>
+
+<body class="{% if current_user.is_authenticated %}logged-in{% else %}guest{% endif %}">
+
+    <input type="checkbox" id="nav-toggle" style="display: none;">
+
+    <div class="side-drawer">
+        <div class="drawer-header">
+            <a href="{{ url_for('user.homepage')}}" style="text-decoration: none;">
+                <div class="nav-logo">
+                    <img src="" alt="CareMed Logo" class="nav-logo-img"
+                        style="display: none; height: 30px; width: auto;">
+                    Care<span>Med</span>
+                </div>
+            </a>
+            <label for="nav-toggle" class="close-drawer">
+                <i class="fa-solid fa-xmark"></i>
+            </label>
+        </div>
+
+        <div class="drawer-links">
+            <div class="mobile-user-info auth-only">
+                <div class="user-avatar mobile-user-avatar" id="mobileAvatarContainer">
+                    {% if current_user.is_authenticated and current_user.profile_pic %}
+                        {% if current_user.profile_pic.startswith('http') %}
+                            <img src="{{ current_user.profile_pic }}" class="user-photo-img">
+                        {% else %}
+                            <img src="{{ url_for('static', filename=current_user.profile_pic) }}" class="user-photo-img">
+                        {% endif %}
+                    {% else %}
+                        <i class="fa-solid fa-circle-user icon-placeholder"></i>
+                    {% endif %}
+                </div>
+
+                <div class="user-details">
+                    <span class="user-name">
+                        {% if current_user.is_authenticated %}
+                            {{ current_user.first_name }} {{ current_user.last_name }}
+                        {% else %}
+                            Welcome, Guest
+                        {% endif %}
+                    </span>
+                    {% if not current_user.is_authenticated %}
+                        <span class="user-role">Sign in to manage rentals</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="mobile-user-info guest-only">
+                <div class="user-avatar mobile-user-avatar" id="mobileAvatarContainer">
+                    <i class="fa-solid fa-circle-user icon-placeholder"></i>
+                </div>
+                <div class="user-details">
+                    <span class="user-name">Welcome, Guest</span>
+                    <span class="user-role">Sign in to manage rentals</span>
+                </div>
+            </div>
+
+            <a href="{{ url_for('user.user_products')}}"><i class="fa-solid fa-bag-shopping"></i> Shop Equipment</a>
+
+            <a href="{{ url_for('user.user_profile')}}" class="auth-only active"><i class="fa-solid fa-user"></i> My Profile</a>
+            <a href="orders.html" class="auth-only"><i class="fa-solid fa-clock-rotate-left"></i> My Rentals</a>
+
+            <hr class="auth-only" style="border: none; border-top: 1px solid #eee; margin: 10px 0;">
+
+            {% if current_user.is_authenticated %}
+                <a href="{{ url_for('auth.logout') }}" class="logout-link-mobile">
+                    <i class="fa-solid fa-right-from-bracket"></i> Sign Out
+                </a>
+            {% else %}
+                <a href="{{ url_for('auth.login') }}" class="login-link-mobile guest-only">
+                    <i class="fa-solid fa-right-to-bracket"></i> Sign In / Register
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <label for="nav-toggle" class="drawer-overlay"></label>
+
+    <nav>
+        <a href="{{ url_for('user.homepage')}}" style="text-decoration: none;">
+            <div class="nav-logo">Care<span>Med</span></div>
+        </a>
+
+        <div class="nav-links">
+            <a href="{{ url_for('user.user_products')}}" class="nav-shop-link">
+                <i class="fa-solid fa-bag-shopping"></i> Shop Equipment
+            </a>
+
+            <a href="{{ url_for('auth.login')}}" class="nav-account-btn guest-only">
+                <i class="fa-solid fa-right-to-bracket"></i> Sign In / Register
+            </a>
+            <a href="product_gallery.html" class="nav-cta-btn guest-only">Rent Now</a>
+
+            <div class="user-profile-widget auth-only" id="profileDropdown">
+                <div class="profile-trigger" id="profileTrigger">
+                    <div class="user-avatar" id="navAvatarContainer">
+                        {% if current_user.is_authenticated and current_user.profile_pic %}
+                            {% if current_user.profile_pic.startswith('http') %}
+                                <img src="{{ current_user.profile_pic }}" class="user-photo-img">
+                            {% else %}
+                                <img src="{{ url_for('static', filename=current_user.profile_pic) }}" class="user-photo-img">
+                            {% endif %}
+                        {% else %}
+                            <i class="fa-solid fa-circle-user icon-placeholder"></i>
+                        {% endif %}
+                    </div>
+                    <div class="user-info">
+                        <span class="user-name">
+                            {% if current_user.is_authenticated %}
+                                Hello, {{ current_user.first_name }}
+                            {% else %}
+                                Guest
+                            {% endif %}
+                        </span>
+                    </div>
+                    <i class="fa-solid fa-chevron-down"></i>
+                </div>
+
+                <div class="dropdown-menu" id="dropdownMenu">
+                    {% if current_user.is_authenticated %}
+                        <a href="{{ url_for('user.user_profile')}}">
+                            <i class="fa-solid fa-user"></i> My Profile
+                        </a>
+                        <a href="orders.html">
+                            <i class="fa-solid fa-clock-rotate-left"></i> My Rentals
+                        </a>
+                        <hr>
+                        <a href="{{ url_for('auth.logout') }}" class="logout-item">
+                            <i class="fa-solid fa-right-from-bracket"></i> Sign Out
+                        </a>
+                    {% else %}
+                        <a href="{{ url_for('auth.login') }}">
+                            <i class="fa-solid fa-right-to-bracket"></i> Sign In / Register
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <label for="nav-toggle" class="hamburger-icon">
+            <i class="fa-solid fa-bars"></i>
+        </label>
+    </nav>
+
+
+    <main class="gallery-container" style="margin-top: 120px;">
+        <header class="header-row">
+            <h2 class="section-title">Product Catalog</h2>
+            <p style="color: #666; margin-top: 10px;">Select from our premium range of sanitized, hospital-grade
+                equipment.</p>
+            <div class="help-banner"
+                style="margin-top: 15px; padding: 10px; background: #e3f2fd; border-radius: 8px; display: inline-block;">
+                <span class="material-symbols-outlined"
+                    style="vertical-align: middle; color: #1976d2;">support_agent</span>
+                <span style="vertical-align: middle; font-size: 0.9rem;">Need help choosing? Call our consultant:
+                    <strong>0912-585-6730</strong></span>
+            </div>
+        </header>
+
+        <div class="controls-row">
+            <div class="search-box">
+                <span class="material-symbols-outlined search-icon-ui">search</span>
+                <input type="text" id="productSearch" placeholder="Search equipment (e.g., Bed, Wheelchair, Oxygen)...">
+            </div>
+            <div class="filter-box">
+                <select id="sortOrder">
+                    <option value="default">Sort: Newest First</option>
+                    <option value="price-low">Price: Low to High</option>
+                    <option value="price-high">Price: High to Low</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="product-grid" id="productGrid">
+
+            <div class="product-card" data-name="Manual Hospital Bed">
+                <div class="stock-badge">✓ IN STOCK</div>
+
+                <div class="product-image-box">
+                    <img src="" alt="" class="product-img-element">
+
+                    <div class="no-image-placeholder"></div>
+                </div>
+                <h3 class="product-name">Manual Hospital Bed</h3>
+
+                <div class="trust-badge"><span class="material-symbols-outlined" style="font-size:16px;">verified</span>
+                    Sanitized & Certified</div>
+
+                <ul class="product-specs">
+                    <li><span class="material-symbols-outlined">zoom_out_map</span> Size: 36" x 80" (Standard)</li>
+                    <li><span class="material-symbols-outlined">fitness_center</span> Max Capacity: 150kg</li>
+                    <li><span class="material-symbols-outlined">settings_suggest</span> Adjustable Head & Feet</li>
+                </ul>
+
+                <div class="dual-price-wrapper">
+                    <div class="price-item">
+                        <span class="price-tag">RENT</span>
+                        <p class="price-value">₱4,500<small>/mo</small></p>
+                    </div>
+                    <div class="price-divider"></div>
+                    <div class="price-item">
+                        <span class="price-tag">BUY</span>
+                        <p class="price-value">₱25,000</p>
+                    </div>
+                </div>
+                <div class="dual-action-buttons">
+                    <button class="btn-rent" onclick="handleAction('rent', 'Manual Hospital Bed')">Rent Now</button>
+                    <button class="btn-buy" onclick="handleAction('buy', 'Manual Hospital Bed')">Purchase</button>
+                </div>
+            </div>
+
+            <div class="product-card" data-name="Manual Hospital Bed">
+                <div class="stock-badge">✓ IN STOCK</div>
+
+                <div class="product-image-box">
+                    <img src="" alt="" class="product-img-element">
+
+                    <div class="no-image-placeholder"></div>
+                </div>
+                <h3 class="product-name">Manual Hospital Bed</h3>
+
+                <div class="trust-badge"><span class="material-symbols-outlined" style="font-size:16px;">verified</span>
+                    Sanitized & Certified</div>
+
+                <ul class="product-specs">
+                    <li><span class="material-symbols-outlined">zoom_out_map</span> Size: 36" x 80" (Standard)</li>
+                    <li><span class="material-symbols-outlined">fitness_center</span> Max Capacity: 150kg</li>
+                    <li><span class="material-symbols-outlined">settings_suggest</span> Adjustable Head & Feet</li>
+                </ul>
+
+                <div class="dual-price-wrapper">
+                    <div class="price-item">
+                        <span class="price-tag">RENT</span>
+                        <p class="price-value">₱4,500<small>/mo</small></p>
+                    </div>
+                    <div class="price-divider"></div>
+                    <div class="price-item">
+                        <span class="price-tag">BUY</span>
+                        <p class="price-value">₱25,000</p>
+                    </div>
+                </div>
+                <div class="dual-action-buttons">
+                    <button class="btn-rent" onclick="handleAction('rent', 'Manual Hospital Bed')">Rent Now</button>
+                    <button class="btn-buy" onclick="handleAction('buy', 'Manual Hospital Bed')">Purchase</button>
+                </div>
+            </div>
+
+            <div class="product-card" data-name="Manual Hospital Bed">
+                <div class="stock-badge">✓ IN STOCK</div>
+
+                <div class="product-image-box">
+                    <img src="" alt="" class="product-img-element">
+
+                    <div class="no-image-placeholder"></div>
+                </div>
+                <h3 class="product-name">Manual Hospital Bed</h3>
+
+                <div class="trust-badge"><span class="material-symbols-outlined" style="font-size:16px;">verified</span>
+                    Sanitized & Certified</div>
+
+                <ul class="product-specs">
+                    <li><span class="material-symbols-outlined">zoom_out_map</span> Size: 36" x 80" (Standard)</li>
+                    <li><span class="material-symbols-outlined">fitness_center</span> Max Capacity: 150kg</li>
+                    <li><span class="material-symbols-outlined">settings_suggest</span> Adjustable Head & Feet</li>
+                </ul>
+
+                <div class="dual-price-wrapper">
+                    <div class="price-item">
+                        <span class="price-tag">RENT</span>
+                        <p class="price-value">₱4,500<small>/mo</small></p>
+                    </div>
+                    <div class="price-divider"></div>
+                    <div class="price-item">
+                        <span class="price-tag">BUY</span>
+                        <p class="price-value">₱25,000</p>
+                    </div>
+                </div>
+                <div class="dual-action-buttons">
+                    <button class="btn-rent" onclick="handleAction('rent', 'Manual Hospital Bed')">Rent Now</button>
+                    <button class="btn-buy" onclick="handleAction('buy', 'Manual Hospital Bed')">Purchase</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer id="footer">
+        <div class="footer-grid">
+            <div class="footer-col">
+                <div class="footer-logo">Care<span>Med</span></div>
+                <p>Providing the highest standard of medical equipment rentals and sales since 2010.</p>
+            </div>
+            <div class="footer-col">
+                <h4>Quick Links</h4>
+                <ul>
+                    <li>Terms of Service</li>
+                    <li>Rental Policy</li>
+                    <li>Privacy Policy</li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h4>Contact Us</h4>
+                <p><span class="material-symbols-outlined footer-icon-small">call</span> +63 912 345 6789</p>
+                <p><span class="material-symbols-outlined footer-icon-small">mail</span> support@caremed.com</p>
+                <p><span class="material-symbols-outlined footer-icon-small">location_on</span> Oñte de leon, Mandurrio,
+                    Iloilo City</p>
+            </div>
+        </div>
+        <div class="copyright">
+            &copy; 2026 CareMed Medical Systems. All Rights Reserved.
+        </div>
+    </footer>
+
+   <script nonce="{{ csp_nonce() }}">
+        // Check if the search input exists before adding listener to avoid console errors
+        const searchInput = document.getElementById('productSearch');
+        if (searchInput) {
+            searchInput.addEventListener('input', function (e) {
+                const term = e.target.value.toLowerCase();
+                const products = document.querySelectorAll('.product-card');
+                products.forEach(product => {
+                    const name = product.getAttribute('data-name').toLowerCase();
+                    product.style.display = name.includes(term) ? 'flex' : 'none';
+                });
+            });
+        }
+
+        function handleAction(action, product) {
+            console.log(action + " clicked for " + product);
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            // Dropdown toggle
+            const trigger = document.getElementById("profileTrigger");
+            const menu = document.getElementById("dropdownMenu");
+
+            if (trigger && menu) {
+                trigger.addEventListener("click", function (e) {
+                    e.stopPropagation();
+                    menu.classList.toggle("show");
+                });
+            }
+
+            // Close dropdown when clicking outside
+            window.addEventListener("click", function (event) {
+                if (!event.target.closest(".user-profile-widget")) {
+                    const dropdowns = document.getElementsByClassName("dropdown-menu");
+                    for (let i = 0; i < dropdowns.length; i++) {
+                        let openDropdown = dropdowns[i];
+                        if (openDropdown.classList.contains("show")) {
+                            openDropdown.classList.remove("show");
+                        }
+                    }
+                }
+            });
+
+            // About section IntersectionObserver
+            const aboutSection = document.querySelector('#about');
+            const aboutNavLink = document.querySelector('a[href="#about"]');
+
+            const observerOptions = {
+                root: null, // use the viewport
+                threshold: 0.6 // 60% of the section must be visible
+            };
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        aboutNavLink.classList.add('active-link');
+                    } else {
+                        aboutNavLink.classList.remove('active-link');
+                    }
+                });
+            }, observerOptions);
+
+            if (aboutSection) {
+                observer.observe(aboutSection);
+            }
+
+            // Show/hide elements based on auth state
+            if (document.body.classList.contains("logged-in")) {
+                document.querySelectorAll(".guest-only").forEach(el => el.style.display = "none");
+            } else {
+                document.querySelectorAll(".auth-only").forEach(el => el.style.display = "none");
+            }
+
+            // Profile image fallback
+            const profileImages = document.querySelectorAll('.user-photo-img');
+
+            profileImages.forEach(img => {
+                img.onerror = function() {
+                    const container = this.parentElement;
+                    container.innerHTML = '<span class="material-symbols-outlined icon-placeholder">account_circle</span>';
+                    const placeholder = container.querySelector('.icon-placeholder');
+                    if (container.classList.contains('profile-avatar-large')) {
+                        placeholder.style.fontSize = "100px";
+                    } else {
+                        placeholder.style.fontSize = "38px";
+                    }
+                };
+            });
+        });
+    </script>
+</body>
+
+</html>
