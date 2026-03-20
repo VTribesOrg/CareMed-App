@@ -1284,7 +1284,6 @@ html {
     border: 1px dashed #cbd5e0;
 }
 
-/* Styling for Guest-Specific UI */
 .guest-cta {
     text-decoration: none;
     display: flex;
@@ -1292,7 +1291,7 @@ html {
     justify-content: center;
     text-align: center;
     background: #f8fafc;
-    border: 2px dashed #38BDF8 !important; /* Dashed border indicates an account is required */
+    border: 2px dashed #38BDF8 !important; 
     color: #38BDF8 !important;
     transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -1303,8 +1302,7 @@ html {
     transform: scale(1.02);
 }
 
-/* Enhancing the Purchase Button for Guests */
-.btn-buy:has(+ .guest-cta), /* If buy is before guest cta */
+.btn-buy:has(+ .guest-cta),
 .btn-buy {
     display: flex;
     align-items: center;
@@ -1312,7 +1310,6 @@ html {
     gap: 8px;
 }
 
-/* Logged-in Button Enhancements */
 .btn-rent {
     display: flex;
     align-items: center;
@@ -1324,7 +1321,6 @@ html {
     font-size: 0.9rem;
 }
 
-/* Animation for the card buttons */
 .dual-action-buttons button, 
 .dual-action-buttons a {
     position: relative;
