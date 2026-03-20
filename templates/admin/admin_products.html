@@ -34,37 +34,37 @@
             <div class="sidebar-navigation">
                 <ul class="nav-menu">
                     <li class="nav-item">
-                        <a href="admin_dashboard.html" class="nav-link">
+                        <a href="{{ url_for('admin.admin_dashboard') }}" class="nav-link">
                             <span class="material-symbols-rounded">monitoring</span>
                             <span class="nav-label">Dashboard</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="admin_products.html" class="nav-link active">
+                        <a href="{{ url_for('admin.admin_products') }}" class="nav-link active">
                             <span class="material-symbols-rounded">inventory_2</span>
                             <span class="nav-label">Product & Inventory</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="admin_orders.html" class="nav-link">
+                        <a href="{{ url_for('admin.admin_orders') }}" class="nav-link">
                             <span class="material-symbols-rounded">shopping_cart</span>
                             <span class="nav-label">Order Management</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="admin_customers.html" class="nav-link">
+                        <a href="{{ url_for('admin.admin_customers') }}" class="nav-link">
                             <span class="material-symbols-rounded">people</span>
                             <span class="nav-label">Customer Management</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="admin_payments.html" class="nav-link">
+                        <a href="{{ url_for('admin.admin_payments') }}" class="nav-link">
                             <span class="material-symbols-rounded">payment</span>
                             <span class="nav-label">Payment Management</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="admin_reports.html" class="nav-link">
+                        <a href="{{ url_for('admin.admin_reports') }}" class="nav-link">
                             <span class="material-symbols-rounded">analytics</span>
                             <span class="nav-label">Reports & Analytics</span>
                         </a>
@@ -130,7 +130,7 @@
                     <div class="action-item">
                         <div class="clinical-user" id="profile-btn">
                             <div class="user-info">
-                                <span class="user-name">Arjun Deloterio</span>
+                                <span class="user-name">{{ current_user.first_name}} {{ current_user.last_name}}</span>
                                 <span class="user-role">Administrator</span>
                             </div>
                             <div class="user-avatar" id="avatar-wrapper">
@@ -147,7 +147,7 @@
                             <a href="#" class="dropdown-item">
                                 <span class="material-symbols-rounded">security</span>Activity Log
                             </a>
-                            <a href="logout.html" class="dropdown-item logout">
+                            <a href="{{ url_for('auth.logout') }}" class="dropdown-item logout">
                                 <span class="material-symbols-rounded">logout</span>Logout
                             </a>
                         </div>

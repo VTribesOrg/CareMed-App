@@ -2,7 +2,6 @@ import os
 from flask import Flask, request, redirect, url_for, flash
 from extensions import db, migrate, login_manager, oauth, mail, csrf, limiter
 from models.users import User
-from config import DevConfig, Config
 from flask_talisman import Talisman
 
 app = Flask(__name__)

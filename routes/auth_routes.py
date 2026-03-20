@@ -80,7 +80,7 @@ def login():
             login_user(user, remember=True)
             session.permanent = True
             
-            if user.role == "admin":
+            if user.role == "administrator":
                 return redirect(url_for("admin.admin_dashboard"))
 
             return redirect(url_for("user.homepage"))
@@ -90,7 +90,7 @@ def login():
             flash("Wrong email or password. Please try again.", "password-error")
             return redirect(url_for("auth.login"))
 
-    return render_template("login.html", form=form, email_value=email_value)
+    return render_template("authentication/login.html", form=form, email_value=email_value)
 
 @auth_bp.route("/register", methods=["GET", "POST"])
 def register():
@@ -175,7 +175,7 @@ def register():
             flash("Registration failed. Please try again.", "danger")
             return render_template("registration.html", form=form)
 
-    return render_template("registration.html", form=form)
+    return render_template("authentication/registration.html", form=form)
 
 @auth_bp.route("/verify-email/<token>")
 def verify_email(token):
@@ -263,7 +263,7 @@ def google_callback():
                 is_verified=True,
                 email_verified_at=datetime.utcnow(),
                 created_at=datetime.utcnow(),
-                role="user"
+                role="customer"
             )
 
         try:
@@ -277,7 +277,7 @@ def google_callback():
     login_user(user, remember=True)
     session.permanent = True
 
-    if user.role == "admin":
+    if user.role == "administrator":
         return redirect(url_for("admin.admin_dashboard"))
 
     return redirect(url_for("user.homepage"))
@@ -401,4 +401,4 @@ def reset_password(token):
             flash("A server error occurred. Please try again later.", "danger")
             return render_template("reset_password.html", token=token, form=form)
 
-    return render_template("reset_password.html", token=token, form=form)
+    return render_template("authentication/reset_password.html", token=token, form=form)

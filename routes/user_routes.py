@@ -13,8 +13,8 @@ def homepage():
         if current_user.role == 'admin':
             return redirect(url_for('admin.admin_dashboard'))
         
-        return render_template('homepage.html')
-    return render_template('homepage.html')
+        return render_template('user/homepage.html')
+    return render_template('user/homepage.html')
 
 @user_bp.route('/user_products')
 def user_products():
@@ -75,11 +75,7 @@ def user_profile():
             db.session.rollback()
             return jsonify(status="error", message="Failed to update profile.")
 
-    return render_template(
-        "user_profile.html",
-        profile_form=profile_form,
-        password_form=password_form
-    )
+    return render_template("user/user_profile.html", profile_form=profile_form, password_form=password_form)
 
 
 @user_bp.route('/change_password', methods=['POST'])

@@ -39,7 +39,7 @@ class User(UserMixin, db.Model):
     
     password_last_reset_at = db.Column(db.DateTime, nullable=True)
 
-    role = db.Column(db.String(20), default="user")
+    role = db.Column(db.String(20), default="customer")
 
     last_login_at = db.Column(db.DateTime)
 
