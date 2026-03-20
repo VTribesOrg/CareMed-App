@@ -62,6 +62,7 @@ def register_error_handlers(app):
 
 register_error_handlers(app)
 
+
 from routes.user_routes import user_bp
 app.register_blueprint(user_bp)
 

@@ -1,80 +1,80 @@
 from flask import Blueprint, render_template, url_for, redirect, flash
 from flask_login import current_user, logout_user
-from extensions import db
+from extensions import db, limiter
 from flask_login import login_required
 from functools import wraps
 
-admin_bp = Blueprint('admin', __name__)
+admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
 def administrator_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if current_user.role != 'administrator':
-            logout_user()
+        if current_user.role.strip() != 'Administrator':
             flash("Unauthorized access.", "error")
             return redirect(url_for('user.homepage'))
         return f(*args, **kwargs)
     return decorated_function
 
-@admin_bp.route('/admin_dashboard')
+@admin_bp.route('dashboard')
+@limiter.exempt
 @login_required
 @administrator_required
-def admin_dashboard():
+def dashboard():
     
-    return render_template("admin/admin_dashboard.html")
+    return render_template("admin/dashboard.html")
 
-@admin_bp.route('/admin_customers')
+@admin_bp.route('/customers')
+@limiter.exempt
 @login_required
 @administrator_required
-def admin_customers():
-    if current_user.role != 'administrator':
-        return redirect(url_for('user.homepage'))
-    
-    return render_template("admin/admin_customers.html")
+def customers():
 
-@admin_bp.route('/admin_products')
+    
+    return render_template("admin/customers.html")
+
+@admin_bp.route('/products')
+@limiter.exempt
 @login_required
 @administrator_required
-def admin_products():
-    if current_user.role != 'administrator':
-        return redirect(url_for('user.homepage'))
+def products():
+
     
-    return render_template("admin/admin_products.html")
+    return render_template("admin/products.html")
 
 
-@admin_bp.route('/admin_orders')
+@admin_bp.route('/orders')
+@limiter.exempt
 @login_required
 @administrator_required
-def admin_orders():
-    if current_user.role != 'administrator':
-        return redirect(url_for('user.homepage'))
+def orders():
+
     
-    return render_template("admin/admin_orders.html")
+    return render_template("admin/orders.html")
 
 
-@admin_bp.route('/admin_payments')
+@admin_bp.route('/payments')
+@limiter.exempt
 @login_required
 @administrator_required
-def admin_payments():
-    if current_user.role != 'administrator':
-        return redirect(url_for('user.homepage'))
-    
-    return render_template("admin/admin_payments.html")
+def payments():
 
-@admin_bp.route('/admin_profile')
+    
+    return render_template("admin/payments.html")
+
+@admin_bp.route('/profile')
+@limiter.exempt
 @login_required
 @administrator_required
-def admin_profile():
-    if current_user.role != 'administrator':
-        return redirect(url_for('user.homepage'))
-    
-    return render_template("admin/admin_profile.html")
+def profile():
 
-@admin_bp.route('/admin_reports')
+    
+    return render_template("admin/profile.html")
+
+@admin_bp.route('/reports')
+@limiter.exempt
 @login_required
 @administrator_required
-def admin_reports():
-    if current_user.role != 'administrator':
-        return redirect(url_for('user.homepage'))
+def reports():
+
     
-    return render_template("admin/admin_reports.html")
+    return render_template("admin/reports.html")

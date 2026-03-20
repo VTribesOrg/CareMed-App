@@ -26,145 +26,148 @@
 
     <input type="checkbox" id="nav-toggle" style="display: none;">
 
-    <div class="side-drawer">
-        <div class="drawer-header">
-            <a href="{{ url_for('user.homepage')}}" style="text-decoration: none;">
-                <div class="nav-logo">
-                    <img src="" alt="CareMed Logo" class="nav-logo-img"
-                        style="display: none; height: 30px; width: auto;">
-                    Care<span>Med</span>
-                </div>
-            </a>
-            <label for="nav-toggle" class="close-drawer">
-                <i class="fa-solid fa-xmark"></i>
-            </label>
-        </div>
-
-        <div class="drawer-links">
-            <div class="mobile-user-info auth-only">
-                <div class="user-avatar mobile-user-avatar" id="mobileAvatarContainer">
-                    {% if current_user.is_authenticated and current_user.profile_pic %}
-                        {% if current_user.profile_pic.startswith('http') %}
-                            <img src="{{ current_user.profile_pic }}" class="user-photo-img">
-                        {% else %}
-                            <img src="{{ url_for('static', filename=current_user.profile_pic) }}" class="user-photo-img">
-                        {% endif %}
-                    {% else %}
-                        <i class="fa-solid fa-circle-user icon-placeholder"></i>
-                    {% endif %}
-                </div>
-
-                <div class="user-details">
-                    <span class="user-name">
-                        {% if current_user.is_authenticated %}
-                            {{ current_user.first_name }} {{ current_user.last_name }}
-                        {% else %}
-                            Welcome, Guest
-                        {% endif %}
-                    </span>
-                    {% if not current_user.is_authenticated %}
-                        <span class="user-role">Sign in to manage rentals</span>
-                    {% endif %}
-                </div>
+        <div class="side-drawer">
+            <div class="drawer-header">
+                <a href="{{ url_for('user.homepage')}}" style="text-decoration: none;">
+                    <div class="nav-logo">
+                        <img src="" alt="CareMed Logo" class="nav-logo-img"
+                            style="display: none; height: 30px; width: auto;">
+                        Care<span>Med</span>
+                    </div>
+                </a>
+                <label for="nav-toggle" class="close-drawer">
+                    <i class="fa-solid fa-xmark"></i>
+                </label>
             </div>
 
-            <div class="mobile-user-info guest-only">
-                <div class="user-avatar mobile-user-avatar" id="mobileAvatarContainer">
-                    <i class="fa-solid fa-circle-user icon-placeholder"></i>
-                </div>
-                <div class="user-details">
-                    <span class="user-name">Welcome, Guest</span>
-                    <span class="user-role">Sign in to manage rentals</span>
-                </div>
-            </div>
-
-            <a href="{{ url_for('user.user_products')}}"><i class="fa-solid fa-bag-shopping"></i> Shop Equipment</a>
-
-            <a href="{{ url_for('user.user_profile')}}" class="auth-only active"><i class="fa-solid fa-user"></i> My Profile</a>
-            <a href="orders.html" class="auth-only"><i class="fa-solid fa-clock-rotate-left"></i> My Rentals</a>
-
-            <hr class="auth-only" style="border: none; border-top: 1px solid #eee; margin: 10px 0;">
-
-            {% if current_user.is_authenticated %}
-                <a href="{{ url_for('auth.logout') }}" class="logout-link-mobile">
-                    <i class="fa-solid fa-right-from-bracket"></i> Sign Out
-                </a>
-            {% else %}
-                <a href="{{ url_for('auth.login') }}" class="login-link-mobile guest-only">
-                    <i class="fa-solid fa-right-to-bracket"></i> Sign In / Register
-                </a>
-            {% endif %}
-        </div>
-    </div>
-
-    <label for="nav-toggle" class="drawer-overlay"></label>
-
-    <nav>
-        <a href="{{ url_for('user.homepage')}}" style="text-decoration: none;">
-            <div class="nav-logo">Care<span>Med</span></div>
-        </a>
-
-        <div class="nav-links">
-            <a href="{{ url_for('user.user_products')}}" class="nav-shop-link">
-                <i class="fa-solid fa-bag-shopping"></i> Shop Equipment
-            </a>
-            <a href="#about" class="nav-account-btn">About Us</a>
-
-            <a href="{{ url_for('auth.login')}}" class="nav-account-btn guest-only">
-                <i class="fa-solid fa-right-to-bracket"></i> Sign In / Register
-            </a>
-            <a href="product_gallery.html" class="nav-cta-btn guest-only">Rent Now</a>
-
-            <div class="user-profile-widget auth-only" id="profileDropdown">
-                <div class="profile-trigger" id="profileTrigger">
-                    <div class="user-avatar" id="navAvatarContainer">
-                        {% if current_user.is_authenticated and current_user.profile_pic %}
-                            {% if current_user.profile_pic.startswith('http') %}
-                                <img src="{{ current_user.profile_pic }}" class="user-photo-img">
-                            {% else %}
-                                <img src="{{ url_for('static', filename=current_user.profile_pic) }}" class="user-photo-img">
-                            {% endif %}
+            <div class="drawer-links">
+                <div class="mobile-user-info auth-only">
+                    <div class="user-avatar mobile-user-avatar" id="mobileAvatarContainer">
+                        {% if current_user.is_authenticated and current_user.profile_path %}
+                            <img src="{{ url_for('static', filename=current_user.profile_path) }}" class="user-photo-img">
                         {% else %}
                             <i class="fa-solid fa-circle-user icon-placeholder"></i>
                         {% endif %}
                     </div>
-                    <div class="user-info">
+
+                    <div class="user-details">
                         <span class="user-name">
                             {% if current_user.is_authenticated %}
-                                Hello, {{ current_user.first_name }}
+                                {{ current_user.first_name }} {{ current_user.last_name }}
                             {% else %}
-                                Guest
+                                Welcome, Guest
                             {% endif %}
                         </span>
+                        {% if not current_user.is_authenticated %}
+                            <span class="user-role">Sign in to manage rentals</span>
+                        {% endif %}
                     </div>
-                    <i class="fa-solid fa-chevron-down"></i>
                 </div>
 
-                <div class="dropdown-menu" id="dropdownMenu">
-                    {% if current_user.is_authenticated %}
-                        <a href="{{ url_for('user.user_profile')}}">
-                            <i class="fa-solid fa-user"></i> My Profile
-                        </a>
-                        <a href="orders.html">
-                            <i class="fa-solid fa-clock-rotate-left"></i> My Rentals
-                        </a>
-                        <hr>
-                        <a href="{{ url_for('auth.logout') }}" class="logout-item">
-                            <i class="fa-solid fa-right-from-bracket"></i> Sign Out
-                        </a>
-                    {% else %}
-                        <a href="{{ url_for('auth.login') }}">
-                            <i class="fa-solid fa-right-to-bracket"></i> Sign In / Register
-                        </a>
-                    {% endif %}
+                <div class="mobile-user-info guest-only">
+                    <div class="user-avatar mobile-user-avatar">
+                        <i class="fa-solid fa-circle-user icon-placeholder"></i>
+                    </div>
+                    <div class="user-details">
+                        <span class="user-name">Welcome, Guest</span>
+                        <span class="user-role">Sign in to manage rentals</span>
+                    </div>
                 </div>
+
+                <a href="{{ url_for('user.products')}}">
+                    <i class="fa-solid fa-bag-shopping"></i> Shop Equipment
+                </a>
+
+                <a href="{{ url_for('user.profile')}}" class="auth-only active">
+                    <i class="fa-solid fa-user"></i> My Profile
+                </a>
+
+                <a href="#" class="auth-only">
+                    <i class="fa-solid fa-clock-rotate-left"></i> My Rentals
+                </a>
+
+                <hr class="auth-only" style="border: none; border-top: 1px solid #eee; margin: 10px 0;">
+
+                {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('auth.logout') }}" class="logout-link-mobile">
+                        <i class="fa-solid fa-right-from-bracket"></i> Sign Out
+                    </a>
+                {% else %}
+                    <a href="{{ url_for('auth.login') }}" class="login-link-mobile guest-only">
+                        <i class="fa-solid fa-right-to-bracket"></i> Sign In / Register
+                    </a>
+                {% endif %}
             </div>
         </div>
 
-        <label for="nav-toggle" class="hamburger-icon">
-            <i class="fa-solid fa-bars"></i>
-        </label>
-    </nav>
+        <label for="nav-toggle" class="drawer-overlay"></label>
+
+        <nav>
+            <a href="{{ url_for('user.homepage')}}" style="text-decoration: none;">
+                <div class="nav-logo">Care<span>Med</span></div>
+            </a>
+
+            <div class="nav-links">
+                <a href="{{ url_for('user.products')}}" class="nav-shop-link">
+                    <i class="fa-solid fa-bag-shopping"></i> Shop Equipment
+                </a>
+
+                <a href="#about" class="nav-account-btn">About Us</a>
+
+                <a href="{{ url_for('auth.login')}}" class="nav-account-btn guest-only">
+                    <i class="fa-solid fa-right-to-bracket"></i> Sign In / Register
+                </a>
+
+                <a href="#" class="nav-cta-btn guest-only">Rent Now</a>
+
+                <div class="user-profile-widget auth-only" id="profileDropdown">
+                    <div class="profile-trigger" id="profileTrigger">
+                        <div class="user-avatar" id="navAvatarContainer">
+                            {% if current_user.is_authenticated and current_user.profile_path %}
+                                <img src="{{ url_for('static', filename=current_user.profile_path) }}" class="user-photo-img">
+                            {% else %}
+                                <i class="fa-solid fa-circle-user icon-placeholder"></i>
+                            {% endif %}
+                        </div>
+
+                        <div class="user-info">
+                            <span class="user-name">
+                                {% if current_user.is_authenticated %}
+                                    Hello, {{ current_user.first_name }}
+                                {% else %}
+                                    Guest
+                                {% endif %}
+                            </span>
+                        </div>
+
+                        <i class="fa-solid fa-chevron-down"></i>
+                    </div>
+
+                    <div class="dropdown-menu" id="dropdownMenu">
+                        {% if current_user.is_authenticated %}
+                            <a href="{{ url_for('user.profile')}}">
+                                <i class="fa-solid fa-user"></i> My Profile
+                            </a>
+                            <a href="#">
+                                <i class="fa-solid fa-clock-rotate-left"></i> My Rentals
+                            </a>
+                            <hr>
+                            <a href="{{ url_for('auth.logout') }}" class="logout-item">
+                                <i class="fa-solid fa-right-from-bracket"></i> Sign Out
+                            </a>
+                        {% else %}
+                            <a href="{{ url_for('auth.login') }}">
+                                <i class="fa-solid fa-right-to-bracket"></i> Sign In / Register
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <label for="nav-toggle" class="hamburger-icon">
+                <i class="fa-solid fa-bars"></i>
+            </label>
+        </nav>
 
     <section class="main-hero">
         <div class="hero-content">

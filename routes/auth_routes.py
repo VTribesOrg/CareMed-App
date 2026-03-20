@@ -80,8 +80,8 @@ def login():
             login_user(user, remember=True)
             session.permanent = True
             
-            if user.role == "administrator":
-                return redirect(url_for("admin.admin_dashboard"))
+            if user.role == "Administrator":
+                return redirect(url_for("admin.dashboard"))
 
             return redirect(url_for("user.homepage"))
 
@@ -211,12 +211,12 @@ def google_login():
     state = secrets.token_urlsafe(16)
     session["nonce"] = nonce
     session["oauth_state"] = state
-    redirect_uri = url_for("auth.google_callback", _external=True)
+    redirect_uri = url_for("auth.callback", _external=True)
 
     return google.authorize_redirect(redirect_uri, nonce=nonce, state=state)
 
-@auth_bp.route("/google-callback")
-def google_callback():
+@auth_bp.route("/callback")
+def callback():
 
     state = request.args.get("state")
     if not state or state != session.pop("oauth_state", None):
@@ -232,7 +232,7 @@ def google_callback():
 
     email = user_info["email"].lower()
     google_id = user_info["sub"]
-    profile_pic = user_info.get("picture")
+
 
     if not email.endswith("@gmail.com"):
         flash("Only Gmail accounts are allowed")
@@ -249,7 +249,6 @@ def google_callback():
 
         if user:
             user.google_id = google_id
-            user.profile_pic = profile_pic
             user.is_verified = True
             user.email_verified_at = datetime.utcnow()
 
@@ -259,7 +258,6 @@ def google_callback():
                 first_name=user_info.get("given_name"),
                 last_name=user_info.get("family_name"),
                 google_id=google_id,
-                profile_pic=profile_pic,
                 is_verified=True,
                 email_verified_at=datetime.utcnow(),
                 created_at=datetime.utcnow(),
@@ -277,8 +275,8 @@ def google_callback():
     login_user(user, remember=True)
     session.permanent = True
 
-    if user.role == "administrator":
-        return redirect(url_for("admin.admin_dashboard"))
+    if user.role == "Administrator":
+        return redirect(url_for("admin.dashboard"))
 
     return redirect(url_for("user.homepage"))
 

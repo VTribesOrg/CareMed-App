@@ -5,7 +5,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=0.9" />
     <title>CareMed | Equipment Inventory</title>
-    <link rel="stylesheet" href="static/css/admin_product.css" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_product.css') }}">
     <link rel="stylesheet"
         href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap">
     <link rel="stylesheet"
@@ -16,8 +16,8 @@
     </style>
 </head>
 
-<body>
-    <input type="checkbox" id="sidebar-state" checked hidden>
+<body class="no-transition">
+    <input type="checkbox" id="sidebar-state" hidden>
 
     <div class="main-wrapper">
 
@@ -34,37 +34,37 @@
             <div class="sidebar-navigation">
                 <ul class="nav-menu">
                     <li class="nav-item">
-                        <a href="{{ url_for('admin.admin_dashboard') }}" class="nav-link">
+                        <a href="{{ url_for('admin.dashboard') }}" class="nav-link">
                             <span class="material-symbols-rounded">monitoring</span>
                             <span class="nav-label">Dashboard</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{{ url_for('admin.admin_products') }}" class="nav-link active">
+                        <a href="{{ url_for('admin.products') }}" class="nav-link active">
                             <span class="material-symbols-rounded">inventory_2</span>
                             <span class="nav-label">Product & Inventory</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{{ url_for('admin.admin_orders') }}" class="nav-link">
+                        <a href="{{ url_for('admin.orders') }}" class="nav-link">
                             <span class="material-symbols-rounded">shopping_cart</span>
                             <span class="nav-label">Order Management</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{{ url_for('admin.admin_customers') }}" class="nav-link">
+                        <a href="{{ url_for('admin.customers') }}" class="nav-link">
                             <span class="material-symbols-rounded">people</span>
                             <span class="nav-label">Customer Management</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{{ url_for('admin.admin_payments') }}" class="nav-link">
+                        <a href="{{ url_for('admin.payments') }}" class="nav-link">
                             <span class="material-symbols-rounded">payment</span>
                             <span class="nav-label">Payment Management</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{{ url_for('admin.admin_reports') }}" class="nav-link">
+                        <a href="{{ url_for('admin.reports') }}" class="nav-link">
                             <span class="material-symbols-rounded">analytics</span>
                             <span class="nav-label">Reports & Analytics</span>
                         </a>
@@ -131,7 +131,7 @@
                         <div class="clinical-user" id="profile-btn">
                             <div class="user-info">
                                 <span class="user-name">{{ current_user.first_name}} {{ current_user.last_name}}</span>
-                                <span class="user-role">Administrator</span>
+                                <span class="user-role">{{ current_user.role }}</span>
                             </div>
                             <div class="user-avatar" id="avatar-wrapper">
                                 <span class="material-symbols-rounded" id="avatar-icon">person</span>
@@ -157,10 +157,9 @@
 
             <main class="content-area">
                 <div class="asset-registry-card">
-                    <!-- <h2 class="registry-title">Equipment Catalog</h2> -->
 
                     <div class="registry-controls">
-                        <button class="register-asset-btn" onclick="openAssetModal()">
+                        <button class="register-asset-btn" id="add-equipment-btn">
                             <span class="material-symbols-rounded">add_circle</span>
                             <span>Add Equipment</span>
                         </button>
@@ -189,7 +188,7 @@
                     </div>
 
                     <section class="table-scroll-container">
-                        <table class="medical-data-table">
+                        <table class="medical-data-table" id="inventory-table">
                             <thead>
                                 <tr>
                                     <th>Preview</th>
@@ -207,8 +206,7 @@
                                 <tr>
                                     <td>
                                         <div class="table-image-container">
-                                            <img src="static/image/oxygen tank.png" alt="Equipment"
-                                                class="table-equipment-img">
+                                            <img src="static/image/oxygen tank.png" alt="Equipment" class="table-equipment-img">
                                         </div>
                                     </td>
                                     <td>OX-CON-7721</td>
@@ -219,12 +217,10 @@
                                     <td>₱25,000</td>
                                     <td>₱4,500</td>
                                     <td class="col-actions">
-                                        <button class="asset-action-btn edit" onclick="openEditModal(this)"
-                                            title="Edit Asset">
+                                        <button class="asset-action-btn edit" title="Edit Asset">
                                             <span class="material-symbols-rounded">edit</span>
                                         </button>
-                                        <button class="asset-action-btn logs" onclick="openHistoryModal(this)"
-                                            title="View Logs">
+                                        <button class="asset-action-btn logs" title="View Logs">
                                             <span class="material-symbols-rounded">history</span>
                                         </button>
                                         <button class="asset-action-btn delete" title="Delete Asset">
@@ -235,6 +231,7 @@
                             </tbody>
                         </table>
                     </section>
+
                 </div>
             </main>
         </div>
@@ -244,30 +241,27 @@
         <div class="medical-modal-content">
             <div class="modal-header-row">
                 <h2 class="modal-header">Add New Inventory</h2>
-                <span class="material-symbols-rounded modal-close" onclick="closeAssetModal()">close</span>
+                <span class="material-symbols-rounded modal-close close-reg-modal">close</span>
             </div>
 
             <form id="assetEntryForm">
                 <div class="form-layout-grid">
                     <div class="form-field full-width">
                         <label>Product Image</label>
-                        <div class="upload-container" id="product-dropzone"
-                            onclick="document.getElementById('product-image-input').click()">
+                        <div class="upload-container" id="product-dropzone">
 
                             <span class="material-symbols-rounded upload-icon">inventory_2</span>
                             <p><strong>Click to upload</strong> or drag and drop</p>
                             <p style="font-size: 0.75rem;">High-quality PNG or JPG preferred</p>
 
-                            <input type="file" id="product-image-input" hidden accept="image/*"
-                                onchange="updateUploadUI('product-dropzone', 'product-preview-text', 'product-file-name', this.files)">
+                            <input type="file" id="product-image-input" hidden accept="image/*">
 
                             <div id="product-preview-text" class="preview-active-box" style="display: none;">
                                 <div class="preview-info">
                                     <span class="material-symbols-rounded success-icon">check_circle</span>
                                     <span id="product-file-name" class="file-name-text">Image Selected</span>
                                 </div>
-                                <span class="material-symbols-rounded btn-file-reset"
-                                    onclick="resetUpload(event, 'product-image-input', 'product-dropzone', 'product-preview-text')">cancel</span>
+                                <span class="material-symbols-rounded btn-file-reset" id="reset-product-upload">cancel</span>
                             </div>
                         </div>
                     </div>
@@ -309,7 +303,7 @@
                 </div>
 
                 <div class="modal-footer-actions">
-                    <button type="button" class="btn-medical-outline" onclick="closeAssetModal()">Cancel</button>
+                    <button type="button" class="btn-medical-outline close-reg-modal">Cancel</button>
                     <button type="submit" class="btn-medical-primary">Save to Registry</button>
                 </div>
             </form>
@@ -320,35 +314,30 @@
         <div class="medical-modal-content">
             <div class="modal-header-row">
                 <h2 class="modal-header">Edit Equipment Details</h2>
-                <span class="material-symbols-rounded modal-close" onclick="closeEditModal()">close</span>
+                <span class="material-symbols-rounded modal-close close-edit-modal">close</span>
             </div>
 
             <form id="editAssetForm">
                 <div class="form-layout-grid">
                     <div class="form-field full-width">
                         <label>Update Product Image</label>
-                        <div class="upload-container" id="product-dropzone"
-                            onclick="document.getElementById('product-image-input').click()">
+                        <div class="upload-container" id="edit-product-dropzone">
 
                             <span class="material-symbols-rounded upload-icon">inventory_2</span>
                             <p><strong>Click to upload</strong> or drag and drop</p>
                             <p style="font-size: 0.75rem;">High-quality PNG or JPG preferred</p>
 
-                            <input type="file" id="product-image-input" hidden accept="image/*"
-                                onchange="updateUploadUI('product-dropzone', 'product-preview-text', 'product-file-name', this.files)">
+                            <input type="file" id="edit-product-image-input" hidden accept="image/*">
 
-                            <div id="product-preview-text" class="preview-active-box" style="display: none;">
+                            <div id="edit-product-preview-text" class="preview-active-box" style="display: none;">
                                 <div class="preview-info">
                                     <span class="material-symbols-rounded success-icon">check_circle</span>
-                                    <span id="product-file-name" class="file-name-text">Image Selected</span>
+                                    <span id="edit-product-file-name" class="file-name-text">Image Selected</span>
                                 </div>
-                                <span class="material-symbols-rounded btn-file-reset"
-                                    onclick="resetUpload(event, 'product-image-input', 'product-dropzone', 'product-preview-text')">cancel</span>
+                                <span class="material-symbols-rounded btn-file-reset" id="reset-edit-upload">cancel</span>
                             </div>
                         </div>
                     </div>
-
-
 
                     <div class="form-field">
                         <label>Equipment Type</label>
@@ -390,9 +379,8 @@
                 </div>
 
                 <div class="modal-footer-actions">
-                    <button type="button" class="btn-medical-outline" onclick="closeEditModal()">Cancel</button>
-                    <button type="submit" class="btn-medical-primary" style="background-color: #00a8cc;">Update
-                        Asset</button>
+                    <button type="button" class="btn-medical-outline close-edit-modal">Cancel</button>
+                    <button type="submit" class="btn-medical-primary" style="background-color: #00a8cc;">Update Asset</button>
                 </div>
             </form>
         </div>
@@ -405,7 +393,7 @@
                     <h2 class="modal-header">Equipment History</h2>
                     <p id="history-asset-id" style="font-size: 0.85rem; color: #64748b; font-weight: 600;"></p>
                 </div>
-                <span class="material-symbols-rounded modal-close" onclick="closeHistoryModal()">close</span>
+                <span class="material-symbols-rounded modal-close close-history-modal">close</span>
             </div>
 
             <div class="history-timeline-container">
@@ -446,8 +434,8 @@
             </div>
 
             <div class="modal-footer-actions">
-                <button type="button" class="btn-medical-outline" onclick="closeHistoryModal()">Close History</button>
-                <button type="button" class="btn-medical-primary" onclick="window.print()"
+                <button type="button" class="btn-medical-outline close-history-modal">Close History</button>
+                <button type="button" id="btn-print-history" class="btn-medical-primary"
                     style="display: flex; align-items: center; gap: 8px;">
                     <span class="material-symbols-rounded" style="font-size: 18px;">print</span> Export Log
                 </button>
@@ -456,183 +444,254 @@
     </div>
 
     <script nonce="{{ csp_nonce() }}">
+        document.addEventListener('DOMContentLoaded', () => {
+            // 1. Core Element Selectors
+            const profileBtn = document.getElementById('profile-btn');
+            const profileDropdown = document.getElementById('profile-dropdown');
+            const notifBtn = document.getElementById('notif-btn');
+            const notifDropdown = document.getElementById('notif-dropdown');
+            const settingsBtn = document.getElementById('settings-toggle-btn');
+            const settingsPopup = document.getElementById('settings-menu-popup');
+            const checkbox = document.getElementById('sidebar-state');
+            
+            const regModal = document.getElementById('registerAssetModal');
+            const editModal = document.getElementById('editAssetModal');
+            const histModal = document.getElementById('assetHistoryModal');
+            
+            const addEquipmentBtn = document.getElementById('add-equipment-btn');
 
-        const profileBtn = document.getElementById('profile-btn');
-        const profileDropdown = document.getElementById('profile-dropdown');
-        const notifBtn = document.getElementById('notif-btn');
-        const notifDropdown = document.getElementById('notif-dropdown');
-        const settingsBtn = document.getElementById('settings-toggle-btn');
-        const settingsPopup = document.getElementById('settings-menu-popup');
-
-        function toggleDropdown(dropdown) {
-            document.querySelectorAll('.header-dropdown').forEach(d => {
-                if (d !== dropdown) d.classList.remove('active');
-            });
-            dropdown.classList.toggle('active');
-        }
-
-        profileBtn?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            toggleDropdown(profileDropdown);
-        });
-
-        notifBtn?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            toggleDropdown(notifDropdown);
-        });
-
-        settingsBtn?.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            settingsPopup.classList.toggle('hidden');
-        });
-
-        window.addEventListener('click', (e) => {
-            if (!profileBtn.contains(e.target)) profileDropdown.classList.remove('active');
-            if (!notifBtn.contains(e.target)) notifDropdown.classList.remove('active');
-
-            if (!settingsPopup.contains(e.target) && e.target !== settingsBtn) {
-                settingsPopup.classList.add('hidden');
-            }
-        });
-        function openAssetModal() {
-            document.getElementById('registerAssetModal').classList.remove('hidden');
-        }
-
-        function closeAssetModal() {
-            document.getElementById('registerAssetModal').classList.add('hidden');
-        }
-
-        const settingsBtn = document.getElementById('settings-toggle-btn');
-        const settingsPopup = document.getElementById('settings-menu-popup');
-
-        settingsBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            settingsPopup.classList.toggle('hidden');
-        });
-
-        window.onclick = function (event) {
-            const modal = document.getElementById('registerAssetModal');
-
-            if (event.target === modal) {
-                closeAssetModal();
+            // 2. Sidebar Initialization
+            const sidebarState = localStorage.getItem('sidebar-collapsed');
+            if (checkbox) {
+                checkbox.checked = sidebarState !== 'true';
+                checkbox.addEventListener('change', function() {
+                    localStorage.setItem('sidebar-collapsed', !this.checked);
+                });
             }
 
-            if (!settingsPopup.contains(event.target) && event.target !== settingsBtn) {
-                settingsPopup.classList.add('hidden');
+            // 3. Dropdown & Navigation Handlers
+            function toggleDropdown(dropdown) {
+                document.querySelectorAll('.header-dropdown').forEach(d => {
+                    if (d !== dropdown) d.classList.remove('active');
+                });
+                dropdown?.classList.toggle('active');
             }
-        }
 
-
-        function openEditModal(button) {
-            const modal = document.getElementById('editAssetModal');
-
-            const row = button.closest('tr');
-
-            const assetTag = row.cells[1].innerText;
-            const type = row.cells[2].innerText;
-            const model = row.cells[3].innerText;
-            const stock = row.cells[4].innerText.replace(' Units', '');
-            const price = row.cells[6].innerText.replace('₱', '').replace(',', '');
-            const rent = row.cells[7].innerText.replace('₱', '').replace(',', '');
-
-            document.getElementById('edit-tag').value = assetTag;
-            document.getElementById('edit-type').value = type;
-            document.getElementById('edit-model').value = model;
-            document.getElementById('edit-stock').value = stock;
-            document.getElementById('edit-price').value = price;
-            document.getElementById('edit-rent').value = rent;
-
-            modal.classList.remove('hidden');
-        }
-
-        function closeEditModal() {
-            document.getElementById('editAssetModal').classList.add('hidden');
-        }
-
-        function openHistoryModal(button) {
-            const modal = document.getElementById('assetHistoryModal');
-            const row = button.closest('tr');
-
-            const assetTag = row.cells[1].innerText;
-            const equipmentName = row.cells[2].innerText;
-
-            document.getElementById('history-asset-id').innerText = `${equipmentName} • ID: ${assetTag}`;
-
-            modal.classList.remove('hidden');
-        }
-
-        function closeHistoryModal() {
-            document.getElementById('assetHistoryModal').classList.add('hidden');
-        }
-
-
-        function handleProductUpload(input) {
-            const previewContainer = document.getElementById('product-preview-text');
-            const fileNameDisplay = document.getElementById('product-file-name');
-
-            if (input.files && input.files[0]) {
-                previewContainer.style.display = 'block';
-                fileNameDisplay.innerText = input.files[0].name;
-
-                input.parentElement.style.borderColor = '#10b981';
-            }
-        }
-
-        // --- REUSABLE RESET LOGIC ---
-        function resetUpload(event, inputId, dropzoneId, previewId) {
-            // Stop the click from triggering the dropzone's onclick (opening the file browser)
-            event.stopPropagation();
-
-            const input = document.getElementById(inputId);
-            const dropzone = document.getElementById(dropzoneId);
-            const preview = document.getElementById(previewId);
-
-            input.value = ""; // Clear the file input
-            preview.style.display = 'none'; // Hide preview
-            dropzone.style.borderColor = '#cbd5e1'; // Reset border color
-            dropzone.style.background = '#f8fafc'; // Reset background
-        }
-
-        // --- UPDATED UI LOGIC ---
-        function updateUploadUI(dropzoneId, previewId, nameId, files) {
-            if (files && files[0]) {
-                document.getElementById(previewId).style.display = 'flex'; // Use flex for alignment
-                document.getElementById(nameId).innerText = files[0].name;
-                document.getElementById(dropzoneId).style.borderColor = '#10b981';
-                document.getElementById(dropzoneId).style.background = '#f0fdf4'; // Light green tint
-            }
-        }
-
-        // --- REUSABLE DRAG & DROP INITIALIZER ---
-        function initDragAndDrop(dropzoneId, inputId, previewId, nameId) {
-            const dropzone = document.getElementById(dropzoneId);
-            const input = document.getElementById(inputId);
-
-            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(name => {
-                dropzone.addEventListener(name, e => { e.preventDefault(); e.stopPropagation(); });
+            profileBtn?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleDropdown(profileDropdown);
             });
 
-            ['dragenter', 'dragover'].forEach(name => {
-                dropzone.addEventListener(name, () => dropzone.classList.add('upload-hover'));
+            notifBtn?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleDropdown(notifDropdown);
             });
 
-            ['dragleave', 'drop'].forEach(name => {
-                dropzone.addEventListener(name, () => dropzone.classList.remove('upload-hover'));
+            settingsBtn?.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                settingsPopup?.classList.toggle('hidden');
             });
 
-            dropzone.addEventListener('drop', e => {
-                const files = e.dataTransfer.files;
-                if (files.length > 0) {
-                    input.files = files;
-                    updateUploadUI(dropzoneId, previewId, nameId, files);
+            window.addEventListener('click', (e) => {
+                if (profileBtn && !profileBtn.contains(e.target)) profileDropdown?.classList.remove('active');
+                if (notifBtn && !notifBtn.contains(e.target)) notifDropdown?.classList.remove('active');
+                if (settingsPopup && !settingsPopup.contains(e.target) && e.target !== settingsBtn) {
+                    settingsPopup.classList.add('hidden');
                 }
+                
+                if (e.target === regModal) window.closeAssetModal();
+                if (e.target === editModal) window.closeEditModal();
+                if (e.target === histModal) window.closeHistoryModal();
             });
-        }
 
-        initDragAndDrop('product-dropzone', 'product-image-input', 'product-preview-text', 'product-file-name');
+            // 4. Modal Handlers (Attached to window for HTML accessibility)
+            window.openAssetModal = function() {
+                regModal?.classList.remove('hidden');
+            };
 
+            window.closeAssetModal = function() {
+                regModal?.classList.add('hidden');
+            };
+
+            window.openEditModal = function(button) {
+                const row = button.closest('tr');
+                if (!row) return;
+
+                const assetTag = row.cells[1].innerText;
+                const type = row.cells[2].innerText;
+                const model = row.cells[3].innerText;
+                const stock = row.cells[4].innerText.replace(' Units', '');
+                const price = row.cells[6].innerText.replace('₱', '').replace(',', '');
+                const rent = row.cells[7].innerText.replace('₱', '').replace(',', '');
+
+                document.getElementById('edit-tag').value = assetTag;
+                document.getElementById('edit-type').value = type;
+                document.getElementById('edit-model').value = model;
+                document.getElementById('edit-stock').value = stock;
+                document.getElementById('edit-price').value = price;
+                document.getElementById('edit-rent').value = rent;
+
+                editModal?.classList.remove('hidden');
+            };
+
+            window.closeEditModal = function() {
+                editModal?.classList.add('hidden');
+            };
+
+            window.openHistoryModal = function(button) {
+                const row = button.closest('tr');
+                if (!row) return;
+
+                const assetTag = row.cells[1].innerText;
+                const equipmentName = row.cells[2].innerText;
+
+                document.getElementById('history-asset-id').innerText = `${equipmentName} • ID: ${assetTag}`;
+                histModal?.classList.remove('hidden');
+            };
+
+            window.closeHistoryModal = function() {
+                histModal?.classList.add('hidden');
+            };
+
+            // --- NEW EVENT LISTENERS FOR CSP COMPLIANCE ---
+
+            // Bind Close Buttons for All Modals
+            document.querySelectorAll('.close-reg-modal').forEach(btn => btn.addEventListener('click', window.closeAssetModal));
+            document.querySelectorAll('.close-edit-modal').forEach(btn => btn.addEventListener('click', window.closeEditModal));
+            document.querySelectorAll('.close-history-modal').forEach(btn => btn.addEventListener('click', window.closeHistoryModal));
+
+            // Bind Add Equipment Button
+            addEquipmentBtn?.addEventListener('click', window.openAssetModal);
+
+            // Bind Print Button
+            document.getElementById('btn-print-history')?.addEventListener('click', () => window.print());
+
+            // Bind File Input Triggers (Clicking the dropzone opens the file browser)
+            document.getElementById('product-dropzone')?.addEventListener('click', (e) => {
+                if (!e.target.closest('.btn-file-reset')) document.getElementById('product-image-input').click();
+            });
+            document.getElementById('edit-product-dropzone')?.addEventListener('click', (e) => {
+                if (!e.target.closest('.btn-file-reset')) document.getElementById('edit-product-image-input').click();
+            });
+
+            // Bind File Change Events
+            document.getElementById('product-image-input')?.addEventListener('change', function() {
+                window.updateUploadUI('product-dropzone', 'product-preview-text', 'product-file-name', this.files);
+            });
+            document.getElementById('edit-product-image-input')?.addEventListener('change', function() {
+                window.updateUploadUI('edit-product-dropzone', 'edit-product-preview-text', 'edit-product-file-name', this.files);
+            });
+
+            // Bind Reset Buttons
+            document.getElementById('reset-product-upload')?.addEventListener('click', (e) => {
+                window.resetUpload(e, 'product-image-input', 'product-dropzone', 'product-preview-text');
+            });
+            document.getElementById('reset-edit-upload')?.addEventListener('click', (e) => {
+                window.resetUpload(e, 'edit-product-image-input', 'edit-product-dropzone', 'edit-product-preview-text');
+            });
+
+            // 5. Image Upload & Drag/Drop Logic
+            window.handleProductUpload = function(input) {
+                const previewContainer = document.getElementById('product-preview-text');
+                const fileNameDisplay = document.getElementById('product-file-name');
+
+                if (input.files && input.files[0]) {
+                    if (previewContainer) previewContainer.style.display = 'block';
+                    if (fileNameDisplay) fileNameDisplay.innerText = input.files[0].name;
+                    input.parentElement.style.borderColor = '#10b981';
+                }
+            };
+
+            window.resetUpload = function(event, inputId, dropzoneId, previewId) {
+                event.stopPropagation();
+                const input = document.getElementById(inputId);
+                const dropzone = document.getElementById(dropzoneId);
+                const preview = document.getElementById(previewId);
+
+                if (input) input.value = "";
+                if (preview) preview.style.display = 'none';
+                if (dropzone) {
+                    dropzone.style.borderColor = '#cbd5e1';
+                    dropzone.style.background = '#f8fafc';
+                }
+            };
+
+            window.updateUploadUI = function(dropzoneId, previewId, nameId, files) {
+                const preview = document.getElementById(previewId);
+                const nameDisp = document.getElementById(nameId);
+                const dropzone = document.getElementById(dropzoneId);
+
+                if (files && files[0]) {
+                    if (preview) preview.style.display = 'flex';
+                    if (nameDisp) nameDisp.innerText = files[0].name;
+                    if (dropzone) {
+                        dropzone.style.borderColor = '#10b981';
+                        dropzone.style.background = '#f0fdf4';
+                    }
+                }
+            };
+
+            function initDragAndDrop(dropzoneId, inputId, previewId, nameId) {
+                const dropzone = document.getElementById(dropzoneId);
+                const input = document.getElementById(inputId);
+                if (!dropzone || !input) return;
+
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(name => {
+                    dropzone.addEventListener(name, e => { 
+                        e.preventDefault(); 
+                        e.stopPropagation(); 
+                    });
+                });
+
+                ['dragenter', 'dragover'].forEach(name => {
+                    dropzone.addEventListener(name, () => dropzone.classList.add('upload-hover'));
+                });
+
+                ['dragleave', 'drop'].forEach(name => {
+                    dropzone.addEventListener(name, () => dropzone.classList.remove('upload-hover'));
+                });
+
+                dropzone.addEventListener('drop', e => {
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                        input.files = files;
+                        window.updateUploadUI(dropzoneId, previewId, nameId, files);
+                    }
+                });
+            }
+
+            // Initialize drag and drop for both modals
+            initDragAndDrop('product-dropzone', 'product-image-input', 'product-preview-text', 'product-file-name');
+            initDragAndDrop('edit-product-dropzone', 'edit-product-image-input', 'edit-product-preview-text', 'edit-product-file-name');
+
+            const inventoryTable = document.getElementById('inventory-table');
+
+            if (inventoryTable) {
+                inventoryTable.addEventListener('click', (e) => {
+                    // 1. Find if an action button was clicked
+                    const editBtn = e.target.closest('.asset-action-btn.edit');
+                    const logsBtn = e.target.closest('.asset-action-btn.logs');
+                    const deleteBtn = e.target.closest('.asset-action-btn.delete');
+
+                    // 2. Route to the correct function
+                    if (editBtn) {
+                        window.openEditModal(editBtn);
+                    } 
+                    else if (logsBtn) {
+                        window.openHistoryModal(logsBtn);
+                    } 
+                    else if (deleteBtn) {
+                        const row = deleteBtn.closest('tr');
+                        const assetTag = row.cells[1].innerText;
+                        if (confirm(`Are you sure you want to delete asset ${assetTag}?`)) {
+                            console.log("Deleting...", assetTag);
+                            // row.remove(); // Optional: remove from UI immediately
+                        }
+                    }
+                });
+            }
+        });
     </script>
 </body>
 

@@ -23,7 +23,7 @@ class User(UserMixin, db.Model):
     google_id = db.Column(db.String(255), unique=True)
     oauth_provider = db.Column(db.String(50))
 
-    profile_pic = db.Column(db.String(255))
+    profile_path = db.Column(db.String(255))
      
     is_verified = db.Column(db.Boolean, default=False)
     email_verified_at = db.Column(db.DateTime)

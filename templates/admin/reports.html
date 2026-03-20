@@ -5,7 +5,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=0.9" />
     <title>CareMed | Equipment Inventory</title>
-    <link rel="stylesheet" href="static/css/admin_report.css" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_report.css') }}">
     <link rel="stylesheet"
         href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap">
     <link rel="stylesheet"
@@ -34,7 +34,7 @@
 </head>
 
 <body>
-    <input type="checkbox" id="sidebar-state" checked hidden>
+    <input type="checkbox" id="sidebar-state" hidden>
 
     <div class="main-wrapper">
 
@@ -51,37 +51,37 @@
             <div class="sidebar-navigation">
                 <ul class="nav-menu">
                     <li class="nav-item">
-                        <a href="{{ url_for('admin.admin_dashboard') }}" class="nav-link">
+                        <a href="{{ url_for('admin.dashboard') }}" class="nav-link">
                             <span class="material-symbols-rounded">monitoring</span>
                             <span class="nav-label">Dashboard</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{{ url_for('admin.admin_products') }}" class="nav-link">
+                        <a href="{{ url_for('admin.products') }}" class="nav-link">
                             <span class="material-symbols-rounded">inventory_2</span>
                             <span class="nav-label">Product & Inventory</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{{ url_for('admin.admin_orders') }}" class="nav-link">
+                        <a href="{{ url_for('admin.orders') }}" class="nav-link">
                             <span class="material-symbols-rounded">shopping_cart</span>
                             <span class="nav-label">Order Management</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{{ url_for('admin.admin_customers') }}" class="nav-link">
+                        <a href="{{ url_for('admin.customers') }}" class="nav-link">
                             <span class="material-symbols-rounded">people</span>
                             <span class="nav-label">Customer Management</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{{ url_for('admin.admin_payments') }}" class="nav-link">
+                        <a href="{{ url_for('admin.payments') }}" class="nav-link">
                             <span class="material-symbols-rounded">payment</span>
                             <span class="nav-label">Payment Management</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{{ url_for('admin.admin_reports') }}" class="nav-link active">
+                        <a href="{{ url_for('admin.reports') }}" class="nav-link active">
                             <span class="material-symbols-rounded">analytics</span>
                             <span class="nav-label">Reports & Analytics</span>
                         </a>
@@ -148,7 +148,7 @@
                         <div class="clinical-user" id="profile-btn">
                             <div class="user-info">
                                 <span class="user-name">{{ current_user.first_name}} {{ current_user.last_name}}</span>
-                                <span class="user-role">Administrator</span>
+                                <span class="user-role">{{ current_user.role }}</span>
                             </div>
                             <div class="user-avatar" id="avatar-wrapper">
                                 <span class="material-symbols-rounded" id="avatar-icon">person</span>
@@ -187,12 +187,15 @@
     </div>
 
 
-    <script>
-
+    <script nonce="{{ csp_nonce() }}">
+        // Move declarations to the top so they are available to all functions/listeners
         const profileBtn = document.getElementById('profile-btn');
         const profileDropdown = document.getElementById('profile-dropdown');
         const notifBtn = document.getElementById('notif-btn');
         const notifDropdown = document.getElementById('notif-dropdown');
+        const settingsBtn = document.getElementById('settings-toggle-btn');
+        const settingsPopup = document.getElementById('settings-menu-popup');
+        const checkbox = document.getElementById('sidebar-state');
 
         function toggleDropdown(dropdown) {
             document.querySelectorAll('.header-dropdown').forEach(d => {
@@ -201,21 +204,22 @@
             dropdown.classList.toggle('active');
         }
 
-        profileBtn.addEventListener('click', (e) => {
+        profileBtn?.addEventListener('click', (e) => {
             e.stopPropagation();
             toggleDropdown(profileDropdown);
         });
 
-        notifBtn.addEventListener('click', (e) => {
+        notifBtn?.addEventListener('click', (e) => {
             e.stopPropagation();
             toggleDropdown(notifDropdown);
         });
 
         window.addEventListener('click', (e) => {
-            if (!profileBtn.contains(e.target)) profileDropdown.classList.remove('active');
-            if (!notifBtn.contains(e.target)) notifDropdown.classList.remove('active');
+            if (profileBtn && !profileBtn.contains(e.target)) profileDropdown.classList.remove('active');
+            if (notifBtn && !notifBtn.contains(e.target)) notifDropdown.classList.remove('active');
 
-            if (!settingsPopup.contains(event.target) && event.target !== settingsBtn) {
+            // Fixed: Reference 'e' instead of 'event' and ensure settingsBtn exists
+            if (settingsPopup && !settingsPopup.contains(e.target) && e.target !== settingsBtn) {
                 settingsPopup.classList.add('hidden');
             }
         });
@@ -228,16 +232,27 @@
             document.getElementById('registerAssetModal').classList.add('hidden');
         }
 
-        const settingsBtn = document.getElementById('settings-toggle-btn');
-        const settingsPopup = document.getElementById('settings-menu-popup');
-
-        settingsBtn.addEventListener('click', (e) => {
+        settingsBtn?.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
             settingsPopup.classList.toggle('hidden');
         });
 
+        // 1. Immediately apply the saved state before the page renders
+        const sidebarState = localStorage.getItem('sidebar-collapsed');
+        
+        // Ensure checkbox exists before setting property
+        if (checkbox) {
+            // If 'true', we want it unchecked (collapsed). 
+            // If 'false' or null, we want it checked (expanded/default).
+            checkbox.checked = sidebarState !== 'true';
 
+            // 2. Listen for changes to save the preference
+            checkbox.addEventListener('change', function() {
+                // Save 'true' if the sidebar is now collapsed (unchecked)
+                localStorage.setItem('sidebar-collapsed', !this.checked);
+            });
+        }
     </script>
 </body>
 

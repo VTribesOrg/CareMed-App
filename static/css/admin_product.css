@@ -275,12 +275,21 @@ body {
 .user-avatar img {
     width: 100%;
     height: 100%;
+    display: block;
     object-fit: cover;
+    border-radius: 50%; 
 }
-
 .hidden {
     display: none !important;
 }
+
+#header-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; 
+    display: block;
+}
+
 /*------------------------ END OF USER AVATAR STYLE ----------------------*/
 
 .header-actions {
@@ -1123,3 +1132,12 @@ body {
     transform: scale(1.005); 
 }
 /*--------------------- END OF MAIN CONTENT --------------------------------------*/
+
+
+.no-transition * {
+    -webkit-transition: none !important;
+    -moz-transition: none !important;
+    -ms-transition: none !important;
+    -o-transition: none !important;
+    transition: none !important;
+}
