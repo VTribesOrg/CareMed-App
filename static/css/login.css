@@ -22,6 +22,21 @@ body {
     font-size: 0.9rem;
 }
 
+.error-msg.rate-limit-msg {
+    color: #9a3412;
+    background-color: #fff7ed; 
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #fdba74;
+    animation: shake 0.4s ease-in-out;
+}
+
+/* Attention-grabbing shake for rate limits */
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-4px); }
+    75% { transform: translateX(4px); }
+}
 
 html,
 body {
@@ -707,14 +722,14 @@ input:focus {
 
 
 .error-msg {
-    color: #dc2626; 
-    font-size: 12px;
+    color: #dc3545;
+    font-size: 0.85rem;
     font-weight: 600;
-    margin-top: 5px;
+    margin-top: 8px;
     margin-left: 4px;
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
     animation: shake 0.4s ease-in-out;
 }
 
@@ -747,4 +762,91 @@ input:focus {
 .input-field:has(.error-msg) .input-group {
     box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.05);
     border-radius: 8px;
+}
+
+.success-screen {
+    text-align: center;
+    animation: fadeIn 0.5s ease-out;
+}
+
+.success-visual {
+    margin-bottom: 24px;
+}
+
+.confetti-icon {
+    font-size: 64px;
+    color: #10b981; /* Success Green */
+    background: #ecfdf5;
+    width: 120px;
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    margin: 0 auto;
+    box-shadow: 0 10px 25px rgba(16, 185, 129, 0.1);
+}
+
+.email-highlight {
+    color: #002347;
+    font-size: 1.1rem;
+    display: block;
+    margin-top: 8px;
+}
+
+.next-steps-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 20px;
+    text-align: left;
+    margin: 30px 0;
+}
+
+.next-steps-card h4 {
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #64748b;
+    margin-bottom: 15px;
+}
+
+.next-steps-card ul {
+    list-style: none;
+    padding: 0;
+}
+
+.next-steps-card li {
+    font-size: 14px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #1e293b;
+}
+
+.next-steps-card i {
+    color: #38bdf8;
+    font-size: 12px;
+}
+
+.btn-primary-outline {
+    display: block;
+    padding: 14px;
+    border: 2px solid #002347;
+    color: #002347;
+    text-decoration: none;
+    border-radius: 12px;
+    font-weight: 800;
+    transition: 0.3s;
+}
+
+.btn-primary-outline:hover {
+    background: #002347;
+    color: #fff;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
 }

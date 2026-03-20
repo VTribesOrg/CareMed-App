@@ -64,10 +64,7 @@
                 </div>
 
                 <div id="signupForm">
-                    <div class="header-text">
-                        <h2>Join CareMed</h2>
-                        <p class="subtitle">Create an account for faster checkout and order tracking.</p>
-                    </div>
+
 
                     <form id="registerForm" action="{{ url_for('auth.register') }}" method="POST">
                          {{ form.hidden_tag() }}
@@ -77,7 +74,7 @@
                                 <label>First Name</label>
                                 <div class="input-group">
                                     <i class="fa-solid fa-user"></i>
-                                    {{ form.first_name(placeholder="Arjun") }}
+                                    {{ form.first_name(placeholder="First Name") }}
                                 </div>
 
                                 {% for error in form.first_name.errors %}
@@ -91,7 +88,7 @@
                                 <label>Last Name</label>
                                 <div class="input-group">
                                     <i class="fa-solid fa-user"></i>
-                                    {{ form.last_name(placeholder="Deloterio") }}
+                                    {{ form.last_name(placeholder="Last Name") }}
                                 </div>
 
                                 {% for error in form.last_name.errors %}
@@ -107,7 +104,7 @@
                             <label>Email Address</label>
                             <div class="input-group">
                                 <i class="fa-solid fa-envelope"></i>
-                                {{ form.email(placeholder="deloterio19@gmail.com") }}
+                                {{ form.email(placeholder="email@gmail.com") }}
                             </div>
 
                             {% for error in form.email.errors %}
@@ -137,7 +134,7 @@
                             <label>Delivery Address</label>
                             <div class="input-group">
                                 <i class="fa-solid fa-location-dot"></i>
-                                {{ form.address(placeholder="Brgy. Baldoza, Lapaz Iloilo City") }}
+                                {{ form.address(placeholder="Full Address") }}
                             </div>
 
                             {% for error in form.address.errors %}
@@ -184,7 +181,9 @@
                             </div>
                         </div>
 
-                        {{ form.submit(id="regBtn", class="btn-primary") }}
+                        <button type="submit" id="regBtn" class="btn-primary">
+                            <span>Create Account</span>
+                        </button>
                     </form>
 
                     <div class="divider"><span>OR JOIN WITH</span></div>
@@ -217,7 +216,6 @@
         container.style.border = isSuccess ? "1px solid #10b981" : "1px solid #ef4444";
     }
 
-
     // --- Main Initializer ---
     document.addEventListener('DOMContentLoaded', () => {
 
@@ -238,11 +236,9 @@
             });
         });
 
-
         // 7. URL Parameter logic (Show Signup)
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('show_signup') === '1') {
-            // Check if toggleForms exists (if you use it for the login/register flip)
             if (typeof toggleForms === 'function') {
                 toggleForms();
             }
@@ -282,7 +278,47 @@
             regPass.addEventListener('keyup', validateRegistrationMatch);
             regConfirmPass.addEventListener('keyup', validateRegistrationMatch);
         }
-    });
+
+        // 9. Handle Form Submission UI
+        const registerForm = document.getElementById('registerForm');
+        if (registerForm && regBtn) {
+            registerForm.addEventListener('submit', function(e) {
+                // Prevent double submission if already loading
+                if (regBtn.classList.contains('is-loading')) {
+                    e.preventDefault();
+                    return;
+                }
+
+                // 1. Store the original text to restore it later if needed
+                const originalText = regBtn.innerHTML;
+
+                // 2. Add loading state and inject spinner
+                regBtn.classList.add('is-loading');
+                regBtn.innerHTML = `
+                    <div class="spinner"></div>
+                    <span>Creating Account...</span>
+                `;
+                
+                // 3. Disable the button after a tiny delay for rendering
+                setTimeout(() => {
+                    regBtn.disabled = true;
+                }, 10);
+
+                // 4. Safety Timeout (10 Seconds)
+                // If the server doesn't respond or the page doesn't change, reset the button
+                setTimeout(() => {
+                    if (regBtn.classList.contains('is-loading')) {
+                        regBtn.disabled = false;
+                        regBtn.classList.remove('is-loading');
+                        regBtn.innerHTML = originalText;
+                        
+                        // Optional: Show an error message if the server is ghosting
+                        showModalMessage("Connection timed out. Please try again.", false);
+                    }
+                }, 10000); // 10,000ms = 10 seconds
+            });
+        }
+            });
 </script>
 
 </body>

@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, current_app
 from flask_login import login_user, logout_user, login_required
-from extensions import db, passhasher, oauth, mail, limiter
+from extensions import db, passhasher, oauth, mail, limiter, get_remote_address
 from flask_mail import Message
 from models.users import User
 from datetime import datetime, timedelta
@@ -26,9 +26,13 @@ google = oauth.register(
 RESET_LINK_EXPIRY = 3600
 OTP_RESEND_COOLDOWN = 60  
 
+def login_key():
+    email = request.form.get("email", "").lower()
+    return f"{request.remote_addr}:{email}"
+
 
 @auth_bp.route("/login", methods=["GET", "POST"])
-@limiter.limit("5 per minute")
+@limiter.limit("5 per minute", key_func=login_key, methods=["POST"])
 def login():
     form = LoginForm()
     now = datetime.utcnow()
@@ -50,7 +54,7 @@ def login():
             return redirect(url_for("auth.login"))
 
         if not user.is_verified:
-            flash("Please verify your email before logging in.", "password-error")
+            flash("Please verify your email before logging in.", "email-error")
             return redirect(url_for("auth.login"))
 
         if user.account_locked_until and user.account_locked_until > now:
@@ -163,7 +167,7 @@ def register():
 
             flash("Registration successful. Please check your email to verify your account.", "info")
 
-            return redirect(url_for("auth.login"))
+            return redirect(url_for('auth.login', success='registered', email=email))
 
         except Exception as e:
             db.session.rollback()
@@ -286,7 +290,7 @@ def logout():
 
 
 @auth_bp.route("/send-reset-link", methods=["POST"])
-@limiter.limit("3 per minute")
+@limiter.limit("5 per minute", key_func=login_key, methods=["POST"])
 def send_reset_link():
     email = request.form.get("email", "").strip().lower()
     now = datetime.utcnow()

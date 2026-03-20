@@ -63,7 +63,40 @@
                     <a href="{{ url_for('user.homepage')}}" class="guest-pill">Guest Mode</a>
                 </div>
 
+                {% if request.args.get('success') == 'registered' %}
+                <div id="successArea" class="success-screen">
+                    <div class="success-visual">
+                        <div class="confetti-icon">
+                            <i class="fa-solid fa-envelope-circle-check"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="header-text">
+                        <h2>Verify your email</h2>
+                        <p class="subtitle">We've sent a verification link to:<br>
+                            <strong class="email-highlight">{{ request.args.get('email') }}</strong>
+                        </p>
+                    </div>
 
+                    <div class="next-steps-card">
+                        <h4>Next Steps:</h4>
+                        <ul>
+                            <li><i class="fa-solid fa-circle-check"></i> Check your inbox (and spam folder)</li>
+                            <li><i class="fa-solid fa-circle-check"></i> Click the link in the email</li>
+                            <li><i class="fa-solid fa-circle-check"></i> Return here to log in</li>
+                        </ul>
+                    </div>
+
+                    <a href="{{ url_for('auth.login') }}" class="btn-primary-outline">
+                        Back to Login
+                    </a>
+                    
+                    <p class="footer-note" style="margin-top: 20px;">
+                        Didn't get the email? <a href="#">Resend Link</a>
+                    </p>
+                </div>
+
+                {% else %}
                 <div id="loginArea">
                     <div class="header-text">
                         <h2>Welcome Back</h2>
@@ -73,42 +106,58 @@
                     <form id="loginForm" action="{{ url_for('auth.login') }}" method="POST">
                         {{ form.hidden_tag() }}
 
-                            <div class="input-field">
-                                <label>Email Address</label>
-                                <div class="input-group">
-                                    <i class="fa-solid fa-envelope"></i>
-                                    {{ form.email(value=email_value, placeholder="example@gmail.com") }}
-                                </div>
+                        <div class="input-field">
+                            <label>Email Address</label>
+                            <div class="input-group">
+                                <i class="fa-solid fa-envelope"></i>
+                                {{ form.email(value=email_value, placeholder="example@gmail.com") }}
                             </div>
 
+                            {% with messages = get_flashed_messages(with_categories=true) %}
+                                {% if messages %}
+                                    {% for category, message in messages %}
+                                        {% if category == 'email-error' %}
+                                        <p class="error-msg">
+                                            <i class="fa-solid fa-circle-exclamation"></i> {{ message }}
+                                        </p>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endif %}
+                            {% endwith %}
+                        </div>
 
-                            <div class="input-field">
-                                <div class="label-flex">
-                                    <label>Password</label>
-                                    <a href="javascript:void(0)" class="helper-link" id="forgotPasswordLink">Forgot Password?</a>
-                                </div>
+                        <div class="input-field">
+                            <div class="label-flex">
+                                <label>Password</label>
+                                <a href="javascript:void(0)" class="helper-link" id="forgotPasswordLink">Forgot Password?</a>
+                            </div>
 
-                                <div class="input-group">
-                                    <i class="fa-solid fa-lock"></i>
-                                    {{ form.password(placeholder="••••••••") }}
-                                    <i class="fa-solid fa-eye-slash toggle-pass"></i>
-                                </div>
+                            <div class="input-group">
+                                <i class="fa-solid fa-lock"></i>
+                                {{ form.password(placeholder="••••••••") }}
+                                <i class="fa-solid fa-eye-slash toggle-pass"></i>
+                            </div>
 
-                                {% with messages = get_flashed_messages(with_categories=true) %}
-                                    {% if messages %}
-                                        {% for category, message in messages %}
-                                            {% if category == 'password-error' %}
-                                            <p class="error-msg">
-                                                <i class="fa-solid fa-circle-exclamation"></i> {{ message }}
-                                            </p>
+                            {% with messages = get_flashed_messages(with_categories=true) %}
+                                {% if messages %}
+                                    {% for category, message in messages %}
+                                        {% if category == 'password-error' %}
+                                            {% if 'attempts' in message.lower() or 'wait' in message.lower() %}
+                                                <p class="error-msg rate-limit-msg">
+                                                    <i class="fa-solid fa-clock-rotate-left"></i> {{ message }}
+                                                </p>
+                                            {% else %}                                                    
+                                                <p class="error-msg">
+                                                    <i class="fa-solid fa-circle-exclamation"></i> {{ message }}
+                                                </p>
                                             {% endif %}
-                                        {% endfor %}
-                                    {% endif %}
-                                {% endwith %}
-                            </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endif %}
+                            {% endwith %}
+                        </div>
 
-                            {{ form.submit(class="btn-primary") }}
-
+                        {{ form.submit(class="btn-primary") }}
                     </form>
 
                     <div class="divider"><span>OR CONTINUE WITH</span></div>
@@ -122,6 +171,7 @@
                         Don't have an account? <a href="{{ url_for('auth.register') }}">Create one now</a>
                     </p>
                 </div>
+                {% endif %}
 
             </div>
         </div>
@@ -289,6 +339,28 @@
                 setTimeout(() => alert.remove(), 500);
             });
         }, 5000);
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Check if a rate limit message exists on the page
+            const rateLimitBox = document.querySelector('.rate-limit-msg');
+            const loginBtn = document.querySelector('#loginForm .btn-primary');
+
+            if (rateLimitBox && loginBtn) {
+                // Disable button visually and functionally for a few seconds
+                loginBtn.disabled = true;
+                loginBtn.style.opacity = "0.6";
+                loginBtn.style.cursor = "not-allowed";
+                loginBtn.value = "Please wait...";
+
+                // Re-enable after 5 seconds to let them try once the cool-down is likely over
+                setTimeout(() => {
+                    loginBtn.disabled = false;
+                    loginBtn.style.opacity = "1";
+                    loginBtn.style.cursor = "pointer";
+                    loginBtn.value = "Login";
+                }, 5000);
+            }
+        });
     </script>
 
 </body>

@@ -53,7 +53,6 @@ class RegisterForm(FlaskForm):
 
     confirm_password = PasswordField("Confirm Password", validators=[DataRequired(), EqualTo('password', message="Passwords must match.")])
 
-    submit = SubmitField("Create Account")
     
 class LoginForm(FlaskForm):
     email = StringField("Email Address", validators=[DataRequired(), Email(), validate_gmail])

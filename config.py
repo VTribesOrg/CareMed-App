@@ -57,6 +57,8 @@ class Config:
         "X-XSS-Protection": "1; mode=block",
     }
     
+    
+    
 
 class DevConfig:
 

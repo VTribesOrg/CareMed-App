@@ -177,9 +177,6 @@
                         Details</a>
                     <a href="orders.html"><span class="material-symbols-outlined">history</span> Rental History</a>
                     <a href="#"><span class="material-symbols-outlined">settings</span> Settings</a>
-                    <a href="logout" style="color: #e63946;"><span class="material-symbols-outlined">logout</span>
-                        Logout</a>
-                </div>
             </aside>
 
             <div class="profile-content">
@@ -193,17 +190,24 @@
                         </button>
                     </div>
                     <div class="details-grid">
-                        <div class="detail-item"><label>Full Name</label>
-                            <p>{{ current_user.first_name }} {{ current_user.last_name }}</p>
+                        <div class="detail-item">
+                            <label>Full Name</label>
+                            <p>{{ (current_user.first_name ~ ' ' ~ current_user.last_name) if current_user.first_name or current_user.last_name else 'N/A' }}</p>
                         </div>
-                        <div class="detail-item"><label>Email Address</label>
-                            <p>{{ current_user.email }} </p>
+
+                        <div class="detail-item">
+                            <label>Email Address</label>
+                            <p>{{ current_user.email or 'N/A' }}</p>
                         </div>
-                        <div class="detail-item"><label>Phone Number</label>
-                            <p>{{ current_user.phone }} </p>
+
+                        <div class="detail-item">
+                            <label>Phone Number</label>
+                            <p>{{ current_user.phone or 'N/A' }}</p>
                         </div>
-                        <div class="detail-item" style="grid-column: span 2;"><label>Default Shipping Address</label>
-                            <p>{{ current_user.address }} </p>
+
+                        <div class="detail-item" style="grid-column: span 2;">
+                            <label>Default Shipping Address</label>
+                            <p>{{ current_user.address or 'N/A' }}</p>
                         </div>
                     </div>
                 </div>

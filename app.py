@@ -1,5 +1,5 @@
 import os
-from flask import Flask
+from flask import Flask, request, redirect, url_for, flash
 from extensions import db, migrate, login_manager, oauth, mail, csrf, limiter
 from models.users import User
 from config import DevConfig, Config
@@ -7,7 +7,6 @@ from flask_talisman import Talisman
 
 app = Flask(__name__)
 
-app = Flask(__name__)
 if os.environ.get('FLASK_ENV') == 'development':
     app.config.from_object('config.DevConfig')
 else:
@@ -47,6 +46,22 @@ Talisman(
     session_cookie_http_only=True,
     frame_options="SAMEORIGIN",
 )
+
+def register_error_handlers(app):
+    @app.errorhandler(429)
+    def ratelimit_handler(e):
+        friendly_msg = "Too many attempts. For security, please wait a moment before trying again."
+        
+        if request.endpoint == "auth.login":
+            flash(friendly_msg, "password-error")
+            return redirect(url_for("auth.login"))
+            
+        return {
+            "error": "rate_limit_exceeded",
+            "message": friendly_msg
+        }, 429
+
+register_error_handlers(app)
 
 from routes.user_routes import user_bp
 app.register_blueprint(user_bp)

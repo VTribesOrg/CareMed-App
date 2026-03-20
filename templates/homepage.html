@@ -179,6 +179,30 @@
         </div>
     </section>
 
+    <section class="benefits-grid">
+        <div class="benefit-item">
+            <i class="fa-solid fa-shield-heart"></i>
+            <div>
+                <h4>Safe & Sterilized</h4>
+                <p>Multi-stage disinfection process for every piece of equipment.</p>
+            </div>
+        </div>
+        <div class="benefit-item">
+            <i class="fa-solid fa-wallet"></i>
+            <div>
+                <h4>Cost Effective</h4>
+                <p>Save up to 70% compared to hospital stay costs.</p>
+            </div>
+        </div>
+        <div class="benefit-item">
+            <i class="fa-solid fa-calendar-check"></i>
+            <div>
+                <h4>Flexible Terms</h4>
+                <p>Daily, weekly, or monthly rental plans tailored to you.</p>
+            </div>
+        </div>
+    </section>
+
     <section class="category-nav">
         <h2>Browse by Category</h2>
         <div class="category-grid">
@@ -241,6 +265,27 @@
             </div>
         </section>
 
+        <section class="how-it-works">
+            <h2>How to Rent in 3 Easy Steps</h2>
+            <div class="step-container">
+                <div class="step">
+                    <div class="step-num">1</div>
+                    <h4>Choose Equipment</h4>
+                    <p>Browse our catalog and select the items you need for home care.</p>
+                </div>
+                <div class="step">
+                    <div class="step-num">2</div>
+                    <h4>Book Online</h4>
+                    <p>Fill out the rental form or call our support for immediate booking.</p>
+                </div>
+                <div class="step">
+                    <div class="step-num">3</div>
+                    <h4>Fast Delivery</h4>
+                    <p>We deliver and set up the equipment at your home within 24 hours.</p>
+                </div>
+            </div>
+        </section>
+
         <section class="rental-highlights">
             <div class="highlights-header">
                 <span class="highlight-subtitle">Explore Our</span>
@@ -268,124 +313,207 @@
                     <h3>Oxygen Tanks</h3>
                     <p>Available in multiple sizes (5-50lbs) with regulator and accessories for safe use.</p>
                 </div>
-
             </div>
         </section>
 
-        <header class="header-row" id="headerRow">
-            <h2 class="section-title">Rental & Sales Catalog</h2>
-            <p class="section-subtitle">Home Care Essentials</p>
-        </header>
-
-        <div class="product-grid" id="productGrid">
-
-            <div class="product-card" data-name="Manual Hospital Bed">
-                <div class="stock-badge">✓ IN STOCK</div>
-
-                <div class="product-image-box">
-                    <img src="" alt="" class="product-img-element">
-                    <div class="no-image-placeholder"></div>
+        <section class="featured-catalog-section" style="padding: 60px 20px; max-width: 1300px; margin: 0 auto;">
+            
+            <header class="header-row" id="headerRow" style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 40px; border-left: 5px solid #38BDF8; padding-left: 20px;">
+                <div class="header-titles">
+                    <h2 class="section-title" style="margin: 0; font-size: 2rem; color: #1a202c; letter-spacing: -0.5px;">Popular Care Essentials</h2>
+                    <p class="section-subtitle" style="margin: 8px 0 0; color: #718096; font-size: 1.1rem;">Top-rated equipment for immediate home recovery</p>
                 </div>
-                <h3 class="product-name">Manual Hospital Bed</h3>
+                
+                <a href="/catalog" class="view-all-link" style="color: #38BDF8; text-decoration: none; font-weight: 700; font-size: 1rem; display: flex; align-items: center; gap: 8px; border: 2px solid #38BDF8; padding: 8px 20px; border-radius: 50px; transition: all 0.3s ease;">
+                    View All Products <i class="fa-solid fa-arrow-right-long"></i>
+                </a>
+            </header>
 
-                <div class="trust-badge"><i class="fa-solid fa-circle-check" style="font-size:16px;"></i> Sanitized &
-                    Certified</div>
+            <div class="product-grid" id="productGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 30px;">
 
-                <ul class="product-specs">
-                    <li><i class="fa-solid fa-maximize"></i> Size: 36" x 80" (Standard)</li>
-                    <li><i class="fa-solid fa-weight-hanging"></i> Max Capacity: 150kg</li>
-                    <li><i class="fa-solid fa-sliders"></i> Adjustable Head & Feet</li>
-                </ul>
-
-                <div class="dual-price-wrapper">
-                    <div class="price-item">
-                        <span class="price-tag">RENT</span>
-                        <p class="price-value">₱4,500<small>/mo</small></p>
+                <div class="product-card" data-name="Oxygen Tank Full Set">
+                    <div class="stock-badge">✓ IN STOCK</div>
+                    <div class="product-image-box">
+                        <img src="path/to/oxygen.jpg" alt="Oxygen Tank" class="product-img-element">
                     </div>
-                    <div class="price-divider"></div>
-                    <div class="price-item">
-                        <span class="price-tag">BUY</span>
-                        <p class="price-value">₱25,000</p>
+                    
+                    <h3 class="product-name">Oxygen Tank (Full Set)</h3>
+
+                    {% if current_user.is_authenticated %}
+                        <div class="trust-badge" style="background-color: #f0f9ff; color: #0ea5e9; border-color: #bae6fd;">
+                            <i class="fa-solid fa-certificate"></i> Verified Member Rate
+                        </div>
+                    {% else %}
+                        <div class="trust-badge">
+                            <i class="fa-solid fa-circle-check"></i> Sanitized & Certified
+                        </div>
+                    {% endif %}
+
+                    <ul class="product-specs">
+                        <li><i class="fa-solid fa-wind"></i> Includes Regulator & Humidifier</li>
+                        <li><i class="fa-solid fa-flask"></i> Available: 5lbs / 10lbs</li>
+                        <li><i class="fa-solid fa-truck-fast"></i> Free Setup Included</li>
+                    </ul>
+
+                    <div class="dual-price-wrapper">
+                        <div class="price-item">
+                            <span class="price-tag">RENT</span>
+                            <p class="price-value">₱1,200<small>/mo</small></p>
+                        </div>
+                        <div class="price-divider"></div>
+                        <div class="price-item">
+                            <span class="price-tag">BUY</span>
+                            <p class="price-value">₱8,500</p>
+                        </div>
+                    </div>
+
+                    <div class="dual-action-buttons">
+                        {% if current_user.is_authenticated %}
+                            <button class="btn-rent" onclick="handleAction('rent', 'Oxygen Tank Full Set')">
+                                <i class="fa-solid fa-calendar-check"></i> Rent Now
+                            </button>
+                            <button class="btn-buy" onclick="handleAction('buy', 'Oxygen Tank Full Set')">
+                                <i class="fa-solid fa-cart-shopping"></i> Purchase
+                            </button>
+                        {% else %}
+                            <a href="{{ url_for('auth.login') }}" class="btn-rent guest-cta">
+                                <i class="fa-solid fa-user-lock"></i> Sign In to Rent
+                            </a>
+                            <button class="btn-buy" onclick="handleAction('buy', 'Oxygen Tank Full Set')">
+                                <i class="fa-solid fa-bag-shopping"></i> Purchase
+                            </button>
+                        {% endif %}
                     </div>
                 </div>
-                <div class="dual-action-buttons">
-                    <button class="btn-rent" onclick="handleAction('rent', 'Manual Hospital Bed')">Rent Now</button>
-                    <button class="btn-buy" onclick="handleAction('buy', 'Manual Hospital Bed')">Purchase</button>
+
+                <div class="product-card" data-name="Oxygen Tank Full Set">
+                    <div class="stock-badge">✓ IN STOCK</div>
+                    <div class="product-image-box">
+                        <img src="path/to/oxygen.jpg" alt="Oxygen Tank" class="product-img-element">
+                    </div>
+                    
+                    <h3 class="product-name">Oxygen Tank (Full Set)</h3>
+
+                    {% if current_user.is_authenticated %}
+                        <div class="trust-badge" style="background-color: #f0f9ff; color: #0ea5e9; border-color: #bae6fd;">
+                            <i class="fa-solid fa-certificate"></i> Verified Member Rate
+                        </div>
+                    {% else %}
+                        <div class="trust-badge">
+                            <i class="fa-solid fa-circle-check"></i> Sanitized & Certified
+                        </div>
+                    {% endif %}
+
+                    <ul class="product-specs">
+                        <li><i class="fa-solid fa-wind"></i> Includes Regulator & Humidifier</li>
+                        <li><i class="fa-solid fa-flask"></i> Available: 5lbs / 10lbs</li>
+                        <li><i class="fa-solid fa-truck-fast"></i> Free Setup Included</li>
+                    </ul>
+
+                    <div class="dual-price-wrapper">
+                        <div class="price-item">
+                            <span class="price-tag">RENT</span>
+                            <p class="price-value">₱1,200<small>/mo</small></p>
+                        </div>
+                        <div class="price-divider"></div>
+                        <div class="price-item">
+                            <span class="price-tag">BUY</span>
+                            <p class="price-value">₱8,500</p>
+                        </div>
+                    </div>
+
+                    <div class="dual-action-buttons">
+                        {% if current_user.is_authenticated %}
+                            <button class="btn-rent" onclick="handleAction('rent', 'Oxygen Tank Full Set')">
+                                <i class="fa-solid fa-calendar-check"></i> Rent Now
+                            </button>
+                            <button class="btn-buy" onclick="handleAction('buy', 'Oxygen Tank Full Set')">
+                                <i class="fa-solid fa-cart-shopping"></i> Purchase
+                            </button>
+                        {% else %}
+                            <a href="{{ url_for('auth.login') }}" class="btn-rent guest-cta">
+                                <i class="fa-solid fa-user-lock"></i> Sign In to Rent
+                            </a>
+                            <button class="btn-buy" onclick="handleAction('buy', 'Oxygen Tank Full Set')">
+                                <i class="fa-solid fa-bag-shopping"></i> Purchase
+                            </button>
+                        {% endif %}
+                    </div>
                 </div>
+
+                <div class="product-card" data-name="Oxygen Tank Full Set">
+                    <div class="stock-badge">✓ IN STOCK</div>
+                    <div class="product-image-box">
+                        <img src="path/to/oxygen.jpg" alt="Oxygen Tank" class="product-img-element">
+                    </div>
+                    
+                    <h3 class="product-name">Oxygen Tank (Full Set)</h3>
+
+                    {% if current_user.is_authenticated %}
+                        <div class="trust-badge" style="background-color: #f0f9ff; color: #0ea5e9; border-color: #bae6fd;">
+                            <i class="fa-solid fa-certificate"></i> Verified Member Rate
+                        </div>
+                    {% else %}
+                        <div class="trust-badge">
+                            <i class="fa-solid fa-circle-check"></i> Sanitized & Certified
+                        </div>
+                    {% endif %}
+
+                    <ul class="product-specs">
+                        <li><i class="fa-solid fa-wind"></i> Includes Regulator & Humidifier</li>
+                        <li><i class="fa-solid fa-flask"></i> Available: 5lbs / 10lbs</li>
+                        <li><i class="fa-solid fa-truck-fast"></i> Free Setup Included</li>
+                    </ul>
+
+                    <div class="dual-price-wrapper">
+                        <div class="price-item">
+                            <span class="price-tag">RENT</span>
+                            <p class="price-value">₱1,200<small>/mo</small></p>
+                        </div>
+                        <div class="price-divider"></div>
+                        <div class="price-item">
+                            <span class="price-tag">BUY</span>
+                            <p class="price-value">₱8,500</p>
+                        </div>
+                    </div>
+
+                    <div class="dual-action-buttons">
+                        {% if current_user.is_authenticated %}
+                            <button class="btn-rent" onclick="handleAction('rent', 'Oxygen Tank Full Set')">
+                                <i class="fa-solid fa-calendar-check"></i> Rent Now
+                            </button>
+                            <button class="btn-buy" onclick="handleAction('buy', 'Oxygen Tank Full Set')">
+                                <i class="fa-solid fa-cart-shopping"></i> Purchase
+                            </button>
+                        {% else %}
+                            <a href="{{ url_for('auth.login') }}" class="btn-rent guest-cta">
+                                <i class="fa-solid fa-user-lock"></i> Sign In to Rent
+                            </a>
+                            <button class="btn-buy" onclick="handleAction('buy', 'Oxygen Tank Full Set')">
+                                <i class="fa-solid fa-bag-shopping"></i> Purchase
+                            </button>
+                        {% endif %}
+                    </div>
+                </div>
+
             </div>
 
-            <div class="product-card" data-name="Electric Wheelchair">
-                <div class="stock-badge">✓ IN STOCK</div>
-
-                <div class="product-image-box"></div>
-                <h3 class="product-name">Electric Wheelchair</h3>
-
-                <div class="trust-badge"><i class="fa-solid fa-circle-check" style="font-size:16px;"></i> Sanitized &
-                    Certified</div>
-
-                <ul class="product-specs">
-                    <li><i class="fa-solid fa-battery-full"></i> 20km Range per Charge</li>
-                    <li><i class="fa-solid fa-arrows-to-dot"></i> Foldable for Transport</li>
-                    <li><i class="fa-solid fa-bolt"></i> Quiet Motor</li>
-                </ul>
-
-                <div class="dual-price-wrapper">
-                    <div class="price-item">
-                        <span class="price-tag">RENT</span>
-                        <p class="price-value">₱12,000<small>/mo</small></p>
-                    </div>
-                    <div class="price-divider"></div>
-                    <div class="price-item">
-                        <span class="price-tag">BUY</span>
-                        <p class="price-value">₱85,000</p>
-                    </div>
-                </div>
-                <div class="dual-action-buttons">
-                    <button class="btn-rent" onclick="handleAction('rent', 'Electric Wheelchair')">Rent Now</button>
-                    <button class="btn-buy" onclick="handleAction('buy', 'Electric Wheelchair')">Purchase</button>
-                </div>
+            <div class="guest-footer" style="margin-top: 50px; text-align: center; background: #f8fafc; padding: 30px; border-radius: 15px; border: 1px dashed #cbd5e0;">
+                <p style="margin: 0; color: #4a5568; font-weight: 500; font-size: 1.1rem;">
+                    Looking for something else? 
+                    <a href="/login" style="color: #38BDF8; font-weight: 700; text-decoration: none; margin-left: 5px;">Sign in</a> to save items or browse our 
+                    <a href="/catalog" style="color: #38BDF8; font-weight: 700; text-decoration: none;">Full Catalog</a>.
+                </p>
             </div>
+        </section>
 
-            <div class="product-card" data-name="Oxygen Tank Full Set">
-                <div class="stock-badge">✓ IN STOCK</div>
-
-
-                <div class="product-image-box"></div>
-                <h3 class="product-name">Oxygen Tank (Full Set)</h3>
-
-                <div class="trust-badge"><i class="fa-solid fa-circle-check" style="font-size:16px;"></i> Sanitized &
-                    Certified</div>
-
-                <ul class="product-specs">
-                    <li><i class="fa-solid fa-wind"></i> Includes Regulator & Humidifier</li>
-                    <li><i class="fa-solid fa-flask"></i> Available: 5lbs / 10lbs</li>
-                    <li><i class="fa-solid fa-truck-fast"></i> Free Setup Included</li>
-                </ul>
-
-                <div class="dual-price-wrapper">
-                    <div class="price-item">
-                        <span class="price-tag">RENT</span>
-                        <p class="price-value">₱1,200<small>/mo</small></p>
-                    </div>
-                    <div class="price-divider"></div>
-                    <div class="price-item">
-                        <span class="price-tag">BUY</span>
-                        <p class="price-value">₱8,500</p>
-                    </div>
-                </div>
-                <div class="dual-action-buttons">
-                    <button class="btn-rent" onclick="handleAction('rent', 'Oxygen Tank Full Set')">Rent Now</button>
-                    <button class="btn-buy" onclick="handleAction('buy', 'Oxygen Tank Full Set')">Purchase</button>
-                </div>
-            </div>
-        </div>
+        
 
         <section class="testimonials">
             <h2>What Our Clients Say</h2>
             <div class="testimonial-grid">
                 <div class="testimonial-card">
-                    <p>"CareMed made my father's recovery so much easier. The electric bed was delivered and set up
-                        within hours!"</p>
+                    <p>"CareMed made my father's recovery so much easier. The electric bed was delivered and set up within hours!"</p>
                     <div class="client-info">
                         <div class="client-avatar">MR</div>
                         <div><strong>Maria R.</strong><br>Mandurriao</div>
@@ -428,8 +556,21 @@
         </div>
     </footer>
 
-   <script nonce="{{ csp_nonce() }}">
-        // Check if the search input exists before adding listener to avoid console errors
+    <a href="#" class="messenger-fab" target="_blank" rel="noopener noreferrer">
+        <i class="fa-brands fa-facebook-messenger"></i>
+    </a>
+
+    
+    <script nonce="{{ csp_nonce() }}">
+
+        window.AppState = {
+            isLoggedIn: {{ 'true' if current_user.is_authenticated else 'false' }},
+            user: {
+                id: "{{ current_user.id if current_user.is_authenticated else '' }}",
+                name: "{{ current_user.first_name if current_user.is_authenticated else 'Guest' }}"
+            }
+        };
+
         const searchInput = document.getElementById('productSearch');
         if (searchInput) {
             searchInput.addEventListener('input', function (e) {
@@ -447,7 +588,6 @@
         }
 
         document.addEventListener("DOMContentLoaded", function () {
-            // Dropdown toggle
             const trigger = document.getElementById("profileTrigger");
             const menu = document.getElementById("dropdownMenu");
 
@@ -458,7 +598,6 @@
                 });
             }
 
-            // Close dropdown when clicking outside
             window.addEventListener("click", function (event) {
                 if (!event.target.closest(".user-profile-widget")) {
                     const dropdowns = document.getElementsByClassName("dropdown-menu");
@@ -471,14 +610,9 @@
                 }
             });
 
-            // About section IntersectionObserver
             const aboutSection = document.querySelector('#about');
             const aboutNavLink = document.querySelector('a[href="#about"]');
-
-            const observerOptions = {
-                root: null, // use the viewport
-                threshold: 0.6 // 60% of the section must be visible
-            };
+            const observerOptions = { root: null, threshold: 0.6 };
 
             const observer = new IntersectionObserver((entries) => {
                 entries.forEach(entry => {
@@ -490,37 +624,24 @@
                 });
             }, observerOptions);
 
-            if (aboutSection) {
-                observer.observe(aboutSection);
-            }
+            if (aboutSection) observer.observe(aboutSection);
 
-            // Show/hide elements based on auth state
             if (document.body.classList.contains("logged-in")) {
                 document.querySelectorAll(".guest-only").forEach(el => el.style.display = "none");
             } else {
                 document.querySelectorAll(".auth-only").forEach(el => el.style.display = "none");
             }
 
-            // Profile image fallback
             const profileImages = document.querySelectorAll('.user-photo-img');
-
             profileImages.forEach(img => {
                 img.onerror = function() {
                     const container = this.parentElement;
                     container.innerHTML = '<span class="material-symbols-outlined icon-placeholder">account_circle</span>';
                     const placeholder = container.querySelector('.icon-placeholder');
-                    if (container.classList.contains('profile-avatar-large')) {
-                        placeholder.style.fontSize = "100px";
-                    } else {
-                        placeholder.style.fontSize = "38px";
-                    }
+                    placeholder.style.fontSize = container.classList.contains('profile-avatar-large') ? "100px" : "38px";
                 };
             });
         });
     </script>
-
-    
-
 </body>
-
 </html>
