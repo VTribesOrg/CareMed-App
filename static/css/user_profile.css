@@ -797,7 +797,78 @@ footer {
     cursor: pointer;
 }
 
+/* --- Profile Photo Upload & Remove Styles --- */
 
+.profile-photo-container {
+    text-align: center;
+    margin-bottom: 25px;
+}
+
+.photo-preview-wrapper {
+    position: relative;
+    width: 110px;
+    height: 110px;
+    margin: 0 auto;
+}
+
+.upload-photo-label {
+    position: absolute;
+    bottom: 5px;
+    right: 5px;
+    background: #52B788;
+    color: white;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: 2px solid white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    transition: all 0.3s ease;
+}
+
+.upload-photo-label:hover {
+    background: #38BDF8;
+    transform: scale(1.1);
+}
+
+.upload-photo-label span {
+    font-size: 18px;
+}
+
+.btn-remove-photo {
+    background: none;
+    border: none;
+    color: #e63946;
+    font-size: 12px;
+    font-weight: 700;
+    margin-top: 12px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    opacity: 0.8;
+}
+
+.btn-remove-photo:hover {
+    opacity: 1;
+    background-color: #fff5f5;
+    color: #c53030;
+}
+
+#imagePreview {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    overflow: hidden;
+    background-color: #f0f9ff;
+    border: 2px solid rgba(56, 189, 248, 0.2);
+}
 
 /*------------------------ LOAD SPINNER OF UPDATE PROFILE -----------------------------------*/
 

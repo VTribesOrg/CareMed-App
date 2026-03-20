@@ -33,7 +33,6 @@ def homepage():
 def products():
     return render_template('user/products.html')
 
-
 @user_bp.route('/profile', methods=['GET', 'POST'])
 @login_required
 @customer_required
@@ -48,45 +47,49 @@ def profile():
         profile_form.phone.data = current_user.phone
         profile_form.address.data = current_user.address
 
+        return render_template("user/profile.html", profile_form=profile_form, password_form=password_form)
+
     if profile_form.validate_on_submit() and profile_form.submit_profile.data:
-        current_user.first_name = profile_form.first_name.data.strip().title()
-        current_user.last_name = profile_form.last_name.data.strip().title()
-        current_user.phone = profile_form.phone.data.strip()
-        current_user.address = profile_form.address.data.title()
+            # Update text fields
+            current_user.first_name = profile_form.first_name.data.strip().title()
+            current_user.last_name = profile_form.last_name.data.strip().title()
+            current_user.phone = profile_form.phone.data.strip()
+            current_user.address = profile_form.address.data.title()
 
-        remove_photo_signal = request.form.get('remove_photo') == 'true'
+            remove_photo_signal = request.form.get('remove_photo') == 'true'
+            new_file = profile_form.profile_path.data
 
-        if remove_photo_signal:
-            if current_user.profile_path:
-                old_file_path = os.path.join(current_app.root_path, 'static', current_user.profile_path)
-                if os.path.exists(old_file_path):
-                    os.remove(old_file_path)
+            try:
+                if remove_photo_signal and not new_file:
+                    if current_user.profile_path:
+                        old_path = os.path.join(current_app.root_path, 'static', current_user.profile_path)
+                        if os.path.exists(old_path):
+                            os.remove(old_path)
+                        current_user.profile_path = None
 
-            current_user.profile_path = None
+                if new_file:
+                    if current_user.profile_path:
+                        old_path = os.path.join(current_app.root_path, 'static', current_user.profile_path)
+                        if os.path.exists(old_path):
+                            os.remove(old_path)
 
-        else:
-            file = profile_form.profile_path.data
-            if file:
-                filename = secure_filename(f"{current_user.id}_{file.filename}")
-                upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'profiles')
+                    filename = secure_filename(f"user_{current_user.id}_{new_file.filename}")
+                    upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'profiles')
+                    os.makedirs(upload_folder, exist_ok=True)
+                    
+                    new_file.save(os.path.join(upload_folder, filename))
+                    current_user.profile_path = f"uploads/profiles/{filename}"
 
-                if not os.path.exists(upload_folder):
-                    os.makedirs(upload_folder)
+                db.session.commit()
+                return jsonify(status="success", message="Profile updated successfully!")
 
-                if current_user.profile_path:
-                    old_path = os.path.join(current_app.root_path, 'static', current_user.profile_path)
-                    if os.path.exists(old_path):
-                        os.remove(old_path)
+            except Exception as e:
+                db.session.rollback()
+                current_app.logger.error(f"Profile update failed: {e}")
+                return jsonify(status="error", message="Failed to update profile.", detail=str(e))
 
-                file.save(os.path.join(upload_folder, filename))
-                current_user.profile_path = f"uploads/profiles/{filename}"
-
-        try:
-            db.session.commit()
-            return jsonify(status="success", message="Profile updated successfully!")
-        except:
-            db.session.rollback()
-            return jsonify(status="error", message="Failed to update profile.")
+    if request.method == "POST":
+        return jsonify(status="error", message="Validation failed", errors=profile_form.errors)
 
     return render_template("user/profile.html", profile_form=profile_form, password_form=password_form)
 

@@ -44,7 +44,7 @@
                 <div class="mobile-user-info auth-only">
                     <div class="user-avatar mobile-user-avatar" id="mobileAvatarContainer">
                         {% if current_user.is_authenticated and current_user.profile_path %}
-                            <img src="{{ url_for('static', filename=current_user.profile_path) }}" class="user-photo-img">
+                            <img src="{{ url_for('static', filename=current_user.profile_path) }}" class="user-photo-img" alt="Profile Picture">
                         {% else %}
                             <i class="fa-solid fa-circle-user icon-placeholder"></i>
                         {% endif %}
@@ -124,7 +124,7 @@
                     <div class="profile-trigger" id="profileTrigger">
                         <div class="user-avatar" id="navAvatarContainer">
                             {% if current_user.is_authenticated and current_user.profile_path %}
-                                <img src="{{ url_for('static', filename=current_user.profile_path) }}" class="user-photo-img">
+                                <img src="{{ url_for('static', filename=current_user.profile_path) }}" class="user-photo-img" alt="Profile Picture">
                             {% else %}
                                 <i class="fa-solid fa-circle-user icon-placeholder"></i>
                             {% endif %}

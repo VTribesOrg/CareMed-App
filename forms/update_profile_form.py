@@ -1,4 +1,5 @@
 import re
+from flask_wtf.file import FileAllowed
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, TextAreaField, FileField, SubmitField
 from wtforms.validators import DataRequired, Length, Optional, EqualTo, ValidationError
@@ -35,7 +36,7 @@ class UpdateProfileForm(FlaskForm):
     
     address = TextAreaField("Address", validators=[Optional(), Length(max=255)])
     
-    profile_pic = FileField("Profile Picture")
+    profile_path = FileField('Profile Picture', validators=[FileAllowed(['jpg', 'png', 'jpeg'], 'Images only!')])
     
     submit_profile = SubmitField("Update Profile")
 

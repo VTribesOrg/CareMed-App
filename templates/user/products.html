@@ -32,17 +32,13 @@
 
         <div class="drawer-links">
             <div class="mobile-user-info auth-only">
-                <div class="user-avatar mobile-user-avatar" id="mobileAvatarContainer">
-                    {% if current_user.is_authenticated and current_user.profile_pic %}
-                        {% if current_user.profile_pic.startswith('http') %}
-                            <img src="{{ current_user.profile_pic }}" class="user-photo-img">
+                    <div class="user-avatar mobile-user-avatar" id="mobileAvatarContainer">
+                        {% if current_user.is_authenticated and current_user.profile_path %}
+                            <img src="{{ url_for('static', filename=current_user.profile_path) }}" class="user-photo-img" alt="Profile Picture">
                         {% else %}
-                            <img src="{{ url_for('static', filename=current_user.profile_pic) }}" class="user-photo-img">
+                            <i class="fa-solid fa-circle-user icon-placeholder"></i>
                         {% endif %}
-                    {% else %}
-                        <i class="fa-solid fa-circle-user icon-placeholder"></i>
-                    {% endif %}
-                </div>
+                    </div>
 
                 <div class="user-details">
                     <span class="user-name">
@@ -107,12 +103,8 @@
             <div class="user-profile-widget auth-only" id="profileDropdown">
                 <div class="profile-trigger" id="profileTrigger">
                     <div class="user-avatar" id="navAvatarContainer">
-                        {% if current_user.is_authenticated and current_user.profile_pic %}
-                            {% if current_user.profile_pic.startswith('http') %}
-                                <img src="{{ current_user.profile_pic }}" class="user-photo-img">
-                            {% else %}
-                                <img src="{{ url_for('static', filename=current_user.profile_pic) }}" class="user-photo-img">
-                            {% endif %}
+                        {% if current_user.is_authenticated and current_user.profile_path %}
+                            <img src="{{ url_for('static', filename=current_user.profile_path) }}" class="user-photo-img" alt="Profile Picture">
                         {% else %}
                             <i class="fa-solid fa-circle-user icon-placeholder"></i>
                         {% endif %}
