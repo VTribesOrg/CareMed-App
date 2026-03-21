@@ -245,4 +245,75 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    
+});
+
+const rentModal = document.getElementById('rentAssetModal');
+const rentBtns = document.querySelectorAll('.asset-action-btn.rent');
+
+// 1. Open Modal Logic
+rentBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        const equipmentName = btn.getAttribute('data-name') || "Equipment";
+        const equipmentId = btn.getAttribute('data-id') || "";
+        const rentNameDisplay = document.getElementById('rent-equipment-name');
+        
+        if (rentNameDisplay) {
+            rentNameDisplay.textContent = `${equipmentName} (${equipmentId})`;
+        }
+
+        rentModal.classList.remove('hidden');
+    });
+});
+
+// 2. Close Modal Logic (Delegation)
+// This will now work because the elements have the 'close-rent-modal' class
+rentModal.addEventListener('click', (e) => {
+    if (e.target.classList.contains('close-rent-modal') || 
+        e.target.classList.contains('medical-modal-overlay')) {
+        rentModal.classList.add('hidden');
+    }
+});
+
+// 3. Calculation Logic
+const rentForm = document.getElementById('rentEntryForm');
+const rentRateInput = document.getElementById('rent-rate-display');
+const depositInput = document.getElementById('security-deposit-input');
+const totalDisplay = document.querySelector('.total-amount-display');
+
+if (rentForm) {
+    rentForm.addEventListener('input', () => {
+        const rate = parseFloat(rentRateInput.value) || 0;
+        const deposit = parseFloat(depositInput.value) || 0;
+        
+        if (totalDisplay) {
+            const total = rate + deposit;
+            totalDisplay.textContent = `₱${total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        }
+    });
+}
+
+
+// Get Modal and Buttons
+const addStockModal = document.getElementById('addStockModal');
+const openStockBtns = document.querySelectorAll('.open-stock-modal');
+const closeStockBtns = document.querySelectorAll('.close-stock-modal');
+
+// Open Modal Logic
+openStockBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        // Logic to "find" the data from the row (Optional but recommended)
+        // const itemName = btn.closest('.asset-row').querySelector('.asset-name').innerText;
+        // document.getElementById('stock-equipment-name').innerText = itemName;
+
+        addStockModal.classList.remove('hidden');
+    });
+});
+
+// Close Modal Logic
+closeStockBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        addStockModal.classList.add('hidden');
+    });
 });
