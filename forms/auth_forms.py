@@ -59,7 +59,6 @@ class LoginForm(FlaskForm):
     
     password = PasswordField("Password", validators=[DataRequired()])
     
-    submit = SubmitField("Login")
     
 class ResetPasswordForm(FlaskForm):
     

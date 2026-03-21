@@ -5,10 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=0.8">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>CareMed | Login Page</title>
+    <title>CareMed</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='icons/favicon-circle.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/registration.css') }}">
 </head>
 
@@ -17,7 +17,13 @@
     <div class="login-wrapper">
         <div class="side-visual">
             <div class="nav-header">
-                <a href="{{ url_for('user.homepage')}}" class="main-logo" title="Back to Homepage">
+                <a href="{{ url_for('user.homepage')}}" class="main-logo-dark" title="Back to homepage">
+                    <div class="brand-icon-plus">
+                        <div class="box blue top"></div>
+                        <div class="box green left"></div>
+                        <div class="box green right"></div>
+                        <div class="box blue bottom"></div>
+                    </div>    
                     Care<span>Med</span>
                 </a>
                 <a href="{{ url_for('user.homepage')}}" class="guest-btn-light">
@@ -54,13 +60,28 @@
             <div class="form-container">
 
                 <div class="form-side-header">
-                    <a href="{{ url_for('user.homepage')}}" class="form-logo">Care<span>Med</span></a>
+                    <a href="{{ url_for('user.homepage')}}" class="form-logo">
+                        <div class="brand-icon-plus">
+                            <div class="box blue top"></div>
+                            <div class="box green left"></div>
+                            <div class="box green right"></div>
+                            <div class="box blue bottom"></div>
+                        </div> Care<span>Med</span>
+                    </a>
                     <div class="form-tagline">Home Medical Equipment Rental Services</div>
                 </div>
 
                 <div class="mobile-logo-header">
-                    <a href="{{ url_for('user.homepage')}}" class="main-logo-dark">Care<span>Med</span></a>
+                    <a href="{{ url_for('user.homepage')}}" class="main-logo-dark">                    
+                        <div class="brand-icon-plus">
+                            <div class="box blue top"></div>
+                            <div class="box green left"></div>
+                            <div class="box green right"></div>
+                            <div class="box blue bottom"></div>
+                        </div> Care<span>Med</span>
+                    </a>
                     <a href="{{ url_for('user.homepage')}}" class="guest-pill">Guest Mode</a>
+                    
                 </div>
 
                 <div id="signupForm">

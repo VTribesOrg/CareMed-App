@@ -4,12 +4,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=0.8">
-    <title>Product Catalog | CareMed</title>
+    <title>CareMed</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='icons/favicon-circle.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/user_products.css') }}">
+    <style>
+        .feature-icon.material-symbols-outlined {
+            font-size: 40px;
+            display: block;
+            margin-bottom: 15px;
+        }
 
+        .nav-links a.active-link {
+                color: #71b345;     
+                font-weight: 700;         
+                border-bottom: 2px solid #71b345; 
+        }
+    </style>
 </head>
 
 <body class="{% if current_user.is_authenticated %}logged-in{% else %}guest{% endif %}">
@@ -20,8 +32,6 @@
         <div class="drawer-header">
             <a href="{{ url_for('user.homepage')}}" style="text-decoration: none;">
                 <div class="nav-logo">
-                    <img src="" alt="CareMed Logo" class="nav-logo-img"
-                        style="display: none; height: 30px; width: auto;">
                     Care<span>Med</span>
                 </div>
             </a>
@@ -32,20 +42,20 @@
 
         <div class="drawer-links">
             <div class="mobile-user-info auth-only">
-                    <div class="user-avatar mobile-user-avatar" id="mobileAvatarContainer">
-                        {% if current_user.is_authenticated and current_user.profile_path %}
-                            <img src="{{ url_for('static', filename=current_user.profile_path) }}" class="user-photo-img" alt="Profile Picture">
-                        {% else %}
-                            <i class="fa-solid fa-circle-user icon-placeholder"></i>
-                        {% endif %}
-                    </div>
+                <div class="user-avatar mobile-user-avatar" id="mobileAvatarContainer">
+                    {% if current_user.is_authenticated and current_user.profile_path %}
+                        <img src="{{ url_for('static', filename=current_user.profile_path) }}" class="user-photo-img" alt="Profile Picture">
+                    {% else %}
+                        <i class="fa-solid fa-circle-user icon-placeholder"></i>
+                    {% endif %}
+                </div>
 
                 <div class="user-details">
                     <span class="user-name">
                         {% if current_user.is_authenticated %}
-                            {{ current_user.first_name }} {{ current_user.last_name }}
+                            Hello, {{ current_user.first_name }}
                         {% else %}
-                            Welcome, Guest
+                            Guest
                         {% endif %}
                     </span>
                     {% if not current_user.is_authenticated %}
@@ -55,7 +65,7 @@
             </div>
 
             <div class="mobile-user-info guest-only">
-                <div class="user-avatar mobile-user-avatar" id="mobileAvatarContainer">
+                <div class="user-avatar mobile-user-avatar">
                     <i class="fa-solid fa-circle-user icon-placeholder"></i>
                 </div>
                 <div class="user-details">
@@ -64,10 +74,29 @@
                 </div>
             </div>
 
-            <a href="{{ url_for('user.products')}}"><i class="fa-solid fa-bag-shopping"></i> Shop Equipment</a>
+            <a href="{{ url_for('user.products')}}" class="guest-only">
+                <i class="fa-solid fa-hand-holding-medical"></i> Start Renting
+            </a>
 
-            <a href="{{ url_for('user.profile')}}" class="auth-only active"><i class="fa-solid fa-user"></i> My Profile</a>
-            <a href="orders.html" class="auth-only"><i class="fa-solid fa-clock-rotate-left"></i> My Rentals</a>
+            <a href="{{ url_for('user.products')}}" class="active">
+                <i class="fa-solid fa-bag-shopping"></i> Browse Equipment
+            </a>
+
+            <a href="{{ url_for('user.homepage')}}#how">
+                <i class="fa-solid fa-circle-info"></i> How It Works
+            </a>
+
+            <a href="{{ url_for('user.homepage')}}#about">
+                <i class="fa-solid fa-building"></i> About
+            </a>
+
+            <a href="{{ url_for('user.profile')}}" class="auth-only">
+                <i class="fa-solid fa-user"></i> My Profile
+            </a>
+
+            <a href="#" class="auth-only">
+                <i class="fa-solid fa-clock-rotate-left"></i> My Rentals
+            </a>
 
             <hr class="auth-only" style="border: none; border-top: 1px solid #eee; margin: 10px 0;">
 
@@ -77,7 +106,7 @@
                 </a>
             {% else %}
                 <a href="{{ url_for('auth.login') }}" class="login-link-mobile guest-only">
-                    <i class="fa-solid fa-right-to-bracket"></i> Sign In / Register
+                    <i class="fa-solid fa-right-to-bracket"></i> Sign In
                 </a>
             {% endif %}
         </div>
@@ -86,19 +115,30 @@
     <label for="nav-toggle" class="drawer-overlay"></label>
 
     <nav>
-        <a href="{{ url_for('user.homepage')}}" style="text-decoration: none;">
+        <a href="{{ url_for('user.homepage')}}" class="nav-logo-wrapper">
+            <div class="brand-icon-plus">
+                <div class="box blue top"></div>
+                <div class="box green left"></div>
+                <div class="box green right"></div>
+                <div class="box blue bottom"></div>
+            </div> 
             <div class="nav-logo">Care<span>Med</span></div>
         </a>
 
         <div class="nav-links">
-            <a href="{{ url_for('user.products')}}" class="nav-shop-link">
-                <i class="fa-solid fa-bag-shopping"></i> Shop Equipment
+            <a href="{{ url_for('user.products')}}" class="nav-shop-link active hover">
+                <i class="fa-solid fa-bag-shopping"></i> Browse Equipment
             </a>
 
-            <a href="{{ url_for('auth.login')}}" class="nav-account-btn guest-only">
-                <i class="fa-solid fa-right-to-bracket"></i> Sign In / Register
+            <a href="#how" class="nav-account-btn hover">How It Works</a>
+
+            <a href="#about" class="nav-account-btn hover">About</a>
+
+            <a href="{{ url_for('auth.login')}}" class="nav-account-btn guest-only hover">
+                <i class="fa-solid fa-right-to-bracket"></i> Sign In
             </a>
-            <a href="product_gallery.html" class="nav-cta-btn guest-only">Rent Now</a>
+
+            <a href="{{ url_for('user.products')}}" class="nav-cta-btn guest-only hover">Start Renting</a>
 
             <div class="user-profile-widget auth-only" id="profileDropdown">
                 <div class="profile-trigger" id="profileTrigger">
@@ -109,6 +149,7 @@
                             <i class="fa-solid fa-circle-user icon-placeholder"></i>
                         {% endif %}
                     </div>
+
                     <div class="user-info">
                         <span class="user-name">
                             {% if current_user.is_authenticated %}
@@ -118,6 +159,7 @@
                             {% endif %}
                         </span>
                     </div>
+
                     <i class="fa-solid fa-chevron-down"></i>
                 </div>
 
@@ -126,7 +168,7 @@
                         <a href="{{ url_for('user.profile')}}">
                             <i class="fa-solid fa-user"></i> My Profile
                         </a>
-                        <a href="orders.html">
+                        <a href="#">
                             <i class="fa-solid fa-clock-rotate-left"></i> My Rentals
                         </a>
                         <hr>

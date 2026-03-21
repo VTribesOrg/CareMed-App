@@ -12,7 +12,9 @@ body {
     overflow-x: hidden;
 }
 
-/* --- Navigation --- */
+
+
+/* ======================================= Start of Navigation ======================================= */
 nav {
     width: 100%;
     background: rgba(255, 255, 255, 0.98);
@@ -21,7 +23,7 @@ nav {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: 0 4px 20px rgba(56, 189, 248, 0.12); /* Brighter sky blue shadow */
+    box-shadow: 0 4px 20px rgba(26, 121, 176, 0.1); 
     position: fixed;
     top: 0;
     left: 0;
@@ -29,7 +31,7 @@ nav {
 }
 
 .nav-logo {
-    color: #002347;
+    color: #1a79b0; 
     font-size: 26px; 
     font-weight: 800;
     text-decoration: none;
@@ -37,7 +39,7 @@ nav {
 }
 
 .nav-logo span {
-    color: #38BDF8; /* Sky Blue Branding */
+    color: #71b345;
 }
 
 .nav-links {
@@ -59,12 +61,152 @@ nav {
 
 .nav-links i, 
 .footer-icon-small {
-    color: #38BDF8; 
+    color: #71b345; 
 }
 
-.nav-links a:hover {
-    color: #38BDF8;
+
+
+.nav-links a.active {
+    color: #71b345;     
+    font-weight: 700;         
+    border-bottom: 2px solid #71b345; 
 }
+
+.nav-links .hover:hover {
+    color: #71b345;            
+    border-bottom: 2px solid #71b345;
+}
+
+.nav-account-btn:hover {
+    color: #71b345;            
+    border-bottom: 2px solid #71b345;
+}
+.drawer-links a.active {
+    color: #71b345;
+    background: #f0fdf4;       
+    transform: translateX(5px); 
+}
+
+
+
+/* ===================================== BRAND ICON: CareMed =====================================  */
+
+.nav-logo-wrapper {
+    display: flex;
+    align-items: center; 
+    text-decoration: none;
+}
+
+.brand-icon-plus {
+    position: relative;
+    width: 32px;
+    height: 32px;
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 12px;
+    flex-shrink: 0;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.15));
+    justify-content: center;
+    flex-direction: column;
+    width: 30px;
+    height: 30px;
+}
+
+
+.brand-icon-plus.sm {
+    width: 20px;
+    height: 20px;
+    margin-right: 8px;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.box {
+    position: absolute;
+    width: 45%;
+    height: 45%;
+    border-radius: 20%;
+    transition: all 0.2s ease;
+        box-shadow: 
+        inset 0 2px 4px rgba(255, 255, 255, 0.2), 
+        inset 0 -3px 5px rgba(0, 0, 0, 0.1);   
+}
+
+
+.box.blue { 
+    background: linear-gradient(135deg, #1C8BC9 0%, #1A79B0 100%); 
+}
+.box.green { 
+    background: linear-gradient(135deg, #7DC54B 0%, #71B345 100%); 
+}
+
+
+
+.box.top { 
+    top: 0; 
+    left: 27.5%; 
+    z-index: 2;
+}
+
+.box.bottom { 
+    bottom: 0; 
+    left: 27.5%; 
+    z-index: 1; 
+}
+
+.box.left { 
+    top: 27.5%; 
+    left: 0; 
+    z-index: 2; 
+}
+
+.box.right { 
+    top: 27.5%; 
+    right: 0; 
+    z-index: 1; 
+}
+
+.main-logo-dark, .form-logo, .main-logo {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    font-weight: 800;
+}
+
+@media (max-width: 768px) {
+    .brand-icon-plus {
+        width: 28px;
+        height: 28px;
+        margin-right: 10px;
+    }
+    
+    .main-logo-dark, .form-logo, .main-logo {
+        font-size: 24px; 
+    }
+}
+
+@media (max-width: 480px) {
+    .brand-icon-plus {
+        width: 24px;
+        height: 24px;
+        margin-right: 8px;
+    }
+
+    .brand-icon-plus.sm {
+        width: 18px;
+        height: 18px;
+    }
+    
+    .box {
+
+        box-shadow: 
+            inset 0 1px 2px rgba(255, 255, 255, 0.2), 
+            inset 0 -1.5px 3px rgba(0, 0, 0, 0.1);
+    }
+}
+
+
+/* ===================================== END BRAND ICON: CareMed =====================================  */
+
 
 .auth-only {
     display: none !important;
@@ -91,8 +233,6 @@ body.logged-in .dropdown-menu.show {
     flex-direction: column;
 }
 
-
-
 .nav-account-btn {
     color: #002347;
     text-decoration: none;
@@ -103,7 +243,7 @@ body.logged-in .dropdown-menu.show {
 }
 
 .nav-account-btn:hover {
-    color: #38BDF8;
+    color: #1a79b0;
 }
 
 .nav-cta-btn {
@@ -118,12 +258,12 @@ body.logged-in .dropdown-menu.show {
 }
 
 .nav-cta-btn:hover {
-    background-color: #38BDF8; /* Updated Hover State */
+    background-color: #1a79b0; /* CareMed Blue Hover */
     transform: translateY(-1px);
 }
 
 .mobile-account-btn {
-    background: #f8f9fa;
+    background: #f8fafc; /* Matches Login background */
     color: #002347 !important;
     padding: 12px;
     border-radius: 8px;
@@ -136,7 +276,6 @@ body.logged-in .dropdown-menu.show {
     gap: 5px;
     text-decoration: none;
 }
-
 
 .user-photo-img {
     width: 100%;
@@ -174,20 +313,19 @@ img.user-photo-img:after {
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: #f0f9ff;
+    background-color: #f8fafc;
     z-index: 2;
 }
 
 /*---------------------- START OF USER-AVATAR STYLE -------------------------------*/
 
 .icon-placeholder {
-    color: #38BDF8; 
+    color: #1a79b0; /* CareMed Blue */
     display: flex;
     align-items: center;
     justify-content: center;
     line-height: 1;
 }
-
 
 .user-avatar, 
 .profile-avatar-large, 
@@ -196,11 +334,11 @@ img.user-photo-img:after {
     align-items: center;
     justify-content: center;
     overflow: hidden; 
-    background-color: #f0f9ff; 
+    background-color: #f8fafc; 
     border-radius: 50%;
     flex-shrink: 0;
     aspect-ratio: 1 / 1; 
-    border: 2px solid rgba(56, 189, 248, 0.2);
+    border: 2px solid rgba(26, 121, 176, 0.1);
 }
 
 .user-avatar .icon-placeholder {
@@ -214,7 +352,6 @@ img.user-photo-img:after {
 #imagePreview .icon-placeholder {
     font-size: 110px; 
 }
-
 
 /*---------------------- END OF USER-AVATAR STYLE -------------------------------*/
 
@@ -241,9 +378,9 @@ img.user-photo-img:after {
 }
 
 .login-btn:hover {
-    background: #38BDF8; /* Transition to Blue on hover */
+    background: #1a79b0; /* CareMed Blue Hover */
     transform: translateY(-2px);
-    box-shadow: 0 6px 15px rgba(56, 189, 248, 0.3);
+    box-shadow: 0 6px 15px rgba(26, 121, 176, 0.3);
 }
 
 .login-btn:active {
@@ -266,7 +403,6 @@ img.user-photo-img:after {
     color: white !important;
 }
 
-
 .hamburger-icon {
     display: none;
     cursor: pointer;
@@ -276,7 +412,7 @@ img.user-photo-img:after {
 }
 
 .hamburger-icon:hover {
-    background: #f0f9ff;
+    background: #f8fafc;
     border-radius: 8px;
 }
 
@@ -315,8 +451,8 @@ img.user-photo-img:after {
 }
 
 .drawer-links a:hover {
-    background: #f0f9ff;
-    color: #38BDF8;
+    background: #f8fafc;
+    color: #1a79b0; /* CareMed Blue */
     transform: translateX(5px);
 }
 
@@ -362,7 +498,6 @@ img.user-photo-img:after {
     }
 }
 
-
 .user-profile-widget {
     position: relative;
     user-select: none;
@@ -377,7 +512,7 @@ img.user-photo-img:after {
     border-radius: 50px;
     cursor: pointer;
     transition: all 0.3s ease;
-    border: 1px solid #eee;
+    border: 1px solid #e2e8f0; /* Matched to Login border color */
 }
 
 .profile-trigger:hover {
@@ -403,7 +538,6 @@ img.user-photo-img:after {
     justify-content: center;
 }
 
-
 .user-info {
     display: flex;
     flex-direction: column;
@@ -418,7 +552,7 @@ img.user-photo-img:after {
 
 .user-role {
     font-size: 11px;
-    color: #38BDF8; /* Updated role color */
+    color: #71b345; 
     font-weight: 700;
     text-transform: uppercase;
 }
@@ -431,7 +565,7 @@ img.user-photo-img:after {
     background: white;
     border-radius: 12px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-    border: 1px solid #eee;
+    border: 1px solid #e2e8f0;
     padding: 8px 0;
     display: none;
     flex-direction: column;
@@ -452,13 +586,13 @@ img.user-photo-img:after {
 }
 
 .dropdown-menu a:hover {
-    background: #f0f9ff;
-    color: #38BDF8 !important;
+    background: #f8fafc;
+    color: #1a79b0 !important;
 }
 
 .dropdown-menu hr {
     border: none;
-    border-top: 1px solid #eee;
+    border-top: 1px solid #e2e8f0;
     margin: 5px 0;
 }
 
@@ -509,8 +643,6 @@ img.user-photo-img:after {
     padding: 10px;
     margin-bottom: 20px;
 }
-
-
 
 /*------------------------- END OF THE NAVIGATION OR HEADER --------------------------*/
 

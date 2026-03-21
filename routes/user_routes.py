@@ -28,8 +28,6 @@ def homepage():
 
 
 @user_bp.route('/products')
-@login_required
-@customer_required
 def products():
     return render_template('user/products.html')
 

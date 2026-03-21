@@ -1,5 +1,5 @@
 import os
-from flask import Flask, request, redirect, url_for, flash
+from flask import Flask, request, redirect, url_for, flash, render_template
 from extensions import db, migrate, login_manager, oauth, mail, csrf, limiter
 from models.users import User
 from flask_talisman import Talisman
@@ -62,6 +62,11 @@ def register_error_handlers(app):
 
 register_error_handlers(app)
 
+
+
+@app.route('/')
+def homepage():
+    return render_template('user/homepage.html')
 
 from routes.user_routes import user_bp
 app.register_blueprint(user_bp)

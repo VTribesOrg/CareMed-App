@@ -12,6 +12,8 @@ body {
     overflow-x: hidden;
 }
 
+
+/* ======================================= Start of Navigation ======================================= */
 nav {
     width: 100%;
     background: rgba(255, 255, 255, 0.98);
@@ -20,7 +22,7 @@ nav {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: 0 4px 20px rgba(56, 189, 248, 0.12);
+    box-shadow: 0 4px 20px rgba(26, 121, 176, 0.1); 
     position: fixed;
     top: 0;
     left: 0;
@@ -28,7 +30,7 @@ nav {
 }
 
 .nav-logo {
-    color: #002347;
+    color: #1a79b0; 
     font-size: 26px; 
     font-weight: 800;
     text-decoration: none;
@@ -36,7 +38,7 @@ nav {
 }
 
 .nav-logo span {
-    color: #38BDF8; 
+    color: #71b345;
 }
 
 .nav-links {
@@ -58,12 +60,177 @@ nav {
 
 .nav-links i, 
 .footer-icon-small {
-    color: #38BDF8;
+    color: #71b345; 
 }
 
-.nav-links a:hover {
-    color: #38BDF8;
+
+
+.nav-links a.active {
+    color: #71b345;     
+    font-weight: 700;         
+    border-bottom: 2px solid #71b345; 
 }
+
+.nav-links .hover:hover {
+    color: #71b345;            
+    border-bottom: 2px solid #71b345;
+}
+
+.nav-account-btn:hover {
+    color: #71b345;            
+    border-bottom: 2px solid #71b345;
+}
+
+
+
+
+/* ===================================== BRAND ICON: CareMed =====================================  */
+
+.nav-logo-wrapper {
+    display: flex;
+    align-items: center; 
+    text-decoration: none;
+}
+
+.brand-icon-plus {
+    position: relative;
+    width: 32px;
+    height: 32px;
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 12px;
+    flex-shrink: 0;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.15));
+    justify-content: center;
+    flex-direction: column;
+    width: 30px;
+    height: 30px;
+}
+
+
+.brand-icon-plus.sm {
+    width: 20px;
+    height: 20px;
+    margin-right: 8px;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.box {
+    position: absolute;
+    width: 45%;
+    height: 45%;
+    border-radius: 20%;
+    transition: all 0.2s ease;
+        box-shadow: 
+        inset 0 2px 4px rgba(255, 255, 255, 0.2), 
+        inset 0 -3px 5px rgba(0, 0, 0, 0.1);   
+}
+
+
+.box.blue { 
+    background: linear-gradient(135deg, #1C8BC9 0%, #1A79B0 100%); 
+}
+.box.green { 
+    background: linear-gradient(135deg, #7DC54B 0%, #71B345 100%); 
+}
+
+
+
+.box.top { 
+    top: 0; 
+    left: 27.5%; 
+    z-index: 2;
+}
+
+.box.bottom { 
+    bottom: 0; 
+    left: 27.5%; 
+    z-index: 1; 
+}
+
+.box.left { 
+    top: 27.5%; 
+    left: 0; 
+    z-index: 2; 
+}
+
+.box.right { 
+    top: 27.5%; 
+    right: 0; 
+    z-index: 1; 
+}
+
+.main-logo-dark, .form-logo, .main-logo {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    font-weight: 800;
+}
+
+@media (max-width: 768px) {
+    .brand-icon-plus {
+        width: 28px;
+        height: 28px;
+        margin-right: 10px;
+    }
+    
+    .main-logo-dark, .form-logo, .main-logo {
+        font-size: 24px; 
+    }
+
+    .profile-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .details-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .profile-section {
+        padding-top: 100px;
+    }
+}
+
+@media (max-width: 480px) {
+    .brand-icon-plus {
+        width: 24px;
+        height: 24px;
+        margin-right: 8px;
+    }
+
+    .brand-icon-plus.sm {
+        width: 18px;
+        height: 18px;
+    }
+    
+    .box {
+
+        box-shadow: 
+            inset 0 1px 2px rgba(255, 255, 255, 0.2), 
+            inset 0 -1.5px 3px rgba(0, 0, 0, 0.1);
+    }
+        .brand-icon-plus {
+        width: 24px;
+        height: 24px;
+        margin-right: 8px;
+    }
+
+    .brand-icon-plus.sm {
+        width: 18px;
+        height: 18px;
+    }
+    
+    .box {
+
+        box-shadow: 
+            inset 0 1px 2px rgba(255, 255, 255, 0.2), 
+            inset 0 -1.5px 3px rgba(0, 0, 0, 0.1);
+    }
+}
+
+
+/* ===================================== END BRAND ICON: CareMed =====================================  */
+
 
 .auth-only {
     display: none !important;
@@ -91,12 +258,12 @@ body.logged-in .dropdown-menu.show {
 }
 
 .nav-shop-link {
-  
     font-weight: 700;
     display: flex;
     align-items: center;
     gap: 5px;
     text-decoration: none;
+    color: #1a79b0; 
 }
 
 .nav-account-btn {
@@ -108,28 +275,25 @@ body.logged-in .dropdown-menu.show {
     gap: 5px;
 }
 
-.nav-account-btn:hover {
-    color: #38BDF8;
-}
 
 .nav-cta-btn {
     background-color: #002347; 
     color: white !important;
-    padding: 5px 28px;
+    padding: 10px 28px; 
     border-radius: 8px; 
     text-decoration: none;
-    font-weight: 300;
+    font-weight: 600;
     font-size: 14px;
     transition: all 0.3s ease;
 }
 
 .nav-cta-btn:hover {
-    background-color: #38BDF8;
+    background-color: #1a79b0; 
     transform: translateY(-1px);
 }
 
 .mobile-account-btn {
-    background: #f8f9fa;
+    background: #f8fafc;
     color: #002347 !important;
     padding: 12px;
     border-radius: 8px;
@@ -142,7 +306,6 @@ body.logged-in .dropdown-menu.show {
     gap: 5px;
     text-decoration: none;
 }
-
 
 .user-photo-img {
     width: 100%;
@@ -180,21 +343,21 @@ img.user-photo-img:after {
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: #f0f9ff; 
+    background-color: #f8fafc;
     z-index: 2;
 }
 
 .login-link-mobile.guest-only {
     margin: 15px;
     padding: 12px 20px;
-    background-color: #38bdf8;
+    background-color: #002347;
     color: white !important;
     border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 600;
-    transition: background-color 0.3s ease, transform 0.2s ease;
+    transition: all 0.3s ease;
     text-decoration: none;
 }
 
@@ -205,7 +368,7 @@ img.user-photo-img:after {
 }
 
 .login-link-mobile.guest-only:hover {
-    background-color: #0ea5e9; 
+    background-color: #1a79b0;
     transform: translateY(-2px);
 }
 
@@ -215,20 +378,19 @@ img.user-photo-img:after {
 
 .mobile-user-info.guest-only {
     padding-bottom: 20px;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid #e2e8f0;
     margin-bottom: 10px;
 }
 
 /*---------------------- START OF USER-AVATAR STYLE -------------------------------*/
 
 .icon-placeholder {
-    color: #38BDF8; /* Avatar Icon Color */
+    color: #1a79b0; 
     display: flex;
     align-items: center;
     justify-content: center;
     line-height: 1;
 }
-
 
 .user-avatar, 
 .profile-avatar-large, 
@@ -237,11 +399,11 @@ img.user-photo-img:after {
     align-items: center;
     justify-content: center;
     overflow: hidden; 
-    background-color: #f0f9ff; 
+    background-color: #f8fafc; 
     border-radius: 50%;
     flex-shrink: 0;
     aspect-ratio: 1 / 1; 
-    border: 2px solid rgba(56, 189, 248, 0.2);
+    border: 2px solid rgba(26, 121, 176, 0.1);
 }
 
 .user-avatar .icon-placeholder {
@@ -281,9 +443,9 @@ img.user-photo-img:after {
 }
 
 .login-btn:hover {
-    background: #38BDF8; /* Transition to Blue on hover */
+    background: #1a79b0; 
     transform: translateY(-2px);
-    box-shadow: 0 6px 15px rgba(56, 189, 248, 0.3);
+    box-shadow: 0 6px 15px rgba(26, 121, 176, 0.3);
 }
 
 .login-btn:active {
@@ -306,7 +468,6 @@ img.user-photo-img:after {
     color: white !important;
 }
 
-
 .hamburger-icon {
     display: none;
     cursor: pointer;
@@ -316,7 +477,7 @@ img.user-photo-img:after {
 }
 
 .hamburger-icon:hover {
-    background: #f0f9ff;
+    background: #f8fafc;
     border-radius: 8px;
 }
 
@@ -355,9 +516,10 @@ img.user-photo-img:after {
 }
 
 .drawer-links a:hover {
-    background: #f0f9ff;
-    color: #38BDF8;
+    background: #f0f7ff;      
+    color: #1a79b0;          
     transform: translateX(5px);
+    transition: all 0.3s ease;
 }
 
 .drawer-overlay {
@@ -402,7 +564,6 @@ img.user-photo-img:after {
     }
 }
 
-
 .user-profile-widget {
     position: relative;
     user-select: none;
@@ -417,7 +578,7 @@ img.user-photo-img:after {
     border-radius: 50px;
     cursor: pointer;
     transition: all 0.3s ease;
-    border: 1px solid #eee;
+    border: 1px solid #e2e8f0;
 }
 
 .profile-trigger:hover {
@@ -457,7 +618,7 @@ img.user-photo-img:after {
 
 .user-role {
     font-size: 11px;
-    color: #38BDF8; 
+    color: #71b345; 
     font-weight: 700;
     text-transform: uppercase;
 }
@@ -470,7 +631,7 @@ img.user-photo-img:after {
     background: white;
     border-radius: 12px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-    border: 1px solid #eee;
+    border: 1px solid #e2e8f0;
     padding: 8px 0;
     display: none;
     flex-direction: column;
@@ -482,8 +643,6 @@ img.user-photo-img:after {
     flex-direction: column;
 }
 
-
-
 .dropdown-menu a {
     padding: 12px 20px;
     font-size: 14px;
@@ -493,13 +652,13 @@ img.user-photo-img:after {
 }
 
 .dropdown-menu a:hover {
-    background: #f0f9ff;
-    color: #38BDF8 !important;
+    background: #f8fafc;
+    color: #1a79b0 !important;
 }
 
 .dropdown-menu hr {
     border: none;
-    border-top: 1px solid #eee;
+    border-top: 1px solid #e2e8f0;
     margin: 5px 0;
 }
 
@@ -551,7 +710,6 @@ img.user-photo-img:after {
     margin-bottom: 20px;
 }
 
-
 /*------------------------- END OF THE NAVIGATION OR HEADER --------------------------*/
 
 
@@ -560,7 +718,7 @@ img.user-photo-img:after {
 /* <START OF MAIN-HERO SECTION> */
 .main-hero {
     width: 100vw;
-    min-height: 50vw;
+    min-height: 47vw;
     position: relative;
     left: 50%;
     right: 50%;
@@ -770,21 +928,23 @@ html {
 }
 
 .highlight-blue {
-    color: #00a8cc;
+    color: #1a79b0;
 }
 
 .about-text p {
-    color: #555;
+    color: #4a5568; 
     margin-bottom: 15px;
     font-size: 16px;
+    line-height: 1.6;
 }
 
 .contact-info-mini {
     margin-top: 25px;
-    background: #f0fdf4;
+    background: #f8fafc;
     padding: 15px;
     border-radius: 10px;
-    border-left: 4px solid #52B788;
+    border-left: 4px solid #71b345;
+    box-shadow: 0 4px 12px rgba(0, 35, 71, 0.05); 
 }
 
 .contact-info-mini p {
@@ -792,9 +952,13 @@ html {
     align-items: center;
     gap: 10px;
     margin-bottom: 5px;
-    font-weight: 600;
-    color: #002347;
+    font-weight: 700;
+    color: #1a79b0;
     font-size: 14px;
+}
+
+.contact-info-mini p i {
+    color: #71b345;
 }
 
 .about-image {
@@ -807,13 +971,15 @@ html {
     width: 100%;
     max-width: 500px;
     border-radius: 20px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 15px 35px rgba(26, 121, 176, 0.15); 
+    border: 1px solid #e2e8f0; 
 }
 
 @media screen and (max-width: 768px) {
     .about-container {
         flex-direction: column;
         text-align: center;
+        gap: 30px;
     }
 
     .about-image {
@@ -1275,14 +1441,6 @@ html {
     border-color: #38BDF8;
 }
 
-.guest-footer {
-    margin-top: 50px;
-    text-align: center;
-    background: #f8fafc;
-    padding: 30px;
-    border-radius: 15px;
-    border: 1px dashed #cbd5e0;
-}
 
 .guest-cta {
     text-decoration: none;
@@ -1329,6 +1487,131 @@ html {
 
 .dual-action-buttons button:active {
     transform: scale(0.95);
+}
+
+
+@media (max-width: 400px) {
+    .featured-catalog-section {
+        padding: 30px 10px;
+    }
+
+    .header-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+        border-left: 3px solid #38BDF8;
+        padding-left: 10px;
+        margin-bottom: 30px;
+    }
+
+    .section-title {
+        font-size: 1.5rem;
+    }
+
+    .section-subtitle {
+        font-size: 0.95rem;
+    }
+
+    .view-all-link {
+        font-size: 0.9rem;
+        padding: 6px 14px;
+    }
+
+    .product-grid {
+        grid-template-columns: 1fr; 
+        gap: 20px;
+    }
+
+    .product-card {
+        padding: 15px;
+    }
+
+    .product-image-box {
+        height: 140px;
+    }
+
+    .product-name {
+        font-size: 16px;
+        min-height: auto;
+        margin-bottom: 10px;
+    }
+
+    .trust-badge {
+        font-size: 11px;
+        padding: 3px 6px;
+    }
+
+    .product-specs {
+        font-size: 0.8rem;
+        padding: 0 5px;
+    }
+
+  .dual-price-wrapper {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;          /* add spacing between rent/buy */
+        padding: 10px;
+        background: #f9fafb; /* subtle lighter background */
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+    }
+
+    .price-item {
+        width: 100%;
+    }
+
+    .price-tag {
+        font-size: 11px;
+        font-weight: 700;
+        color: #94a3b8;
+        margin-bottom: 2px;
+    }
+
+    .price-value {
+        font-size: 17px;
+        font-weight: 800;
+        color: #1a202c;
+        margin: 0;
+    }
+
+    .price-item:last-child .price-value {
+        color: #38BDF8;
+    }
+
+    .price-item:first-child {
+        padding: 6px 10px;
+        background: #f0f9ff;
+        border-radius: 8px;
+        margin-bottom: 5px;
+    }
+
+    .price-item:last-child {
+        padding: 6px 10px;
+        background: #eff6ff;
+        border-radius: 8px;
+    }
+
+    .dual-action-buttons {
+        grid-template-columns: 1fr;
+        gap: 8px;
+        margin-top: 10px;
+    }
+
+    .dual-action-buttons {
+        grid-template-columns: 1fr;
+        gap: 8px;
+        margin-top: 15px;
+    }
+
+    .btn-rent, .btn-buy {
+        font-size: 12px;
+        padding: 10px 5px;
+    }
+
+    .guest-cta {
+        font-size: 12px;
+        padding: 10px 5px;
+    }
 }
 
 /* <END OF PRODUCT-CATALOG SECTION> */
