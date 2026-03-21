@@ -32,7 +32,7 @@ csp = {
     "connect-src": ["'self'"],
     "frame-ancestors": ["'self'"], 
     "object-src": ["'none'"]
- }
+}
 
 Talisman(
     app,
