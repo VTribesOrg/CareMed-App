@@ -14,7 +14,8 @@ body {
     display: flex;
 }
 
-/* -------------------------- ASIDE STYLE ------------------------ */
+/* ======================================= START OF SIDEBAR ======================================= */
+
 .medical-sidebar {
     position: fixed;
     top: 0;
@@ -36,20 +37,6 @@ body {
     transition: padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-#sidebar-state:checked+.main-wrapper .medical-sidebar {
-    width: 260px;
-}
-
-#sidebar-state:checked+.main-wrapper .viewport-container {
-    padding-left: 260px;
-}
-
-#sidebar-state:checked+.main-wrapper .nav-label,
-#sidebar-state:checked+.main-wrapper .logo-text {
-    opacity: 1;
-    display: inline-block;
-}
-
 #sidebar-state:not(:checked)+.main-wrapper .medical-sidebar {
     width: 70px;
 }
@@ -62,6 +49,20 @@ body {
 #sidebar-state:not(:checked)+.main-wrapper .logo-text {
     opacity: 0;
     display: none;
+}
+
+#sidebar-state:checked+.main-wrapper .medical-sidebar {
+    width: 260px;
+}
+
+#sidebar-state:checked+.main-wrapper .viewport-container {
+    padding-left: 260px;
+}
+
+#sidebar-state:checked+.main-wrapper .nav-label,
+#sidebar-state:checked+.main-wrapper .logo-text {
+    opacity: 1;
+    display: inline-block;
 }
 
 .sidebar-header {
@@ -141,7 +142,6 @@ body {
     min-width: unset;
     margin: 0;
 }
-
 
 .nav-link .material-symbols-rounded {
     min-width: 50px;
@@ -224,7 +224,9 @@ body {
     bottom: 10px;
 }
 
-/*-------------------------- END OF SIDEBAR --------------------------------------*/
+/* ======================================= END OF SIDEBAR ======================================= */
+
+
 
 .system-header {
     height: 81px;
@@ -365,7 +367,6 @@ body {
     font-weight: 600;
 }
 
-/* Dropdown Menus */
 .header-dropdown {
     position: absolute;
     top: calc(100% + 10px);
