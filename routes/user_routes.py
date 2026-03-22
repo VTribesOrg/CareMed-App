@@ -22,14 +22,27 @@ def customer_required(f):
     return decorated_function
 
 
+def admin_redirect(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if current_user.is_authenticated and current_user.role and current_user.role.strip()== 'Administrator':
+            return redirect(url_for('admin.dashboard'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+
 @user_bp.route('/')
+@admin_redirect
 def homepage():
     return render_template('user/homepage.html')
 
 
 @user_bp.route('/products')
+@admin_redirect
 def products():
     return render_template('user/products.html')
+
 
 @user_bp.route('/profile', methods=['GET', 'POST'])
 @login_required

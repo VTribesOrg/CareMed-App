@@ -1,5 +1,6 @@
 import os
 from flask import Flask, request, redirect, url_for, flash, render_template
+from flask_login import current_user
 from extensions import db, migrate, login_manager, oauth, mail, csrf, limiter
 from models.users import User
 from flask_talisman import Talisman
@@ -21,7 +22,11 @@ limiter.init_app(app)
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(user_id)
+    return db.session.get(User, user_id)
+
+
+
+login_manager.login_view = 'auth.login'
 
 csp = {
     "default-src": ["'self'"],
@@ -65,8 +70,13 @@ register_error_handlers(app)
 
 
 @app.route('/')
-def homepage():
-    return render_template('user/homepage.html')
+def root():
+    if current_user.is_authenticated:
+        if current_user.role == 'Administrator':
+            return redirect(url_for('admin.dashboard'))
+        return redirect(url_for('user.products'))
+    
+    return redirect(url_for('user.homepage'))
 
 from routes.user_routes import user_bp
 app.register_blueprint(user_bp)
