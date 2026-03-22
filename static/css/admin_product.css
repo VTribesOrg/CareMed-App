@@ -14,12 +14,10 @@ body {
     display: flex;
 }
 
-/* ======================================= START OF SIDEBAR ======================================= */
 
+/* ======================================= START OF SIDEBAR ======================================= */
 .medical-sidebar {
-    position: fixed;
-    top: 0;
-    left: 0;
+    display: flex;
     height: 100vh;
     background-color: #ffffff;
     display: flex;
@@ -34,15 +32,11 @@ body {
     display: flex;
     flex-direction: column;
     height: 100vh;
-    transition: padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 #sidebar-state:not(:checked)+.main-wrapper .medical-sidebar {
     width: 70px;
-}
-
-#sidebar-state:not(:checked)+.main-wrapper .viewport-container {
-    padding-left: 70px;
 }
 
 #sidebar-state:not(:checked)+.main-wrapper .nav-label,
@@ -55,9 +49,6 @@ body {
     width: 260px;
 }
 
-#sidebar-state:checked+.main-wrapper .viewport-container {
-    padding-left: 260px;
-}
 
 #sidebar-state:checked+.main-wrapper .nav-label,
 #sidebar-state:checked+.main-wrapper .logo-text {

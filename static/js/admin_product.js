@@ -1,12 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Core Element Selectors
-    const profileBtn = document.getElementById('profile-btn');
-    const profileDropdown = document.getElementById('profile-dropdown');
     const notifBtn = document.getElementById('notif-btn');
     const notifDropdown = document.getElementById('notif-dropdown');
-    const settingsBtn = document.getElementById('settings-toggle-btn');
-    const settingsPopup = document.getElementById('settings-menu-popup');
-    const checkbox = document.getElementById('sidebar-state');
     
     const regModal = document.getElementById('registerAssetModal');
     const editModal = document.getElementById('editAssetModal');
@@ -14,16 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const addEquipmentBtn = document.getElementById('add-equipment-btn');
 
-    // 2. Sidebar Initialization
-    const sidebarState = localStorage.getItem('sidebar-collapsed');
-    if (checkbox) {
-        checkbox.checked = sidebarState !== 'true';
-        checkbox.addEventListener('change', function() {
-            localStorage.setItem('sidebar-collapsed', !this.checked);
-        });
-    }
-
-    // 3. Dropdown & Navigation Handlers
+    // 2. Dropdown & Navigation Handlers
     function toggleDropdown(dropdown) {
         document.querySelectorAll('.header-dropdown').forEach(d => {
             if (d !== dropdown) d.classList.remove('active');
@@ -31,20 +17,9 @@ document.addEventListener('DOMContentLoaded', () => {
         dropdown?.classList.toggle('active');
     }
 
-    profileBtn?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        toggleDropdown(profileDropdown);
-    });
-
     notifBtn?.addEventListener('click', (e) => {
         e.stopPropagation();
         toggleDropdown(notifDropdown);
-    });
-
-    settingsBtn?.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        settingsPopup?.classList.toggle('hidden');
     });
 
     /*============= ACTION DROPDOWN TOGGLE =============*/
@@ -93,11 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
     /*============= END OF ACTION DROPDOWN TOGGLE =============*/
 
     window.addEventListener('click', (e) => {
-        if (profileBtn && !profileBtn.contains(e.target)) profileDropdown?.classList.remove('active');
         if (notifBtn && !notifBtn.contains(e.target)) notifDropdown?.classList.remove('active');
-        if (settingsPopup && !settingsPopup.contains(e.target) && e.target !== settingsBtn) {
-            settingsPopup.classList.add('hidden');
-        }
         
         if (e.target === regModal) window.closeAssetModal();
         if (e.target === editModal) window.closeEditModal();

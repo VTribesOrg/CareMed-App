@@ -12,12 +12,35 @@
         href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
 
     <style>
-
+        /* Ensuring the transitions are smooth even if CSS is external */
+        .medical-sidebar, .viewport-container, .nav-label, .logo-text {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
     </style>
 </head>
 
 <body>
     <input type="checkbox" id="sidebar-state" hidden>
+
+    <script>
+        // 2. Immediate State Management
+        (function() {
+            const checkbox = document.getElementById('sidebar-state');
+            const savedState = localStorage.getItem('sidebar-collapsed');
+
+            // Apply saved state: 'true' means collapsed (unchecked)
+            if (savedState === 'true') {
+                checkbox.checked = false;
+            } else {
+                checkbox.checked = true;
+            }
+
+            // Listen for changes to save preference
+            checkbox.addEventListener('change', function() {
+                localStorage.setItem('sidebar-collapsed', !this.checked);
+            });
+        })();
+    </script>
 
     <div class="main-wrapper">
 
@@ -136,7 +159,6 @@
                             </div>
                             <div class="user-avatar" id="avatar-wrapper">
                                 <span class="material-symbols-rounded" id="avatar-icon">person</span>
-
                                 <img src="" alt="User" id="header-avatar-img" class="hidden">
                             </div>
                         </div>
@@ -192,24 +214,18 @@
                     </div>
                 </div>
 
-                <div class="dashboard-split"
-                    style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-top: 24px;">
-                    <div class="activity-section"
-                        style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #f1f5f9;">
-                        <div class="registry-controls"
-                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <div class="dashboard-split" style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-top: 24px;">
+                    <div class="activity-section" style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #f1f5f9;">
+                        <div class="registry-controls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                             <h3 class="registry-title" style="margin: 0; font-size: 1.1rem;">Recent Activity Logs</h3>
-                            <button class="register-asset-btn"
-                                style="background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; padding: 8px 16px; border-radius: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <button class="register-asset-btn" style="background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; padding: 8px 16px; border-radius: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer;">
                                 <span class="material-symbols-rounded" style="font-size: 18px;">history</span>
                                 <span>View All</span>
                             </button>
                         </div>
-
                         <table class="medical-data-table" style="width: 100%; border-collapse: collapse;">
                             <thead>
-                                <tr
-                                    style="text-align: left; border-bottom: 1px solid #f1f5f9; color: #64748b; font-size: 0.85rem;">
+                                <tr style="text-align: left; border-bottom: 1px solid #f1f5f9; color: #64748b; font-size: 0.85rem;">
                                     <th style="padding: 12px 0;">User</th>
                                     <th style="padding: 12px 0;">Action</th>
                                     <th style="padding: 12px 0;">Timestamp</th>
@@ -221,60 +237,30 @@
                                     <td style="padding: 16px 0; font-weight: 600;">Arjun D.</td>
                                     <td style="padding: 16px 0;">Processed Rental #882</td>
                                     <td style="padding: 16px 0; color: #94a3b8;">Today, 02:45 PM</td>
-                                    <td style="padding: 16px 0;"><span class="status-pill status-ready"
-                                            style="padding: 4px 8px; border-radius: 6px; background: #f0fdf4; color: #16a34a; font-size: 0.75rem;">Success</span>
-                                    </td>
+                                    <td style="padding: 16px 0;"><span class="status-pill status-ready" style="padding: 4px 8px; border-radius: 6px; background: #f0fdf4; color: #16a34a; font-size: 0.75rem;">Success</span></td>
                                 </tr>
                                 <tr style="border-bottom: 1px solid #f8fafc;">
                                     <td style="padding: 16px 0; font-weight: 600;">System</td>
                                     <td style="padding: 16px 0;">Auto-Inventory Update</td>
                                     <td style="padding: 16px 0; color: #94a3b8;">Today, 01:12 PM</td>
-                                    <td style="padding: 16px 0;"><span class="status-pill status-ready"
-                                            style="padding: 4px 8px; border-radius: 6px; background: #f0fdf4; color: #16a34a; font-size: 0.75rem;">Success</span>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 16px 0; font-weight: 600;">Maria C.</td>
-                                    <td style="padding: 16px 0;">New Equipment Registered</td>
-                                    <td style="padding: 16px 0; color: #94a3b8;">Yesterday</td>
-                                    <td style="padding: 16px 0;"><span class="status-pill status-ready"
-                                            style="padding: 4px 8px; border-radius: 6px; background: #f0fdf4; color: #16a34a; font-size: 0.75rem;">Success</span>
-                                    </td>
+                                    <td style="padding: 16px 0;"><span class="status-pill status-ready" style="padding: 4px 8px; border-radius: 6px; background: #f0fdf4; color: #16a34a; font-size: 0.75rem;">Success</span></td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
 
-                    <div class="security-section"
-                        style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #f1f5f9;">
-                        <h3 class="registry-title"
-                            style="margin: 0 0 20px 0; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
+                    <div class="security-section" style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #f1f5f9;">
+                        <h3 class="registry-title" style="margin: 0 0 20px 0; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
                             <span class="material-symbols-rounded" style="color: #ef4444;">security</span>
                             Security Alerts
                         </h3>
-
                         <div class="alert-list" style="display: flex; flex-direction: column; gap: 16px;">
                             <div class="alert-item alert-danger">
-                                <p style="margin: 0; font-weight: 700; color: #991b1b; font-size: 0.85rem;">Unauthorized
-                                    Login Attempt</p>
+                                <p style="margin: 0; font-weight: 700; color: #991b1b; font-size: 0.85rem;">Unauthorized Login Attempt</p>
                                 <small style="color: #b91c1c;">IP: 192.168.1.45 • 10m ago</small>
                             </div>
-
-                            <div class="alert-item alert-danger">
-                                <p style="margin: 0; font-weight: 700; color: #92400e; font-size: 0.85rem;">Multiple
-                                    Password Resets</p>
-                                <small style="color: #b45309;">User: Staff_04 • 2h ago</small>
-                            </div>
-
-                            <div class="alert-item alert-danger">
-                                <p style="margin: 0; font-weight: 700; color: #475569; font-size: 0.85rem;">System
-                                    Backup Complete</p>
-                                <small style="color: #64748b;">Cloud storage synced • 5h ago</small>
-                            </div>
                         </div>
-
-                        <button
-                            style="width: 100%; margin-top: 20px; padding: 10px; border-radius: 8px; border: none; background: #f1f5f9; color: #475569; font-weight: 600; cursor: pointer;">
+                        <button style="width: 100%; margin-top: 20px; padding: 10px; border-radius: 8px; border: none; background: #f1f5f9; color: #475569; font-weight: 600; cursor: pointer;">
                             Access Security Center
                         </button>
                     </div>
@@ -283,8 +269,7 @@
         </div>
     </div>
 
-
+    <script src="{{ url_for('static', filename='js/global.js') }}"></script>
     <script src="{{ url_for('static', filename='js/admin_dashboard.js') }}"></script>
 </body>
-
 </html>

@@ -17,6 +17,14 @@
 <body>
     <input type="checkbox" id="sidebar-state" hidden>
 
+    <script>
+        if (localStorage.getItem('sidebar-collapsed') === 'true') {
+            document.getElementById('sidebar-state').checked = false;
+        } else {
+            document.getElementById('sidebar-state').checked = true;
+        }
+    </script>
+
     <div class="main-wrapper">
 
         <aside class="medical-sidebar">
@@ -377,6 +385,7 @@
         </div>
     </div>
 
+    <script src="{{ url_for('static', filename='js/global.js') }}"></script>
     <script src="{{ url_for('static', filename='js/admin_customer.js') }}"></script>
 </body>
 
