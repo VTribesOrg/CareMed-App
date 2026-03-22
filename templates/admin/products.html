@@ -100,6 +100,7 @@
         </aside>
 
         <div class="viewport-container">
+
             <header class="system-header">
                 <h1>Product & Inventory Management</h1>
                 <div class="header-actions">
@@ -179,6 +180,7 @@
                                 </div>
                             </div>
                         </div>
+
                         <button class="register-asset-btn" id="add-equipment-btn">
                             <span class="material-symbols-rounded">add_circle</span>
                             <span>Add Equipment</span>
@@ -201,6 +203,8 @@
                                 </tr>
                             </thead>
                             <tbody>
+
+
                                 <tr data-id="1">
                                     <td>
                                         <div class="table-image-container">
@@ -220,179 +224,64 @@
                                                 <span class="material-symbols-rounded">assignment</span>
                                             </button>
 
-                                            <button class="asset-action-btn open-stock-modal" title="Add Stock" style="color: #52B788;">
-                                                <span class="material-symbols-rounded">add_box</span>
+                                            <button class="asset-action-btn purchase" title="Process Sale" style="color: #f59e0b;">
+                                                <span class="material-symbols-rounded">shopping_cart_checkout</span>
                                             </button>
 
-                                            <button class="asset-action-btn edit" title="Edit Details" style="color: #00a8cc;">
-                                                <span class="material-symbols-rounded">edit</span>
-                                            </button>
+                                            <div class="action-dropdown">
+                                                <button class="asset-action-btn more-trigger" title="More Actions" style="color: #64748b;">
+                                                    <span class="material-symbols-rounded">more_vert</span>
+                                                </button>
+                                                
+                                                <div class="dropdown-menu">
+                                                    <button class="dropdown-item open-stock-modal" style="color: #52B788;">
+                                                        <span class="material-symbols-rounded">add_box</span> Add Stock
+                                                    </button>
+                                                    
+                                                    <button class="dropdown-item edit" style="color: #00a8cc;">
+                                                        <span class="material-symbols-rounded">edit</span> Edit Details
+                                                    </button>
+                                                    
+                                                    <button class="dropdown-item logs" onclick="openHistoryModal(this)" style="color: #64748b;">
+                                                        <span class="material-symbols-rounded">history</span> View Logs
+                                                    </button>
 
-                                            <button class="asset-action-btn logs" title="View Logs" style="color: #64748b;">
-                                                <span class="material-symbols-rounded">history</span>
-                                            </button>
+                                                    <hr>
 
-                                            <button class="asset-action-btn delete" title="Delete Asset" style="color: #ef4444;">
-                                                <span class="material-symbols-rounded">delete</span>
-                                            </button>
+                                                    <button class="dropdown-item delete" style="color: #ef4444;">
+                                                        <span class="material-symbols-rounded">delete</span> Delete Asset
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </div>
                                     </td>
                                 </tr>
+                                
+                                
 
-                                <tr data-id="2">
-                                    <td>
-                                        <div class="table-image-container">
-                                            <img src="static/image/manual-bed.png" alt="Equipment" class="table-equipment-img">
-                                        </div>
-                                    </td>
-                                    <td>BED-MAN-02C</td>
-                                    <td>Hospital Bed Manual</td>
-                                    <td>2 Cranks</td>
-                                    <td class="stock">5 Units</td>
-                                    <td><span class="status-pill status-ready">Available</span></td>
-                                    <td>₱15,500</td>
-                                    <td>₱1,800</td>
-                                    <td class="col-actions">
-                                        <div class="asset-actions">
-                                            <button class="asset-action-btn rent" title="Rent Equipment" style="color: #0077b6;">
-                                                <span class="material-symbols-rounded">assignment</span>
-                                            </button>
-
-                                            <button class="asset-action-btn open-stock-modal" title="Add Stock" style="color: #52B788;">
-                                                <span class="material-symbols-rounded">add_box</span>
-                                            </button>
-
-                                            <button class="asset-action-btn edit" title="Edit Details" style="color: #00a8cc;">
-                                                <span class="material-symbols-rounded">edit</span>
-                                            </button>
-
-                                            <button class="asset-action-btn logs" title="View Logs" style="color: #64748b;">
-                                                <span class="material-symbols-rounded">history</span>
-                                            </button>
-
-                                            <button class="asset-action-btn delete" title="Delete Asset" style="color: #ef4444;">
-                                                <span class="material-symbols-rounded">delete</span>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-
-                                <tr data-id="3">
-                                    <td>
-                                        <div class="table-image-container">
-                                            <img src="static/image/cpap.png" alt="Equipment" class="table-equipment-img">
-                                        </div>
-                                    </td>
-                                    <td>CPAP-STD-01</td>
-                                    <td>Cpap Machine</td>
-                                    <td>Standard Digital</td>
-                                    <td class="stock">3 Units</td>
-                                    <td><span class="status-pill status-ready">Available</span></td>
-                                    <td>₱52,500</td>
-                                    <td>₱8,000</td>
-                                    <td class="col-actions">
-                                        <div class="asset-actions">
-                                            <button class="asset-action-btn rent" title="Rent Equipment" style="color: #0077b6;">
-                                                <span class="material-symbols-rounded">assignment</span>
-                                            </button>
-
-                                            <button class="asset-action-btn open-stock-modal" title="Add Stock" style="color: #52B788;">
-                                                <span class="material-symbols-rounded">add_box</span>
-                                            </button>
-
-                                            <button class="asset-action-btn edit" title="Edit Details" style="color: #00a8cc;">
-                                                <span class="material-symbols-rounded">edit</span>
-                                            </button>
-
-                                            <button class="asset-action-btn logs" title="View Logs" style="color: #64748b;">
-                                                <span class="material-symbols-rounded">history</span>
-                                            </button>
-
-                                            <button class="asset-action-btn delete" title="Delete Asset" style="color: #ef4444;">
-                                                <span class="material-symbols-rounded">delete</span>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-
-                                <tr data-id="4">
-                                    <td>
-                                        <div class="table-image-container">
-                                            <img src="static/image/wheelchair.png" alt="Equipment" class="table-equipment-img">
-                                        </div>
-                                    </td>
-                                    <td>WC-STD-01</td>
-                                    <td>Wheel Chair</td>
-                                    <td>Standard Manual</td>
-                                    <td class="stock">12 Units</td>
-                                    <td><span class="status-pill status-ready">Available</span></td>
-                                    <td>₱5,300</td>
-                                    <td>₱1,100</td>
-                                    <td class="col-actions">
-                                        <div class="asset-actions">
-                                            <button class="asset-action-btn rent" title="Rent Equipment" style="color: #0077b6;">
-                                                <span class="material-symbols-rounded">assignment</span>
-                                            </button>
-
-                                            <button class="asset-action-btn open-stock-modal" title="Add Stock" style="color: #52B788;">
-                                                <span class="material-symbols-rounded">add_box</span>
-                                            </button>
-
-                                            <button class="asset-action-btn edit" title="Edit Details" style="color: #00a8cc;">
-                                                <span class="material-symbols-rounded">edit</span>
-                                            </button>
-
-                                            <button class="asset-action-btn logs" title="View Logs" style="color: #64748b;">
-                                                <span class="material-symbols-rounded">history</span>
-                                            </button>
-
-                                            <button class="asset-action-btn delete" title="Delete Asset" style="color: #ef4444;">
-                                                <span class="material-symbols-rounded">delete</span>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-
-                                <tr data-id="5">
-                                    <td>
-                                        <div class="table-image-container">
-                                            <img src="static/image/oxygen-tank.png" alt="Equipment" class="table-equipment-img">
-                                        </div>
-                                    </td>
-                                    <td>OT-20LB</td>
-                                    <td>Medical Oxygen Tank</td>
-                                    <td>20 Lbs Capacity</td>
-                                    <td class="stock">20 Units</td>
-                                    <td><span class="status-pill status-ready">Available</span></td>
-                                    <td>₱5,500</td>
-                                    <td>₱700 (Refill)</td>
-                                    <td class="col-actions">
-                                        <div class="asset-actions">
-                                            <button class="asset-action-btn rent" title="Rent Equipment" style="color: #0077b6;">
-                                                <span class="material-symbols-rounded">assignment</span>
-                                            </button>
-
-                                            <button class="asset-action-btn open-stock-modal" title="Add Stock" style="color: #52B788;">
-                                                <span class="material-symbols-rounded">add_box</span>
-                                            </button>
-
-                                            <button class="asset-action-btn edit" title="Edit Details" style="color: #00a8cc;">
-                                                <span class="material-symbols-rounded">edit</span>
-                                            </button>
-
-                                            <button class="asset-action-btn logs" title="View Logs" style="color: #64748b;">
-                                                <span class="material-symbols-rounded">history</span>
-                                            </button>
-
-                                            <button class="asset-action-btn delete" title="Delete Asset" style="color: #ef4444;">
-                                                <span class="material-symbols-rounded">delete</span>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
+                                
                             </tbody>
                         </table>
                     </section>
+
+                    <div class="pagination-footer">
+                        <div class="table-limit-control">
+                            <span class="limit-label">Show</span>
+                            <div class="select-wrapper">
+                                <select class="medical-select" id="row-limit-select">
+                                    <option value="10">10</option>
+                                    <option value="25">25</option>
+                                    <option value="50">50</option>
+                                </select>
+                                <span class="material-symbols-rounded select-icon">expand_less</span>
+                            </div>
+                            <span class="limit-label">entries</span>
+                        </div>
+
+                        <div class="pagination-info">Showing 1 to 10 of 1 entries</div>
+
+                        <div class="pagination-controls"></div>
+                    </div>
 
                 </div>
             </main>
@@ -626,6 +515,7 @@
                                 <option>Maria Clara (ID: 10029)</option>
                                 <option>Juan Dela Cruz (ID: 10030)</option>
                             </select>
+                            <span class="material-symbols-rounded select-icon">expand_more</span>
                         </div>
                     </div>
 
@@ -674,6 +564,65 @@
                 <div class="modal-footer-actions">
                     <button type="button" class="btn-medical-outline close-rent-modal">Cancel</button>
                     <button type="submit" class="btn-medical-primary btn-confirm-rental">Confirm Rental</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="purchaseAssetModal" class="medical-modal-overlay hidden">
+        <div class="medical-modal-content rent-modal-width">
+            <div class="modal-header-row">
+                <div>
+                    <h2 class="modal-header">Process Equipment Purchase</h2>
+                    <p class="selected-asset-info">
+                        Item: <span id="purchase-equipment-name">Oxygen Concentrator</span>
+                    </p>
+                </div>
+                <span class="material-symbols-rounded modal-close close-purchase-modal">close</span>
+            </div>
+
+            <form id="purchaseEntryForm">
+                <div class="form-layout-grid">
+                    <div class="form-field full-width">
+                        <label>Buyer (Customer)</label>
+                        <div class="select-wrapper">
+                            <span class="material-symbols-rounded filter-icon">person</span>
+                            <select class="medical-select" required id="purchase-customer">
+                                <option value="" disabled selected>Select buyer...</option>
+                                <option>Maria Clara (ID: 10029)</option>
+                                <option>Juan Dela Cruz (ID: 10030)</option>
+                            </select>
+                            <span class="material-symbols-rounded select-icon">expand_more</span>
+                        </div>
+                    </div>
+
+                    <div class="form-field">
+                        <label>Quantity to Purchase</label>
+                        <input type="number" id="purchase-qty" class="clinical-input" min="1" value="1" required>
+                    </div>
+
+                    <div class="form-field">
+                        <label>Unit Sale Price (₱)</label>
+                        <input type="number" id="purchase-unit-price" class="clinical-input" value="33500">
+                    </div>
+
+                    <div class="form-field full-width">
+                        <label>Warranty / Notes</label>
+                        <textarea class="clinical-input" placeholder="Enter warranty terms or serial numbers..." style="height: 80px; padding-top: 12px; resize: none;"></textarea>
+                    </div>
+                </div>
+
+                <div class="rental-summary-box" style="background-color: #fffbeb; border-color: #fef3c7;">
+                    <div class="summary-label-group">
+                        <span style="color: #92400e;">SALE SUMMARY</span>
+                        <span style="color: #92400e;">Grand Total:</span>
+                    </div>
+                    <span class="total-amount-display" id="purchase-total-display" style="color: #b45309;">₱33,500.00</span>
+                </div>
+
+                <div class="modal-footer-actions">
+                    <button type="button" class="btn-medical-outline close-purchase-modal">Cancel</button>
+                    <button type="submit" class="btn-medical-primary" style="background-color: #f59e0b;">Complete Purchase</button>
                 </div>
             </form>
         </div>
@@ -728,6 +677,21 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <div id="deleteAssetModal" class="medical-modal-overlay hidden">
+        <div class="medical-modal-content" style="max-width: 400px; text-align: center;">
+            <div style="padding: 20px;">
+                <span class="material-symbols-rounded" style="font-size: 48px; color: #ef4444;">warning</span>
+                <h3 style="margin: 15px 0 10px;">Confirm Deletion</h3>
+                <p style="color: #64748b; margin-bottom: 25px;">Are you sure you want to remove this item? This action cannot be undone.</p>
+                
+                <div style="display: flex; gap: 10px; justify-content: center;">
+                    <button type="button" class="btn-medical-outline close-modal-btn">Cancel</button>
+                    <button type="button" class="btn-medical-primary close-modal-btn" style="background-color: #ef4444;">Delete</button>
+                </div>
+            </div>
         </div>
     </div>
 

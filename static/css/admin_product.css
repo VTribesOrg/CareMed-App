@@ -433,11 +433,260 @@ body {
 
 /*=================================== contentArea ===================================*/
 .content-area {
-    padding: 24px;
+    padding: 24px 24px 0 24px;
     flex-grow: 1;
+    min-height: calc(96vh - 80px); 
     overflow-y: auto;
+    background-color: #f8fafc; 
+    display: flex;
+    flex-direction: column;
+    
 }
-/*================================== end of contentArea ==================================*/
+
+/*================================== END OF CONTENT AREA ==================================*/
+
+
+/*=================================== START OF TABLE ===================================*/
+
+.table-scroll-container {
+    flex-grow: 1;
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    min-height: 663px; 
+    margin-bottom: 0;
+}
+
+.table-scroll-container {
+    max-height: 500px; 
+    overflow-y: auto;  
+    overflow-x: auto;  
+    position: relative;
+    border-bottom: 1px solid #e2e8f0; 
+}
+
+
+.medical-data-table thead th {
+    position: sticky;
+    top: 0;
+    background-color: #f8fafc; 
+    z-index: 10;
+    box-shadow: 0 1px 0 #e2e8f0; 
+}
+
+.asset-registry-card {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; 
+}
+
+.table-scroll-container::-webkit-scrollbar {
+    width: 6px;  
+    height: 6px; 
+}
+
+.table-scroll-container::-webkit-scrollbar-track {
+    background: #f1f5f9; 
+    border-radius: 10px;
+}
+
+.table-scroll-container::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+    transition: background 0.3s ease;
+}
+
+.table-scroll-container::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8; 
+}
+
+.table-scroll-container {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 #f1f5f9;
+}
+
+.medical-data-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: #f8fafc; 
+}
+
+.medical-data-table thead th {
+    border-bottom: 2px solid #e2e8f0; 
+}
+
+
+/*=================================== END OF TABLE ===================================*/
+
+
+
+/*================================== START OF Pagination ==================================*/
+
+.pagination-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    padding-bottom: 0 !important;
+    border-top: 1px solid #e2e8f0;
+    background: #ffffff;
+    border-radius: 0 0 12px 12px;
+}
+
+.table-limit-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.limit-label {
+    font-size: 13px;
+    color: #64748b;
+}
+
+.pagination-info {
+    font-size: 13px;
+    color: #64748b;
+    flex-grow: 1;
+    text-align: center;
+    font-weight: 500;
+}
+
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.pag-btn {
+    min-width: 32px;
+    height: 32px;
+    padding: 0 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #e2e8f0;
+    background: white;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #475569;
+    transition: all 0.2s ease;
+}
+
+.pag-btn.active {
+    background: #0077b6;
+    color: white;
+    border-color: #0077b6;
+}
+
+.pag-btn:hover:not(:disabled):not(.active) {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+}
+
+
+.medical-data-table.compact-mode tbody td {
+    padding: 8px 16px;
+    font-size: 13px;
+}
+
+.medical-data-table.compact-mode .table-image-container {
+    width: 36px;  
+    height: 36px;
+}
+
+.medical-data-table.compact-mode .asset-action-btn {
+    width: 30px;
+    height: 30px;
+}
+
+.medical-data-table.compact-mode .material-symbols-rounded {
+    font-size: 18px;
+}
+
+.jump-to-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: 15px;
+    padding-left: 15px;
+    border-left: 1px solid #e2e8f0;
+}
+
+.jump-text {
+    font-size: 12px;
+    color: #64748b;
+}
+
+.jump-input {
+    width: 45px;
+    height: 32px;
+    padding: 0 5px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    text-align: center;
+    font-size: 13px;
+    outline: none;
+}
+
+.jump-input:focus {
+    border-color: #0077b6;
+}
+
+.jump-btn {
+    height: 32px;
+    padding: 0 12px;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.jump-btn:hover {
+    background: #e2e8f0;
+}
+
+
+.select-icon {
+    position: absolute;
+    right: 8px; 
+    font-size: 18px !important; 
+    color: #64748b;
+    pointer-events: none; 
+    display: flex;
+    align-items: center;
+    transition: transform 0.2s ease;
+    transform: rotate(0deg);
+}
+
+
+
+.medical-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background: white;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 4px 30px 4px 10px; 
+    font-size: 13px;
+    font-weight: 600;
+    color: #1e293b;
+    cursor: pointer;
+    outline: none;
+    height: 32px;
+    min-width: 70px; 
+    transition: all 0.2s ease;
+}
+
+/*================================== END OF Pagination ==================================*/
+
+
 
 
 /*=================================== START OF ASSETREGISTRYCARD ===================================*/
@@ -456,11 +705,12 @@ body {
 
 .registry-controls {
     display: flex;
-    justify-content: space-between; 
+    justify-content: space-between;
     align-items: center;
     gap: 16px;
     margin-bottom: 25px;
     flex-wrap: wrap;
+    width: 100%;
 }
 
 .register-asset-btn {
@@ -476,7 +726,9 @@ body {
     gap: 8px;
     cursor: pointer;
     transition: all 0.2s;
-    white-space: nowrap; 
+    white-space: nowrap;
+    margin-left: auto;
+    order: 2;
 }
 
 .register-asset-btn:hover {
@@ -486,9 +738,27 @@ body {
 
 .filter-search-container {
     display: flex;
-    flex-grow: 1; 
-    gap: 12px;
     align-items: center;
+    gap: 12px;
+    flex-grow: 0;
+    order: 1; 
+}
+
+.filter-search-container, 
+.select-wrapper {
+    order: 1;
+}
+
+.filter-group .medical-select {
+    height: 44px; 
+    padding: 0 15px 0 40px; 
+    border-radius: 10px;
+    border: 1px solid #dbe2e1;
+    background: #f8fafc;
+    font-size: 0.9rem;
+    min-width: 180px;
+    font-weight: 500;
+    
 }
 
 .search-wrapper {
@@ -535,37 +805,46 @@ body {
 
 .select-wrapper {
     position: relative;
-    min-width: 200px;
+    display: inline-flex;
+    align-items: center;
 }
+
 
 .filter-icon {
     position: absolute;
-    left: 12px;
+    left: 14px;
     top: 50%;
     transform: translateY(-50%);
-    color: #546e7a;
-    font-size: 18px !important;
-    z-index: 1;
+    color: #94a3b8; /* Matches search icon color */
+    font-size: 20px !important;
+    z-index: 2;
+    pointer-events: none;
 }
 
 .medical-select {
-    width: 100%;
-    height: 44px;
-    background: #f8fafc;
-    border: 1px solid #dbe2e1;
-    border-radius: 10px;
-    padding: 0 35px 0 40px;
-    font-family: inherit;
-    font-weight: 600;
-    color: #546e7a;
-    cursor: pointer;
     appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 12px center;
-    background-size: 16px;
-    transition: all 0.2s;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background: white;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 4px 30px 4px 10px; 
+    font-size: 13px;
+    font-weight: 600;
+    color: #1e293b;
+    cursor: pointer;
+    outline: none;
+    height: 32px;
+    min-width: 70px; 
+    transition: all 0.2s ease;
 }
+
+
+.medical-select:focus {
+    border-color: #0077b6;
+    box-shadow: 0 0 0 2px rgba(0, 119, 182, 0.1);
+}
+
 /*================================== END OF ASSETREGISTRYCARD ==================================*/
 
 /*=================================== medicalDataTable ===================================*/
@@ -616,18 +895,26 @@ body {
     width: 45px;
     height: 45px;
     background: #f8fafc;
-    border-radius: 8px;
     overflow: hidden;
     border: 1px solid #e2e8f0;
     display: flex;
     align-items: center;
     justify-content: center;
+    border-radius: 6px;
 }
 
 .table-equipment-img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    padding: 4px;
+}
+
+td:nth-child(2) {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    color: #475569;
+    font-size: 0.85rem;
 }
 /*================================== end of medicalDataTable ==================================*/
 
@@ -637,6 +924,7 @@ body {
     gap: 8px;
     justify-content: flex-start;
     align-items: center;
+    text-align: center;
     height: 50px;
 }
 
@@ -691,8 +979,9 @@ body {
 
 .asset-actions {
     display: flex;
-    gap: 8px;
     align-items: center;
+    gap: 6px;
+    justify-content: center;
 }
 
 .asset-action-btn {
@@ -722,6 +1011,97 @@ body {
 .asset-action-btn:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+#inventory-table tbody tr .asset-actions {
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+}
+
+#inventory-table tbody tr:hover .asset-actions {
+    opacity: 1;
+}
+
+.action-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.dropdown-menu {
+    display: none; 
+    position: absolute;
+    right: 0;
+    background: white;
+    min-width: 160px;
+    box-shadow: 0px 8px 16px rgba(0,0,0,0.1);
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    z-index: 100;
+    padding: 8px 0;
+}
+
+.action-dropdown:hover .dropdown-menu {
+    display: block;
+}
+
+.dropdown-item {
+    width: 100%;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: none;
+    background: none;
+    color: #64748b;
+    font-size: 14px;
+    cursor: pointer;
+    text-align: left;
+}
+
+.dropdown-item:hover {
+    background-color: #f8fafc;
+    color: #1e293b;
+}
+
+.dropdown-item.delete-text {
+    color: #ef4444;
+}
+
+.dropdown-item.delete-text:hover {
+    background-color: #fee2e2;
+}
+
+.action-dropdown.active .dropdown-menu {
+    display: block; 
+    transform: translateY(0);
+    z-index: 9999;
+}
+
+.dropdown-menu hr {
+    border: 0;
+    border-top: 1px solid #e2e8f0;
+    margin: 4px 0;
+}
+
+#inventory-table tbody tr:hover {
+    background-color: #f1f5f9; 
+}
+
+
+#inventory-table tbody tr {
+    transition: background-color 0.2s ease;
+    cursor: pointer;
+}
+
+#inventory-table tbody tr.row-active {
+    background-color: #f1f5f9 !important;
+
+}
+
+#inventory-table tbody tr:hover .asset-actions,
+#inventory-table tbody tr.row-active .asset-actions {
+    opacity: 1;
+    pointer-events: auto;
 }
 
 /*================================== end of colActions ==================================*/
@@ -783,6 +1163,8 @@ body {
 .modal-close:hover {
     color: #f43f5e;
 }
+
+
 /*============================= end of medicalModalBase =============================*/
 
 /*============================= formLayout =============================*/
@@ -827,6 +1209,12 @@ body {
     border-color: #52B788;
     background: #ffffff;
 }
+
+.form-field.full-width .select-wrapper,
+.form-field.full-width .medical-select {
+    width: 100%;
+}
+
 /*============================= end of formLayout =============================*/
 
 /*============================= modalFooterActions =============================*/
@@ -1079,14 +1467,13 @@ body {
 }
 /*============================= END OF FILEUPLOAD =============================*/
 
-/*============================= RENTAL PROCESS MODAL ============================= */
+/*============================= START OF RENTAL PROCESS MODAL ============================= */
 
 .rent-modal-width {
     max-width: 700px !important;
 }
 
 .clinical-input,
-.medical-select,
 .rental-customer-select {
     width: 100% !important;
     height: 48px !important;
@@ -1110,7 +1497,28 @@ textarea.clinical-input {
 }
 
 .rental-customer-select {
-    padding-left: 45px !important;
+    width: 100%;
+    height: 44px; 
+    background-color: #f8fafc;
+    border: 1px solid #dbe2e1;
+    border-radius: 10px;
+    padding: 0 40px 0 45px; 
+    font-size: 0.9rem;
+    color: #1e293b;
+    appearance: none; 
+    cursor: pointer;
+    transition: all 0.2s ease;
+    outline: none;
+}
+
+.rental-customer-select:hover {
+    border-color: #cbd5e1;
+}
+
+.rental-customer-select:focus {
+    background-color: #ffffff;
+    border-color: #0077b6; 
+    box-shadow: 0 0 0 3px rgba(0, 119, 182, 0.1);
 }
 
 
@@ -1167,6 +1575,24 @@ textarea.clinical-input {
     color: #64748b;
     cursor: not-allowed;
     border-style: dashed;
+}
+
+.form-field .select-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.form-field .filter-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8; 
+    font-size: 20px !important;
+    z-index: 2;
+    pointer-events: none;
 }
 
 /*------------------------- END OF RENTAL MODAL --------------------------------------*/
@@ -1229,3 +1655,31 @@ textarea.clinical-input {
 }
 
 
+/*=================================== START OF Purchase ===================================*/
+
+
+#purchase-customer {
+    height: 44px;
+    background-color: #f8fafc;
+    border: 1px solid #dbe2e1;
+    border-radius: 10px;
+    padding-left: 45px; 
+    padding-right: 40px; 
+    font-size: 0.9rem;
+    color: #1e293b;
+    appearance: none;
+    cursor: pointer;
+}
+
+.form-field.full-width .filter-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    z-index: 2;
+    pointer-events: none;
+}
+
+
+/*=================================== END OF Purchase ===================================*/

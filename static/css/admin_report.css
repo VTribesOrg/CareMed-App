@@ -422,21 +422,24 @@ body {
 }
 
 /*----------------------------- START OF MAIN CONTENT --------------------------------------- */
+/*=================================== contentArea ===================================*/
 .content-area {
     padding: 24px;
     flex-grow: 1;
+    min-height: calc(96vh - 80px); 
     overflow-y: auto;
+    background-color: #f8fafc; 
+    display: flex;
+    flex-direction: column;
 }
 
-.asset-registry-card {
-    background: #ffffff;
-    border-radius: 16px;
-    padding: 24px;
-    border: 1px solid #dbe2e1;
-    box-shadow: 0 4px 20px rgba(0, 35, 71, 0.05);
-    width: 96%;
-    height: 94%;
+.table-scroll-container {
+    flex-grow: 1;
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    min-height: 712px; 
 }
-
+/*================================== end of contentArea ==================================*/
 
 /*--------------------- END OF MAIN CONTENT --------------------------------------*/

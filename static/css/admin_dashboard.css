@@ -431,12 +431,18 @@ body {
 
 
 /*----------------------------- START MAIN CONTENT ----------------------------------------*/
+/*=================================== contentArea ===================================*/
 .content-area {
     padding: 24px;
     flex-grow: 1;
+    min-height: calc(96vh - 80px); 
     overflow-y: auto;
-    background: #f8fafc;
+    background-color: #f8fafc; 
+    display: flex;
+    flex-direction: column;
 }
+
+/*================================== end of contentArea ==================================*/
 
 .dashboard-stats-grid {
     display: grid;
