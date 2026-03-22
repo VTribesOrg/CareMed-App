@@ -15,14 +15,19 @@
 </head>
 
 <body>
+    
     <input type="checkbox" id="sidebar-state" hidden>
-
-    <script>
-        if (localStorage.getItem('sidebar-collapsed') === 'true') {
-            document.getElementById('sidebar-state').checked = false;
-        } else {
-            document.getElementById('sidebar-state').checked = true;
-        }
+    <script nonce="{{ csp_nonce() }}">
+        (function() {
+            const checkbox = document.getElementById('sidebar-state');
+            const savedState = localStorage.getItem('sidebar-collapsed');
+            if (savedState === 'true') {
+                checkbox.checked = false;
+            } else {
+                checkbox.checked = true;
+            }
+            document.body.classList.add('ready');
+        })();
     </script>
 
     <div class="main-wrapper">

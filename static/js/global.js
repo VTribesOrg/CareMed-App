@@ -43,18 +43,9 @@ window.addEventListener('click', (e) => {
 /* ======================================= START OF SIDEBAR STATE ======================================= */
 document.addEventListener('DOMContentLoaded', () => {
     const checkbox = document.getElementById('sidebar-state');
-    const savedState = localStorage.getItem('sidebar-collapsed');
-
     if (checkbox) {
-        // Apply saved state: if it was 'true', uncheck it (to collapse)
-        checkbox.checked = savedState !== 'true';
-
-        // Listen for clicks to save the preference
         checkbox.addEventListener('change', function() {
             localStorage.setItem('sidebar-collapsed', !this.checked);
-            
-            // Debugging: remove this once it works
-            console.log("Sidebar collapsed:", !this.checked); 
         });
     }
 });

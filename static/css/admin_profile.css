@@ -13,6 +13,8 @@ body {
 
 
 
+
+
 /* ======================================= START OF SIDEBAR ======================================= */
 .medical-sidebar {
     display: flex;
@@ -33,23 +35,33 @@ body {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-#sidebar-state:not(:checked)+.main-wrapper .medical-sidebar {
+.medical-sidebar, .viewport-container {
+    visibility: hidden; 
+    opacity: 0;        
+}
+
+body.ready .medical-sidebar, 
+body.ready .viewport-container {
+    visibility: visible;
+    opacity: 1;
+}
+
+#sidebar-state:not(:checked) ~ .main-wrapper .medical-sidebar {
     width: 70px;
 }
 
-#sidebar-state:not(:checked)+.main-wrapper .nav-label,
-#sidebar-state:not(:checked)+.main-wrapper .logo-text {
+#sidebar-state:not(:checked) ~ .main-wrapper .nav-label,
+#sidebar-state:not(:checked) ~ .main-wrapper .logo-text {
     opacity: 0;
     display: none;
 }
 
-#sidebar-state:checked+.main-wrapper .medical-sidebar {
+#sidebar-state:checked ~ .main-wrapper .medical-sidebar {
     width: 260px;
 }
 
-
-#sidebar-state:checked+.main-wrapper .nav-label,
-#sidebar-state:checked+.main-wrapper .logo-text {
+#sidebar-state:checked ~ .main-wrapper .nav-label,
+#sidebar-state:checked ~ .main-wrapper .logo-text {
     opacity: 1;
     display: inline-block;
 }
@@ -91,6 +103,8 @@ body {
     justify-content: center;
     border-radius: 8px;
     transition: background 0.2s;
+    z-index: 999;
+    padding: 8px;
 }
 
 .nav-toggle-label:hover {
@@ -123,11 +137,13 @@ body {
     transition: all 0.2s;
 }
 
-#sidebar-state:not(:checked)+.main-wrapper .nav-link {
+
+#sidebar-state:not(:checked) ~ .main-wrapper .nav-link {
     justify-content: center;
 }
 
-#sidebar-state:not(:checked)+.main-wrapper .nav-link .material-symbols-rounded {
+
+#sidebar-state:not(:checked) ~ .main-wrapper .nav-link .material-symbols-rounded {
     min-width: unset;
     margin: 0;
 }
@@ -208,11 +224,16 @@ body {
     color: #94a3b8;
 }
 
-#sidebar-state:not(:checked)+.main-wrapper .settings-menu-popup {
+#sidebar-state:not(:checked) ~ .main-wrapper .settings-menu-popup {
     left: 75px;
     bottom: 10px;
 }
 
+#sidebar-state {
+    position: absolute;
+    visibility: hidden;
+    pointer-events: none;
+}
 /* ======================================= END OF SIDEBAR ======================================= */
 
 
