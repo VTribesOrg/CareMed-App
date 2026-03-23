@@ -4,8 +4,14 @@ from extensions import db, limiter
 from flask_login import login_required
 from functools import wraps
 from models.product import Product
+from models.customer import Customer
+from models.users import User
 from werkzeug.utils import secure_filename
 import os
+
+
+
+
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -31,7 +37,10 @@ def dashboard():
 @login_required
 @administrator_required
 def customers():
-    return render_template("admin/customers.html")
+    
+    customers = Customer.query.join(User).all()
+    
+    return render_template("admin/customers.html", customers=customers)
 
 
 
@@ -62,10 +71,11 @@ def add_product():
 
     if image_file:
         filename = secure_filename(image_file.filename)
-        image_path = f"uploads/{filename}"
-        image_file.save(os.path.join("static", image_path))
+        image_path = f"uploads/products/{filename}"
+        save_path = os.path.join("static", image_path)
+        image_file.save(save_path)
 
-    new_product = Products(
+    new_product = Product(
         asset_tag=asset_tag,
         equipment_type=equipment_type,
         model=model,

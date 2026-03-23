@@ -100,7 +100,6 @@ def login():
             return redirect(url_for("auth.login"))
 
     return render_template("authentication/login.html", form=form, email_value=email_value)
-
 @auth_bp.route("/register", methods=["GET", "POST"])
 def register():
     form = RegisterForm()
@@ -120,15 +119,14 @@ def register():
             form.password.errors.append(
                 "Password must be at least 8 characters and include uppercase, number, and special character."
             )
-            return render_template("registration.html", form=form)
-
-        existing_user = User.query.filter_by(email=email).first()
-
-        if existing_user:
-            form.email.errors.append("Email already registered")
-            return render_template("registration.html", form=form)
+            return render_template("authentication/registration.html", form=form)
 
         try:
+            existing_user = User.query.filter_by(email=email).first()
+            if existing_user:
+                form.email.errors.append("Email already registered")
+                return render_template("authentication/registration.html", form=form)
+
             hashed_password = passhasher.hash(password)
 
             new_user = User(
@@ -138,11 +136,22 @@ def register():
                 phone=phone,
                 address=address,
                 password_hash=hashed_password,
-                created_at=datetime.utcnow(),
-                is_verified=False
+                is_verified=False,
+                role="customer"
             )
 
             db.session.add(new_user)
+
+            db.session.flush()
+
+            customer = Customer(
+                user_id=new_user.id,
+                name=f"{first_name} {last_name}".strip(),
+                contact=phone,
+                address=address
+            )
+            db.session.add(customer)
+
             db.session.commit()
 
             verification_token = email_verification_token(new_user.email)
@@ -160,17 +169,17 @@ def register():
             )
 
             msg.body = f"""
-            Hello {new_user.first_name},
+                    Hello {new_user.first_name},
 
-            Please verify your email to activate your CareMed account.
+                    Please verify your email to activate your CareMed account.
 
-            Click the link below:
-            {verify_link}
+                    Click the link below:
+                    {verify_link}
 
-            This link will expire in 24 hours.
+                    This link will expire in 24 hours.
 
-            CareMed Security Team
-            """
+                    CareMed Security Team
+                    """
 
             mail.send(msg)
 

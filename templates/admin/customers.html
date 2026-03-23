@@ -183,40 +183,74 @@
                             </div>
                         </div>
                     </div>
+
                     <section class="table-scroll-container">
                         <table class="medical-data-table">
                             <thead>
                                 <tr>
                                     <th>Customer Name</th>
-                                    <th>Patient ID</th>
                                     <th>Email Address</th>
+                                    <th>Address</th>
                                     <th>Status</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="customerTableBody">
-
-
-                                <tr>
-                                    <td>
+                                {% if customers %}
+                                    {% for customer in customers %}
+                                    <tr>
+                                        <td>
                                         <div class="customer-identity">
-                                            <div class="avatar-circle">MC</div><strong>Maria Clara</strong>
+                                            {% if customer.user and customer.user.profile_path %}
+                                                <div class="avatar-circle">
+                                                    <img src="{{ url_for('static', filename=customer.user.profile_path) }}" alt="{{ customer.name }}" />
+                                                </div>
+                                            {% else %}
+                                                <div class="avatar-circle">
+                                                    {{ customer.name.split()[0][0] }}{{ customer.name.split()[-1][0] }}
+                                                </div>
+                                            {% endif %}
+                                            <strong>{{ customer.name }}</strong>
                                         </div>
-                                    </td>
-                                    <td>PT-2026-8812</td>
-                                    <td>m.clara@email.com</td>
-                                    <td><span class="status-pill status-ready">Active</span></td>
-                                    <td class="col-actions">
-                                        <button class="asset-action-btn logs"
-                                            onclick="openProfileModal('Maria Clara', 'PT-2026-8812')"><span
-                                                class="material-symbols-rounded">visibility</span></button>
-                                        <button class="asset-action-btn edit"
-                                            onclick="openResetModal('Maria Clara')"><span
-                                                class="material-symbols-rounded">lock_reset</span></button>
+                                        </td>
+
+                                        <td>
+                                            {{ customer.user.email if customer.user else 'N/A' }}
+                                        </td>
+
+                                        <td>
+                                            <strong>{{ customer.address or 'N/A' }}</strong>
+                                        </td>
+
+                                        <td>
+                                            {% if customer.user and customer.user.is_verified %}
+                                                <span class="status-pill status-ready">Active</span>
+                                            {% else %}
+                                                <span class="status-pill status-pending">Unverified</span>
+                                            {% endif %}
+                                        </td>
+
+                                        <td class="col-actions">
+                                            <button class="asset-action-btn logs"
+                                                onclick="openProfileModal('{{ customer.name }}', 'PT-{{ "%04d"|format(customer.id) }}')">
+                                                <span class="material-symbols-rounded">visibility</span>
+                                            </button>
+
+                                            <button class="asset-action-btn edit"
+                                                onclick="openResetModal('{{ customer.name }}')">
+                                                <span class="material-symbols-rounded">lock_reset</span>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" class="empty-state">
+                                        <div>No customers found</div>
+                                        <small>New users will appear here after registration.</small>
                                     </td>
                                 </tr>
-
-                                
+                                {% endif %}
                             </tbody>
                         </table>
                     </section>
