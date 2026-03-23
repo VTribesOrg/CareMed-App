@@ -10,7 +10,7 @@ def validate_strong_password(form, field):
     password = field.data
 
     if len(password) < 8:
-        raise ValidationError("Password must be at least 12 characters.")
+        raise ValidationError("Password must be at least 8 characters.")
 
     if not re.search(r'[A-Z]', password):
         raise ValidationError("Password must contain an uppercase letter.")

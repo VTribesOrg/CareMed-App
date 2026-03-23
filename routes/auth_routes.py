@@ -173,7 +173,7 @@ def register():
             db.session.rollback()
             current_app.logger.error(f"Registration error for {email}: {e}")
             flash("Registration failed. Please try again.", "danger")
-            return render_template("registration.html", form=form)
+            return render_template("authentication/registration.html", form=form)
 
     return render_template("authentication/registration.html", form=form)
 
@@ -360,12 +360,12 @@ def reset_password(token):
 
         if new_password != confirm_password:
             flash("Passwords do not match.", "warning")
-            return render_template("reset_password.html", token=token, form=form)
+            return render_template("authentication/reset_password.html", token=token, form=form)
 
         password_regex = r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$"
         if not re.match(password_regex, new_password):
             flash("Password must be at least 8 characters, include uppercase, number, and special character.", "warning")
-            return render_template("reset_password.html", token=token, form=form)
+            return render_template("authentication/reset_password.html", token=token, form=form)
 
         try:
             user.password_hash = passhasher.hash(new_password)
@@ -397,6 +397,6 @@ def reset_password(token):
             db.session.rollback()
             current_app.logger.error(f"Error updating password for {email}: {e}")
             flash("A server error occurred. Please try again later.", "danger")
-            return render_template("reset_password.html", token=token, form=form)
+            return render_template("authentication/reset_password.html", token=token, form=form)
 
     return render_template("authentication/reset_password.html", token=token, form=form)
