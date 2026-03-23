@@ -40,7 +40,6 @@ csp = {
     "frame-ancestors": ["'self'"], 
     "object-src": ["'none'"]
 }
-
 Talisman(
     app,
     content_security_policy=csp,

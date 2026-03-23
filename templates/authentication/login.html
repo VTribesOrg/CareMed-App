@@ -134,18 +134,14 @@
                                 <i class="fa-solid fa-envelope"></i>
                                 {{ form.email(value=email_value, placeholder="example@gmail.com") }}
                             </div>
+                            {% if form.email.errors %}
+                            {% for error in form.email.errors %}
+                                <p class="error-msg">
+                                    <i class="fa-solid fa-circle-exclamation"></i> {{ error }}
+                                </p>
+                            {% endfor %}
+                            {% endif %}
 
-                            {% with messages = get_flashed_messages(with_categories=true) %}
-                                {% if messages %}
-                                    {% for category, message in messages %}
-                                        {% if category == 'email-error' %}
-                                        <p class="error-msg">
-                                            <i class="fa-solid fa-circle-exclamation"></i> {{ message }}
-                                        </p>
-                                        {% endif %}
-                                    {% endfor %}
-                                {% endif %}
-                            {% endwith %}
                         </div>
 
                         <div class="input-field">
@@ -159,24 +155,37 @@
                                 {{ form.password(placeholder="••••••••") }}
                                 <i class="fa-solid fa-eye-slash toggle-pass"></i>
                             </div>
+                            {% if form.password.errors %}
+                            {% for error in form.password.errors %}
+                                <p class="error-msg">
+                                    <i class="fa-solid fa-circle-exclamation"></i> {{ error }}
+                                </p>
+                            {% endfor %}
+                            {% endif %}
 
                             {% with messages = get_flashed_messages(with_categories=true) %}
-                                {% if messages %}
-                                    {% for category, message in messages %}
-                                        {% if category == 'password-error' %}
-                                            {% if 'attempts' in message.lower() or 'wait' in message.lower() %}
-                                                <p class="error-msg rate-limit-msg">
-                                                    <i class="fa-solid fa-clock-rotate-left"></i> {{ message }}
-                                                </p>
-                                            {% else %}                                                    
-                                                <p class="error-msg">
-                                                    <i class="fa-solid fa-circle-exclamation"></i> {{ message }}
-                                                </p>
-                                            {% endif %}
+                            {% if messages %}
+                                {% for category, message in messages %}
+                                    {% if category == 'email-error' %}
+                                        <p class="error-msg">
+                                            <i class="fa-solid fa-circle-exclamation"></i> {{ message }}
+                                        </p>
+                                    {% endif %}
+                                    {% if category == 'password-error' %}
+                                        {% if 'attempts' in message.lower() or 'wait' in message.lower() %}
+                                            <p class="error-msg rate-limit-msg">
+                                                <i class="fa-solid fa-clock-rotate-left"></i> {{ message }}
+                                            </p>
+                                        {% else %}
+                                            <p class="error-msg">
+                                                <i class="fa-solid fa-circle-exclamation"></i> {{ message }}
+                                            </p>
                                         {% endif %}
-                                    {% endfor %}
-                                {% endif %}
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
                             {% endwith %}
+
                         </div>
 
                         <button type="submit" class="btn-primary" id="loginBtn">
