@@ -8,7 +8,7 @@ class User(UserMixin, db.Model):
 
     __tablename__ = "users"
 
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    id = db.Column(db.Integer, primary_key=True)
 
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
 

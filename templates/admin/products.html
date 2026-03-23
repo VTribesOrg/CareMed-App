@@ -312,7 +312,7 @@
                 <span class="material-symbols-rounded modal-close close-reg-modal">close</span>
             </div>
 
-            <form id="assetEntryForm">
+            <form id="assetEntryForm" method="POST" action="{{ url_for('admin.add_product') }}" enctype="multipart/form-data">
                 <div class="form-layout-grid">
                     <div class="form-field full-width">
                         <label>Product Image</label>
@@ -335,7 +335,7 @@
 
                     <div class="form-field full-width">
                         <label>Equipment Type</label>
-                        <select class="clinical-input medical-select">
+                        <select name="equipment_type" class="clinical-input medical-select">
                             <option value="" disabled selected>Select Type...</option>
                             <option>Manual Hospital Bed</option>
                             <option>Electric Wheelchair</option>
@@ -346,22 +346,22 @@
 
                     <div class="form-field">
                         <label>Model / OEM</label>
-                        <input type="text" class="clinical-input" placeholder="Manufacturer Name">
+                        <input type="text" name="model" class="clinical-input" placeholder="Manufacturer Name">
                     </div>
 
                     <div class="form-field">
                         <label>Initial Stock (Units)</label>
-                        <input type="number" class="clinical-input" placeholder="0">
+                        <input type="number" name="stock" class="clinical-input" placeholder="0">
                     </div>
 
                     <div class="form-field">
                         <label>Monthly Rent (₱)</label>
-                        <input type="number" class="clinical-input" placeholder="0.00">
+                        <input type="number" name="rent_price" class="clinical-input" placeholder="0.00">
                     </div>
 
                     <div class="form-field">
                         <label>Selling Price (₱)</label>
-                        <input type="number" class="clinical-input" placeholder="0.00">
+                        <input type="number" name="sale_price" class="clinical-input" placeholder="0.00">
                     </div>
                 </div>
 
