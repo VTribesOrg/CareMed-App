@@ -313,6 +313,8 @@
             </div>
 
             <form id="assetEntryForm" method="POST" action="{{ url_for('admin.add_product') }}" enctype="multipart/form-data">
+                {{ csrf_token() }}
+
                 <div class="form-layout-grid">
                     <div class="form-field full-width">
                         <label>Product Image</label>
@@ -321,7 +323,8 @@
                             <p><strong>Click to upload</strong> or drag and drop</p>
                             <p style="font-size: 0.75rem; color: #64748b;">High-quality PNG or JPG preferred</p>
 
-                            <input type="file" id="product-image-input" hidden accept="image/*">
+                            <!-- ✅ FIX: added name="image" -->
+                            <input type="file" name="image" id="product-image-input" hidden accept="image/*">
 
                             <div id="product-preview-text" class="preview-active-box" style="display: none;">
                                 <div class="preview-info">

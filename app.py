@@ -3,6 +3,8 @@ from flask import Flask, request, redirect, url_for, flash, render_template
 from flask_login import current_user
 from extensions import db, migrate, login_manager, oauth, mail, csrf, limiter
 from models.users import User
+from models.customer import Customer
+from models.product import Product, Purchase, Rental, InventoryLog
 from flask_talisman import Talisman
 
 app = Flask(__name__)

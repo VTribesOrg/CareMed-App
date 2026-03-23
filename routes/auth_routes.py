@@ -3,6 +3,7 @@ from flask_login import login_user, logout_user, login_required
 from extensions import db, passhasher, oauth, mail, limiter, get_remote_address
 from flask_mail import Message
 from models.users import User
+from models.customer import Customer
 from datetime import datetime, timedelta
 from forms.auth_forms import RegisterForm, LoginForm, ResetPasswordForm
 from utils.security import generate_reset_token, verify_reset_token, email_verification_token, verify_email_token
@@ -30,6 +31,14 @@ def login_key():
     email = request.form.get("email", "").lower()
     return f"{request.remote_addr}:{email}"
 
+
+def create_customer_for_user(user):
+    if not user.customer_profile:
+        customer = Customer(
+            user_id=user.id,
+            name=f"{user.first_name or ''} {user.last_name or ''}".strip()
+        )
+        db.session.add(customer)
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 @limiter.limit("5 per minute", key_func=login_key, methods=["POST"])
@@ -214,15 +223,16 @@ def google_login():
     redirect_uri = url_for("auth.callback", _external=True)
 
     return google.authorize_redirect(redirect_uri, nonce=nonce, state=state)
-
 @auth_bp.route("/callback")
 def callback():
 
+    # ✅ Validate state
     state = request.args.get("state")
     if not state or state != session.pop("oauth_state", None):
         flash("Invalid OAuth state")
         return redirect(url_for("auth.login"))
 
+    # ✅ Get Google user info
     token = google.authorize_access_token()
     user_info = google.parse_id_token(token, nonce=session.pop("nonce", None))
 
@@ -233,44 +243,54 @@ def callback():
     email = user_info["email"].lower()
     google_id = user_info["sub"]
 
-
     if not email.endswith("@gmail.com"):
         flash("Only Gmail accounts are allowed")
         return redirect(url_for("auth.login"))
 
-    user = User.query.filter_by(google_id=google_id).first()
+    try:
+        user = User.query.filter_by(google_id=google_id).first()
 
-    if not user:
-        user = User.query.filter_by(email=email).first()
-
-        if user and user.google_id and user.google_id != google_id:
-            flash("Account already linked with another Google account.")
-            return redirect(url_for("auth.login"))
-
-        if user:
-            user.google_id = google_id
-            user.is_verified = True
-            user.email_verified_at = datetime.utcnow()
-
-        else:
-            user = User(
-                email=email,
-                first_name=user_info.get("given_name"),
-                last_name=user_info.get("family_name"),
-                google_id=google_id,
-                is_verified=True,
-                email_verified_at=datetime.utcnow(),
-                created_at=datetime.utcnow(),
-                role="customer"
-            )
-
-        try:
-            db.session.add(user)
-            db.session.commit()
-
-        except Exception:
-            db.session.rollback()
+        if not user:
             user = User.query.filter_by(email=email).first()
+
+            if user and user.google_id and user.google_id != google_id:
+                flash("Account already linked with another Google account.")
+                return redirect(url_for("auth.login"))
+
+            if user:
+                user.google_id = google_id
+                user.is_verified = True
+                user.email_verified_at = datetime.utcnow()
+
+            else:
+                user = User(
+                    email=email,
+                    first_name=user_info.get("given_name"),
+                    last_name=user_info.get("family_name"),
+                    google_id=google_id,
+                    is_verified=True,
+                    email_verified_at=datetime.utcnow(),
+                    role="customer"
+                )
+                db.session.add(user)
+
+        db.session.flush()
+
+        if not user.customer_profile:
+            customer = Customer(
+                user_id=user.id,
+                name=f"{user.first_name or ''} {user.last_name or ''}".strip(),
+                contact=user.phone,
+                address=user.address
+            )
+            db.session.add(customer)
+
+        db.session.commit()
+
+    except Exception as e:
+        db.session.rollback()
+        flash("Authentication failed. Please try again.")
+        return redirect(url_for("auth.login"))
 
     login_user(user, remember=True)
     session.permanent = True
