@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, url_for, redirect, flash, request
+from flask import Blueprint, render_template, url_for, redirect, flash, request, jsonify, current_app
 from flask_login import current_user
 from extensions import db, limiter
 from flask_login import login_required
@@ -8,8 +8,6 @@ from models.customer import Customer
 from models.users import User
 from werkzeug.utils import secure_filename
 import os
-
-
 
 
 
@@ -24,6 +22,9 @@ def administrator_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+
+
+
 @admin_bp.route('dashboard')
 @limiter.exempt
 @login_required
@@ -31,17 +32,42 @@ def administrator_required(f):
 def dashboard():
     
     return render_template("admin/dashboard.html")
-
 @admin_bp.route('/customers')
 @limiter.exempt
 @login_required
 @administrator_required
 def customers():
-    
-    customers = Customer.query.join(User).all()
-    
+ 
+    customers = Customer.query.join(User).filter(User.role == "customer").all()
     return render_template("admin/customers.html", customers=customers)
 
+@admin_bp.route('/get_customer/<int:id>')
+@login_required
+@administrator_required
+def get_customer(id):
+    try:
+        customer = Customer.query.get(id)
+
+        if not customer:
+            return jsonify({"error": "Customer not found"}), 404
+
+
+        return jsonify({
+            "id": customer.id,
+            "first_name": customer.first_name,
+            "last_name": customer.last_name,
+            "full_name": f"{customer.first_name} {customer.last_name}",        
+            "contact": customer.contact_number,   
+            "address": customer.home_address,    
+            "is_verified": customer.is_id_verified,
+            "valid_id": customer.valid_id_path,
+            "profile_path": customer.user.profile_path if customer.user else None,
+            "email": customer.user.email if customer.user else None
+        })
+
+    except Exception as e:
+        current_app.logger.error(f"Error fetching customer {id}: {e}")
+        return jsonify({"error": "Server error"}), 500
 
 
 

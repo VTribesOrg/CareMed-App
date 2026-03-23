@@ -40,16 +40,15 @@ def create_customer_for_user(user):
         )
         db.session.add(customer)
 
+from datetime import datetime, timedelta # Ensure timedelta is imported
+
 @auth_bp.route("/login", methods=["GET", "POST"])
 @limiter.limit("5 per minute", key_func=login_key, methods=["POST"])
 def login():
     form = LoginForm()
     now = datetime.utcnow()
 
-    if request.method == "GET":
-        email_value = session.pop('login_email', '') 
-    else:
-        email_value = ''
+    email_value = session.pop('login_email', '') if request.method == "GET" else ''
         
     if form.validate_on_submit():
         email = form.email.data.strip().lower()
@@ -62,50 +61,58 @@ def login():
             flash("Wrong email or password", "password-error")
             return redirect(url_for("auth.login"))
 
-        if not user.is_verified:
-            flash("Please verify your email before logging in.", "email-error")
+  
+        if user.account_locked_until and user.account_locked_until > now:
+            flash("Your account is temporarily locked. Please try again later.", "password-error")
             return redirect(url_for("auth.login"))
 
-        if user.account_locked_until and user.account_locked_until > now:
-            flash("Your account is temporarily locked due to multiple failed login attempts. Please try again later.", "password-error")
+
+        if not user.is_verified:
+            flash("Please verify your email before logging in.", "email-error")
+            session['login_email'] = email
             return redirect(url_for("auth.login"))
 
         try:
+
             if not passhasher.verify(user.password_hash, password):
                 user.failed_login_attempts += 1
                 if user.failed_login_attempts >= 5:
                     user.account_locked_until = now + timedelta(minutes=15)
-                    user.failed_login_attempts = 0
                     user.lock_reason = "Too many failed login attempts"
+                
                 db.session.commit()
                 flash("Wrong email or password", "password-error")
                 return redirect(url_for("auth.login"))
+
 
             user.failed_login_attempts = 0
             user.account_locked_until = None
             user.last_login_at = now
             db.session.commit()
             
-            login_user(user, remember=True)
+            login_user(user, remember=form.remember_me.data if hasattr(form, 'remember_me') else True)
             session.permanent = True
             
+
             if user.role == "Administrator":
                 return redirect(url_for("admin.dashboard"))
 
             return redirect(url_for("user.homepage"))
 
         except Exception as e:
+            db.session.rollback()
             current_app.logger.error(f"Login error for {email}: {e}")
-            flash("Wrong email or password. Please try again.", "password-error")
+            flash("An unexpected error occurred. Please try again.", "password-error")
             return redirect(url_for("auth.login"))
 
     return render_template("authentication/login.html", form=form, email_value=email_value)
+
+
 @auth_bp.route("/register", methods=["GET", "POST"])
 def register():
     form = RegisterForm()
 
     if form.validate_on_submit():
-
         email = form.email.data.strip().lower()
         first_name = form.first_name.data.strip().title()
         last_name = form.last_name.data.strip().title()
@@ -114,7 +121,6 @@ def register():
         password = form.password.data
 
         password_regex = r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$"
-
         if not re.match(password_regex, password):
             form.password.errors.append(
                 "Password must be at least 8 characters and include uppercase, number, and special character."
@@ -131,31 +137,26 @@ def register():
 
             new_user = User(
                 email=email,
-                first_name=first_name,
-                last_name=last_name,
-                phone=phone,
-                address=address,
                 password_hash=hashed_password,
                 is_verified=False,
                 role="customer"
             )
 
             db.session.add(new_user)
-
             db.session.flush()
 
             customer = Customer(
                 user_id=new_user.id,
-                name=f"{first_name} {last_name}".strip(),
-                contact=phone,
-                address=address
+                first_name=first_name, 
+                last_name=last_name,
+                contact_number=phone,
+                home_address=address
             )
             db.session.add(customer)
 
             db.session.commit()
 
             verification_token = email_verification_token(new_user.email)
-
             verify_link = url_for(
                 "auth.verify_email",
                 token=verification_token,
@@ -169,22 +170,20 @@ def register():
             )
 
             msg.body = f"""
-                    Hello {new_user.first_name},
+                Hello {first_name},
 
-                    Please verify your email to activate your CareMed account.
+                Please verify your email to activate your CareMed account.
 
-                    Click the link below:
-                    {verify_link}
+                Click the link below:
+                {verify_link}
 
-                    This link will expire in 24 hours.
+                This link will expire in 24 hours.
 
-                    CareMed Security Team
-                    """
+                CareMed Security Team
+                """
 
             mail.send(msg)
-
             flash("Registration successful. Please check your email to verify your account.", "info")
-
             return redirect(url_for('auth.login', success='registered', email=email))
 
         except Exception as e:
@@ -194,6 +193,7 @@ def register():
             return render_template("authentication/registration.html", form=form)
 
     return render_template("authentication/registration.html", form=form)
+
 
 @auth_bp.route("/verify-email/<token>")
 def verify_email(token):
@@ -236,7 +236,6 @@ def google_login():
 
 @auth_bp.route("/callback")
 def callback():
-
     state = request.args.get("state")
     if not state or state != session.pop("oauth_state", None):
         flash("Invalid OAuth state")
@@ -270,16 +269,14 @@ def callback():
                 user.google_id = google_id
                 user.is_verified = True
                 user.email_verified_at = datetime.utcnow()
-
             else:
                 user = User(
                     email=email,
-                    first_name=user_info.get("given_name"),
-                    last_name=user_info.get("family_name"),
                     google_id=google_id,
                     is_verified=True,
                     email_verified_at=datetime.utcnow(),
-                    role="customer"
+                    role="customer",
+                    oauth_provider="google"
                 )
                 db.session.add(user)
 
@@ -288,21 +285,24 @@ def callback():
         if not user.customer_profile:
             customer = Customer(
                 user_id=user.id,
-                name=f"{user.first_name or ''} {user.last_name or ''}".strip(),
-                contact=user.phone,
-                address=user.address
+                first_name=user_info.get("given_name", "").capitalize(),
+                last_name=user_info.get("family_name", "").capitalize(),
+                contact_number=None, 
+                home_address=None
             )
             db.session.add(customer)
-
+        
         db.session.commit()
 
     except Exception as e:
         db.session.rollback()
+        current_app.logger.error(f"OAuth Callback Error: {e}")
         flash("Authentication failed. Please try again.")
         return redirect(url_for("auth.login"))
 
     login_user(user, remember=True)
     session.permanent = True
+
 
     if user.role == "Administrator":
         return redirect(url_for("admin.dashboard"))

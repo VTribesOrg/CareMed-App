@@ -5,6 +5,7 @@ from werkzeug.utils import secure_filename
 from extensions import db, passhasher, limiter
 from forms.update_profile_form import UpdateProfileForm, ChangePasswordForm
 from functools import wraps
+from models.customer import Customer
 
 user_bp = Blueprint('user', __name__, url_prefix='/customer')
 
@@ -52,55 +53,72 @@ def profile():
     profile_form = UpdateProfileForm()
     password_form = ChangePasswordForm()
 
+    # Ensure the user has a customer profile
+    if not current_user.customer_profile:
+        current_user.customer_profile = Customer(user_id=current_user.id)
+        db.session.add(current_user.customer_profile)
+        db.session.commit()
+
+    customer = current_user.customer_profile
+
     if request.method == "GET":
-        profile_form.first_name.data = current_user.first_name
-        profile_form.last_name.data = current_user.last_name
-        profile_form.phone.data = current_user.phone
-        profile_form.address.data = current_user.address
+        profile_form.first_name.data = customer.first_name
+        profile_form.last_name.data = customer.last_name
+        profile_form.phone.data = customer.contact_number
+        profile_form.address.data = customer.home_address
 
         return render_template("user/profile.html", profile_form=profile_form, password_form=password_form)
 
     if profile_form.validate_on_submit() and profile_form.submit_profile.data:
-            # Update text fields
-            current_user.first_name = profile_form.first_name.data.strip().title()
-            current_user.last_name = profile_form.last_name.data.strip().title()
-            current_user.phone = profile_form.phone.data.strip()
-            current_user.address = profile_form.address.data.title()
+        try:
+            # Update customer profile
+            customer.first_name = profile_form.first_name.data.strip().title()
+            customer.last_name = profile_form.last_name.data.strip().title()
+            customer.contact_number = profile_form.phone.data.strip()
+            customer.home_address = profile_form.address.data.title()
 
+            # Handle profile photo
             remove_photo_signal = request.form.get('remove_photo') == 'true'
             new_file = profile_form.profile_path.data
 
-            try:
-                if remove_photo_signal and not new_file:
-                    if current_user.profile_path:
-                        old_path = os.path.join(current_app.root_path, 'static', current_user.profile_path)
-                        if os.path.exists(old_path):
-                            os.remove(old_path)
-                        current_user.profile_path = None
+            if remove_photo_signal and not new_file:
+                if current_user.profile_path:
+                    old_path = os.path.join(current_app.root_path, 'static', current_user.profile_path)
+                    if os.path.exists(old_path):
+                        os.remove(old_path)
+                    current_user.profile_path = None
 
-                if new_file:
-                    if current_user.profile_path:
-                        old_path = os.path.join(current_app.root_path, 'static', current_user.profile_path)
-                        if os.path.exists(old_path):
-                            os.remove(old_path)
+            if new_file:
+                if current_user.profile_path:
+                    old_path = os.path.join(current_app.root_path, 'static', current_user.profile_path)
+                    if os.path.exists(old_path):
+                        os.remove(old_path)
 
-                    filename = secure_filename(f"user_{current_user.id}_{new_file.filename}")
-                    upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'profiles')
-                    os.makedirs(upload_folder, exist_ok=True)
-                    
-                    new_file.save(os.path.join(upload_folder, filename))
-                    current_user.profile_path = f"uploads/profiles/{filename}"
+                filename = secure_filename(f"user_{current_user.id}_{new_file.filename}")
+                upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'profiles')
+                os.makedirs(upload_folder, exist_ok=True)
+                
+                new_file.save(os.path.join(upload_folder, filename))
+                current_user.profile_path = f"uploads/profiles/{filename}"
 
-                db.session.commit()
-                return jsonify(status="success", message="Profile updated successfully!")
+            db.session.commit()
+            return jsonify(
+                status="success",
+                message="Your profile has been updated successfully!"
+            )
 
-            except Exception as e:
-                db.session.rollback()
-                current_app.logger.error(f"Profile update failed: {e}")
-                return jsonify(status="error", message="Failed to update profile.", detail=str(e))
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Profile update failed: {e}")
+            return jsonify(status="error", message="Oops! We couldn’t update your profile. Please try again.",)
 
     if request.method == "POST":
-        return jsonify(status="error", message="Validation failed", errors=profile_form.errors)
+        error_messages = []
+        for field, errors in profile_form.errors.items():
+            for error in errors:
+                error_messages.append(f"{field.replace('_', ' ').title()}: {error}")
+
+        return jsonify(status="error", message="Please correct the highlighted fields and try again.", errors=error_messages)
 
     return render_template("user/profile.html", profile_form=profile_form, password_form=password_form)
 

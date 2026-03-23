@@ -53,14 +53,15 @@
                 <div class="user-details">
                     <span class="user-name">
                         {% if current_user.is_authenticated %}
-                            Hello, {{ current_user.first_name }}
+                            {% if current_user.customer_profile %}
+                                Hello, {{ current_user.customer_profile.first_name }}
+                            {% else %}
+                                Hello, {{ current_user.email.split('@')[0] }} 
+                            {% endif %}
                         {% else %}
-                            Guest
+                            Welcome, Guest
                         {% endif %}
                     </span>
-                    {% if not current_user.is_authenticated %}
-                        <span class="user-role">Sign in to manage rentals</span>
-                    {% endif %}
                 </div>
             </div>
 
@@ -153,7 +154,7 @@
                     <div class="user-info">
                         <span class="user-name">
                             {% if current_user.is_authenticated %}
-                                Hello, {{ current_user.first_name }}
+                                Hello, {{ current_user.customer_profile.first_name }}
                             {% else %}
                                 Guest
                             {% endif %}

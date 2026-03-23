@@ -144,7 +144,7 @@
                     <div class="action-item">
                         <div class="clinical-user" id="profile-btn">
                             <div class="user-info">
-                                <span class="user-name">{{ current_user.first_name}} {{ current_user.last_name}}</span>
+                                <span class="user-name">{{ current_user.customer_profile.first_name}} {{ current_user.customer_profile.last_name}}</span>
                                 <span class="user-role">{{ current_user.role }}</span>
                             </div>
                             <div class="user-avatar" id="avatar-wrapper">
@@ -189,8 +189,9 @@
                             <thead>
                                 <tr>
                                     <th>Customer Name</th>
-                                    <th>Email Address</th>
                                     <th>Address</th>
+                                    <th>Phone No.</th>
+                                    <th>Valid IDs</th> 
                                     <th>Status</th>
                                     <th>Actions</th>
                                 </tr>
@@ -200,26 +201,49 @@
                                     {% for customer in customers %}
                                     <tr>
                                         <td>
-                                        <div class="customer-identity">
-                                            {% if customer.user and customer.user.profile_path %}
-                                                <div class="avatar-circle">
-                                                    <img src="{{ url_for('static', filename=customer.user.profile_path) }}" alt="{{ customer.name }}" />
-                                                </div>
+                                            <div class="customer-identity">
+                                                {% if customer.user and customer.user.profile_path %}
+                                                    <div class="avatar-circle">
+                                                        <img src="{{ url_for('static', filename=customer.user.profile_path) }}" 
+                                                            alt="{{ customer.full_name }}" />
+                                                    </div>
+                                                {% else %}
+                                                    <div class="avatar-circle">
+                                                        <span class="material-symbols-rounded">person</span>
+                                                    </div>
+                                                {% endif %}
+                                                <strong>{{ customer.full_name }}</strong>
+                                            </div>
+                                        </td>
+
+                                        <td>
+                                            {% if customer.home_address %}
+                                                <strong>{{ customer.home_address }}</strong>
                                             {% else %}
-                                                <div class="avatar-circle">
-                                                    {{ customer.name.split()[0][0] }}{{ customer.name.split()[-1][0] }}
-                                                </div>
+                                                <span style="color: #94a3b8; font-style: italic; font-weight: normal;">N/A</span>
                                             {% endif %}
-                                            <strong>{{ customer.name }}</strong>
-                                        </div>
+                                        </td>
+                                        
+                                        <td>
+                                            {% if customer.contact_number %}
+                                                {{ customer.contact_number }}
+                                            {% else %}
+                                                <span style="color: #94a3b8; font-style: italic;">N/A</span>
+                                            {% endif %}
                                         </td>
 
                                         <td>
-                                            {{ customer.user.email if customer.user else 'N/A' }}
-                                        </td>
-
-                                        <td>
-                                            <strong>{{ customer.address or 'N/A' }}</strong>
+                                            {% if customer.valid_id_path %}
+                                                <span class="status-pill id-uploaded">
+                                                    <span class="material-symbols-rounded">verified</span>
+                                                    Uploaded
+                                                </span>
+                                            {% else %}
+                                                <span class="status-pill id-missing">
+                                                    <span class="material-symbols-rounded">error</span>
+                                                    Missing ID
+                                                </span>
+                                            {% endif %}
                                         </td>
 
                                         <td>
@@ -231,25 +255,24 @@
                                         </td>
 
                                         <td class="col-actions">
-                                            <button class="asset-action-btn logs"
-                                                onclick="openProfileModal('{{ customer.name }}', 'PT-{{ "%04d"|format(customer.id) }}')">
+                                            <button class="asset-action-btn logs" data-id="{{ customer.id }}">
                                                 <span class="material-symbols-rounded">visibility</span>
                                             </button>
 
                                             <button class="asset-action-btn edit"
-                                                onclick="openResetModal('{{ customer.name }}')">
+                                                onclick="openResetModal('{{ customer.full_name }}')">
                                                 <span class="material-symbols-rounded">lock_reset</span>
                                             </button>
                                         </td>
                                     </tr>
                                     {% endfor %}
                                 {% else %}
-                                <tr>
-                                    <td colspan="5" class="empty-state">
-                                        <div>No customers found</div>
-                                        <small>New users will appear here after registration.</small>
-                                    </td>
-                                </tr>
+                                    <tr>
+                                        <td colspan="6" class="empty-state">
+                                            <div>No customers found</div>
+                                            <small>New users will appear here after registration.</small>
+                                        </td>
+                                    </tr>
                                 {% endif %}
                             </tbody>
                         </table>
@@ -293,11 +316,13 @@
                         <label>Full Name</label>
                         <input type="text" class="clinical-input" placeholder="e.g. Juan Dela Cruz" required>
                     </div>
-                    <div class="form-field">
-                        <label>Email Address</label>
-                        <input type="email" class="clinical-input" placeholder="name@example.com" required>
+
+                    <div class="form-field full-width">
+                        <label>Home Address</label>
+                        <input type="text" class="clinical-input" placeholder="House No., Street, Barangay, City" required>
                     </div>
-                    <div class="form-field">
+
+                    <div class="form-field full-width">
                         <label>Phone Number</label>
                         <input type="tel" class="clinical-input" placeholder="+63 9xx xxx xxxx" required>
                     </div>
@@ -329,19 +354,6 @@
                             </div>
                         </div>
                     </div>
-
-                    <div class="form-field">
-                        <label>Initial Status</label>
-                        <select class="clinical-input">
-                            <option>Active</option>
-                            <option>On Hold</option>
-                        </select>
-                    </div>
-                    <div class="form-field">
-                        <label>Patient ID</label>
-                        <input type="text" class="clinical-input" value="PT-2026-AUTO" readonly
-                            style="background: #f8fafc;">
-                    </div>
                 </div>
 
                 <div class="modal-footer-actions">
@@ -357,11 +369,19 @@
             <div class="modal-header-row">
                 <div class="customer-identity">
                     <div class="avatar-circle" id="modalAvatarContainer"
-                        style="overflow: hidden; padding: 0; width: 100px; height: 100px ;">
+                        style="overflow: hidden; padding: 0; width: 100px; height: 100px; display:flex; align-items:center; justify-content:center; border-radius:50%; background:#f0f0f0;">
+                        
                         <img id="modalAvatarImg"
-                            src="https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=100&h=100&fit=crop"
-                            alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;">
+                            src=""
+                            alt="Avatar"
+                            style="width: 100%; height: 100%; object-fit: cover; display: none; border-radius:50%;">
+
+                        <span id="modalAvatarFallback" class="material-symbols-rounded"
+                            style="font-size: 48px; color: #64748b; display: flex; align-items: center; justify-content: center;">
+                            person
+                        </span>
                     </div>
+
                     <div>
                         <h2 class="modal-header" id="modalName"></h2>
                         <p id="modalID" style="font-size: 0.85rem; color: #64748b; margin: 0;"></p>
@@ -384,14 +404,21 @@
                     <label style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase;">Address</label>
                     <p id="modalAddress" style="font-weight: 600; color: #1e293b; margin: 4px 0;">--</p>
                 </div>
+
                 <div class="form-field full-width">
-                    <label style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase;">Identity Verification
-                        (ID)</label>
+                    <label style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase;">Identity Verification (ID)</label>
                     <div id="modalIDPreview"
                         style="margin-top: 8px; border: 1px solid #e2e8f0; border-radius: 8px; height: 100px; width: 250px; display: flex; align-items: center; justify-content: center; background: #f8fafc; overflow: hidden;">
+                        
                         <img id="modalIDImg"
-                            src="https://images.unsplash.com/photo-1557128928-66e300629463?w=600&h=300&fit=crop"
-                            alt="ID Card" style="width: 100%; height: 100%; object-fit: cover;">
+                            src=""
+                            alt="ID Card"
+                            style="width: 100%; height: 100%; object-fit: cover; display: none;">
+
+                        <span id="modalIDFallback" 
+                            style="font-size: 1rem; color: #64748b; display: flex; justify-content: center; align-items: center;">
+                            No ID
+                        </span>
                     </div>
                 </div>
             </div>

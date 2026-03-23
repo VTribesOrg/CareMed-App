@@ -9,19 +9,106 @@ function closeRegisterModal() {
     if(modal) modal.classList.add('hidden'); 
 }
 
+/*============= START OF Profile MODAL =============*/
 function openProfileModal(name, id) {
     const modal = document.getElementById('profileModal');
-    if(modal) {
-        document.getElementById('modalName').innerText = name;
-        document.getElementById('modalID').innerText = "ID: " + id;
-        modal.classList.remove('hidden');
+    if (!modal) return;
+
+    const modalName = document.getElementById('modalName');
+    const modalID = document.getElementById('modalID');
+    const modalPhone = document.getElementById('modalPhone');
+    const modalAddress = document.getElementById('modalAddress');
+    const avatarImg = document.getElementById('modalAvatarImg');
+    const avatarFallback = document.getElementById('modalAvatarFallback');
+    const idImg = document.getElementById('modalIDImg');
+    const idFallback = document.getElementById('modalIDFallback');
+
+    if (!id) {
+        modalName.innerText = "Invalid customer";
+        return;
     }
+
+    // Show loading state
+    modalName.innerText = "Loading...";
+    modalID.innerText = "";
+    modalPhone.innerText = "--";
+    modalAddress.innerText = "--";
+    modal.classList.remove('hidden');
+
+    fetch(`/admin/get_customer/${id}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                modalName.innerText = "Error loading profile";
+                return;
+            }
+
+            // Use first_name and last_name from the Customer model if available
+            const fullName = data.first_name && data.last_name
+                ? `${data.first_name} ${data.last_name}`
+                : data.name || name || "Unknown Customer";
+
+            modalName.innerText = fullName;
+            modalID.innerText = "Customer ID: " + (data.id || id);
+            modalPhone.innerText = data.contact_number || "--";
+            modalAddress.innerText = data.home_address || "--";
+
+            // Helper function for initials fallback
+            function getInitials(fullName) {
+                if (!fullName) return "?";
+                const parts = fullName.trim().split(/\s+/);
+                if (parts.length > 1) {
+                    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+                }
+                return parts[0][0].toUpperCase();
+            }
+
+            // ===== Avatar handling =====
+            if (data.profile_path) {
+                avatarImg.src = `/static/${data.profile_path}`;
+                avatarImg.style.display = "block";
+                avatarFallback.style.display = "none";
+                avatarFallback.textContent = "";
+            } else {
+                avatarImg.style.display = "none";
+                avatarFallback.style.display = "flex";
+                avatarFallback.textContent = getInitials(fullName);
+            }
+
+            // ===== Valid ID handling =====
+            if (data.valid_id_path) {
+                idImg.src = `/static/${data.valid_id_path}`;
+                idImg.style.display = "block";
+                idFallback.style.display = "none";
+                idFallback.textContent = "";
+            } else {
+                idImg.style.display = "none";
+                idFallback.style.display = "flex";
+                idFallback.textContent = "No ID";
+            }
+        })
+        .catch(err => {
+            console.error("Error fetching customer data:", err);
+            modalName.innerText = "Failed to load data";
+            modalID.innerText = "";
+            modalPhone.innerText = "--";
+            modalAddress.innerText = "--";
+            avatarImg.style.display = "none";
+            avatarFallback.style.display = "flex";
+            avatarFallback.textContent = "?";
+            idImg.style.display = "none";
+            idFallback.style.display = "flex";
+            idFallback.textContent = "No ID";
+        });
 }
 
-function closeProfileModal() { 
+function closeProfileModal() {
     const modal = document.getElementById('profileModal');
     if(modal) modal.classList.add('hidden'); 
 }
+/*============= END OF Profile MODAL =============*/
+
+
 
 function openResetModal(name) { 
     const modal = document.getElementById('resetModal');
@@ -186,7 +273,9 @@ document.addEventListener('DOMContentLoaded', () => {
             // Get data from the row
             const row = btn.closest('tr');
             const name = row.querySelector('strong').innerText;
-            const id = row.cells[1].innerText;
+
+            // ✅ FIXED ID LOGIC (no line removed, only improved)
+            let id = btn.dataset.id || row.dataset.id || row.cells[1].innerText;
 
             if(btn.classList.contains('logs')) {
                 openProfileModal(name, id);
