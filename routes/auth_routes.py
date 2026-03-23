@@ -223,16 +223,16 @@ def google_login():
     redirect_uri = url_for("auth.callback", _external=True)
 
     return google.authorize_redirect(redirect_uri, nonce=nonce, state=state)
+
+
 @auth_bp.route("/callback")
 def callback():
 
-    # ✅ Validate state
     state = request.args.get("state")
     if not state or state != session.pop("oauth_state", None):
         flash("Invalid OAuth state")
         return redirect(url_for("auth.login"))
 
-    # ✅ Get Google user info
     token = google.authorize_access_token()
     user_info = google.parse_id_token(token, nonce=session.pop("nonce", None))
 
