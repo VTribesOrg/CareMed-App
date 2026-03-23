@@ -50,7 +50,7 @@ def login():
 
         if not user:
             passhasher.hash("dummy_password")
-            flash("Wrong email or password", "password_error")
+            flash("Wrong email or password", "password-error")
             return redirect(url_for("auth.login"))
 
         if not user.is_verified:
