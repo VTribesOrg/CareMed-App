@@ -10,13 +10,14 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
     <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_product.css') }}">
 
-
     <style>
-
+        .medical-sidebar, .viewport-container, .nav-label, .logo-text {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
     </style>
 </head>
 
-<body class="no-transition">
+<body>
 
     <input type="checkbox" id="sidebar-state" hidden>
     <script nonce="{{ csp_nonce() }}">
@@ -53,7 +54,7 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="{{ url_for('admin.products') }}" class="nav-link  active">
+                        <a href="{{ url_for('admin.products') }}" class="nav-link active">
                             <span class="material-symbols-rounded">inventory_2</span>
                             <span class="nav-label">Product & Inventory</span>
                         </a>

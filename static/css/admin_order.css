@@ -4,9 +4,7 @@ body {
     margin: 0;
     font-family: 'Plus Jakarta Sans', sans-serif;
     -webkit-font-smoothing: antialiased;
-
 }
-
 
 
 .main-wrapper {
@@ -16,17 +14,16 @@ body {
 
 
 
-
 /* ======================================= START OF SIDEBAR ======================================= */
 .medical-sidebar {
     display: flex;
     height: 100vh;
     background-color: #ffffff;
-    display: flex;
     flex-direction: column;
     z-index: 100;
     border-right: 1px solid #dbe2e1;
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
 }
 
 .viewport-container {
@@ -55,7 +52,9 @@ body.ready .viewport-container {
 #sidebar-state:not(:checked) ~ .main-wrapper .nav-label,
 #sidebar-state:not(:checked) ~ .main-wrapper .logo-text {
     opacity: 0;
-    display: none;
+    max-width: 0;
+    margin-left: 0;
+    pointer-events: none;
 }
 
 #sidebar-state:checked ~ .main-wrapper .medical-sidebar {
@@ -65,7 +64,8 @@ body.ready .viewport-container {
 #sidebar-state:checked ~ .main-wrapper .nav-label,
 #sidebar-state:checked ~ .main-wrapper .logo-text {
     opacity: 1;
-    display: inline-block;
+    max-width: 200px;
+    margin-left: 10px;
 }
 
 .sidebar-header {
@@ -87,8 +87,8 @@ body.ready .viewport-container {
     font-weight: 800;
     color: #002347;
     letter-spacing: -0.5px;
-    margin-left: 10px;
     white-space: nowrap;
+    transition: opacity 0.2s ease, max-width 0.3s ease, margin 0.3s ease;
 }
 
 .logo-text span {
@@ -135,30 +135,31 @@ body.ready .viewport-container {
     text-decoration: none;
     color: #546e7a;
     border-radius: 10px;
-    margin-bottom: 5px;
-    transition: all 0.2s;
+    transition: background 0.2s, color 0.2s;
+    overflow: hidden; 
 }
-
 
 #sidebar-state:not(:checked) ~ .main-wrapper .nav-link {
-    justify-content: center;
-}
-
-
-#sidebar-state:not(:checked) ~ .main-wrapper .nav-link .material-symbols-rounded {
-    min-width: unset;
-    margin: 0;
+    justify-content: flex-start;
+    padding: 0; 
 }
 
 .nav-link .material-symbols-rounded {
-    min-width: 50px;
+    min-width: 50px; 
+    max-width: 50px;
     text-align: center;
     font-size: 24px;
+    flex-shrink: 0; 
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .nav-label {
     font-weight: 600;
     white-space: nowrap;
+    overflow: hidden;
+    transition: opacity 0.2s ease, max-width 0.3s ease;
 }
 
 .nav-link.active {
@@ -172,8 +173,14 @@ body.ready .viewport-container {
 
 .sidebar-footer {
     position: relative;
-    padding: 10px;
     border-top: 1px solid #f1f5f9;
+    padding-top: 10px;
+    margin-top: 5px;
+}
+
+.settings-link {
+    margin-bottom: 0 !important;
+    width: 100%;
 }
 
 .settings-menu-popup {
@@ -239,10 +246,9 @@ body.ready .viewport-container {
 /* ======================================= END OF SIDEBAR ======================================= */
 
 
-
-
+/*-------------------------- START OF TOP HEADER --------------------------------------*/
 .system-header {
-    height: 81px;
+    height: 60px;
     background: #ffffff;
     border-bottom: 1px solid #dbe2e1;
     display: flex;
@@ -256,6 +262,8 @@ body.ready .viewport-container {
     font-weight: 800;
     margin: 0;
 }
+
+/*-------------------------- END OF TOP HEADER --------------------------------------*/
 
 /*------------------------ START OF USER AVATAR STYLE ----------------------*/
 
@@ -371,7 +379,6 @@ body.ready .viewport-container {
     font-weight: 600;
 }
 
-/* Dropdown Menus */
 .header-dropdown {
     position: absolute;
     top: calc(100% + 10px);
@@ -435,6 +442,9 @@ body.ready .viewport-container {
 .dropdown-item.logout:hover {
     background: #fef2f2;
 }
+
+/*----------------------------- END OF TOP HEADER -----------------------------------------*/
+
 
 /*----------------------------- START OF MAIN CONTENT --------------------------------------- */
 /*=================================== contentArea ===================================*/
