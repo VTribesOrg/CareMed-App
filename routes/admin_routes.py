@@ -114,8 +114,8 @@ def get_customer(id):
                 "id": customer.id,
                 "first_name": customer.first_name,
                 "last_name": customer.last_name,
-                "contact_number": customer.contact_number,
-                "home_address": customer.home_address,
+                "phone": customer.contact_number,
+                "address": customer.home_address,
                 "valid_id_path": customer.valid_id_path,
                 "profile_path": customer.user.profile_path if customer.user else None
             }

@@ -1415,4 +1415,9 @@ body.ready .viewport-container {
     transform: scale(1.005); 
 }
 
+.modal-na {
+    color: #94a3b8;
+    font-style: italic;
+}
+
 /*--------------------- END OF MAIN CONTENT --------------------------------------*/

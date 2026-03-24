@@ -283,9 +283,10 @@ def callback():
 
         db.session.flush()
 
-        if not user.customer_profile:
+        if user.role != "Administrator" and not user.customer_profile:
             f_name = user_info.get("given_name") or "Google"
             l_name = user_info.get("family_name") or "User"
+
             customer = Customer(
                 user_id=user.id,
                 first_name=f_name.capitalize(),
@@ -295,7 +296,7 @@ def callback():
                 created_by_id=None
             )
             db.session.add(customer)
-        
+                
         db.session.commit()
 
     except Exception as e:

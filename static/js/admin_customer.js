@@ -19,6 +19,17 @@ function closeRegisterModal() {
 }
 
 /*============= START OF Profile MODAL =============*/
+
+function setModalValue(element, value) {
+    if (value !== null && value !== undefined && String(value).trim() !== "" && value !== "None") {
+        element.textContent = value;
+        element.classList.remove("modal-na");
+    } else {
+        element.textContent = "N/A";
+        element.classList.add("modal-na");
+    }
+}
+
 function openProfileModal(btn) {
     const modal = document.getElementById('profileModal');
     if (!modal || !btn) return;
@@ -44,10 +55,10 @@ function openProfileModal(btn) {
     modal.classList.remove('hidden');
 
     // TEXT DATA
-    modalName.innerText = name || "Unknown Customer";
-    modalID.innerText = "Customer ID: " + (id || "--");
-    modalPhone.innerText = phone || "--";
-    modalAddress.innerText = address || "--";
+    setModalValue(modalName, name);
+    setModalValue(modalID, id ? "Customer ID: " + id : null);
+    setModalValue(modalPhone, phone);
+    setModalValue(modalAddress, address);
 
     // AVATAR
     if (avatar && avatar.trim() !== "") {
