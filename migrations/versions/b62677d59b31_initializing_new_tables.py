@@ -1,8 +1,8 @@
 """Initializing new Tables
 
-Revision ID: 7924d0595fc2
+Revision ID: b62677d59b31
 Revises: 
-Create Date: 2026-03-23 14:33:12.238741
+Create Date: 2026-03-24 13:23:29.010351
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '7924d0595fc2'
+revision = 'b62677d59b31'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -35,14 +35,13 @@ def upgrade():
     op.create_table('users',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('email', sa.String(length=120), nullable=False),
-    sa.Column('first_name', sa.String(length=50), nullable=True),
-    sa.Column('last_name', sa.String(length=50), nullable=True),
-    sa.Column('phone', sa.String(length=20), nullable=True),
-    sa.Column('address', sa.String(length=255), nullable=True),
     sa.Column('password_hash', sa.Text(), nullable=True),
+    sa.Column('first_name', sa.String(length=100), nullable=True),
+    sa.Column('last_name', sa.String(length=100), nullable=True),
+    sa.Column('profile_path', sa.String(length=255), nullable=True),
+    sa.Column('role', sa.String(length=20), nullable=True),
     sa.Column('google_id', sa.String(length=255), nullable=True),
     sa.Column('oauth_provider', sa.String(length=50), nullable=True),
-    sa.Column('profile_path', sa.String(length=255), nullable=True),
     sa.Column('is_verified', sa.Boolean(), nullable=True),
     sa.Column('email_verified_at', sa.DateTime(), nullable=True),
     sa.Column('failed_login_attempts', sa.Integer(), nullable=True),
@@ -50,10 +49,7 @@ def upgrade():
     sa.Column('lock_reason', sa.String(length=255), nullable=True),
     sa.Column('reset_otp_code', sa.String(length=255), nullable=True),
     sa.Column('reset_code_expiry', sa.DateTime(), nullable=True),
-    sa.Column('reset_attempts', sa.Integer(), nullable=True),
     sa.Column('last_otp_sent', sa.DateTime(), nullable=True),
-    sa.Column('password_last_reset_at', sa.DateTime(), nullable=True),
-    sa.Column('role', sa.String(length=20), nullable=True),
     sa.Column('last_login_at', sa.DateTime(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
@@ -66,12 +62,18 @@ def upgrade():
     op.create_table('customer',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=True),
-    sa.Column('name', sa.String(length=150), nullable=False),
-    sa.Column('contact', sa.String(length=50), nullable=True),
-    sa.Column('address', sa.String(length=255), nullable=True),
+    sa.Column('first_name', sa.String(length=100), nullable=False),
+    sa.Column('last_name', sa.String(length=100), nullable=False),
+    sa.Column('contact_number', sa.String(length=50), nullable=True),
+    sa.Column('home_address', sa.String(length=255), nullable=True),
+    sa.Column('valid_id_path', sa.String(length=255), nullable=True),
+    sa.Column('id_uploaded_at', sa.DateTime(), nullable=True),
+    sa.Column('is_id_verified', sa.Boolean(), nullable=False),
+    sa.Column('created_by_id', sa.Integer(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.ForeignKeyConstraint(['created_by_id'], ['users.id'], ),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('user_id')
+    sa.PrimaryKeyConstraint('id')
     )
     op.create_table('inventory_logs',
     sa.Column('id', sa.Integer(), nullable=False),

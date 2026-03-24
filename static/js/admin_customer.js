@@ -1,3 +1,12 @@
+/*============= START OF SAFE HELPERS (ADDED) =============*/
+function safeText(el, fallback = "") {
+    return el ? el.innerText : fallback;
+}
+
+function safeDataset(btn, key, fallback = "") {
+    return (btn && btn.dataset && btn.dataset[key]) ? btn.dataset[key] : fallback;
+}
+
 /*============= START OF MODAL TOGGLES =============*/
 function openRegisterModal() { 
     const modal = document.getElementById('registerModal');
@@ -10,9 +19,9 @@ function closeRegisterModal() {
 }
 
 /*============= START OF Profile MODAL =============*/
-function openProfileModal(name, id) {
+function openProfileModal(btn) {
     const modal = document.getElementById('profileModal');
-    if (!modal) return;
+    if (!modal || !btn) return;
 
     const modalName = document.getElementById('modalName');
     const modalID = document.getElementById('modalID');
@@ -23,93 +32,95 @@ function openProfileModal(name, id) {
     const idImg = document.getElementById('modalIDImg');
     const idFallback = document.getElementById('modalIDFallback');
 
-    if (!id) {
-        modalName.innerText = "Invalid customer";
-        return;
-    }
+    // Get data from button
+    const id = btn.dataset.id;
+    const name = btn.dataset.name;
+    const phone = btn.dataset.phone;
+    const address = btn.dataset.address;
+    const avatar = btn.dataset.avatar;
+    const validId = btn.dataset.idimg;
 
-    // Show loading state
-    modalName.innerText = "Loading...";
-    modalID.innerText = "";
-    modalPhone.innerText = "--";
-    modalAddress.innerText = "--";
+    // OPEN MODAL
     modal.classList.remove('hidden');
 
-    fetch(`/admin/get_customer/${id}`)
-        .then(res => res.json())
-        .then(data => {
-            if (data.error) {
-                modalName.innerText = "Error loading profile";
-                return;
-            }
+    // TEXT DATA
+    modalName.innerText = name || "Unknown Customer";
+    modalID.innerText = "Customer ID: " + (id || "--");
+    modalPhone.innerText = phone || "--";
+    modalAddress.innerText = address || "--";
 
-            // Use first_name and last_name from the Customer model if available
-            const fullName = data.first_name && data.last_name
-                ? `${data.first_name} ${data.last_name}`
-                : data.name || name || "Unknown Customer";
+    // AVATAR
+    if (avatar && avatar.trim() !== "") {
+        const path = avatar.startsWith('static/')
+            ? '/' + avatar
+            : `/static/${avatar}`;
 
-            modalName.innerText = fullName;
-            modalID.innerText = "Customer ID: " + (data.id || id);
-            modalPhone.innerText = data.contact_number || "--";
-            modalAddress.innerText = data.home_address || "--";
+        avatarImg.src = path;
+        avatarImg.style.display = "block";
+        avatarFallback.style.display = "none";
+    } else {
+        avatarImg.src = "";
+        avatarImg.style.display = "none";
 
-            // Helper function for initials fallback
-            function getInitials(fullName) {
-                if (!fullName) return "?";
-                const parts = fullName.trim().split(/\s+/);
-                if (parts.length > 1) {
-                    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-                }
-                return parts[0][0].toUpperCase();
-            }
+        // Show fallback icon
+        avatarFallback.style.display = "flex";
+    }
 
-            // ===== Avatar handling =====
-            if (data.profile_path) {
-                avatarImg.src = `/static/${data.profile_path}`;
-                avatarImg.style.display = "block";
-                avatarFallback.style.display = "none";
-                avatarFallback.textContent = "";
+    // VALID ID
+    if (validId && validId.trim() !== "") {
+        let idPath = validId;
+
+        // Fix path issues
+        if (!idPath.startsWith('/')) {
+            if (!idPath.startsWith('static/')) {
+                idPath = `/static/${idPath}`;
             } else {
-                avatarImg.style.display = "none";
-                avatarFallback.style.display = "flex";
-                avatarFallback.textContent = getInitials(fullName);
+                idPath = '/' + idPath;
             }
+        }
 
-            // ===== Valid ID handling =====
-            if (data.valid_id_path) {
-                idImg.src = `/static/${data.valid_id_path}`;
-                idImg.style.display = "block";
-                idFallback.style.display = "none";
-                idFallback.textContent = "";
-            } else {
-                idImg.style.display = "none";
-                idFallback.style.display = "flex";
-                idFallback.textContent = "No ID";
-            }
-        })
-        .catch(err => {
-            console.error("Error fetching customer data:", err);
-            modalName.innerText = "Failed to load data";
-            modalID.innerText = "";
-            modalPhone.innerText = "--";
-            modalAddress.innerText = "--";
-            avatarImg.style.display = "none";
-            avatarFallback.style.display = "flex";
-            avatarFallback.textContent = "?";
+        idImg.onload = () => {
+            idImg.style.display = "block";
+            idFallback.style.display = "none";
+        };
+
+        idImg.onerror = () => {
             idImg.style.display = "none";
             idFallback.style.display = "flex";
-            idFallback.textContent = "No ID";
-        });
+            idFallback.textContent = "No Valid ID";
+        };
+
+        idImg.src = idPath;
+
+    } else {
+        idImg.style.display = "none";
+        idFallback.style.display = "flex";
+        idFallback.textContent = "No ID";
+    }
 }
 
 function closeProfileModal() {
     const modal = document.getElementById('profileModal');
-    if(modal) modal.classList.add('hidden'); 
+    if(modal) modal.classList.add('hidden');
 }
 /*============= END OF Profile MODAL =============*/
 
+/*============= OVERLOAD SUPPORT (ADDED) =============*/
+function openProfileModalWrapper(name, id) {
+    const fakeBtn = {
+        dataset: {
+            id: id,
+            name: name,
+            phone: "",
+            address: "",
+            avatar: "",
+            idimg: ""
+        }
+    };
+    openProfileModal(fakeBtn);
+}
 
-
+/*============= RESET MODAL =============*/
 function openResetModal(name) { 
     const modal = document.getElementById('resetModal');
     if(modal) {
@@ -218,6 +229,7 @@ document.addEventListener('DOMContentLoaded', () => {
         prevBtn.innerHTML = '<span class="material-symbols-rounded">chevron_left</span>';
         prevBtn.onclick = () => { if(currentPage > 1) { currentPage--; updateTableDisplay(); }};
         paginationContainer.appendChild(prevBtn);
+
         for (let i = 1; i <= totalPages; i++) {
             if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
                 const pageBtn = document.createElement('button');
@@ -227,6 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 paginationContainer.appendChild(pageBtn);
             }
         }
+
         const nextBtn = document.createElement('button');
         nextBtn.className = 'pag-btn';
         nextBtn.disabled = currentPage === totalPages || totalPages === 0;
@@ -250,11 +263,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 /*============= START OF CSP EVENT BINDING =============*/
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Open Register Modal
     const regBtn = document.querySelector('.register-asset-btn');
     if(regBtn) regBtn.addEventListener('click', openRegisterModal);
 
-    // 2. Close Buttons (General)
     document.querySelectorAll('.modal-close, .btn-medical-outline').forEach(btn => {
         btn.addEventListener('click', () => {
             closeRegisterModal();
@@ -263,29 +274,26 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // 3. Table Buttons (Visibility & Reset)
     const tableBody = document.getElementById('customerTableBody');
     if(tableBody) {
         tableBody.addEventListener('click', (e) => {
             const btn = e.target.closest('button');
             if(!btn) return;
 
-            // Get data from the row
             const row = btn.closest('tr');
-            const name = row.querySelector('strong').innerText;
 
-            // ✅ FIXED ID LOGIC (no line removed, only improved)
-            let id = btn.dataset.id || row.dataset.id || row.cells[1].innerText;
+            const name = safeText(row.querySelector('strong'), "Unknown");
+
+            let id = safeDataset(btn, 'id') || (row && row.dataset ? row.dataset.id : null) || (row.cells && row.cells[1] ? row.cells[1].innerText : null);
 
             if(btn.classList.contains('logs')) {
-                openProfileModal(name, id);
-            } else if(btn.classList.contains('edit')) {
+                openProfileModal(btn);
+            }else if(btn.classList.contains('edit')) {
                 openResetModal(name);
             }
         });
     }
 
-    // 4. File Upload Triggers
     const dropzone = document.getElementById('id-dropzone');
     const fileInput = document.getElementById('id-upload');
     if(dropzone && fileInput) {
@@ -295,7 +303,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 5. File Reset Trigger
     const resetBtn = document.querySelector('.btn-file-reset');
     if(resetBtn) {
         resetBtn.addEventListener('click', (e) => {

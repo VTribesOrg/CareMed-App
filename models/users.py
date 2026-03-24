@@ -10,6 +10,9 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.Text)
     
+    first_name = db.Column(db.String(100)) 
+    last_name = db.Column(db.String(100))
+    
     profile_path = db.Column(db.String(255), nullable=True)
     
     role = db.Column(db.String(20), default="customer") 
@@ -31,4 +34,4 @@ class User(UserMixin, db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    customer_profile = db.relationship("Customer", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    customer_profile = db.relationship("Customer", back_populates="user", uselist=False, foreign_keys="[Customer.user_id]")

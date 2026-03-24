@@ -1,3 +1,5 @@
+import datetime
+
 from flask import Blueprint, render_template, url_for, redirect, flash, request, jsonify, current_app
 from flask_login import current_user
 from extensions import db, limiter
@@ -32,42 +34,99 @@ def administrator_required(f):
 def dashboard():
     
     return render_template("admin/dashboard.html")
+
 @admin_bp.route('/customers')
 @limiter.exempt
 @login_required
 @administrator_required
 def customers():
  
-    customers = Customer.query.join(User).filter(User.role == "customer").all()
+    customers = Customer.query.options(db.joinedload(Customer.creator)).all()
     return render_template("admin/customers.html", customers=customers)
+
+@admin_bp.route('/admin/add-customer', methods=['POST'])
+@login_required
+def add_customer():
+    full_name = request.form.get('full_name')
+    contact_number = request.form.get('contact_number')
+    home_address = request.form.get('home_address')
+    file = request.files.get('valid_id')
+
+    if not full_name or not contact_number or not home_address:
+        flash("All fields are required.", "error")
+        return redirect(request.referrer)
+
+    parts = full_name.strip().split()
+    if len(parts) < 2:
+        flash("Please enter full name (first and last).", "error")
+        return redirect(request.referrer)
+
+    first_name = parts[0]
+    last_name = " ".join(parts[1:])
+
+    file_path = None
+    if file and file.filename:
+        filename = secure_filename(file.filename)
+
+        upload_folder = os.path.join('static', 'uploads', 'ids')
+        os.makedirs(upload_folder, exist_ok=True)
+
+        file_path = os.path.join(upload_folder, filename)
+        file.save(file_path)
+
+    customer = Customer(
+        user_id=None,
+        first_name=first_name,
+        last_name=last_name,
+        contact_number=contact_number,
+        home_address=home_address,
+        created_by_id=current_user.id,
+        valid_id_path=file_path,
+        id_uploaded_at=datetime.utcnow() if file_path else None
+        
+    )
+
+    db.session.add(customer)
+    db.session.commit()
+
+    flash("Customer registered successfully!", "success")
+    return redirect(url_for('admin.customers'))
+
 
 @admin_bp.route('/get_customer/<int:id>')
 @login_required
 @administrator_required
 def get_customer(id):
     try:
-        customer = Customer.query.get(id)
+        customer = Customer.query.options(
+            db.joinedload(Customer.user)
+        ).get(id)
 
         if not customer:
-            return jsonify({"error": "Customer not found"}), 404
-
+            return jsonify({
+                "status": "error",
+                "message": "We couldn’t find the selected customer. Please refresh and try again."
+            }), 404
 
         return jsonify({
-            "id": customer.id,
-            "first_name": customer.first_name,
-            "last_name": customer.last_name,
-            "full_name": f"{customer.first_name} {customer.last_name}",        
-            "contact": customer.contact_number,   
-            "address": customer.home_address,    
-            "is_verified": customer.is_id_verified,
-            "valid_id": customer.valid_id_path,
-            "profile_path": customer.user.profile_path if customer.user else None,
-            "email": customer.user.email if customer.user else None
+            "status": "success",
+            "data": {
+                "id": customer.id,
+                "first_name": customer.first_name,
+                "last_name": customer.last_name,
+                "contact_number": customer.contact_number,
+                "home_address": customer.home_address,
+                "valid_id_path": customer.valid_id_path,
+                "profile_path": customer.user.profile_path if customer.user else None
+            }
         })
 
     except Exception as e:
         current_app.logger.error(f"Error fetching customer {id}: {e}")
-        return jsonify({"error": "Server error"}), 500
+        return jsonify({
+            "status": "error",
+            "message": "Something went wrong while loading customer details. Please try again later."
+        }), 500
 
 
 

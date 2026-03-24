@@ -163,7 +163,7 @@
                     <div class="action-item">
                         <div class="clinical-user" id="profile-btn">
                             <div class="user-info">
-                                <span class="user-name">{{ current_user.customer_profile.first_name}} {{ current_user.customer_profile.last_name}}</span>
+                                <span class="user-name">{{ current_user.first_name}} {{ current_user.last_name}}</span>
                                 <span class="user-role">{{ current_user.role }}</span>
                             </div>
                             <div class="user-avatar" id="avatar-wrapper">
@@ -174,7 +174,7 @@
                         </div>
                         <div class="header-dropdown" id="profile-dropdown">
                             <div class="dropdown-header">My Account</div>
-                            <a href="admin_profile.html" class="dropdown-item">
+                            <a href="{{ url_for('admin.profile') }}" class="dropdown-item">
                                 <span class="material-symbols-rounded">person</span>Profile Settings
                             </a>
                             <a href="#" class="dropdown-item">

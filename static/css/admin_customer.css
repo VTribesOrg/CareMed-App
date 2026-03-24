@@ -1310,6 +1310,14 @@ body.ready .viewport-container {
     color: #475569;
 }
 
+#modalAvatarFallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
+
 .section-divider {
     margin: 20px 0 15px 0;
     padding-bottom: 8px;

@@ -145,7 +145,7 @@
                     <div class="action-item">
                         <div class="clinical-user" id="profile-btn">
                             <div class="user-info">
-                                <span class="user-name">{{ current_user.customer_profile.first_name}} {{ current_user.customer_profile.last_name}}</span>
+                                <span class="user-name">{{ current_user.first_name}} {{ current_user.last_name}}</span>
                                 <span class="user-role">{{ current_user.role }}</span>
                             </div>
                             <div class="user-avatar" id="avatar-wrapper">
@@ -156,7 +156,7 @@
                         </div>
                         <div class="header-dropdown" id="profile-dropdown">
                             <div class="dropdown-header">My Account</div>
-                            <a href="admin_profile.html" class="dropdown-item">
+                            <a href="{{ url_for('admin.profile') }}" class="dropdown-item">
                                 <span class="material-symbols-rounded">person</span>Profile Settings
                             </a>
                             <a href="#" class="dropdown-item">
@@ -313,7 +313,7 @@
             </div>
 
             <form id="assetEntryForm" method="POST" action="{{ url_for('admin.add_product') }}" enctype="multipart/form-data">
-                {{ csrf_token() }}
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                 <div class="form-layout-grid">
                     <div class="form-field full-width">
@@ -323,7 +323,6 @@
                             <p><strong>Click to upload</strong> or drag and drop</p>
                             <p style="font-size: 0.75rem; color: #64748b;">High-quality PNG or JPG preferred</p>
 
-                            <!-- ✅ FIX: added name="image" -->
                             <input type="file" name="image" id="product-image-input" hidden accept="image/*">
 
                             <div id="product-preview-text" class="preview-active-box" style="display: none;">

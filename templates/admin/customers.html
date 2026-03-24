@@ -144,7 +144,7 @@
                     <div class="action-item">
                         <div class="clinical-user" id="profile-btn">
                             <div class="user-info">
-                                <span class="user-name">{{ current_user.customer_profile.first_name}} {{ current_user.customer_profile.last_name}}</span>
+                                <span class="user-name">{{ current_user.first_name}} {{ current_user.last_name}}</span>
                                 <span class="user-role">{{ current_user.role }}</span>
                             </div>
                             <div class="user-avatar" id="avatar-wrapper">
@@ -155,7 +155,7 @@
                         </div>
                         <div class="header-dropdown" id="profile-dropdown">
                             <div class="dropdown-header">My Account</div>
-                            <a href="admin_profile.html" class="dropdown-item">
+                            <a href="{{ url_for('admin.profile') }}" class="dropdown-item">
                                 <span class="material-symbols-rounded">person</span>Profile Settings
                             </a>
                             <a href="#" class="dropdown-item">
@@ -192,7 +192,7 @@
                                     <th>Address</th>
                                     <th>Phone No.</th>
                                     <th>Valid IDs</th> 
-                                    <th>Status</th>
+                                    <th>Source</th> 
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -212,7 +212,7 @@
                                                         <span class="material-symbols-rounded">person</span>
                                                     </div>
                                                 {% endif %}
-                                                <strong>{{ customer.full_name }}</strong>
+                                                <strong>{{ customer.first_name }} {{ customer.last_name }}</strong>
                                             </div>
                                         </td>
 
@@ -246,16 +246,59 @@
                                             {% endif %}
                                         </td>
 
-                                        <td>
-                                            {% if customer.user and customer.user.is_verified %}
-                                                <span class="status-pill status-ready">Active</span>
-                                            {% else %}
-                                                <span class="status-pill status-pending">Unverified</span>
-                                            {% endif %}
+                                        <td style="vertical-align: middle;">
+                                            <div style="display: flex; align-items: center; min-height: 40px;">
+                                                {% if customer.created_by_id == current_user.id %}
+
+                                                    <span class="status-pill" 
+                                                        title="Manually added by you"
+                                                        style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; cursor: default;">
+                                                        <span class="material-symbols-rounded" style="font-size: 18px;">person_add</span>
+                                                        Added by You
+                                                    </span>
+
+                                                {% elif customer.creator %}
+
+                                                    {% set creator = customer.creator %}
+                                                    <div class="status-pill" 
+                                                        title="Added by Admin: {{ creator.email }}" 
+                                                        style="background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 6px; cursor: help; transition: all 0.2s ease;">
+                                                        <span class="material-symbols-rounded" style="font-size: 18px; color: #64748b;">shield_person</span>
+                                                        <span style="font-weight: 600; font-size: 0.85rem;">
+                                                            {% if creator.first_name %}{{ creator.first_name }} {{ creator.last_name or '' }}{% else %}{{ creator.email.split('@')[0] }}{% endif %}
+                                                        </span>
+                                                    </div>
+
+                                                {% elif customer.created_by_id %}
+
+                                                    <span class="status-pill" style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 6px; font-size: 0.85rem;">
+                                                        <span class="material-symbols-rounded" style="font-size: 18px;">shield_person</span>
+                                                        Admin #{{ customer.created_by_id }}
+                                                    </span>
+
+                                                {% else %}
+
+                                                    <span class="status-pill" 
+                                                        title="Registered via User Account: {{ customer.user.email if customer.user else 'No Account Linked' }}"
+                                                        style="background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; cursor: help;">
+                                                        <span class="material-symbols-rounded" style="font-size: 18px;">app_registration</span>
+                                                        Self-Registered
+                                                    </span>
+
+                                                {% endif %}
+                                            </div>
                                         </td>
 
                                         <td class="col-actions">
-                                            <button class="asset-action-btn logs" data-id="{{ customer.id }}">
+                                            <button class="asset-action-btn logs"
+                                                data-id="{{ customer.id }}"
+                                                data-name="{{ customer.first_name }} {{ customer.last_name }}"
+                                                data-phone="{{ customer.contact_number }}"
+                                                data-address="{{ customer.home_address }}"
+                                                data-avatar="{{ customer.user.profile_path if customer.user and customer.user.profile_path else '' }}"
+                                                data-idimg="{{ customer.valid_id_path }}"
+                                                onclick="openProfileModal(this)">
+                                                
                                                 <span class="material-symbols-rounded">visibility</span>
                                             </button>
 
@@ -310,21 +353,24 @@
                 <span class="material-symbols-rounded modal-close" onclick="closeRegisterModal()">close</span>
             </div>
 
-            <form id="customerForm">
+            <form id="customerForm" method="POST" action="{{ url_for('admin.add_customer') }}" enctype="multipart/form-data">
+                
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
                 <div class="form-layout-grid">
                     <div class="form-field full-width">
                         <label>Full Name</label>
-                        <input type="text" class="clinical-input" placeholder="e.g. Juan Dela Cruz" required>
+                        <input type="text" name="full_name" class="clinical-input" placeholder="e.g. Juan Dela Cruz" required>
                     </div>
 
                     <div class="form-field full-width">
                         <label>Home Address</label>
-                        <input type="text" class="clinical-input" placeholder="House No., Street, Barangay, City" required>
+                        <input type="text" name="home_address" class="clinical-input" placeholder="House No., Street, Barangay, City" required>
                     </div>
 
                     <div class="form-field full-width">
                         <label>Phone Number</label>
-                        <input type="tel" class="clinical-input" placeholder="+63 9xx xxx xxxx" required>
+                        <input type="tel" name="contact_number" class="clinical-input" placeholder="+63 9xx xxx xxxx" required>
                     </div>
 
                     <div class="form-field full-width">
@@ -335,7 +381,7 @@
                             <p><strong>Click to upload</strong> or drag and drop</p>
                             <p style="font-size: 0.75rem;">PNG, JPG (Max 5MB)</p>
 
-                            <input type="file" id="id-upload" hidden accept="image/*"
+                            <input type="file" id="id-upload" name="valid_id" hidden accept="image/*"
                                 onchange="updateUploadUI('id-dropzone', 'id-preview-text', 'file-name-display', this)">
 
                             <div id="registration-id-preview-container"

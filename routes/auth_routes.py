@@ -150,7 +150,8 @@ def register():
                 first_name=first_name, 
                 last_name=last_name,
                 contact_number=phone,
-                home_address=address
+                home_address=address,
+                created_by_id=None
             )
             db.session.add(customer)
 
@@ -283,12 +284,15 @@ def callback():
         db.session.flush()
 
         if not user.customer_profile:
+            f_name = user_info.get("given_name") or "Google"
+            l_name = user_info.get("family_name") or "User"
             customer = Customer(
                 user_id=user.id,
-                first_name=user_info.get("given_name", "").capitalize(),
-                last_name=user_info.get("family_name", "").capitalize(),
+                first_name=f_name.capitalize(),
+                last_name=l_name.capitalize(),
                 contact_number=None, 
-                home_address=None
+                home_address=None,
+                created_by_id=None
             )
             db.session.add(customer)
         
