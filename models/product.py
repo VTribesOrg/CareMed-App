@@ -5,7 +5,7 @@ class Product(db.Model):
     __tablename__ = "product"
 
     id = db.Column(db.Integer, primary_key=True)
-    asset_tag = db.Column(db.String(50), unique=True, nullable=False)
+    asset_tag = db.Column(db.String(20), nullable=True, unique=True)
     equipment_type = db.Column(db.String(100), nullable=False)
     model = db.Column(db.String(100), nullable=False)
     stock = db.Column(db.Integer, default=0)

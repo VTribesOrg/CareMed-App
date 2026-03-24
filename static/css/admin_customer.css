@@ -1339,85 +1339,159 @@ body.ready .viewport-container {
     display: none;
 }
 
+
+/*============================= fileUploadStyles =============================*/
+
 .upload-container {
-    border: 2px dashed #cbd5e1;
-    border-radius: 10px;
-    padding: 10px 15px; 
-    text-align: center;
-    background: #f8fafc;
-    transition: all 0.2s ease;
-    cursor: pointer;
     position: relative;
-    display: flex; 
+    width: 85.6mm;
+    height: 54mm;
+    border: 2px dashed #cbd5e1;
+    border-radius: 12px;
+    background: #f8fafc;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    min-height: 80px; 
+    overflow: visible; 
 }
 
-.upload-container:hover {
-    border-color: #00a8cc;
-    background: #f0f9ff;
+
+.upload-container.has-file {
+    border-style: solid;
+    border-color: #10b981;
+    padding: 0;
+    pointer-events: none;
+    cursor: default; 
 }
 
-.upload-container .upload-icon {
-    font-size: 22px; 
-    color: #64748b;
-    margin-bottom: 2px;
-}
 
-.upload-container p {
-    font-size: 0.75rem; 
-    color: #64748b;
-    margin: 0;
-    line-height: 1.3;
-}
-
-.upload-container strong {
-    color: #00a8cc;
+.upload-container.has-file .upload-icon,
+.upload-container.has-file p {
+    display: none !important;
 }
 
 .preview-active-box {
+    position: relative;
+    width: 100%;
+    height: 100%;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    margin-top: 6px;
-    padding: 4px 10px; 
-    background: #ecfdf5;
-    border-radius: 6px;
-    color: #10b981;
-    width: 90%; 
+    justify-content: flex-end; 
+}
+
+.thumbnail-wrapper {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 10px;
+    overflow: hidden;
+    z-index: 1;
+}
+
+.thumbnail-wrapper img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; 
+    background: #f1f5f9;
 }
 
 .file-name-text {
+    position: relative;
+    z-index: 2;
+    font-size: 0.75rem;
     font-weight: 600;
-    font-size: 0.7rem; 
-    max-width: 140px;
+    color: #475569;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 4px 12px;
+    margin-bottom: 8px;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    max-width: 90%;
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
 .btn-file-reset {
-    cursor: pointer;
-    color: #94a3b8;
-    font-size: 16px; 
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    background: #ef4444;
+    color: white;
+    border-radius: 50%;
+    width: 26px;
+    height: 26px;
+    font-size: 18px;
+    pointer-events: auto !important;
+    cursor: pointer !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    transition: transform 0.2s ease;
 }
 
 .btn-file-reset:hover {
-    color: #ef4444; 
+    background: #dc2626;
+    transform: scale(1.1);
 }
 
-.upload-hover {
-    border-color: #00a8cc !important;
-    background: #f0f9ff !important;
-    transform: scale(1.005); 
-}
+/*============================= END OF FILEUPLOAD =============================*/
 
-.modal-na {
-    color: #94a3b8;
-    font-style: italic;
-}
 
 /*--------------------- END OF MAIN CONTENT --------------------------------------*/
+
+
+.asset-action-btn.edit {
+    color: #4f46e5;
+    background: #eef2ff;
+}
+
+
+.asset-action-btn.security {
+    color: #d97706;
+    background: #fffbeb;
+}
+
+.asset-action-btn.security:hover {
+    background: #fef3c7;
+}
+
+
+/*============================= START OF PROFILE VALID ID =============================*/
+
+
+.lightbox-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex; /* Keeps it centered */
+    align-items: center;
+    justify-content: center;
+    z-index: 10000 !important; /* Higher than your Profile Modal */
+    cursor: zoom-out;
+}
+
+.lightbox-overlay img {
+    max-width: 90%;
+    max-height: 90%;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    transition: transform 0.3s ease;
+}
+
+.lightbox-overlay.hidden {
+    display: none !important;
+}
+
+/*============================= END OF PROFILE VALID ID =============================*/

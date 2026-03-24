@@ -833,7 +833,7 @@ body.ready .viewport-container {
     left: 14px;
     top: 50%;
     transform: translateY(-50%);
-    color: #94a3b8; /* Matches search icon color */
+    color: #94a3b8; 
     font-size: 20px !important;
     z-index: 2;
     pointer-events: none;
@@ -861,6 +861,68 @@ body.ready .viewport-container {
 .medical-select:focus {
     border-color: #0077b6;
     box-shadow: 0 0 0 2px rgba(0, 119, 182, 0.1);
+}
+
+
+.form-field {
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.clinical-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #475569; 
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.clinical-input {
+    width: 100%;
+    padding: 12px 40px 12px 14px; 
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    color: #1e293b;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+
+.clinical-input:focus {
+    outline: none;
+    border-color: #0ea5e9; /* Sky 500 */
+    box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.1);
+}
+
+
+.input-icon {
+    position: absolute;
+    right: 14px;
+    color: #94a3b8;
+    pointer-events: none;
+    font-size: 20px;
+}
+
+/* Helper text below */
+.helper-text {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    margin-top: -4px;
+}
+
+
+.clinical-input::-webkit-calendar-picker-indicator {
+    opacity: 0; 
 }
 
 /*================================== END OF ASSETREGISTRYCARD ==================================*/
@@ -1408,81 +1470,112 @@ td:nth-child(2) {
 
 
 /*============================= fileUploadStyles =============================*/
+
 .upload-container {
-    border: 2px dashed #cbd5e1;
-    border-radius: 10px;
-    padding: 10px 15px; 
-    text-align: center;
-    background: #f8fafc;
-    transition: all 0.2s ease;
-    cursor: pointer;
     position: relative;
-    display: flex; 
+    padding: 30px;
+    border: 2px dashed #cbd5e1;
+    border-radius: 12px;
+    background: #f8fafc;
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    min-height: 80px; 
 }
 
 .upload-container:hover {
-    border-color: #00a8cc;
+    border-color: #0ea5e9;
     background: #f0f9ff;
 }
 
-.upload-container .upload-icon {
-    font-size: 22px; 
-    color: #64748b;
-    margin-bottom: 2px;
-}
-
-.upload-container p {
-    font-size: 0.75rem; 
-    color: #64748b;
-    margin: 0;
-    line-height: 1.3;
-}
-
-.upload-container strong {
-    color: #00a8cc;
-}
 
 .preview-active-box {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #ffffff;
+    border: 1px solid #10b981;
+    border-radius: 10px;
+    padding: 10px 14px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
-    margin-top: 6px;
-    padding: 4px 10px; 
-    background: #ecfdf5;
-    border-radius: 6px;
-    color: #10b981;
-    width: 90%; 
+    gap: 12px;
+    width: 90%;
+    max-width: 280px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    z-index: 20;
 }
+
+
+.thumbnail-wrapper {
+    width: 45px;
+    height: 45px;
+    flex-shrink: 0;
+    border-radius: 6px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+}
+
+.thumbnail-wrapper img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
 
 .file-name-text {
+    font-size: 0.85rem;
     font-weight: 600;
-    font-size: 0.7rem; 
-    max-width: 140px;
+    color: #1e293b;
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
+    flex-grow: 1;
 }
 
+
 .btn-file-reset {
-    cursor: pointer;
+    font-size: 20px;
     color: #94a3b8;
-    font-size: 16px; 
+    transition: color 0.2s;
+    user-select: none;
 }
 
 .btn-file-reset:hover {
     color: #ef4444; 
 }
 
-.upload-hover {
-    border-color: #00a8cc !important;
-    background: #f0f9ff !important;
-    transform: scale(1.005); 
+.upload-container {
+    transition: all 0.2s ease-in-out;
 }
+
+
+.upload-container.drag-active {
+    transform: scale(1.02);
+    border-style: solid;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translate(-50%, -50%) translateX(0); }
+    20% { transform: translate(-50%, -50%) translateX(-8px); }
+    40% { transform: translate(-50%, -50%) translateX(8px); }
+    60% { transform: translate(-50%, -50%) translateX(-4px); }
+    80% { transform: translate(-50%, -50%) translateX(4px); }
+}
+
+.upload-error {
+    animation: shake 0.4s ease-in-out;
+    border-color: #ef4444 !important;
+    background-color: #fef2f2 !important;
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1);
+}
+
 /*============================= END OF FILEUPLOAD =============================*/
 
 /*============================= START OF RENTAL PROCESS MODAL ============================= */

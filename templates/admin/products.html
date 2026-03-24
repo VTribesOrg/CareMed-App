@@ -206,7 +206,6 @@
                             <thead>
                                 <tr>
                                     <th>Preview</th>
-                                    <th>Asset Tag</th>
                                     <th>Equipment Type</th>
                                     <th>Model / OEM</th>
                                     <th>Stock (Units)</th>
@@ -217,21 +216,52 @@
                                 </tr>
                             </thead>
                             <tbody>
+                                {% for product in products%}
 
-
-                                <tr data-id="1">
+                                <tr data-id="{{ product.id }}">
                                     <td>
                                         <div class="table-image-container">
-                                            <img src="static/image/oxygen-concentrator.png" alt="Equipment" class="table-equipment-img">
+                                            <img src="{{ url_for('static', filename=product.image) if product.image else url_for('static', filename='image/placeholder.png') }}" 
+                                                alt="Equipment" class="table-equipment-img">
                                         </div>
                                     </td>
-                                    <td>OX-CON-05L</td>
-                                    <td>Oxygen Concentrator</td>
-                                    <td>5 Lpm Standard</td>
-                                    <td class="stock">8 Units</td>
-                                    <td><span class="status-pill status-ready">Available</span></td>
-                                    <td>₱33,500</td>
-                                    <td>₱6,000</td>
+
+                                    <td>
+                                        {% if product.equipment_type %}
+                                            {{ product.equipment_type }}
+                                        {% else %}
+                                            <span style="color: #94a3b8; font-style: italic;">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if product.model %}
+                                            {{ product.model }}
+                                        {% else %}
+                                            <span style="color: #94a3b8; font-style: italic;">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="stock">{{ product.stock }} Units</td>
+                                    <td>
+                                        {% if product.stock > 0 %}
+                                            <span class="status-pill status-ready">Available</span>
+                                        {% else %}
+                                            <span class="status-pill" style="background: #fee2e2; color: #991b1b;">Out of Stock</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if product.sale_price and product.sale_price > 0 %}
+                                            ₱{{ "{:,.2f}".format(product.sale_price) }}
+                                        {% else %}
+                                            <span style="color: #94a3b8; font-style: italic;">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if product.rent_price and product.rent_price > 0 %}
+                                            ₱{{ "{:,.2f}".format(product.rent_price) }}
+                                        {% else %}
+                                            <span style="color: #94a3b8; font-style: italic;">N/A</span>
+                                        {% endif %}
+                                    </td>
                                     <td class="col-actions">
                                         <div class="asset-actions">
                                             <button class="asset-action-btn rent" title="Rent Equipment" style="color: #0077b6;">
@@ -262,7 +292,7 @@
 
                                                     <hr>
 
-                                                    <button class="dropdown-item delete" style="color: #ef4444;">
+                                                    <button class="dropdown-item delete" style="color: #ef4444;" onclick="confirmDelete('{{ product.id }}')">
                                                         <span class="material-symbols-rounded">delete</span> Delete Asset
                                                     </button>
                                                 </div>
@@ -270,6 +300,8 @@
                                         </div>
                                     </td>
                                 </tr>
+
+                                {% endfor %}
                                 
                                 
 
@@ -307,7 +339,7 @@
             <div class="modal-header-row">
                 <div>
                     <h2 class="modal-header">Add New Inventory</h2>
-                    <p class="selected-asset-info">Registering new equipment to CareMed Registry</p>
+                    <p class="selected-asset-info">Registering new equipment to CareMed Inventory</p>
                 </div>
                 <span class="material-symbols-rounded modal-close close-reg-modal">close</span>
             </div>
@@ -319,15 +351,16 @@
                     <div class="form-field full-width">
                         <label>Product Image</label>
                         <div class="upload-container" id="product-dropzone">
-                            <span class="material-symbols-rounded upload-icon">inventory_2</span>
-                            <p><strong>Click to upload</strong> or drag and drop</p>
-                            <p style="font-size: 0.75rem; color: #64748b;">High-quality PNG or JPG preferred</p>
-
+                            <span class="material-symbols-rounded upload-icon" style="font-size: 40px; color: #94a3b8; margin-bottom: 8px;">inventory_2</span>
+                            <p style="margin: 0; color: #475569;"><strong>Click to upload</strong> or drag and drop</p>
+                            
                             <input type="file" name="image" id="product-image-input" hidden accept="image/*">
 
                             <div id="product-preview-text" class="preview-active-box" style="display: none;">
-                                <div class="preview-info">
-                                    <span class="material-symbols-rounded success-icon">check_circle</span>
+                                <div class="preview-info" style="display: flex; align-items: center; gap: 10px; flex: 1;">
+                                    <div class="thumbnail-wrapper">
+                                        <img id="product-image-preview" src="#" alt="Preview">
+                                    </div>
                                     <span id="product-file-name" class="file-name-text">Image Selected</span>
                                 </div>
                                 <span class="material-symbols-rounded btn-file-reset" id="reset-product-upload">cancel</span>
@@ -335,15 +368,29 @@
                         </div>
                     </div>
 
+                    
                     <div class="form-field full-width">
-                        <label>Equipment Type</label>
-                        <select name="equipment_type" class="clinical-input medical-select">
-                            <option value="" disabled selected>Select Type...</option>
-                            <option>Manual Hospital Bed</option>
-                            <option>Electric Wheelchair</option>
-                            <option>Oxygen Tank Full Set</option>
-                            <option>Suction Machine</option>
-                        </select>
+                        <label class="clinical-label">Equipment Type</label>
+                        
+                        <div class="input-wrapper">
+                            <input 
+                                type="text"
+                                name="equipment_type"
+                                class="clinical-input medical-select"
+                                list="equipment-types"
+                                placeholder="Select or type equipment..."
+                                autocomplete="off"
+                                required
+                            >
+                            <span class="material-symbols-rounded input-icon">search_insights</span>
+                            
+                            <datalist id="equipment-types">
+                                <option value="Manual Hospital Bed">
+                                <option value="Electric Wheelchair">
+                                <option value="Oxygen Tank Full Set">
+                                <option value="Suction Machine">
+                            </datalist>
+                        </div>
                     </div>
 
                     <div class="form-field">
@@ -376,27 +423,33 @@
     </div>
 
     <div id="editAssetModal" class="medical-modal-overlay hidden">
-        <div class="medical-modal-content">
+        <div class="medical-modal-content rent-modal-width">
             <div class="modal-header-row">
-                <h2 class="modal-header">Edit Equipment Details</h2>
+                <div>
+                    <h2 class="modal-header">Edit Equipment Details</h2>
+                    <p class="selected-asset-info">Updating existing equipment in CareMed Inventory</p>
+                </div>
                 <span class="material-symbols-rounded modal-close close-edit-modal">close</span>
             </div>
 
-            <form id="editAssetForm">
+            <form id="editAssetForm" method="POST" action="" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="product_id" id="edit-product-id">
+
                 <div class="form-layout-grid">
                     <div class="form-field full-width">
-                        <label>Update Product Image</label>
+                        <label>Product Image</label>
                         <div class="upload-container" id="edit-product-dropzone">
-
-                            <span class="material-symbols-rounded upload-icon">inventory_2</span>
-                            <p><strong>Click to upload</strong> or drag and drop</p>
-                            <p style="font-size: 0.75rem;">High-quality PNG or JPG preferred</p>
-
-                            <input type="file" id="edit-product-image-input" hidden accept="image/*">
+                            <span class="material-symbols-rounded upload-icon" style="font-size: 40px; color: #94a3b8; margin-bottom: 8px;">inventory_2</span>
+                            <p style="margin: 0; color: #475569;"><strong>Click to upload</strong> or drag and drop</p>
+                            
+                            <input type="file" name="image" id="edit-product-image-input" hidden accept="image/*">
 
                             <div id="edit-product-preview-text" class="preview-active-box" style="display: none;">
-                                <div class="preview-info">
-                                    <span class="material-symbols-rounded success-icon">check_circle</span>
+                                <div class="preview-info" style="display: flex; align-items: center; gap: 10px; flex: 1;">
+                                    <div class="thumbnail-wrapper">
+                                        <img id="edit-product-image-preview" src="#" alt="Preview">
+                                    </div>
                                     <span id="edit-product-file-name" class="file-name-text">Image Selected</span>
                                 </div>
                                 <span class="material-symbols-rounded btn-file-reset" id="reset-edit-upload">cancel</span>
@@ -404,42 +457,36 @@
                         </div>
                     </div>
 
-                    <div class="form-field">
-                        <label>Equipment Type</label>
-                        <select id="edit-type" class="clinical-input">
-                            <option>Oxygen Concentrator</option>
-                            <option>Manual Hospital Bed</option>
-                            <option>Electric Wheelchair</option>
-                            <option>Oxygen Tank Full Set</option>
-                            <option>Suction Machine</option>
-                        </select>
-                    </div>
-
-                    <div class="form-field">
-                        <label>Asset Tag / Serial</label>
-                        <input type="text" id="edit-tag" class="clinical-input" readonly
-                            style="background: #f8fafc; cursor: not-allowed;">
-                        <small style="color: #64748b;">Serial numbers cannot be changed once registered.</small>
+                    <div class="form-field full-width">
+                        <label class="clinical-label">Equipment Type</label>
+                        <div class="input-wrapper">
+                            <input 
+                                type="text"
+                                name="equipment_type"
+                                id="edit-type"
+                                class="clinical-input medical-select"
+                                list="equipment-types"
+                                placeholder="Select or type equipment..."
+                                autocomplete="off"
+                                required
+                            >
+                            <span class="material-symbols-rounded input-icon">search_insights</span>
+                        </div>
                     </div>
 
                     <div class="form-field">
                         <label>Model / OEM</label>
-                        <input type="text" id="edit-model" class="clinical-input">
-                    </div>
-
-                    <div class="form-field">
-                        <label>Stock Count</label>
-                        <input type="number" id="edit-stock" class="clinical-input">
+                        <input type="text" name="model" id="edit-model" class="clinical-input" placeholder="Manufacturer Name">
                     </div>
 
                     <div class="form-field">
                         <label>Monthly Rent (₱)</label>
-                        <input type="number" id="edit-rent" class="clinical-input">
+                        <input type="number" name="rent_price" id="edit-rent" step="0.01" class="clinical-input" placeholder="0.00">
                     </div>
 
                     <div class="form-field">
                         <label>Selling Price (₱)</label>
-                        <input type="number" id="edit-price" class="clinical-input">
+                        <input type="number" name="sale_price" id="edit-price" step="0.01" class="clinical-input" placeholder="0.00">
                     </div>
                 </div>
 
@@ -701,12 +748,21 @@
             <div style="padding: 20px;">
                 <span class="material-symbols-rounded" style="font-size: 48px; color: #ef4444;">warning</span>
                 <h3 style="margin: 15px 0 10px;">Confirm Deletion</h3>
-                <p style="color: #64748b; margin-bottom: 25px;">Are you sure you want to remove this item? This action cannot be undone.</p>
+                <p style="color: #64748b; margin-bottom: 25px;">
+                    Are you sure you want to remove <strong id="delete-asset-name">this item</strong>? 
+                    This action cannot be undone.
+                </p>
                 
-                <div style="display: flex; gap: 10px; justify-content: center;">
-                    <button type="button" class="btn-medical-outline close-modal-btn">Cancel</button>
-                    <button type="button" class="btn-medical-primary close-modal-btn" style="background-color: #ef4444;">Delete</button>
-                </div>
+                <form id="deleteAssetForm" method="POST" action="">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    
+                    <div style="display: flex; gap: 10px; justify-content: center;">
+                        <button type="button" class="btn-medical-outline close-modal-btn">Cancel</button>
+                        <button type="submit" id="confirm-delete-btn" class="btn-medical-primary" style="background-color: #ef4444;">
+                            Delete
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>

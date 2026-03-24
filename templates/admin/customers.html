@@ -172,7 +172,7 @@
             <main class="content-area">
                 <div class="asset-registry-card">
                     <div class="registry-controls">
-                        <button class="register-asset-btn" onclick="openRegisterModal()">
+                        <button class="register-asset-btn" data-action="open-register">
                             <span class="material-symbols-rounded">person_add</span><span>Register Customer</span>
                         </button>
                         <div class="filter-search-container">
@@ -264,8 +264,8 @@
                                                         title="Added by Admin: {{ creator.email }}" 
                                                         style="background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 6px; cursor: help; transition: all 0.2s ease;">
                                                         <span class="material-symbols-rounded" style="font-size: 18px; color: #64748b;">shield_person</span>
-                                                        <span style="font-weight: 600; font-size: 0.85rem;">
-                                                            {% if creator.first_name %}{{ creator.first_name }} {{ creator.last_name or '' }}{% else %}{{ creator.email.split('@')[0] }}{% endif %}
+                                                        <span style="font-weight: 300; font-size: 0.75rem;">
+                                                            {% if creator.first_name %} {{ creator.first_name or '' }}{% else %}{{ creator.email.split('@')[0] }}{% endif %}
                                                         </span>
                                                     </div>
 
@@ -295,17 +295,29 @@
                                                 data-name="{{ customer.first_name }} {{ customer.last_name }}"
                                                 data-phone="{{ customer.contact_number }}"
                                                 data-address="{{ customer.home_address }}"
-                                                data-avatar="{{ customer.user.profile_path if customer.user and customer.user.profile_path else '' }}"
-                                                data-idimg="{{ customer.valid_id_path }}"
-                                                onclick="openProfileModal(this)">
+                                                data-avatar="{{ url_for('static', filename=customer.user.profile_path) if customer.user and customer.user.profile_path else '' }}"
+                                                data-idimg="{{ url_for('static', filename=customer.valid_id_path) if customer.valid_id_path else '' }}">
                                                 
                                                 <span class="material-symbols-rounded">visibility</span>
                                             </button>
 
-                                            <button class="asset-action-btn edit"
-                                                onclick="openResetModal('{{ customer.full_name }}')">
-                                                <span class="material-symbols-rounded">lock_reset</span>
+                                            <button type="button" 
+                                                class="asset-action-btn edit" 
+                                                data-id="{{ customer.id }}"
+                                                data-name="{{ customer.first_name }} {{ customer.last_name }}"
+                                                data-phone="{{ customer.contact_number }}"
+                                                data-address="{{ customer.home_address }}"
+                                                data-birthday="{{ customer.birthday }}"
+                                                data-gender="{{ customer.gender }}"
+                                                data-idimg="{{ url_for('static', filename=customer.valid_id_path) if customer.valid_id_path else '' }}">
+                                                <span class="material-symbols-rounded">edit</span>
                                             </button>
+
+                                            {% if customer.is_self_registered %}
+                                                <button class="asset-action-btn security" data-registered="true">
+                                                    <span class="material-symbols-rounded">lock_reset</span>
+                                                </button>
+                                            {% endif %}
                                         </td>
                                     </tr>
                                     {% endfor %}
@@ -347,65 +359,102 @@
     </div>
 
     <div id="registerModal" class="medical-modal-overlay hidden">
-        <div class="medical-modal-content" style="max-width: 650px;">
+        <div class="medical-modal-content" style="max-width: 700px;">
+            
             <div class="modal-header-row">
                 <h2 class="modal-header">Register New Customer</h2>
-                <span class="material-symbols-rounded modal-close" onclick="closeRegisterModal()">close</span>
+                <span class="material-symbols-rounded modal-close">close</span>
             </div>
 
             <form id="customerForm" method="POST" action="{{ url_for('admin.add_customer') }}" enctype="multipart/form-data">
                 
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-                <div class="form-layout-grid">
-                    <div class="form-field full-width">
-                        <label>Full Name</label>
-                        <input type="text" name="full_name" class="clinical-input" placeholder="e.g. Juan Dela Cruz" required>
-                    </div>
+                <div style="display: flex; gap: 24px; align-items: flex-start; padding-bottom: 20px;">
+                    
+                    <div class="form-field" style="flex: 0 0 220px;">
+                        <label style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; font-weight: 700;">
+                            Update Valid ID
+                        </label>
 
-                    <div class="form-field full-width">
-                        <label>Home Address</label>
-                        <input type="text" name="home_address" class="clinical-input" placeholder="House No., Street, Barangay, City" required>
-                    </div>
+                        <div class="upload-container"
+                            id="id-dropzone"
+                            style="width: 100%; aspect-ratio: 85.6 / 54; margin-top: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-direction: column; position: relative;">
+                            
+                            <span class="material-symbols-rounded upload-icon" style="font-size: 32px; color: #94a3b8;">
+                                published_with_changes
+                            </span>
 
-                    <div class="form-field full-width">
-                        <label>Phone Number</label>
-                        <input type="tel" name="contact_number" class="clinical-input" placeholder="+63 9xx xxx xxxx" required>
-                    </div>
-
-                    <div class="form-field full-width">
-                        <label>Identity Verification (Valid ID)</label>
-                        <div class="upload-container" id="id-dropzone"
-                            onclick="document.getElementById('id-upload').click()">
-                            <span class="material-symbols-rounded upload-icon">add_a_photo</span>
-                            <p><strong>Click to upload</strong> or drag and drop</p>
-                            <p style="font-size: 0.75rem;">PNG, JPG (Max 5MB)</p>
-
+                            <p style="margin: 0; color: #475569; font-size: 0.8rem;">
+                                Click to <strong>Upload</strong> or <strong>Drag and Drop</strong>
+                            </p>
+                            
                             <input type="file" id="id-upload" name="valid_id" hidden accept="image/*"
                                 onchange="updateUploadUI('id-dropzone', 'id-preview-text', 'file-name-display', this)">
 
-                            <div id="registration-id-preview-container"
-                                style="display:none; margin: 10px auto; width: 120px; height: 80px; border-radius: 6px; overflow: hidden; border: 1px solid #e2e8f0;">
-                                <img id="registration-id-img" src=""
-                                    style="width: 100%; height: 100%; object-fit: cover;">
-                            </div>
-
-                            <div id="id-preview-text" class="preview-active-box" style="display:none;">
-                                <div class="preview-info">
-                                    <span class="material-symbols-rounded success-icon">check_circle</span>
-                                    <span id="file-name-display" class="file-name-text">File Selected</span>
-                                </div>
+                            <div id="id-preview-text" class="preview-active-box" style="display:none; position: absolute; top:0; left:0; width:100%; height:100%;">
                                 <span class="material-symbols-rounded btn-file-reset"
-                                    onclick="resetUpload(event, 'id-upload', 'id-dropzone', 'id-preview-text')">cancel</span>
+                                    data-input="id-upload"
+                                    data-dropzone="id-dropzone"
+                                    data-preview="id-preview-text">
+                                    close
+                                </span>
+
+                                <div class="thumbnail-wrapper" style="width: 100%; height: 100%;">
+                                    <img src="#" alt="ID Preview" id="registration-id-img"
+                                        style="width: 100%; height: 100%; object-fit: cover;">
+                                </div>
                             </div>
+                        </div>
+                    </div>
+
+                    <div style="flex: 1; display: flex; flex-direction: column; gap: 15px;">
+                        
+                        <div class="form-field">
+                            <label>Full Name</label>
+                            <input type="text" name="full_name" class="clinical-input"
+                                style="height: 48px;" required>
+                        </div>
+
+                        <div class="form-field">
+                            <label>Birthday</label>
+                            <input type="date" name="birthday" class="clinical-input"
+                                style="height: 48px;" required>
+                        </div>
+
+                        <div class="form-field">
+                            <label>Gender</label>
+                            <select name="gender" class="clinical-input"
+                                    style="height: 48px;" required>
+                                <option value="" disabled selected>Select gender</option>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                                <option value="other">Other</option>
+                                <option value="prefer_not_to_say">Prefer not to say</option>
+                            </select>
                         </div>
                     </div>
                 </div>
 
-                <div class="modal-footer-actions">
-                    <button type="button" class="btn-medical-outline" onclick="closeRegisterModal()">Cancel</button>
+                <div style="display: flex; flex-direction: column; gap: 15px;">
+                    <div class="form-field">
+                        <label>Home Address</label>
+                        <input type="text" name="home_address" class="clinical-input"
+                            style="height: 48px;" required>
+                    </div>
+
+                    <div class="form-field">
+                        <label>Phone Number</label>
+                        <input type="tel" name="contact_number" class="clinical-input"
+                            style="height: 48px;" required>
+                    </div>
+                </div>
+
+                <div class="modal-footer-actions" style="margin-top: 25px;">
+                    <button type="button" class="btn-medical-outline">Cancel</button>
                     <button type="submit" class="btn-medical-primary">Register Customer</button>
                 </div>
+
             </form>
         </div>
     </div>
@@ -433,7 +482,7 @@
                         <p id="modalID" style="font-size: 0.85rem; color: #64748b; margin: 0;"></p>
                     </div>
                 </div>
-                <span class="material-symbols-rounded modal-close" onclick="closeProfileModal()">close</span>
+                <span class="material-symbols-rounded modal-close">close</span>
             </div>
 
             <div class="section-divider">
@@ -453,8 +502,8 @@
 
                 <div class="form-field full-width">
                     <label style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase;">Identity Verification (ID)</label>
-                    <div id="modalIDPreview"
-                        style="margin-top: 8px; border: 1px solid #e2e8f0; border-radius: 8px; height: 100px; width: 250px; display: flex; align-items: center; justify-content: center; background: #f8fafc; overflow: hidden;">
+                    
+                    <div id="modalIDPreview" style="margin-top: 8px; border: 1px solid #e2e8f0; border-radius: 8px; height: 54mm; width: 85.6mm; display: flex; align-items: center; justify-content: center; background: #f8fafc; overflow: hidden; cursor: zoom-in;">
                         
                         <img id="modalIDImg"
                             src=""
@@ -478,27 +527,126 @@
             </div>
 
             <div class="modal-footer-actions">
-                <button type="button" class="btn-medical-outline" onclick="closeProfileModal()">Close</button>
+                <button type="button" class="btn-medical-outline">Close</button>
             </div>
         </div>
     </div>
 
+    <div id="editCustomerModal" class="medical-modal-overlay hidden">
+        <div class="medical-modal-content" style="max-width: 700px;">
+            <div class="modal-header-row">
+                <h2 class="modal-header">Edit Customer Details</h2>
+                <span class="material-symbols-rounded modal-close">close</span>
+            </div>
+
+            <form id="editCustomerForm" method="POST" action="{{ url_for('admin.update_customer') }}" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="customer_id" id="edit_customer_id">
+
+                <div style="display: flex; gap: 24px; align-items: flex-start; padding-bottom: 20px;">
+                    
+                    <div class="form-field" style="flex: 0 0 220px;">
+                        <label style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; font-weight: 700;">
+                            Update Valid ID
+                        </label>
+
+                        <div class="upload-container"
+                            id="edit-id-dropzone"
+                            style="width: 100%; aspect-ratio: 85.6 / 54; margin-top: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+                            
+                            <span class="material-symbols-rounded upload-icon" style="font-size: 32px; color: #94a3b8;">
+                                published_with_changes
+                            </span>
+
+                            <p style="margin: 0; color: #475569; font-size: 0.8rem;">
+                                Click to <strong>replace</strong>
+                            </p>
+                            
+                            <input type="file" id="edit-id-upload" name="valid_id" hidden accept="image/*"
+                                onchange="updateUploadUI('edit-id-dropzone', 'edit-id-preview-text', 'edit-file-name', this)">
+
+                            <div id="edit-id-preview-text" class="preview-active-box" style="display:none; position: absolute;">
+                                <span class="material-symbols-rounded btn-file-reset"
+                                    data-input="edit-id-upload"
+                                    data-dropzone="edit-id-dropzone"
+                                    data-preview="edit-id-preview-text">
+                                    close
+                                </span>
+
+                                <div class="thumbnail-wrapper">
+                                    <img src="#" alt="New ID Preview" id="edit-id-img-preview"
+                                        style="width: 100%; height: 100%; object-fit: cover;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="flex: 1; display: flex; flex-direction: column; gap: 15px;">
+                        
+                        <div class="form-field">
+                            <label>Full Name</label>
+                            <input type="text" name="full_name" id="edit_full_name" class="clinical-input"
+                                style="height: 48px;" required>
+                        </div>
+
+                        <div class="form-field">
+                            <label>Birthday</label>
+                            <input type="date" name="birthday" id="edit_birthday" class="clinical-input"
+                                style="height: 48px;" required>
+                        </div>
+
+                        <div class="form-field">
+                            <label>Gender</label>
+                            <select name="gender" id="edit_gender" class="clinical-input"
+                                    style="height: 48px;" required>
+                                <option value="" disabled selected>Select gender</option>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                                <option value="other">Other</option>
+                                <option value="prefer_not_to_say">Prefer not to say</option>
+                            </select>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="form-layout-grid">
+                    <div class="form-field full-width">
+                        <label>Home Address</label>
+                        <input type="text" name="home_address" id="edit_home_address" class="clinical-input" required>
+                    </div>
+
+                    <div class="form-field full-width">
+                        <label>Phone Number</label>
+                        <input type="tel" name="contact_number" id="edit_contact_number" class="clinical-input" required>
+                    </div>
+                </div>
+
+                <div class="modal-footer-actions">
+                    <button type="button" class="btn-medical-outline">Cancel</button>
+                    <button type="submit" class="btn-medical-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
 
     <div id="resetModal" class="medical-modal-overlay hidden">
         <div class="medical-modal-content" style="max-width: 400px;">
             <div class="modal-header-row">
-                <h2 class="modal-header">Security</h2><span class="material-symbols-rounded modal-close"
-                    onclick="closeResetModal()">close</span>
+                <h2 class="modal-header">Security</h2>
+                <span class="material-symbols-rounded modal-close">close</span>
             </div>
             <p>Reset password for <strong id="resetName">User</strong>?</p>
-            <div class="modal-footer-actions"><button type="button" class="btn-medical-outline"
-                    onclick="closeResetModal()">Cancel</button><button type="button" class="btn-medical-primary">Confirm
-                    Reset</button></div>
+            <div class="modal-footer-actions">
+                <button type="button" class="btn-medical-outline">Cancel</button><button type="button" class="btn-medical-primary">
+                    ConfirmReset
+                </button>
+            </div>
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='js/global.js') }}"></script>
+    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/global.js') }}"></script>
     <script src="{{ url_for('static', filename='js/admin_customer.js') }}"></script>
 </body>
 

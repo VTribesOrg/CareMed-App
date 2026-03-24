@@ -1,4 +1,4 @@
-/*============= START OF SAFE HELPERS (ADDED) =============*/
+/*============= START OF SAFE HELPERS =============*/
 function safeText(el, fallback = "") {
     return el ? el.innerText : fallback;
 }
@@ -6,28 +6,18 @@ function safeText(el, fallback = "") {
 function safeDataset(btn, key, fallback = "") {
     return (btn && btn.dataset && btn.dataset[key]) ? btn.dataset[key] : fallback;
 }
+/*============= END OF SAFE HELPERS =============*/
 
-/*============= START OF MODAL TOGGLES =============*/
-function openRegisterModal() { 
+
+/*============= MODAL FUNCTIONS =============*/
+function openRegisterModal() {
     const modal = document.getElementById('registerModal');
-    if(modal) modal.classList.remove('hidden'); 
+    if (modal) modal.classList.remove('hidden');
 }
 
-function closeRegisterModal() { 
+function closeRegisterModal() {
     const modal = document.getElementById('registerModal');
-    if(modal) modal.classList.add('hidden'); 
-}
-
-/*============= START OF Profile MODAL =============*/
-
-function setModalValue(element, value) {
-    if (value !== null && value !== undefined && String(value).trim() !== "" && value !== "None") {
-        element.textContent = value;
-        element.classList.remove("modal-na");
-    } else {
-        element.textContent = "N/A";
-        element.classList.add("modal-na");
-    }
+    if (modal) modal.classList.add('hidden');
 }
 
 function openProfileModal(btn) {
@@ -38,12 +28,13 @@ function openProfileModal(btn) {
     const modalID = document.getElementById('modalID');
     const modalPhone = document.getElementById('modalPhone');
     const modalAddress = document.getElementById('modalAddress');
+
     const avatarImg = document.getElementById('modalAvatarImg');
     const avatarFallback = document.getElementById('modalAvatarFallback');
+
     const idImg = document.getElementById('modalIDImg');
     const idFallback = document.getElementById('modalIDFallback');
 
-    // Get data from button
     const id = btn.dataset.id;
     const name = btn.dataset.name;
     const phone = btn.dataset.phone;
@@ -51,274 +42,295 @@ function openProfileModal(btn) {
     const avatar = btn.dataset.avatar;
     const validId = btn.dataset.idimg;
 
-    // OPEN MODAL
     modal.classList.remove('hidden');
 
-    // TEXT DATA
-    setModalValue(modalName, name);
-    setModalValue(modalID, id ? "Customer ID: " + id : null);
-    setModalValue(modalPhone, phone);
-    setModalValue(modalAddress, address);
+    modalName.innerText = name || "N/A";
+    modalID.innerText = id ? "Customer ID: " + id : "N/A";
+    modalPhone.innerText = phone || "N/A";
+    modalAddress.innerText = address || "N/A";
 
-    // AVATAR
-    if (avatar && avatar.trim() !== "") {
-        const path = avatar.startsWith('static/')
-            ? '/' + avatar
-            : `/static/${avatar}`;
-
-        avatarImg.src = path;
+    // Avatar
+    if (avatar) {
+        avatarImg.src = avatar.startsWith('/') ? avatar : `/static/${avatar}`;
         avatarImg.style.display = "block";
         avatarFallback.style.display = "none";
     } else {
-        avatarImg.src = "";
         avatarImg.style.display = "none";
-
-        // Show fallback icon
         avatarFallback.style.display = "flex";
     }
 
-    // VALID ID
-    if (validId && validId.trim() !== "") {
-        let idPath = validId;
-
-        // Fix path issues
-        if (!idPath.startsWith('/')) {
-            if (!idPath.startsWith('static/')) {
-                idPath = `/static/${idPath}`;
-            } else {
-                idPath = '/' + idPath;
-            }
-        }
-
-        idImg.onload = () => {
-            idImg.style.display = "block";
-            idFallback.style.display = "none";
-        };
-
-        idImg.onerror = () => {
-            idImg.style.display = "none";
-            idFallback.style.display = "flex";
-            idFallback.textContent = "No Valid ID";
-        };
-
-        idImg.src = idPath;
-
+    // ID
+    if (validId) {
+        idImg.src = validId;
+        idImg.style.display = "block";
+        idFallback.style.display = "none";
     } else {
         idImg.style.display = "none";
         idFallback.style.display = "flex";
-        idFallback.textContent = "No ID";
     }
 }
 
 function closeProfileModal() {
     const modal = document.getElementById('profileModal');
-    if(modal) modal.classList.add('hidden');
+    if (modal) modal.classList.add('hidden');
 }
-/*============= END OF Profile MODAL =============*/
 
-/*============= OVERLOAD SUPPORT (ADDED) =============*/
-function openProfileModalWrapper(name, id) {
-    const fakeBtn = {
-        dataset: {
-            id: id,
-            name: name,
-            phone: "",
-            address: "",
-            avatar: "",
-            idimg: ""
+/*============= START OF EDIT MODAL =============*/
+async function openEditModal(btn) {
+    const modal = document.getElementById('editCustomerModal');
+    const customerId = btn.dataset.id;
+    if (!modal || !customerId) return;
+
+    try {
+        // 1. Fetch data from your updated API
+        const response = await fetch(`/admin/get_customer/${customerId}`);
+        const result = await response.json();
+
+        if (result.status === "success") {
+            const customer = result.data;
+
+            // 2. Map Text/Form Data
+            document.getElementById('edit_customer_id').value = customer.id || "";
+            document.getElementById('edit_full_name').value = customer.full_name || "";
+            document.getElementById('edit_contact_number').value = customer.phone || "";
+            document.getElementById('edit_home_address').value = customer.address || "";
+            
+            // 3. Map Birthday and Gender
+            const bdayField = document.getElementById('edit_birthday');
+            const genderField = document.getElementById('edit_gender');
+            
+            if (bdayField) bdayField.value = customer.birthday || "";
+            if (genderField) genderField.value = customer.gender || "";
+
+            // 4. Handle Image UI Design
+            const idImgPath = customer.valid_id_path;
+            const dropzone = document.getElementById('edit-id-dropzone');
+            const previewContainer = document.getElementById('edit-id-preview-text');
+            const previewImg = document.getElementById('edit-id-img-preview');
+
+            if (idImgPath) {
+                previewImg.src = idImgPath;
+                previewContainer.style.display = 'flex';
+                
+                if (dropzone) {
+                    dropzone.classList.add('has-file');
+                    dropzone.style.pointerEvents = "auto"; 
+                }
+            } else {
+                previewImg.src = "#";
+                previewContainer.style.display = 'none';
+                if (dropzone) dropzone.classList.remove('has-file');
+            }
+
+            // 5. Reveal Modal
+            modal.classList.remove('hidden');
+        } else {
+            console.error("API Error:", result.message);
         }
-    };
-    openProfileModal(fakeBtn);
-}
-
-/*============= RESET MODAL =============*/
-function openResetModal(name) { 
-    const modal = document.getElementById('resetModal');
-    if(modal) {
-        document.getElementById('resetName').innerText = name; 
-        modal.classList.remove('hidden'); 
+    } catch (error) {
+        console.error("Fetch Error:", error);
     }
 }
 
-function closeResetModal() { 
-    const modal = document.getElementById('resetModal');
-    if(modal) modal.classList.add('hidden'); 
+function closeEditModal() {
+    const modal = document.getElementById('editCustomerModal');
+    if (!modal) return;
+
+    modal.classList.add('hidden');
+
+    const form = document.getElementById('editCustomerForm');
+    if (form) form.reset();
+
+    // Reset Image UI
+    const dropzone = document.getElementById('edit-id-dropzone');
+    const preview = document.getElementById('edit-id-preview-text');
+    if (dropzone) dropzone.classList.remove('has-file');
+    if (preview) preview.style.display = "none";
 }
-/*============= END OF MODAL TOGGLES =============*/
 
+/*============= END OF EDIT MODAL =============*/
 
-/*============= START OF SEARCH LOGIC =============*/
-document.addEventListener('DOMContentLoaded', () => {
-    const searchInput = document.getElementById('customerSearch');
-    if (searchInput) {
-        searchInput.addEventListener('input', function (e) {
-            const term = e.target.value.toLowerCase();
-            const rows = document.querySelectorAll('#customerTableBody tr');
-            rows.forEach(row => { 
-                row.style.display = row.innerText.toLowerCase().includes(term) ? '' : 'none'; 
-            });
-        });
+/*============= UPLOAD =============*/
+function updateUploadUI(dropzoneId, previewId, nameId, input) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+
+    const preview = document.getElementById(previewId);
+    const nameEl = document.getElementById(nameId);
+    const dropzone = document.getElementById(dropzoneId);
+
+    if (dropzone) {
+        dropzone.classList.add('has-file');
+        dropzone.style.pointerEvents = "none";
     }
-});
-/*============= END OF SEARCH LOGIC =============*/
 
+    if (nameEl) nameEl.innerText = file.name;
 
-/*============= START OF UPLOAD LOGIC =============*/
+    if (preview) {
+        preview.style.display = 'flex';
+
+        const img = preview.querySelector('img');
+        const reader = new FileReader();
+
+        reader.onload = e => {
+            if (img) img.src = e.target.result;
+        };
+
+        reader.readAsDataURL(file);
+    }
+}
+
 function resetUpload(event, inputId, dropzoneId, previewId) {
-    event.stopPropagation();
+    if (event) event.stopPropagation();
+
     const input = document.getElementById(inputId);
     const dropzone = document.getElementById(dropzoneId);
     const preview = document.getElementById(previewId);
-    const previewContainer = document.getElementById('registration-id-preview-container');
 
-    if(input) input.value = "";
-    if(preview) preview.style.display = 'none';
-    if(previewContainer) previewContainer.style.display = 'none'; 
+    if (input) input.value = "";
 
-    if(dropzone) {
-        dropzone.style.borderColor = '#cbd5e1';
-        dropzone.style.background = '#f8fafc';
+    if (preview) preview.style.display = "none";
+
+    if (dropzone) {
+        dropzone.classList.remove('has-file');
+        dropzone.style.pointerEvents = "auto";
     }
 }
 
-function updateUploadUI(dropzoneId, previewId, nameId, input) {
-    const files = input.files;
-    if (files && files[0]) {
-        const previewEl = document.getElementById(previewId);
-        const nameEl = document.getElementById(nameId);
-        const dropzone = document.getElementById(dropzoneId);
+function enableDragAndDrop(dropzoneId, inputId) {
+    const dropzone = document.getElementById(dropzoneId);
+    const input = document.getElementById(inputId);
 
-        if(previewEl) previewEl.style.display = 'flex';
-        if(nameEl) nameEl.innerText = files[0].name;
-        if(dropzone) {
-            dropzone.style.borderColor = '#10b981';
-            dropzone.style.background = '#f0fdf4';
-        }
+    if (!dropzone || !input) return;
 
-        const reader = new FileReader();
-        reader.onload = function (e) {
-            const previewImg = document.getElementById('registration-id-img');
-            const previewContainer = document.getElementById('registration-id-preview-container');
-            if(previewImg) previewImg.src = e.target.result;
-            if(previewContainer) previewContainer.style.display = 'block';
+    dropzone.addEventListener('dragover', e => {
+        e.preventDefault();
+        dropzone.classList.add('drag-over');
+    });
+
+    dropzone.addEventListener('dragleave', () => {
+        dropzone.classList.remove('drag-over');
+    });
+
+    dropzone.addEventListener('drop', e => {
+        e.preventDefault();
+        dropzone.classList.remove('drag-over');
+
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            input.files = files;
+            input.dispatchEvent(new Event('change'));
         }
-        reader.readAsDataURL(files[0]);
+    });
+}
+
+/*============= LIGHTBOX =============*/
+function openLightbox() {
+    const img = document.getElementById('modalIDImg');
+    const lightbox = document.getElementById('idLightbox');
+    const lightboxImg = document.getElementById('lightboxImg');
+
+    if (img && img.src) {
+        lightboxImg.src = img.src;
+        lightbox.classList.remove('hidden');
     }
 }
-/*============= END OF UPLOAD LOGIC =============*/
 
+function closeLightbox() {
+    const lightbox = document.getElementById('idLightbox');
+    if (lightbox) lightbox.classList.add('hidden');
+}
 
-/*============= START OF PAGINATION =============*/
+/*============= RESET MODAL =============*/
+function openResetModal(name) {
+    const modal = document.getElementById('resetModal');
+    if (modal) {
+        document.getElementById('resetName').innerText = name;
+        modal.classList.remove('hidden');
+    }
+}
+
+function closeResetModal() {
+    const modal = document.getElementById('resetModal');
+    if (modal) modal.classList.add('hidden');
+}
+
+/*============= SINGLE DOM READY BLOCK (IMPORTANT) =============*/
 document.addEventListener('DOMContentLoaded', () => {
-    const rowSelect = document.getElementById('row-limit-select');
-    const tableBody = document.getElementById('customerTableBody'); 
-    const paginationContainer = document.querySelector('.pagination-controls');
-    let currentPage = 1;
 
-    function updateTableDisplay() {
-        if(!tableBody || !rowSelect) return;
-        const rows = Array.from(tableBody.querySelectorAll('tr'));
-        const limit = parseInt(rowSelect.value);
-        const totalPages = Math.ceil(rows.length / limit);
-        if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
-        const startIndex = (currentPage - 1) * limit;
-        const endIndex = startIndex + limit;
-        rows.forEach((row, index) => {
-            row.style.display = (index >= startIndex && index < endIndex) ? "" : "none";
-        });
-        updatePaginationInfo(startIndex + 1, Math.min(endIndex, rows.length), rows.length);
-        renderPagination(rows.length, limit);
-    }
-
-    function renderPagination(totalItems, limit) {
-        if(!paginationContainer) return;
-        const totalPages = Math.ceil(totalItems / limit);
-        paginationContainer.innerHTML = ''; 
-        const prevBtn = document.createElement('button');
-        prevBtn.className = 'pag-btn';
-        prevBtn.disabled = currentPage === 1;
-        prevBtn.innerHTML = '<span class="material-symbols-rounded">chevron_left</span>';
-        prevBtn.onclick = () => { if(currentPage > 1) { currentPage--; updateTableDisplay(); }};
-        paginationContainer.appendChild(prevBtn);
-
-        for (let i = 1; i <= totalPages; i++) {
-            if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
-                const pageBtn = document.createElement('button');
-                pageBtn.className = `pag-btn ${i === currentPage ? 'active' : ''}`;
-                pageBtn.textContent = i;
-                pageBtn.onclick = () => { currentPage = i; updateTableDisplay(); };
-                paginationContainer.appendChild(pageBtn);
-            }
-        }
-
-        const nextBtn = document.createElement('button');
-        nextBtn.className = 'pag-btn';
-        nextBtn.disabled = currentPage === totalPages || totalPages === 0;
-        nextBtn.innerHTML = '<span class="material-symbols-rounded">chevron_right</span>';
-        nextBtn.onclick = () => { if(currentPage < totalPages) { currentPage++; updateTableDisplay(); }};
-        paginationContainer.appendChild(nextBtn);
-    }
-
-    function updatePaginationInfo(start, end, total) {
-        const infoLabel = document.querySelector('.pagination-info');
-        if (infoLabel) {
-            infoLabel.textContent = total === 0 ? `Showing 0 to 0 of 0 entries` : `Showing ${start} to ${end} of ${total} entries`;
-        }
-    }
-
-    if (rowSelect) { rowSelect.addEventListener('change', () => { currentPage = 1; updateTableDisplay(); }); }
-    updateTableDisplay();
-});
-/*============= END OF PAGINATION =============*/
-
-
-/*============= START OF CSP EVENT BINDING =============*/
-document.addEventListener('DOMContentLoaded', () => {
+    // OPEN REGISTER
     const regBtn = document.querySelector('.register-asset-btn');
-    if(regBtn) regBtn.addEventListener('click', openRegisterModal);
+    if (regBtn) {
+        regBtn.addEventListener('click', e => {
+            e.preventDefault();
+            openRegisterModal();
+        });
+    }
 
+    // CLOSE MODALS
     document.querySelectorAll('.modal-close, .btn-medical-outline').forEach(btn => {
         btn.addEventListener('click', () => {
-            closeRegisterModal();
-            closeProfileModal();
-            closeResetModal();
+            const modal = btn.closest('.medical-modal-overlay');
+            if (modal) modal.classList.add('hidden');
         });
     });
 
-    const tableBody = document.getElementById('customerTableBody');
-    if(tableBody) {
-        tableBody.addEventListener('click', (e) => {
-            const btn = e.target.closest('button');
-            if(!btn) return;
+    // CLICK TO UPLOAD
+    document.querySelectorAll('.upload-container').forEach(dropzone => {
+        dropzone.addEventListener('click', () => {
+            const input = dropzone.querySelector('input[type="file"]');
+            if (input) input.click();
+        });
+    });
 
-            const row = btn.closest('tr');
+    // FILE CHANGE
+    document.querySelectorAll('input[type="file"]').forEach(input => {
+        input.addEventListener('change', function () {
+            if (this.id === 'id-upload') {
+                updateUploadUI('id-dropzone', 'id-preview-text', 'file-name-display', this);
+            }
 
-            const name = safeText(row.querySelector('strong'), "Unknown");
-
-            let id = safeDataset(btn, 'id') || (row && row.dataset ? row.dataset.id : null) || (row.cells && row.cells[1] ? row.cells[1].innerText : null);
-
-            if(btn.classList.contains('logs')) {
-                openProfileModal(btn);
-            }else if(btn.classList.contains('edit')) {
-                openResetModal(name);
+            if (this.id === 'edit-id-upload') {
+                // Pass 'edit-file-name' or null if you don't have a name display for edit
+                updateUploadUI('edit-id-dropzone', 'edit-id-preview-text', 'edit-file-name', this);
             }
         });
-    }
+    });
 
-    const dropzone = document.getElementById('id-dropzone');
-    const fileInput = document.getElementById('id-upload');
-    if(dropzone && fileInput) {
-        dropzone.addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', function() {
-            updateUploadUI('id-dropzone', 'id-preview-text', 'file-name-display', this);
+    // RESET BUTTONS
+    document.querySelectorAll('.btn-file-reset').forEach(btn => {
+        btn.addEventListener('click', e => {
+            e.preventDefault();
+            resetUpload(e, btn.dataset.input, btn.dataset.dropzone, btn.dataset.preview);
+        });
+    });
+
+    // DRAG & DROP
+    enableDragAndDrop('id-dropzone', 'id-upload');
+    enableDragAndDrop('edit-id-dropzone', 'edit-id-upload');
+
+    // TABLE ACTIONS
+    const table = document.getElementById('customerTableBody');
+    if (table) {
+        table.addEventListener('click', e => {
+            const btn = e.target.closest('button');
+            if (!btn) return;
+
+            if (btn.classList.contains('logs')) openProfileModal(btn);
+
+            if (btn.classList.contains('edit')) openEditModal(btn); 
         });
     }
 
-    const resetBtn = document.querySelector('.btn-file-reset');
-    if(resetBtn) {
-        resetBtn.addEventListener('click', (e) => {
-            resetUpload(e, 'id-upload', 'id-dropzone', 'id-preview-text');
+    // SEARCH
+    const search = document.getElementById('customerSearch');
+    if (search) {
+        search.addEventListener('input', e => {
+            const term = e.target.value.toLowerCase();
+            document.querySelectorAll('#customerTableBody tr').forEach(row => {
+                row.style.display = row.innerText.toLowerCase().includes(term) ? '' : 'none';
+            });
         });
     }
+
 });
-/*============= END OF CSP EVENT BINDING =============*/

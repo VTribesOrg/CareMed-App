@@ -67,14 +67,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     /*============= END OF ACTION DROPDOWN TOGGLE =============*/
 
-    window.addEventListener('click', (e) => {
-        if (notifBtn && !notifBtn.contains(e.target)) notifDropdown?.classList.remove('active');
-        
-        if (e.target === regModal) window.closeAssetModal();
-        if (e.target === editModal) window.closeEditModal();
-        if (e.target === histModal) window.closeHistoryModal();
-    });
-
     /*============= REGISTERASSETMODAL =============*/
 
     window.openAssetModal = function() {
@@ -97,17 +89,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const row = button.closest('tr');
         if (!row) return;
 
-        const assetTag = row.cells[1].innerText;
-        const type = row.cells[2].innerText;
-        const model = row.cells[3].innerText;
-        const stock = row.cells[4].innerText.replace(' Units', '');
-        const price = row.cells[6].innerText.replace('₱', '').replace(',', '');
-        const rent = row.cells[7].innerText.replace('₱', '').replace(',', '');
 
-        document.getElementById('edit-tag').value = assetTag;
+        const type = row.cells[1].innerText;
+        const model = row.cells[2].innerText;
+        const price = row.cells[5].innerText.replace('₱', '').replace(',', '');
+        const rent = row.cells[6].innerText.replace('₱', '').replace(',', '');
+
+
         document.getElementById('edit-type').value = type;
         document.getElementById('edit-model').value = model;
-        document.getElementById('edit-stock').value = stock;
         document.getElementById('edit-price').value = price;
         document.getElementById('edit-rent').value = rent;
 
@@ -160,13 +150,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /*============= IMAGEUPLOAD =============*/
 
-    document.getElementById('product-dropzone')?.addEventListener('click', (e) => {
+
+
+    // Click triggers for Add and Edit
+    document.getElementById('product-dropzone')?.addEventListener('click', function(e) {
         if (!e.target.closest('.btn-file-reset')) document.getElementById('product-image-input').click();
     });
-    document.getElementById('edit-product-dropzone')?.addEventListener('click', (e) => {
+    document.getElementById('edit-product-dropzone')?.addEventListener('click', function(e) {
         if (!e.target.closest('.btn-file-reset')) document.getElementById('edit-product-image-input').click();
     });
 
+    // Change listeners
     document.getElementById('product-image-input')?.addEventListener('change', function() {
         window.updateUploadUI('product-dropzone', 'product-preview-text', 'product-file-name', this.files);
     });
@@ -174,6 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
         window.updateUploadUI('edit-product-dropzone', 'edit-product-preview-text', 'edit-product-file-name', this.files);
     });
 
+    // Reset listeners
     document.getElementById('reset-product-upload')?.addEventListener('click', (e) => {
         window.resetUpload(e, 'product-image-input', 'product-dropzone', 'product-preview-text');
     });
@@ -181,36 +176,162 @@ document.addEventListener('DOMContentLoaded', () => {
         window.resetUpload(e, 'edit-product-image-input', 'edit-product-dropzone', 'edit-product-preview-text');
     });
 
-    window.resetUpload = function(event, inputId, dropzoneId, previewId) {
-        event.stopPropagation();
-        const input = document.getElementById(inputId);
-        const dropzone = document.getElementById(dropzoneId);
-        const preview = document.getElementById(previewId);
 
-        if (input) input.value = "";
-        if (preview) preview.style.display = 'none';
-        if (dropzone) {
-            dropzone.style.borderColor = '#cbd5e1';
-            dropzone.style.background = '#f8fafc';
+
+
+
+    /*============= DRAG & DROP LOGIC =============*/
+
+    document.getElementById('assetEntryForm')?.addEventListener('submit', function(e) {
+        const fileInput = document.getElementById('product-image-input');
+        const dropzone = document.getElementById('product-dropzone');
+
+        // Check if the file input has any files
+        if (!fileInput.files || fileInput.files.length === 0) {
+            e.preventDefault(); // Stop the form from submitting
+
+            // 1. Visual Error Feedback
+            dropzone.classList.add('upload-error');
+            dropzone.style.borderColor = '#ef4444';
+            
+            // 2. Shake the dropzone
+            dropzone.style.animation = 'shake 0.4s ease-in-out';
+
+            // 3. Optional: Alert the user
+            alert("Clinical Registry Notice: A product image is required to save this entry.");
+
+            // 4. Remove the shake class after animation so it can trigger again
+            setTimeout(() => {
+                dropzone.style.animation = '';
+            }, 400);
+            
+            return false;
         }
-    };
+    });
 
-    window.updateUploadUI = function(dropzoneId, previewId, nameId, files) {
-        const preview = document.getElementById(previewId);
-        const nameDisp = document.getElementById(nameId);
-        const dropzone = document.getElementById(dropzoneId);
 
-        if (files && files[0]) {
-            if (preview) preview.style.display = 'flex';
+    ['product-dropzone', 'edit-product-dropzone'].forEach(id => {
+        const zone = document.getElementById(id);
+        if (!zone) return;
+
+        // 1. Prevent browser from opening the file
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            zone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            }, false);
+        });
+
+        // 2. Visual feedback when hovering over the zone
+        ['dragenter', 'dragover'].forEach(eventName => {
+            zone.addEventListener(eventName, () => {
+                zone.style.borderColor = '#0ea5e9'; // Blue highlight
+                zone.style.background = '#f0f9ff';
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            zone.addEventListener(eventName, () => {
+                // Only reset if no file is currently selected
+                const inputId = id === 'product-dropzone' ? 'product-image-input' : 'edit-product-image-input';
+                if (!document.getElementById(inputId).value) {
+                    zone.style.borderColor = '#cbd5e1';
+                    zone.style.background = '#f8fafc';
+                }
+            }, false);
+        });
+
+        zone.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            
+            if (files && files.length > 0) {
+                const file = files[0];
+
+                // VALIDATION: Is it an image?
+                if (!file.type.startsWith('image/')) {
+                    // 1. Apply the error style and shake animation
+                    zone.classList.add('upload-error');
+                    
+                    // 2. Optional: Change the icon color to red temporarily
+                    const icon = zone.querySelector('.upload-icon');
+                    if (icon) icon.style.color = '#ef4444';
+
+                    // 3. Remove the error state after 1 second
+                    setTimeout(() => {
+                        zone.classList.remove('upload-error');
+                        if (icon) icon.style.color = '#94a3b8';
+                        zone.style.borderColor = '#cbd5e1';
+                        zone.style.background = '#f8fafc';
+                    }, 1000);
+
+                    alert("Medical Registry Error: Please upload a valid image file (JPG/PNG).");
+                    return;
+                }
+
+                // ... rest of your successful upload logic (updateUploadUI, etc.)
+                const isEdit = id === 'edit-product-dropzone';
+                const inputId = isEdit ? 'edit-product-image-input' : 'product-image-input';
+                document.getElementById(inputId).files = files;
+                window.updateUploadUI(id, 
+                    isEdit ? 'edit-product-preview-text' : 'product-preview-text', 
+                    isEdit ? 'edit-product-file-name' : 'product-file-name', 
+                    files
+                );
+            }
+        });
+});
+/**
+ * FIXED: Now handles resetting the UI elements back to default visibility
+ */
+window.resetUpload = function(event, inputId, dropzoneId, previewId) {
+    event.stopPropagation();
+    const input = document.getElementById(inputId);
+    const dropzone = document.getElementById(dropzoneId);
+    const previewBox = document.getElementById(previewId);
+    const imgPreview = previewBox.querySelector('img');
+
+    if (input) input.value = "";
+    if (previewBox) previewBox.style.display = 'none';
+    if (imgPreview) imgPreview.src = "#"; // Clear the image
+    
+    if (dropzone) {
+        dropzone.style.borderColor = '#cbd5e1';
+        dropzone.style.background = '#f8fafc';
+        dropzone.querySelectorAll('.upload-icon, p').forEach(el => el.style.opacity = '1');
+    }
+};
+
+/**
+ * FIXED: Now hides background elements when a file is selected
+ */
+window.updateUploadUI = function(dropzoneId, previewId, nameId, files) {
+    const previewBox = document.getElementById(previewId);
+    const nameDisp = document.getElementById(nameId);
+    const dropzone = document.getElementById(dropzoneId);
+    
+    // Find the <img> tag inside this specific dropzone/preview area
+    const imgPreview = previewBox.querySelector('img');
+
+    if (files && files[0]) {
+        const reader = new FileReader();
+
+        reader.onload = function(e) {
+            if (imgPreview) imgPreview.src = e.target.result;
+            if (previewBox) previewBox.style.display = 'flex';
             if (nameDisp) nameDisp.innerText = files[0].name;
+            
             if (dropzone) {
                 dropzone.style.borderColor = '#10b981';
                 dropzone.style.background = '#f0fdf4';
+                dropzone.querySelectorAll('.upload-icon, p').forEach(el => el.style.opacity = '0.1');
             }
-        }
-    };
+        };
 
-    /*============= END OF IMAGEUPLOAD =============*/
+        reader.readAsDataURL(files[0]); // This converts the image to a format the <img> tag can show
+    }
+};
+/*============= END OF IMAGEUPLOAD =============*/
 
 
     const inventoryTable = document.getElementById('inventory-table');
@@ -346,8 +467,8 @@ document.getElementById('purchase-unit-price')?.addEventListener('input', update
 
 /*============= DELETEMODAL =============*/
 const deleteModal = document.getElementById('deleteAssetModal');
+const deleteForm = document.getElementById('deleteAssetForm'); // Reference the form
 const closeButtons = document.querySelectorAll('.close-modal-btn');
-const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
 let assetIdToDelete = null;
 
 document.addEventListener('click', function(e) {
@@ -357,14 +478,22 @@ document.addEventListener('click', function(e) {
         const row = deleteBtn.closest('tr');
         assetIdToDelete = row.getAttribute('data-id');
         
+        // Grab the name from the 3rd cell (index 2)
         const assetName = row.cells[2].innerText; 
         const deleteNameDisplay = document.getElementById('delete-asset-name');
         if (deleteNameDisplay) deleteNameDisplay.innerText = assetName;
+
+        // DYNAMICALLY SET THE FORM ACTION URL
+        // Assumes your route is /admin/delete-product/<id>
+        if (deleteForm) {
+            deleteForm.action = `/admin/delete-product/${assetIdToDelete}`;
+        }
 
         deleteModal.classList.remove('hidden');
     }
 });
 
+// Logic to hide the modal
 closeButtons.forEach(button => {
     button.addEventListener('click', () => {
         deleteModal.classList.add('hidden');
@@ -372,21 +501,12 @@ closeButtons.forEach(button => {
     });
 });
 
-if (confirmDeleteBtn) {
-    confirmDeleteBtn.addEventListener('click', () => {
-        if (assetIdToDelete) {
-            console.log("Processing deletion for Asset ID:", assetIdToDelete);
-            deleteModal.classList.add('hidden');
-        }
-    });
-}
-
+// Close when clicking outside the modal content
 window.addEventListener('click', (e) => {
     if (e.target === deleteModal) {
         deleteModal.classList.add('hidden');
     }
 });
-
 /*============= END OF DELETEMODAL =============*/
 
 /*============= START OF PAGINATION =============*/
