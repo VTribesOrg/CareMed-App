@@ -1524,4 +1524,12 @@ body.ready .viewport-container {
     display: none !important;
 }
 
+.na-text {
+    color: #94a3b8;
+    font-style: italic;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    opacity: 0.85;
+}
+
 /*============================= END OF PROFILE VALID ID =============================*/

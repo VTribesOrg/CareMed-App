@@ -21,7 +21,6 @@ function closeRegisterModal() {
 }
 /*============= END OF MODAL FUNCTIONS =============*/
 
-
 /*============= START OF PROFILE MODAL FUNCTIONS =============*/
 function openProfileModal(btn) {
     const modal = document.getElementById('profileModal');
@@ -55,15 +54,16 @@ function openProfileModal(btn) {
     const secondaryIdType = btn.dataset.secondarytype;
     /* ===== END OF NEW DATASETS ===== */
 
-    if (modalName) modalName.textContent = name || "N/A";
-    if (modalPhone) modalPhone.textContent = phone || "N/A";
-    if (modalAddress) modalAddress.textContent = address || "N/A";
-    if (modalBirthday) modalBirthday.textContent = birthday || "N/A";
-    if (modalGender) modalGender.textContent = gender || "N/A";
+    // ✅ FIX: handle "None", "null", empty
+    if (modalName) modalName.innerHTML = (name && name !== "None" && name !== "null") ? name : '<span class="na-text">N/A</span>';
+    if (modalPhone) modalPhone.innerHTML = (phone && phone !== "None" && phone !== "null") ? phone : '<span class="na-text">N/A</span>';
+    if (modalAddress) modalAddress.innerHTML = (address && address !== "None" && address !== "null") ? address : '<span class="na-text">N/A</span>';
+    if (modalBirthday) modalBirthday.innerHTML = (birthday && birthday !== "None" && birthday !== "null") ? birthday : '<span class="na-text">N/A</span>';
+    if (modalGender) modalGender.innerHTML = (gender && gender !== "None" && gender !== "null") ? gender : '<span class="na-text">N/A</span>';
 
     /* ===== START PRIMARY ID DISPLAY ===== */
     if (primaryImg && primaryFallback) {
-        if (primaryIdUrl && primaryIdUrl.trim() !== "" && primaryIdUrl !== "None") {
+        if (primaryIdUrl && primaryIdUrl.trim() !== "" && primaryIdUrl !== "None" && primaryIdUrl !== "null") {
             primaryImg.src = primaryIdUrl;
             primaryImg.style.display = "block";
             primaryFallback.style.display = "none";
@@ -76,7 +76,7 @@ function openProfileModal(btn) {
 
     /* ===== START SECONDARY ID DISPLAY ===== */
     if (secondaryImg && secondaryFallback) {
-        if (secondaryIdUrl && secondaryIdUrl.trim() !== "" && secondaryIdUrl !== "None") {
+        if (secondaryIdUrl && secondaryIdUrl.trim() !== "" && secondaryIdUrl !== "None" && secondaryIdUrl !== "null") {
             secondaryImg.src = secondaryIdUrl;
             secondaryImg.style.display = "block";
             secondaryFallback.style.display = "none";
@@ -88,8 +88,8 @@ function openProfileModal(btn) {
     /* ===== END SECONDARY ID DISPLAY ===== */
 
     /* ===== START ID TYPES ===== */
-    if (primaryType) primaryType.textContent = primaryIdType || "N/A";
-    if (secondaryType) secondaryType.textContent = secondaryIdType || "N/A";
+    if (primaryType) primaryType.innerHTML = (primaryIdType && primaryIdType !== "None" && primaryIdType !== "null") ? primaryIdType : '<span class="na-text">N/A</span>';
+    if (secondaryType) secondaryType.innerHTML = (secondaryIdType && secondaryIdType !== "None" && secondaryIdType !== "null") ? secondaryIdType : '<span class="na-text">N/A</span>';
     /* ===== END ID TYPES ===== */
 
     modal.classList.remove('hidden');

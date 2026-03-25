@@ -139,18 +139,18 @@ def get_customer(id):
             "status": "success",
             "data": {
                 "id": customer.id,
-                "first_name": customer.first_name or "",
-                "last_name": customer.last_name or "",
+                "first_name": customer.first_name or "N/A",
+                "last_name": customer.last_name or "N/A",
                 "full_name": f"{customer.first_name} {customer.last_name}",
 
-                "contact_number": customer.contact_number or "",
-                "home_address": customer.home_address or "",
+                "contact_number": customer.contact_number or "N/A",
+                "home_address": customer.home_address or "N/A",
 
                 "birthday": customer.birthday.strftime('%Y-%m-%d') if customer.birthday else "",
-                "gender": customer.gender or "",
+                "gender": customer.gender or "N/A",
 
-                "primary_id_type": customer.primary_id_type or "",
-                "secondary_id_type": customer.secondary_id_type or "",
+                "primary_id_type": customer.primary_id_type or "N/A",
+                "secondary_id_type": customer.secondary_id_type or "N/A",
 
                 "valid_id_path": url_for('static', filename=customer.valid_id_path) if customer.valid_id_path else None,
                 "secondary_id_path": url_for('static', filename=customer.secondary_id_path) if customer.secondary_id_path else None,
