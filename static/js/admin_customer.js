@@ -24,10 +24,13 @@ function openProfileModal(btn) {
     const modal = document.getElementById('profileModal');
     if (!modal || !btn) return;
 
+    // Elements
     const modalName = document.getElementById('modalName');
     const modalID = document.getElementById('modalID');
     const modalPhone = document.getElementById('modalPhone');
     const modalAddress = document.getElementById('modalAddress');
+    const modalBirthday = document.getElementById('modalBirthday'); // New
+    const modalGender = document.getElementById('modalGender');     // New
 
     const avatarImg = document.getElementById('modalAvatarImg');
     const avatarFallback = document.getElementById('modalAvatarFallback');
@@ -35,36 +38,48 @@ function openProfileModal(btn) {
     const idImg = document.getElementById('modalIDImg');
     const idFallback = document.getElementById('modalIDFallback');
 
+    // Data from Button Attributes
     const id = btn.dataset.id;
     const name = btn.dataset.name;
     const phone = btn.dataset.phone;
     const address = btn.dataset.address;
+    const birthday = btn.dataset.birthday; // New
+    const gender = btn.dataset.gender;     // New
     const avatar = btn.dataset.avatar;
-    const validId = btn.dataset.idimg;
+    const idImageUrl = btn.dataset.idimg;
 
+    // Show Modal
     modal.classList.remove('hidden');
 
+    // Set Text Values
     modalName.innerText = name || "N/A";
     modalID.innerText = id ? "Customer ID: " + id : "N/A";
     modalPhone.innerText = phone || "N/A";
     modalAddress.innerText = address || "N/A";
+    
+    // Set New Text Values
+    if (modalBirthday) modalBirthday.innerText = birthday || "N/A";
+    if (modalGender) modalGender.innerText = gender || "N/A";
 
-    // Avatar
-    if (avatar) {
+    // Handle Avatar Logic
+    if (avatar && avatar !== "null" && avatar !== "") {
         avatarImg.src = avatar.startsWith('/') ? avatar : `/static/${avatar}`;
         avatarImg.style.display = "block";
         avatarFallback.style.display = "none";
     } else {
+        avatarImg.src = "";
         avatarImg.style.display = "none";
         avatarFallback.style.display = "flex";
     }
 
-    // ID
-    if (validId) {
-        idImg.src = validId;
+    // Handle ID Card Logic
+    if (idImageUrl && idImageUrl !== "null" && idImageUrl !== "") {
+        // Ensure the path is correct if it's stored similarly to the avatar
+        idImg.src = idImageUrl.startsWith('/') ? idImageUrl : `/static/${idImageUrl}`;
         idImg.style.display = "block";
         idFallback.style.display = "none";
     } else {
+        idImg.src = "";
         idImg.style.display = "none";
         idFallback.style.display = "flex";
     }

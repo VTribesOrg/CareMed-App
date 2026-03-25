@@ -67,7 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     /*============= END OF ACTION DROPDOWN TOGGLE =============*/
 
-    /*============= REGISTERASSETMODAL =============*/
+/*============= REGISTERASSETMODAL =============*/
 
     window.openAssetModal = function() {
         regModal?.classList.remove('hidden');
@@ -75,6 +75,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.closeAssetModal = function() {
         regModal?.classList.add('hidden');
+        
+        // 1. Reset the standard form fields 
+        // Note: Using 'assetEntryForm' to match the ID in your HTML
+        const regForm = document.getElementById('assetEntryForm');
+        if (regForm) regForm.reset();
+
+        // 2. Reset the Image Upload specific elements
+        const fileInput = document.getElementById('product-image-input');
+        const imagePreview = document.getElementById('product-image-preview');
+        const placeholder = document.getElementById('product-upload-placeholder');
+        const previewContainer = document.getElementById('product-preview-container');
+        const dropzone = document.getElementById('product-dropzone');
+
+        if (fileInput) fileInput.value = "";
+        
+        // FIX: Remove the attribute entirely and clear alt text to stop the broken icon
+        if (imagePreview) {
+            imagePreview.removeAttribute('src');
+            imagePreview.removeAttribute('alt');
+        }
+        
+        // Restore placeholder and hide preview container
+        if (placeholder) placeholder.style.display = 'block';
+        if (previewContainer) previewContainer.style.display = 'none';
+
+        // Revert dropzone styles to original state
+        if (dropzone) {
+            dropzone.style.borderColor = '#e2e8f0';
+            dropzone.style.backgroundColor = '#f8fafc'; // Changed to match your initial style
+            dropzone.style.cursor = 'pointer';
+        }
     };
 
     document.querySelectorAll('.close-reg-modal').forEach(btn => btn.addEventListener('click', window.closeAssetModal));
@@ -85,32 +116,62 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /*============= EDITASSETMODAL =============*/
 
-    window.openEditModal = function(button) {
-        const row = button.closest('tr');
-        if (!row) return;
+    window.openEditModal = function(productData) {
+        const editModal = document.getElementById('editAssetModal');
+        const editForm = document.getElementById('editAssetForm');
 
+        if (!editModal || !editForm) return;
 
-        const type = row.cells[1].innerText;
-        const model = row.cells[2].innerText;
-        const price = row.cells[5].innerText.replace('₱', '').replace(',', '');
-        const rent = row.cells[6].innerText.replace('₱', '').replace(',', '');
+        // Update the form action URL
+        editForm.action = `/admin/edit-product/${productData.id}`;
 
+        // Fill fields
+        document.getElementById('edit-product-id').value = productData.id;
+        document.getElementById('edit-type').value = productData.type || '';
+        document.getElementById('edit-model').value = productData.model || '';
+        document.getElementById('edit-stock').value = productData.stock || 0;
+        document.getElementById('edit-rent').value = productData.rent || 0;
+        document.getElementById('edit-price').value = productData.price || 0;
+        document.getElementById('edit-description').value = productData.description || '';
 
-        document.getElementById('edit-type').value = type;
-        document.getElementById('edit-model').value = model;
-        document.getElementById('edit-price').value = price;
-        document.getElementById('edit-rent').value = rent;
+        // Handle Image Preview
+        const previewContainer = document.getElementById('edit-product-preview-container');
+        const previewImg = document.getElementById('edit-product-image-preview');
+        const placeholder = document.getElementById('edit-product-upload-placeholder');
 
-        editModal?.classList.remove('hidden');
+        if (productData.image && productData.image !== 'None' && productData.image !== '') {
+            previewImg.src = `/static/${productData.image}`;
+            previewContainer.style.display = 'flex';
+            placeholder.style.display = 'none';
+        } else {
+            previewImg.removeAttribute('src');
+            previewContainer.style.display = 'none';
+            placeholder.style.display = 'block';
+        }
+
+        editModal.classList.remove('hidden');
     };
 
+
+
+    // 2. Close Modal Handler
     window.closeEditModal = function() {
+        const editModal = document.getElementById('editAssetModal');
         editModal?.classList.add('hidden');
+        
+        // Cleanup: remove src to prevent the "old" image flashing next time it opens
+        const previewImg = document.getElementById('edit-product-image-preview');
+        if (previewImg) {
+            previewImg.removeAttribute('src');
+        }
     };
 
-    document.querySelectorAll('.close-edit-modal').forEach(btn => btn.addEventListener('click', window.closeEditModal));
+    document.querySelectorAll('.close-edit-modal').forEach(btn => {
+        btn.addEventListener('click', window.closeEditModal);
+    });
 
-    /*============= END OF EDITASSETMODAL =============*/
+/*============= END OF EDITASSETMODAL =============*/
+
 
     /*============= HISTORYMODAL =============*/
 
@@ -147,213 +208,184 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /*============= END OF HISTORYMODAL =============*/
 
+/*============= IMAGE UPLOAD & DRAG-DROP (CLEAN & SAFE) =============*/
+(function() {
+    const setupUpload = (dropzoneId, inputId, placeholderId, previewContainerId, imagePreviewId, resetBtnId) => {
+        const dropzone = document.getElementById(dropzoneId);
+        const fileInput = document.getElementById(inputId);
+        const placeholder = document.getElementById(placeholderId);
+        const previewContainer = document.getElementById(previewContainerId);
+        const imagePreview = document.getElementById(imagePreviewId);
+        const resetBtn = document.getElementById(resetBtnId);
 
-    /*============= IMAGEUPLOAD =============*/
+        if (!dropzone || !fileInput || !previewContainer) return;
 
-
-
-    // Click triggers for Add and Edit
-    document.getElementById('product-dropzone')?.addEventListener('click', function(e) {
-        if (!e.target.closest('.btn-file-reset')) document.getElementById('product-image-input').click();
-    });
-    document.getElementById('edit-product-dropzone')?.addEventListener('click', function(e) {
-        if (!e.target.closest('.btn-file-reset')) document.getElementById('edit-product-image-input').click();
-    });
-
-    // Change listeners
-    document.getElementById('product-image-input')?.addEventListener('change', function() {
-        window.updateUploadUI('product-dropzone', 'product-preview-text', 'product-file-name', this.files);
-    });
-    document.getElementById('edit-product-image-input')?.addEventListener('change', function() {
-        window.updateUploadUI('edit-product-dropzone', 'edit-product-preview-text', 'edit-product-file-name', this.files);
-    });
-
-    // Reset listeners
-    document.getElementById('reset-product-upload')?.addEventListener('click', (e) => {
-        window.resetUpload(e, 'product-image-input', 'product-dropzone', 'product-preview-text');
-    });
-    document.getElementById('reset-edit-upload')?.addEventListener('click', (e) => {
-        window.resetUpload(e, 'edit-product-image-input', 'edit-product-dropzone', 'edit-product-preview-text');
-    });
-
-
-
-
-
-    /*============= DRAG & DROP LOGIC =============*/
-
-    document.getElementById('assetEntryForm')?.addEventListener('submit', function(e) {
-        const fileInput = document.getElementById('product-image-input');
-        const dropzone = document.getElementById('product-dropzone');
-
-        // Check if the file input has any files
-        if (!fileInput.files || fileInput.files.length === 0) {
-            e.preventDefault(); // Stop the form from submitting
-
-            // 1. Visual Error Feedback
-            dropzone.classList.add('upload-error');
-            dropzone.style.borderColor = '#ef4444';
-            
-            // 2. Shake the dropzone
-            dropzone.style.animation = 'shake 0.4s ease-in-out';
-
-            // 3. Optional: Alert the user
-            alert("Clinical Registry Notice: A product image is required to save this entry.");
-
-            // 4. Remove the shake class after animation so it can trigger again
-            setTimeout(() => {
-                dropzone.style.animation = '';
-            }, 400);
-            
-            return false;
-        }
-    });
-
-
-    ['product-dropzone', 'edit-product-dropzone'].forEach(id => {
-        const zone = document.getElementById(id);
-        if (!zone) return;
-
-        // 1. Prevent browser from opening the file
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            zone.addEventListener(eventName, (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-            }, false);
-        });
-
-        // 2. Visual feedback when hovering over the zone
-        ['dragenter', 'dragover'].forEach(eventName => {
-            zone.addEventListener(eventName, () => {
-                zone.style.borderColor = '#0ea5e9'; // Blue highlight
-                zone.style.background = '#f0f9ff';
-            }, false);
-        });
-
-        ['dragleave', 'drop'].forEach(eventName => {
-            zone.addEventListener(eventName, () => {
-                // Only reset if no file is currently selected
-                const inputId = id === 'product-dropzone' ? 'product-image-input' : 'edit-product-image-input';
-                if (!document.getElementById(inputId).value) {
-                    zone.style.borderColor = '#cbd5e1';
-                    zone.style.background = '#f8fafc';
-                }
-            }, false);
-        });
-
-        zone.addEventListener('drop', (e) => {
-            const dt = e.dataTransfer;
-            const files = dt.files;
-            
-            if (files && files.length > 0) {
-                const file = files[0];
-
-                // VALIDATION: Is it an image?
-                if (!file.type.startsWith('image/')) {
-                    // 1. Apply the error style and shake animation
-                    zone.classList.add('upload-error');
-                    
-                    // 2. Optional: Change the icon color to red temporarily
-                    const icon = zone.querySelector('.upload-icon');
-                    if (icon) icon.style.color = '#ef4444';
-
-                    // 3. Remove the error state after 1 second
-                    setTimeout(() => {
-                        zone.classList.remove('upload-error');
-                        if (icon) icon.style.color = '#94a3b8';
-                        zone.style.borderColor = '#cbd5e1';
-                        zone.style.background = '#f8fafc';
-                    }, 1000);
-
-                    alert("Medical Registry Error: Please upload a valid image file (JPG/PNG).");
-                    return;
-                }
-
-                // ... rest of your successful upload logic (updateUploadUI, etc.)
-                const isEdit = id === 'edit-product-dropzone';
-                const inputId = isEdit ? 'edit-product-image-input' : 'product-image-input';
-                document.getElementById(inputId).files = files;
-                window.updateUploadUI(id, 
-                    isEdit ? 'edit-product-preview-text' : 'product-preview-text', 
-                    isEdit ? 'edit-product-file-name' : 'product-file-name', 
-                    files
-                );
-            }
-        });
-});
-/**
- * FIXED: Now handles resetting the UI elements back to default visibility
- */
-window.resetUpload = function(event, inputId, dropzoneId, previewId) {
-    event.stopPropagation();
-    const input = document.getElementById(inputId);
-    const dropzone = document.getElementById(dropzoneId);
-    const previewBox = document.getElementById(previewId);
-    const imgPreview = previewBox.querySelector('img');
-
-    if (input) input.value = "";
-    if (previewBox) previewBox.style.display = 'none';
-    if (imgPreview) imgPreview.src = "#"; // Clear the image
-    
-    if (dropzone) {
-        dropzone.style.borderColor = '#cbd5e1';
-        dropzone.style.background = '#f8fafc';
-        dropzone.querySelectorAll('.upload-icon, p').forEach(el => el.style.opacity = '1');
-    }
-};
-
-/**
- * FIXED: Now hides background elements when a file is selected
- */
-window.updateUploadUI = function(dropzoneId, previewId, nameId, files) {
-    const previewBox = document.getElementById(previewId);
-    const nameDisp = document.getElementById(nameId);
-    const dropzone = document.getElementById(dropzoneId);
-    
-    // Find the <img> tag inside this specific dropzone/preview area
-    const imgPreview = previewBox.querySelector('img');
-
-    if (files && files[0]) {
-        const reader = new FileReader();
-
-        reader.onload = function(e) {
-            if (imgPreview) imgPreview.src = e.target.result;
-            if (previewBox) previewBox.style.display = 'flex';
-            if (nameDisp) nameDisp.innerText = files[0].name;
-            
-            if (dropzone) {
-                dropzone.style.borderColor = '#10b981';
-                dropzone.style.background = '#f0fdf4';
-                dropzone.querySelectorAll('.upload-icon, p').forEach(el => el.style.opacity = '0.1');
-            }
+        /* ========= SAFER STATE CHECK ========= */
+        const isPreviewVisible = () => {
+            return window.getComputedStyle(previewContainer).display !== 'none';
         };
 
-        reader.readAsDataURL(files[0]); // This converts the image to a format the <img> tag can show
-    }
-};
-/*============= END OF IMAGEUPLOAD =============*/
+        /* ========= UI HELPERS ========= */
+        const showPreview = (src) => {
+            imagePreview.src = src;
+            placeholder.style.display = 'none';
+            previewContainer.style.display = 'flex';
 
+            dropzone.style.borderColor = '#10b981';
+            dropzone.style.background = '#f0fdf4';
+            dropzone.style.cursor = 'default';
+        };
+
+        const resetPreview = () => {
+            fileInput.value = "";
+
+            if (imagePreview) {
+                imagePreview.removeAttribute('src');
+                imagePreview.removeAttribute('alt');
+            }
+
+            placeholder.style.display = 'block';
+            previewContainer.style.display = 'none';
+
+            dropzone.style.borderColor = '#e2e8f0';
+            dropzone.style.background = '#f8fafc';
+            dropzone.style.cursor = 'pointer';
+        };
+
+        /* ========= CLICK TO UPLOAD ========= */
+        dropzone.addEventListener('click', (e) => {
+            if (!isPreviewVisible() && !e.target.closest(`#${resetBtnId}`)) {
+                fileInput.click();
+            }
+        });
+
+        /* ========= FILE SELECT ========= */
+        fileInput.addEventListener('change', function() {
+            const file = this.files[0];
+
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+
+                reader.onload = (e) => {
+                    showPreview(e.target.result);
+                };
+
+                reader.readAsDataURL(file);
+            } else if (file) {
+                alert("Please upload a valid image file.");
+                this.value = "";
+            }
+        });
+
+        /* ========= RESET BUTTON ========= */
+        if (resetBtn) {
+            resetBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                resetPreview();
+            });
+        }
+
+        /* ========= DRAG EVENTS ========= */
+        ['dragenter', 'dragover'].forEach(event => {
+            dropzone.addEventListener(event, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+
+                if (!isPreviewVisible()) {
+                    dropzone.style.borderColor = '#0ea5e9';
+                    dropzone.style.background = '#f0f9ff';
+                }
+            });
+        });
+
+        ['dragleave', 'drop'].forEach(event => {
+            dropzone.addEventListener(event, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+
+                if (isPreviewVisible()) {
+                    dropzone.style.borderColor = '#10b981';
+                    dropzone.style.background = '#f0fdf4';
+                } else {
+                    dropzone.style.borderColor = '#e2e8f0';
+                    dropzone.style.background = '#f8fafc';
+                }
+            });
+        });
+
+        /* ========= DROP FILE ========= */
+        dropzone.addEventListener('drop', (e) => {
+            if (isPreviewVisible()) return;
+
+            const files = e.dataTransfer.files;
+
+            if (files.length > 0 && files[0].type.startsWith('image/')) {
+                fileInput.files = files;
+                fileInput.dispatchEvent(new Event('change'));
+            }
+        });
+
+        /* ========= INITIAL RESET (IMPORTANT) ========= */
+        // Ensures no ghost image on load
+        resetPreview();
+    };
+
+    /* ========= INIT ========= */
+    setupUpload(
+        'product-dropzone', 
+        'product-image-input', 
+        'product-upload-placeholder', 
+        'product-preview-container', 
+        'product-image-preview', 
+        'reset-product-upload'
+    );
+
+    setupUpload(
+        'edit-product-dropzone', 
+        'edit-product-image-input', 
+        'edit-product-upload-placeholder', 
+        'edit-product-preview-container', 
+        'edit-product-image-preview', 
+        'reset-edit-upload'
+    );
+})();
+/*============= END OF IMAGE UPLOAD =============*/
 
     const inventoryTable = document.getElementById('inventory-table');
 
     if (inventoryTable) {
         inventoryTable.addEventListener('click', (e) => {
+            // Change '.btn-edit-trigger' to '.dropdown-item.edit' to match your HTML
             const editBtn = e.target.closest('.dropdown-item.edit');
             const logsBtn = e.target.closest('.dropdown-item.logs');
             const deleteBtn = e.target.closest('.dropdown-item.delete');
 
             if (editBtn) {
-                window.openEditModal(editBtn);
+                const rawDesc = editBtn.dataset.description;
+                // Extract the dataset from the button to create the 'productData' object
+                const productData = {
+                    id: editBtn.dataset.id,
+                    type: editBtn.dataset.type,
+                    model: editBtn.dataset.model,
+                    stock: editBtn.dataset.stock,
+                    rent: editBtn.dataset.rent,
+                    price: editBtn.dataset.price,
+                    description: (rawDesc === "None" || !rawDesc || rawDesc.trim() === "") ? "" : rawDesc.trim(),
+                    image: editBtn.dataset.image
+                };
+                
+                // Now call the modal function with the object it expects
+                window.openEditModal(productData);
             } 
             else if (logsBtn) {
                 window.openHistoryModal(logsBtn);
-            } 
-            else if (deleteBtn) {
-                const row = deleteBtn.closest('tr');
-                const assetTag = row.cells[1].innerText;
-                console.log("Deleting...", assetTag);
             }
-        });
+                else if (deleteBtn) {
+                    const row = deleteBtn.closest('tr');
+                    const assetTag = row.cells[1].innerText;
+                    console.log("Deleting...", assetTag);
+                }
+            });
     }
 });
 
@@ -618,3 +650,5 @@ document.addEventListener('DOMContentLoaded', () => {
     updateTableDisplay();
 });
 /*============= END OF PAGINATION =============*/
+
+

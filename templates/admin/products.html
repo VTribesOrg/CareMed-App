@@ -282,9 +282,18 @@
                                                         <span class="material-symbols-rounded">add_box</span> Add Stock
                                                     </button>
                                                     
-                                                    <button class="dropdown-item edit" style="color: #00a8cc;">
+                                                    <button class="dropdown-item edit" style="color: #00a8cc;"
+                                                        data-id="{{ product.id }}"
+                                                        data-type="{{ product.equipment_type }}"
+                                                        data-model="{{ product.model }}"
+                                                        data-stock="{{ product.stock }}"
+                                                        data-rent="{{ product.rent_price }}"
+                                                        data-price="{{ product.sale_price }}"
+                                                        data-description="{{ product.description if product.description and product.description != 'None' else '' }}"
+                                                        data-image="{{ product.image }}">
                                                         <span class="material-symbols-rounded">edit</span> Edit Details
                                                     </button>
+                                                    
                                                     
                                                     <button class="dropdown-item logs" onclick="openHistoryModal(this)" style="color: #64748b;">
                                                         <span class="material-symbols-rounded">history</span> View Logs
@@ -335,7 +344,7 @@
     </div>
 
     <div id="registerAssetModal" class="medical-modal-overlay hidden">
-        <div class="medical-modal-content rent-modal-width">
+        <div class="medical-modal-content rent-modal-width" style="max-width: 750px;">
             <div class="modal-header-row">
                 <div>
                     <h2 class="modal-header">Add New Inventory</h2>
@@ -347,57 +356,54 @@
             <form id="assetEntryForm" method="POST" action="{{ url_for('admin.add_product') }}" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-                <div class="form-layout-grid">
-                    <div class="form-field full-width">
+                <div style="display: flex; gap: 20px; margin-bottom: 20px;">
+                    
+                    <div class="form-field" style="flex: 0 0 220px;">
                         <label>Product Image</label>
-                        <div class="upload-container" id="product-dropzone">
-                            <span class="material-symbols-rounded upload-icon" style="font-size: 40px; color: #94a3b8; margin-bottom: 8px;">inventory_2</span>
-                            <p style="margin: 0; color: #475569;"><strong>Click to upload</strong> or drag and drop</p>
+                        <div class="upload-container" id="product-dropzone" 
+                            style="height: 160px; padding: 0; overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center; border: 2px dashed #e2e8f0; border-radius: 8px; background-color: #f8fafc;">
+                            
+                            <div id="product-upload-placeholder" style="text-align: center; pointer-events: none; z-index: 1;">
+                                <span class="material-symbols-rounded" style="font-size: 32px; color: #94a3b8; display: block;">inventory_2</span>
+                                <p style="margin: 5px 0 0 0; color: #475569; font-size: 0.8rem;"><strong>Click</strong> or drag</p>
+                            </div>
                             
                             <input type="file" name="image" id="product-image-input" hidden accept="image/*">
 
-                            <div id="product-preview-text" class="preview-active-box" style="display: none;">
-                                <div class="preview-info" style="display: flex; align-items: center; gap: 10px; flex: 1;">
-                                    <div class="thumbnail-wrapper">
-                                        <img id="product-image-preview" src="#" alt="Preview">
-                                    </div>
-                                    <span id="product-file-name" class="file-name-text">Image Selected</span>
-                                </div>
-                                <span class="material-symbols-rounded btn-file-reset" id="reset-product-upload">cancel</span>
+                            <div id="product-preview-container" style="display: none; position: absolute; inset: 0; z-index: 2; background-color: #ffffff; align-items: center; justify-content: center;">
+
+                                <img id="product-image-preview" style="width: 100%; height: 100%; object-fit: contain; display: block;">
+                                
+                                <span class="material-symbols-rounded" id="reset-product-upload" 
+                                    style="position: absolute; top: 8px; right: 8px; color: white; background: rgba(0,0,0,0.5); border-radius: 50%; cursor: pointer; font-size: 20px; padding: 2px; transition: background 0.2s;">
+                                    close
+                                </span>
                             </div>
                         </div>
                     </div>
+                    <div style="flex: 1; display: flex; flex-direction: column; gap: 15px;">
+                        <div class="form-field">
+                            <label class="clinical-label">Equipment Type</label>
+                            <div class="input-wrapper">
+                                <input type="text" name="equipment_type" class="clinical-input medical-select" list="equipment-types" placeholder="e.g. Hospital Bed" required>
+                                <span class="material-symbols-rounded input-icon">search_insights</span>
+                                <datalist id="equipment-types">
+                                    <option value="Manual Hospital Bed">
+                                    <option value="Electric Wheelchair">
+                                    <option value="Oxygen Tank Full Set">
+                                    <option value="Suction Machine">
+                                </datalist>
+                            </div>
+                        </div>
 
-                    
-                    <div class="form-field full-width">
-                        <label class="clinical-label">Equipment Type</label>
-                        
-                        <div class="input-wrapper">
-                            <input 
-                                type="text"
-                                name="equipment_type"
-                                class="clinical-input medical-select"
-                                list="equipment-types"
-                                placeholder="Select or type equipment..."
-                                autocomplete="off"
-                                required
-                            >
-                            <span class="material-symbols-rounded input-icon">search_insights</span>
-                            
-                            <datalist id="equipment-types">
-                                <option value="Manual Hospital Bed">
-                                <option value="Electric Wheelchair">
-                                <option value="Oxygen Tank Full Set">
-                                <option value="Suction Machine">
-                            </datalist>
+                        <div class="form-field">
+                            <label>Model / OEM</label>
+                            <input type="text" name="model" class="clinical-input" placeholder="Manufacturer Name">
                         </div>
                     </div>
+                </div>
 
-                    <div class="form-field">
-                        <label>Model / OEM</label>
-                        <input type="text" name="model" class="clinical-input" placeholder="Manufacturer Name">
-                    </div>
-
+                <div class="form-layout-grid" style="grid-template-columns: repeat(3, 1fr); gap: 15px;">
                     <div class="form-field">
                         <label>Initial Stock (Units)</label>
                         <input type="number" name="stock" class="clinical-input" placeholder="0">
@@ -412,6 +418,13 @@
                         <label>Selling Price (₱)</label>
                         <input type="number" name="sale_price" class="clinical-input" placeholder="0.00">
                     </div>
+
+                    <div class="form-field full-width" style="grid-column: span 3;">
+                        <label>Product Description</label>
+                        <textarea name="description" class="clinical-input" rows="3" 
+                            style="width: 100%; resize: none; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; font-family: inherit;" 
+                            placeholder="Enter technical specifications or condition details..."></textarea>
+                    </div>
                 </div>
 
                 <div class="modal-footer-actions">
@@ -423,7 +436,7 @@
     </div>
 
     <div id="editAssetModal" class="medical-modal-overlay hidden">
-        <div class="medical-modal-content rent-modal-width">
+        <div class="medical-modal-content rent-modal-width" style="max-width: 750px;">
             <div class="modal-header-row">
                 <div>
                     <h2 class="modal-header">Edit Equipment Details</h2>
@@ -436,47 +449,51 @@
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="product_id" id="edit-product-id">
 
-                <div class="form-layout-grid">
-                    <div class="form-field full-width">
+                <div style="display: flex; gap: 20px; margin-bottom: 20px;">
+                    
+                    <div class="form-field" style="flex: 0 0 220px;">
                         <label>Product Image</label>
-                        <div class="upload-container" id="edit-product-dropzone">
-                            <span class="material-symbols-rounded upload-icon" style="font-size: 40px; color: #94a3b8; margin-bottom: 8px;">inventory_2</span>
-                            <p style="margin: 0; color: #475569;"><strong>Click to upload</strong> or drag and drop</p>
+                        <div class="upload-container" id="edit-product-dropzone" 
+                            style="height: 160px; border: 2px dashed #e2e8f0; border-radius: 8px; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                            
+                            <div id="edit-product-upload-placeholder" style="text-align: center; pointer-events: none; z-index: 1;">
+                                <span class="material-symbols-rounded" style="font-size: 32px; color: #94a3b8; display: block;">inventory_2</span>
+                                <p style="margin: 5px 0 0 0; color: #475569; font-size: 0.8rem;"><strong>Click</strong> or drag</p>
+                            </div>
                             
                             <input type="file" name="image" id="edit-product-image-input" hidden accept="image/*">
 
-                            <div id="edit-product-preview-text" class="preview-active-box" style="display: none;">
-                                <div class="preview-info" style="display: flex; align-items: center; gap: 10px; flex: 1;">
-                                    <div class="thumbnail-wrapper">
-                                        <img id="edit-product-image-preview" src="#" alt="Preview">
-                                    </div>
-                                    <span id="edit-product-file-name" class="file-name-text">Image Selected</span>
-                                </div>
-                                <span class="material-symbols-rounded btn-file-reset" id="reset-edit-upload">cancel</span>
+                            <div id="edit-product-preview-container" style="display: none; position: absolute; inset: 0; z-index: 2; background: #fff;">
+                                <img id="edit-product-image-preview" style="width: 100%; height: 100%; object-fit: contain; display: block;">
+                                
+                                <span class="material-symbols-rounded" id="reset-edit-upload" 
+                                    style="position: absolute; top: 8px; right: 8px; color: white; background: rgba(0,0,0,0.5); border-radius: 50%; cursor: pointer; font-size: 20px; padding: 2px;">
+                                    close
+                                </span>
                             </div>
                         </div>
                     </div>
 
-                    <div class="form-field full-width">
-                        <label class="clinical-label">Equipment Type</label>
-                        <div class="input-wrapper">
-                            <input 
-                                type="text"
-                                name="equipment_type"
-                                id="edit-type"
-                                class="clinical-input medical-select"
-                                list="equipment-types"
-                                placeholder="Select or type equipment..."
-                                autocomplete="off"
-                                required
-                            >
-                            <span class="material-symbols-rounded input-icon">search_insights</span>
+                    <div style="flex: 1; display: flex; flex-direction: column; gap: 15px;">
+                        <div class="form-field">
+                            <label class="clinical-label">Equipment Type</label>
+                            <div class="input-wrapper">
+                                <input type="text" name="equipment_type" id="edit-type" class="clinical-input medical-select" list="equipment-types" placeholder="e.g. Hospital Bed" required>
+                                <span class="material-symbols-rounded input-icon">search_insights</span>
+                            </div>
+                        </div>
+
+                        <div class="form-field">
+                            <label>Model / OEM</label>
+                            <input type="text" name="model" id="edit-model" class="clinical-input" placeholder="Manufacturer Name">
                         </div>
                     </div>
+                </div>
 
+                <div class="form-layout-grid" style="grid-template-columns: repeat(3, 1fr); gap: 15px;">
                     <div class="form-field">
-                        <label>Model / OEM</label>
-                        <input type="text" name="model" id="edit-model" class="clinical-input" placeholder="Manufacturer Name">
+                        <label>Current Stock (Units)</label>
+                        <input type="number" name="stock" id="edit-stock" class="clinical-input" placeholder="0">
                     </div>
 
                     <div class="form-field">
@@ -487,6 +504,13 @@
                     <div class="form-field">
                         <label>Selling Price (₱)</label>
                         <input type="number" name="sale_price" id="edit-price" step="0.01" class="clinical-input" placeholder="0.00">
+                    </div>
+
+                    <div class="form-field full-width" style="grid-column: span 3;">
+                        <label>Product Description</label>
+                        <textarea name="description" id="edit-description" class="clinical-input" rows="3" 
+                            style="width: 100%; resize: none; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; font-family: inherit;" 
+                            placeholder="Enter technical specifications..."></textarea>
                     </div>
                 </div>
 

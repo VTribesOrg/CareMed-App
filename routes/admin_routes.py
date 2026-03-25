@@ -86,10 +86,10 @@ def add_customer():
 
     customer = Customer(
         user_id=None,
-        first_name=first_name,
-        last_name=last_name,
+        first_name=first_name.title(),
+        last_name=last_name.title(),
         birthday=birthday,        
-        gender=gender,            
+        gender=gender.title(),            
         contact_number=contact_number,
         home_address=home_address,
         created_by_id=current_user.id,
@@ -165,7 +165,7 @@ def update_customer():
 
     customer.home_address = request.form.get("home_address", "").strip()
     customer.contact_number = request.form.get("contact_number", "").strip()
-    customer.gender = request.form.get("gender")
+    customer.gender = request.form.get("gender").title()
 
     birthday_str = request.form.get("birthday")
     if birthday_str:
@@ -223,6 +223,9 @@ def products():
 def add_product():
     equipment_type = request.form.get("equipment_type", "").strip()
     model = request.form.get("model", "").strip()
+    
+    description = request.form.get("description", "").strip()
+    
     stock = request.form.get("stock")
     rent_price = request.form.get("rent_price")
     sale_price = request.form.get("sale_price")
@@ -234,7 +237,7 @@ def add_product():
 
     image_path = None
     if image_file and image_file.filename != '':
-        ext = os.path.splitext(image_file.filename)[1]
+        ext = os.path.splitext(image_file.filename)[1].lower()
         
         random_name = f"{uuid.uuid4().hex}{ext}"
         
@@ -242,15 +245,20 @@ def add_product():
         os.makedirs(upload_folder, exist_ok=True)
         
         image_path = f"uploads/products/{random_name}"
-        
         full_path = os.path.join("static", image_path)
-        image_file.save(full_path)
+        
+        try:
+            image_file.save(full_path)
+        except Exception as e:
+            flash(f"Failed to save image: {str(e)}", "error")
+            return redirect(request.referrer)
 
     try:
         new_product = Product(
-            asset_tag=None,
+            asset_tag=None, 
             equipment_type=equipment_type,
             model=model,
+            description=description, 
             stock=int(stock) if stock else 0,
             rent_price=float(rent_price) if rent_price else 0.0,
             sale_price=float(sale_price) if sale_price else 0.0,
@@ -258,15 +266,81 @@ def add_product():
         )
         db.session.add(new_product)
         db.session.commit()
-        flash(f"Product {equipment_type} added successfully!", "success")
+        flash(f"Product '{equipment_type}' added successfully!", "success")
+        
     except Exception as e:
         db.session.rollback()
-        if image_path and os.path.exists(os.path.join("static", image_path)):
-            os.remove(os.path.join("static", image_path))
+        if image_path:
+            abs_image_path = os.path.join("static", image_path)
+            if os.path.exists(abs_image_path):
+                os.remove(abs_image_path)
         flash(f"Error saving product: {str(e)}", "error")
 
     return redirect(url_for('admin.products'))
 
+@admin_bp.route('/edit-product/<int:product_id>', methods=['POST'])
+@login_required
+@administrator_required
+def edit_product(product_id):
+    # 1. Fetch the existing product or return 404 if not found
+    product = Product.query.get_or_404(product_id)
+    
+    # 2. Retrieve and sanitize text data from the form
+    equipment_type = request.form.get("equipment_type", "").strip()
+    model = request.form.get("model", "").strip()
+    description = request.form.get("description", "").strip()
+    
+    # 3. Basic Validation
+    if not equipment_type:
+        flash("Equipment Type is required.", "error")
+        return redirect(url_for('admin.products'))
+
+    # 4. Handle Numeric Conversions (with defaults)
+    try:
+        product.equipment_type = equipment_type
+        product.model = model
+        product.description = description
+        product.stock = int(request.form.get("stock") or 0)
+        product.rent_price = float(request.form.get("rent_price") or 0.0)
+        product.sale_price = float(request.form.get("sale_price") or 0.0)
+    except ValueError:
+        flash("Invalid numeric value provided for stock or price.", "error")
+        return redirect(url_for('admin.products'))
+
+    # 5. Handle Image Update
+    image_file = request.files.get("image")
+    if image_file and image_file.filename != '':
+        # Delete the old image file if a new one is being uploaded
+        if product.image:
+            old_path = os.path.join("static", product.image)
+            if os.path.exists(old_path):
+                try:
+                    os.remove(old_path)
+                except Exception as e:
+                    print(f"Warning: Could not delete old image {old_path}: {e}")
+
+        # Save the new image with a unique filename
+        ext = os.path.splitext(image_file.filename)[1].lower()
+        random_name = f"{uuid.uuid4().hex}{ext}"
+        
+        upload_folder = os.path.join("static", "uploads", "products")
+        os.makedirs(upload_folder, exist_ok=True)
+        
+        new_image_rel_path = f"uploads/products/{random_name}"
+        full_path = os.path.join("static", new_image_rel_path)
+        
+        image_file.save(full_path)
+        product.image = new_image_rel_path
+
+    # 6. Commit changes to the database
+    try:
+        db.session.commit()
+        flash(f"Updated {product.equipment_type} successfully!", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Database error: {str(e)}", "error")
+
+    return redirect(url_for('admin.products'))
 
 @admin_bp.route('/delete-product/<int:product_id>', methods=['POST'])
 @login_required

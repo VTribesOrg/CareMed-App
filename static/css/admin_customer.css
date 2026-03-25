@@ -528,6 +528,32 @@ body.ready .viewport-container {
     border-bottom: 2px solid #e2e8f0; 
 }
 
+.empty-state-container {
+        height: 591px; 
+        text-align: center;
+        vertical-align: middle;
+        background-color: #f9f9f9; 
+        border: 2px dashed #ddd;  
+    }
+
+    .empty-state-wrapper {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .empty-state-wrapper div {
+        font-size: 1.25rem;
+        font-weight: bold;
+        color: #555;
+    }
+
+    .empty-state-wrapper small {
+        color: #888;
+        margin-top: 8px;
+    }
+
 /*=================================== END OF TABLE ===================================*/
 
 

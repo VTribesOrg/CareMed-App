@@ -295,6 +295,8 @@
                                                 data-name="{{ customer.first_name }} {{ customer.last_name }}"
                                                 data-phone="{{ customer.contact_number }}"
                                                 data-address="{{ customer.home_address }}"
+                                                data-birthday="{{ customer.birthday }}"
+                                                data-gender="{{ customer.gender }}"
                                                 data-avatar="{{ url_for('static', filename=customer.user.profile_path) if customer.user and customer.user.profile_path else '' }}"
                                                 data-idimg="{{ url_for('static', filename=customer.valid_id_path) if customer.valid_id_path else '' }}">
                                                 
@@ -323,9 +325,11 @@
                                     {% endfor %}
                                 {% else %}
                                     <tr>
-                                        <td colspan="6" class="empty-state">
-                                            <div>No customers found</div>
-                                            <small>New users will appear here after registration.</small>
+                                        <td colspan="6" class="empty-state-container">
+                                            <div class="empty-state-wrapper">
+                                                <div>No customers found</div>
+                                                <small>New users will appear here after registration.</small>
+                                            </div>
                                         </td>
                                     </tr>
                                 {% endif %}
@@ -459,78 +463,84 @@
         </div>
     </div>
 
-    <div id="profileModal" class="medical-modal-overlay hidden">
-        <div class="medical-modal-content" style="max-width: 650px;">
-            <div class="modal-header-row">
-                <div class="customer-identity">
-                    <div class="avatar-circle" id="modalAvatarContainer"
-                        style="overflow: hidden; padding: 0; width: 100px; height: 100px; display:flex; align-items:center; justify-content:center; border-radius:50%; background:#f0f0f0;">
-                        
-                        <img id="modalAvatarImg"
-                            src=""
-                            alt="Avatar"
-                            style="width: 100%; height: 100%; object-fit: cover; display: none; border-radius:50%;">
+<div id="profileModal" class="medical-modal-overlay hidden">
+    <div class="medical-modal-content" style="max-width: 650px; position: relative; padding-top: 20px;">
+        
+        <span class="material-symbols-rounded modal-close" 
+              style="position: absolute; top: 15px; right: 15px; cursor: pointer; color: #64748b; font-size: 20px;">
+            close
+        </span>
 
-                        <span id="modalAvatarFallback" class="material-symbols-rounded"
-                            style="font-size: 48px; color: #64748b; display: flex; align-items: center; justify-content: center;">
-                            person
-                        </span>
-                    </div>
-
-                    <div>
-                        <h2 class="modal-header" id="modalName"></h2>
-                        <p id="modalID" style="font-size: 0.85rem; color: #64748b; margin: 0;"></p>
-                    </div>
-                </div>
-                <span class="material-symbols-rounded modal-close">close</span>
-            </div>
-
-            <div class="section-divider">
-                <span class="material-symbols-rounded">contact_page</span>
-                Patient Information
-            </div>
-
-            <div class="form-layout-grid" style="padding: 15px 0;">
-                <div class="info-block">
-                    <label style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase;">Phone Number</label>
-                    <p id="modalPhone" class="modal-value"></p>
-                </div>
-                <div class="info-block">
-                    <label style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase;">Address</label>
-                    <p id="modalAddress" class="modal-value"></p>
-                </div>
-
-                <div class="form-field full-width">
-                    <label style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase;">Identity Verification (ID)</label>
+        <div class="modal-header-row" style="margin-bottom: 10px;">
+            <div class="customer-identity" style="display: flex; align-items: center; gap: 15px;">
+                <div class="avatar-circle" id="modalAvatarContainer"
+                    style="overflow: hidden; width: 60px; height: 60px; display:flex; align-items:center; justify-content:center; border-radius:50%; background:#f0f0f0; border: 1px solid #e2e8f0;">
                     
-                    <div id="modalIDPreview" style="margin-top: 8px; border: 1px solid #e2e8f0; border-radius: 8px; height: 54mm; width: 85.6mm; display: flex; align-items: center; justify-content: center; background: #f8fafc; overflow: hidden; cursor: zoom-in;">
-                        
-                        <img id="modalIDImg"
-                            src=""
-                            alt="ID Card"
-                            style="width: 100%; height: 100%; object-fit: cover; display: none;">
+                    <img id="modalAvatarImg" src="" alt="Avatar"
+                        style="width: 100%; height: 100%; object-fit: cover; display: none;">
 
-                        <span id="modalIDFallback" 
-                            style="font-size: 1rem; color: #64748b; display: flex; justify-content: center; align-items: center;">
-                            No ID
-                        </span>
-                    </div>
+                    <span id="modalAvatarFallback" class="material-symbols-rounded"
+                        style="font-size: 32px; color: #64748b;">
+                        person
+                    </span>
                 </div>
-            </div>
 
-            <div class="section-divider"><span class="material-symbols-rounded">history</span> Rental History</div>
-            <div class="history-timeline-container">
-                <div class="timeline-item">
-                    <div class="timeline-marker info"></div>
-                    <div class="timeline-content">Active Rental: Oxygen Concentrator</div>
+                <div>
+                    <h2 class="modal-header" id="modalName" style="margin: 0; font-size: 1.25rem;"></h2>
+                    <p id="modalID" style="font-size: 0.75rem; color: #64748b; margin: 0;"></p>
                 </div>
-            </div>
-
-            <div class="modal-footer-actions">
-                <button type="button" class="btn-medical-outline">Close</button>
             </div>
         </div>
+
+        <div class="section-divider">
+            <span class="material-symbols-rounded">contact_page</span>
+            Patient Information
+        </div>
+
+        <div style="display: flex; gap: 24px; padding: 15px 0; align-items: start;">
+            <div class="info-block" style="flex: 0 0 auto;">
+                <label style="font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; display: block; margin-bottom: 4px;">
+                    Identity Verification (ID)
+                </label>
+                <div id="modalIDPreview" style="border: 1px solid #e2e8f0; border-radius: 8px; height: 50mm; width: 78mm; display: flex; align-items: center; justify-content: center; background: #f8fafc; overflow: hidden;">
+                    <img id="modalIDImg" src="" alt="ID Card" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+                    <span id="modalIDFallback" style="font-size: 0.9rem; color: #64748b;">No ID</span>
+                </div>
+            </div>
+
+            <div style="flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="info-block">
+                    <label style="font-size: 0.7rem; color: #94a3b8; text-transform: uppercase;">Birthday</label>
+                    <p id="modalBirthday" class="modal-value" style="margin: 2px 0 0 0; font-size: 0.9rem; font-weight: 500;"></p>
+                </div>
+                <div class="info-block">
+                    <label style="font-size: 0.7rem; color: #94a3b8; text-transform: uppercase;">Gender</label>
+                    <p id="modalGender" class="modal-value" style="margin: 2px 0 0 0; font-size: 0.9rem; font-weight: 500;"></p>
+                </div>
+                <div class="info-block" style="grid-column: span 2;">
+                    <label style="font-size: 0.7rem; color: #94a3b8; text-transform: uppercase;">Phone Number</label>
+                    <p id="modalPhone" class="modal-value" style="margin: 2px 0 0 0; font-size: 0.9rem; font-weight: 500;"></p>
+                </div>
+                <div class="info-block" style="grid-column: span 2;">
+                    <label style="font-size: 0.7rem; color: #94a3b8; text-transform: uppercase;">Address</label>
+                    <p id="modalAddress" class="modal-value" style="margin: 2px 0 0 0; font-size: 0.9rem; font-weight: 500;"></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-divider"><span class="material-symbols-rounded">history</span> Rental History</div>
+        <div class="history-timeline-container" style="max-height: 100px; overflow-y: auto;">
+            <div class="timeline-item">
+                <div class="timeline-marker info"></div>
+                <div class="timeline-content" style="font-size: 0.85rem;">Active Rental: Oxygen Concentrator</div>
+            </div>
+        </div>
+
+        <div class="modal-footer-actions" style="margin-top: 15px;">
+            <button type="button" class="btn-medical-outline" onclick="closeProfileModal()">Close</button>
+        </div>
     </div>
+</div>
 
     <div id="editCustomerModal" class="medical-modal-overlay hidden">
         <div class="medical-modal-content" style="max-width: 700px;">
