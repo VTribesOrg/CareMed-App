@@ -1524,7 +1524,7 @@ td:nth-child(2) {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: #ffffff;
+    background: #ef6363;
     border: 1px solid #10b981;
     border-radius: 10px;
     padding: 10px 14px;
@@ -1777,6 +1777,10 @@ textarea.clinical-input {
 #stock-increment-input:focus {
     border-color: #52B788;
     box-shadow: 0 0 0 3px rgba(82, 183, 136, 0.1);
+}
+
+.medical-modal-overlay.hidden {
+    display: none !important;
 }
 
 /*=================================== END OF addStockModal Extra Styles ===================================*/

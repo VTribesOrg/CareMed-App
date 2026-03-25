@@ -3,7 +3,7 @@ from flask_login import current_user
 from extensions import db, limiter
 from flask_login import login_required
 from functools import wraps
-from models.product import Product
+from models.product import Product, InventoryLog
 from models.customer import Customer
 from models.users import User
 from werkzeug.utils import secure_filename
@@ -47,54 +47,66 @@ def customers():
 @admin_bp.route('/admin/add-customer', methods=['POST'])
 @login_required
 def add_customer():
-    full_name = request.form.get('full_name')
+    first_name = request.form.get('first_name')
+    last_name = request.form.get('last_name')
     contact_number = request.form.get('contact_number')
     home_address = request.form.get('home_address')
-    
+
     birthday_str = request.form.get('birthday')
     gender = request.form.get('gender')
-    
-    file = request.files.get('valid_id')
 
+    primary_id_type = request.form.get('primary_id_type')
+    secondary_id_type = request.form.get('secondary_id_type')
 
-    if not all([full_name, contact_number, home_address, birthday_str, gender]):
-        flash("All fields are required.", "error")
+    valid_id_file = request.files.get('valid_id')
+    secondary_id_file = request.files.get('secondary_id')
+
+    if not all([
+        first_name, last_name, contact_number, home_address,
+        birthday_str, gender, primary_id_type, secondary_id_type,
+        valid_id_file, secondary_id_file
+    ]):
+        flash("All fields including ID uploads are required.", "error")
         return redirect(request.referrer)
-
-    parts = full_name.strip().split()
-    if len(parts) < 2:
-        flash("Please enter full name (first and last).", "error")
-        return redirect(request.referrer)
-
-    first_name = parts[0]
-    last_name = " ".join(parts[1:])
 
     try:
         birthday = datetime.strptime(birthday_str, '%Y-%m-%d').date()
-    except (ValueError, TypeError):
+    except ValueError:
         flash("Invalid birthday format.", "error")
         return redirect(request.referrer)
 
-    file_path = None
-    if file and file.filename:
+    # ✅ File upload setup
+    upload_folder = os.path.join('static', 'uploads', 'ids')
+    os.makedirs(upload_folder, exist_ok=True)
+
+    def save_file(file):
         filename = f"{uuid.uuid4().hex}_{secure_filename(file.filename)}"
-        upload_folder = os.path.join('static', 'uploads', 'ids')
-        os.makedirs(upload_folder, exist_ok=True)
-        
-        file.save(os.path.join(upload_folder, filename))
-        file_path = f"uploads/ids/{filename}"
+        file_path = os.path.join(upload_folder, filename)
+        file.save(file_path)
+        return f"uploads/ids/{filename}"
+
+    try:
+        valid_id_path = save_file(valid_id_file)
+        secondary_id_path = save_file(secondary_id_file)
+    except Exception as e:
+        flash("Error uploading files.", "error")
+        return redirect(request.referrer)
 
     customer = Customer(
         user_id=None,
-        first_name=first_name.title(),
-        last_name=last_name.title(),
-        birthday=birthday,        
-        gender=gender.title(),            
-        contact_number=contact_number,
-        home_address=home_address,
-        created_by_id=current_user.id,
-        valid_id_path=file_path,
-        id_uploaded_at=datetime.utcnow() if file_path else None
+        first_name=first_name.strip().title(),
+        last_name=last_name.strip().title(),
+        birthday=birthday,
+        gender=gender.title(),
+        contact_number=contact_number.strip(),
+        home_address=home_address.strip(),
+        primary_id_type=primary_id_type,
+        secondary_id_type=secondary_id_type,
+        valid_id_path=valid_id_path,
+        secondary_id_path=secondary_id_path,
+        id_uploaded_at=datetime.utcnow(),
+        is_id_verified=False,
+        created_by_id=current_user.id
     )
 
     try:
@@ -127,17 +139,27 @@ def get_customer(id):
             "status": "success",
             "data": {
                 "id": customer.id,
-                "first_name": customer.first_name,
-                "last_name": customer.last_name,
+                "first_name": customer.first_name or "",
+                "last_name": customer.last_name or "",
                 "full_name": f"{customer.first_name} {customer.last_name}",
-                "phone": customer.contact_number,
-                "address": customer.home_address,
-                
+
+                "contact_number": customer.contact_number or "",
+                "home_address": customer.home_address or "",
+
                 "birthday": customer.birthday.strftime('%Y-%m-%d') if customer.birthday else "",
                 "gender": customer.gender or "",
 
+                "primary_id_type": customer.primary_id_type or "",
+                "secondary_id_type": customer.secondary_id_type or "",
+
                 "valid_id_path": url_for('static', filename=customer.valid_id_path) if customer.valid_id_path else None,
-                "profile_path": url_for('static', filename=customer.user.profile_path) if customer.user and customer.user.profile_path else None
+                "secondary_id_path": url_for('static', filename=customer.secondary_id_path) if customer.secondary_id_path else None,
+
+                "is_id_verified": customer.is_id_verified,
+                "id_uploaded_at": customer.id_uploaded_at.strftime('%Y-%m-%d %H:%M:%S') if customer.id_uploaded_at else None,
+
+                "profile_path": url_for('static', filename=customer.user.profile_path)
+                    if customer.user and customer.user.profile_path else None
             }
         })
 
@@ -149,7 +171,6 @@ def get_customer(id):
         }), 500
 
 
-
 @admin_bp.route('/update-customer', methods=['POST'])
 @login_required
 @administrator_required
@@ -157,54 +178,78 @@ def update_customer():
     customer_id = request.form.get("customer_id")
     customer = Customer.query.get_or_404(customer_id)
 
-    full_name = request.form.get("full_name", "").strip()
-    if full_name:
-        parts = full_name.split()
-        customer.first_name = parts[0]
-        customer.last_name = " ".join(parts[1:]) if len(parts) > 1 else ""
+    first_name = request.form.get("first_name", "").strip()
+    last_name = request.form.get("last_name", "").strip()
+    if first_name:
+        customer.first_name = first_name.capitalize()
+    if last_name:
+        customer.last_name = " ".join([part.capitalize() for part in last_name.split()])
 
-    customer.home_address = request.form.get("home_address", "").strip()
+    gender = request.form.get("gender", "").strip()
+    if gender:
+        customer.gender = gender[0].upper() + gender[1:].lower()
+
+    customer.home_address = request.form.get("home_address", "").strip().title()
     customer.contact_number = request.form.get("contact_number", "").strip()
-    customer.gender = request.form.get("gender").title()
 
     birthday_str = request.form.get("birthday")
     if birthday_str:
         try:
-            customer.birthday = datetime.strptime(birthday_str, '%Y-%m-%d').date()
+            customer.birthday = datetime.strptime(birthday_str, "%Y-%m-%d").date()
         except (ValueError, TypeError):
             flash("Invalid birthday format.", "error")
             return redirect(request.referrer)
 
-    image_file = request.files.get("valid_id")
-    if image_file and image_file.filename != '':
-        ext = os.path.splitext(image_file.filename)[1]
-        random_name = f"ID_{uuid.uuid4().hex[:10]}{ext}"
-        
-        upload_folder = os.path.join("static", "uploads", "ids")
-        os.makedirs(upload_folder, exist_ok=True)
-        
-        if customer.valid_id_path:
-            old_full_path = os.path.join("static", customer.valid_id_path)
-            if os.path.exists(old_full_path):
-                try:
-                    os.remove(old_full_path)
-                except Exception as e:
-                    print(f"Failed to delete old image: {e}")
+    def handle_id(file_key, old_path_attr, remove_flag_name):
+        remove_flag = request.form.get(remove_flag_name)
+        image_file = request.files.get(file_key)
+        old_path = getattr(customer, old_path_attr)
 
-        image_path = f"uploads/ids/{random_name}"
-        image_file.save(os.path.join("static", image_path))
-        
-        customer.valid_id_path = image_path
-        customer.id_uploaded_at = datetime.utcnow()
+        if remove_flag == "true" and old_path:
+            old_full = os.path.join("static", old_path)
+            if os.path.exists(old_full):
+                try:
+                    os.remove(old_full)
+                except Exception as e:
+                    current_app.logger.error(f"Failed to delete old ID: {e}")
+            setattr(customer, old_path_attr, None)
+
+        elif image_file and image_file.filename:
+            ext = os.path.splitext(image_file.filename)[1].lower()
+            random_name = f"ID_{uuid.uuid4().hex[:10]}{ext}"
+            upload_folder = os.path.join("static", "uploads", "ids")
+            os.makedirs(upload_folder, exist_ok=True)
+
+            if old_path:
+                old_full = os.path.join("static", old_path)
+                if os.path.exists(old_full):
+                    try:
+                        os.remove(old_full)
+                    except Exception as e:
+                        current_app.logger.error(f"Failed to delete old ID: {e}")
+
+            image_path = f"uploads/ids/{random_name}"
+            image_file.save(os.path.join("static", image_path))
+            setattr(customer, old_path_attr, image_path)
+            if file_key == "valid_id":
+                customer.id_uploaded_at = datetime.utcnow()
+
+
+    handle_id("valid_id", "valid_id_path", "remove_valid_id")
+    handle_id("secondary_id", "secondary_id_path", "remove_secondary_id")
+
+
+    customer.primary_id_type = request.form.get("primary_id_type", "").strip()
+    customer.secondary_id_type = request.form.get("secondary_id_type", "").strip()
 
     try:
         db.session.commit()
         flash("Customer profile updated successfully!", "success")
     except Exception as e:
         db.session.rollback()
-        flash(f"Error updating: {str(e)}", "error")
+        flash(f"Error updating customer: {str(e)}", "error")
 
-    return redirect(url_for('admin.customers'))
+    return redirect(url_for("admin.customers"))
 
 
 @admin_bp.route('/products')
@@ -214,7 +259,9 @@ def update_customer():
 def products():
     
     products = Product.query.all()
-    return render_template("admin/products.html", products=products)
+    customers = Customer.query.order_by(Customer.last_name).all() 
+    
+    return render_template("admin/products.html", products=products, customers=customers)
 
 
 @admin_bp.route('/add-product', methods=['POST'])
@@ -282,20 +329,16 @@ def add_product():
 @login_required
 @administrator_required
 def edit_product(product_id):
-    # 1. Fetch the existing product or return 404 if not found
     product = Product.query.get_or_404(product_id)
     
-    # 2. Retrieve and sanitize text data from the form
     equipment_type = request.form.get("equipment_type", "").strip()
     model = request.form.get("model", "").strip()
     description = request.form.get("description", "").strip()
     
-    # 3. Basic Validation
     if not equipment_type:
         flash("Equipment Type is required.", "error")
         return redirect(url_for('admin.products'))
 
-    # 4. Handle Numeric Conversions (with defaults)
     try:
         product.equipment_type = equipment_type
         product.model = model
@@ -307,10 +350,8 @@ def edit_product(product_id):
         flash("Invalid numeric value provided for stock or price.", "error")
         return redirect(url_for('admin.products'))
 
-    # 5. Handle Image Update
     image_file = request.files.get("image")
     if image_file and image_file.filename != '':
-        # Delete the old image file if a new one is being uploaded
         if product.image:
             old_path = os.path.join("static", product.image)
             if os.path.exists(old_path):
@@ -319,7 +360,6 @@ def edit_product(product_id):
                 except Exception as e:
                     print(f"Warning: Could not delete old image {old_path}: {e}")
 
-        # Save the new image with a unique filename
         ext = os.path.splitext(image_file.filename)[1].lower()
         random_name = f"{uuid.uuid4().hex}{ext}"
         
@@ -332,7 +372,6 @@ def edit_product(product_id):
         image_file.save(full_path)
         product.image = new_image_rel_path
 
-    # 6. Commit changes to the database
     try:
         db.session.commit()
         flash(f"Updated {product.equipment_type} successfully!", "success")
@@ -341,6 +380,33 @@ def edit_product(product_id):
         flash(f"Database error: {str(e)}", "error")
 
     return redirect(url_for('admin.products'))
+
+@admin_bp.route('/update_stock/<int:product_id>', methods=['POST'])
+@login_required
+def update_stock(product_id):
+    data = request.get_json()
+    product = Product.query.get_or_404(product_id)
+    
+    increment = int(data.get('increment', 0))
+    reason = data.get('reason', 'No reason provided')
+
+    product.stock += increment
+    
+    log = InventoryLog(
+        product_id=product.id,
+        action="Restock",
+        quantity=increment,
+        note=reason
+    )
+    
+    db.session.add(log)
+    db.session.commit()
+    
+    return jsonify({
+        "success": True, 
+        "new_stock": product.stock,
+        "message": f"Successfully added {increment} units."
+    })
 
 @admin_bp.route('/delete-product/<int:product_id>', methods=['POST'])
 @login_required

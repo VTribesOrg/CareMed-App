@@ -290,28 +290,35 @@
                                         </td>
 
                                         <td class="col-actions">
-                                            <button class="asset-action-btn logs"
-                                                data-id="{{ customer.id }}"
-                                                data-name="{{ customer.first_name }} {{ customer.last_name }}"
-                                                data-phone="{{ customer.contact_number }}"
-                                                data-address="{{ customer.home_address }}"
-                                                data-birthday="{{ customer.birthday }}"
-                                                data-gender="{{ customer.gender }}"
-                                                data-avatar="{{ url_for('static', filename=customer.user.profile_path) if customer.user and customer.user.profile_path else '' }}"
-                                                data-idimg="{{ url_for('static', filename=customer.valid_id_path) if customer.valid_id_path else '' }}">
-                                                
+                                            <button class="asset-action-btn logs js-view-profile"
+                                                    data-id="{{ customer.id }}"
+                                                    data-first_name="{{ customer.first_name }}"
+                                                    data-last_name="{{ customer.last_name }}"
+                                                    data-name="{{ customer.first_name }} {{ customer.last_name }}"
+                                                    data-phone="{{ customer.contact_number }}"
+                                                    data-address="{{ customer.home_address }}"
+                                                    data-birthday="{{ customer.birthday.strftime('%Y-%m-%d') if customer.birthday else '' }}"
+                                                    data-gender="{{ customer.gender }}"
+                                                    data-primaryid="{{ url_for('static', filename=customer.valid_id_path) if customer.valid_id_path else '' }}"
+                                                    data-secondaryid="{{ url_for('static', filename=customer.secondary_id_path) if customer.secondary_id_path else '' }}"
+                                                    data-primarytype="{{ customer.primary_id_type or '' }}"
+                                                    data-secondarytype="{{ customer.secondary_id_type or '' }}">
                                                 <span class="material-symbols-rounded">visibility</span>
                                             </button>
 
-                                            <button type="button" 
-                                                class="asset-action-btn edit" 
+                                            <button class="asset-action-btn edit" 
                                                 data-id="{{ customer.id }}"
+                                                data-first_name="{{ customer.first_name }}"
+                                                data-last_name="{{ customer.last_name }}"
                                                 data-name="{{ customer.first_name }} {{ customer.last_name }}"
                                                 data-phone="{{ customer.contact_number }}"
                                                 data-address="{{ customer.home_address }}"
-                                                data-birthday="{{ customer.birthday }}"
+                                                data-birthday="{{ customer.birthday.strftime('%Y-%m-%d') if customer.birthday else '' }}"
                                                 data-gender="{{ customer.gender }}"
-                                                data-idimg="{{ url_for('static', filename=customer.valid_id_path) if customer.valid_id_path else '' }}">
+                                                data-primarytype="{{ customer.primary_id_type or '' }}"
+                                                data-secondarytype="{{ customer.secondary_id_type or '' }}"
+                                                data-idimg="{{ url_for('static', filename=customer.valid_id_path) if customer.valid_id_path else '' }}"
+                                                data-secondary_idimg="{{ url_for('static', filename=customer.secondary_id_path) if customer.secondary_id_path else '' }}">
                                                 <span class="material-symbols-rounded">edit</span>
                                             </button>
 
@@ -362,99 +369,125 @@
         </div>
     </div>
 
+    
     <div id="registerModal" class="medical-modal-overlay hidden">
-        <div class="medical-modal-content" style="max-width: 700px;">
+        <div class="medical-modal-content" style="max-width: 850px; border-radius: 12px; padding: 0; overflow: hidden; background: #fff;">
             
-            <div class="modal-header-row">
-                <h2 class="modal-header">Register New Customer</h2>
-                <span class="material-symbols-rounded modal-close">close</span>
+            <div class="modal-header-row" style="padding: 16px 24px; border-bottom: 1px solid #f1f5f9; background: #fff;">
+                <h2 class="modal-header" style="margin: 0; font-size: 1.1rem; font-weight: 700; color: #1e293b;">Register New Customer</h2>
+                <span class="material-symbols-rounded modal-close" style="cursor: pointer; color: #64748b;">close</span>
             </div>
 
             <form id="customerForm" method="POST" action="{{ url_for('admin.add_customer') }}" enctype="multipart/form-data">
-                
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-                <div style="display: flex; gap: 24px; align-items: flex-start; padding-bottom: 20px;">
+                <div style="display: flex; gap: 0; align-items: stretch; padding: 0;"> 
                     
-                    <div class="form-field" style="flex: 0 0 220px;">
-                        <label style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; font-weight: 700;">
-                            Update Valid ID
-                        </label>
+                    <div style="flex: 0 0 320px; padding: 0 0 24px 24px; background: #fcfdfe;">
+                        <p style="font-size: 0.7rem; color: #3b82f6; text-transform: uppercase; font-weight: 800; letter-spacing: 0.05em; margin: 0 0 15px 0;">
+                            Identity Documents
+                        </p>
 
-                        <div class="upload-container"
-                            id="id-dropzone"
-                            style="width: 100%; aspect-ratio: 85.6 / 54; margin-top: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-direction: column; position: relative;">
-                            
-                            <span class="material-symbols-rounded upload-icon" style="font-size: 32px; color: #94a3b8;">
-                                published_with_changes
-                            </span>
-
-                            <p style="margin: 0; color: #475569; font-size: 0.8rem;">
-                                Click to <strong>Upload</strong> or <strong>Drag and Drop</strong>
-                            </p>
-                            
-                            <input type="file" id="id-upload" name="valid_id" hidden accept="image/*"
-                                onchange="updateUploadUI('id-dropzone', 'id-preview-text', 'file-name-display', this)">
-
-                            <div id="id-preview-text" class="preview-active-box" style="display:none; position: absolute; top:0; left:0; width:100%; height:100%;">
-                                <span class="material-symbols-rounded btn-file-reset"
-                                    data-input="id-upload"
-                                    data-dropzone="id-dropzone"
-                                    data-preview="id-preview-text">
-                                    close
-                                </span>
-
-                                <div class="thumbnail-wrapper" style="width: 100%; height: 100%;">
-                                    <img src="#" alt="ID Preview" id="registration-id-img"
-                                        style="width: 100%; height: 100%; object-fit: cover;">
+                        <div class="form-field">
+                            <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; margin-bottom: 4px; display: block;">Primary ID Upload</label>
+                            <div class="upload-container" id="id-dropzone" style="width: 85.6mm; height: 54mm; border: 2px dashed #e2e8f0; border-radius: 10px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; background: #f8fafc;">
+                                <div id="id-placeholder-content" style="text-align: center;">
+                                    <span class="material-symbols-rounded" style="font-size: 24px; color: #94a3b8;">badge</span>
+                                    <p style="margin: 2px 0 0; color: #64748b; font-size: 0.65rem;">Click or Drag & Drop</p>
                                 </div>
+                                <div id="id-preview-text" class="preview-active-box" style="display:none; position: absolute; inset: 0; z-index: 5;">
+                                    <span class="material-symbols-rounded btn-file-reset" data-input="id-upload" data-dropzone="id-dropzone" data-preview="id-preview-text" style="position: absolute; top: -10px; right: -10px; background: #ef4444; color: white; border-radius: 50%; width: 24px; height: 24px; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">close</span>
+                                    <img src="#" alt="Preview" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;">
+                                </div>
+                                <input type="file" id="id-upload" name="valid_id" hidden accept="image/*">
+                            </div>
+                        </div>
+
+                        <div class="form-field" style="margin-top: 16px;">
+                            <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; margin-bottom: 4px; display: block;">Secondary ID Upload</label>
+                            <div class="upload-container" id="doc-dropzone" style="width: 85.6mm; height: 54mm; border: 2px dashed #e2e8f0; border-radius: 10px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; background: #f8fafc;">
+                                <div id="doc-placeholder-content" style="text-align: center;">
+                                    <span class="material-symbols-rounded" style="font-size: 24px; color: #94a3b8;">add_a_photo</span>
+                                    <p style="margin: 2px 0 0; color: #64748b; font-size: 0.65rem;">Click or Drag & Drop</p>
+                                </div>
+                                <div id="doc-preview-text" class="preview-active-box" style="display:none; position: absolute; inset: 0; z-index: 5;">
+                                    <span class="material-symbols-rounded btn-file-reset" data-input="doc-upload" data-dropzone="doc-dropzone" data-preview="doc-preview-text" style="position: absolute; top: -10px; right: -10px; background: #ef4444; color: white; border-radius: 50%; width: 24px; height: 24px; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">close</span>
+                                    <img src="#" alt="Preview" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;">
+                                </div>
+                                <input type="file" id="doc-upload" name="secondary_id" hidden accept="image/*">
                             </div>
                         </div>
                     </div>
 
-                    <div style="flex: 1; display: flex; flex-direction: column; gap: 15px;">
-                        
-                        <div class="form-field">
-                            <label>Full Name</label>
-                            <input type="text" name="full_name" class="clinical-input"
-                                style="height: 48px;" required>
+                    <div style="width: 1px; background: #f1f5f9; align-self: stretch;"></div>
+
+                    <div style="flex: 1; padding: 0 24px 24px 24px; display: flex; flex-direction: column; gap: 12px;">
+                        <p style="font-size: 0.7rem; color: #3b82f6; text-transform: uppercase; font-weight: 800; letter-spacing: 0.05em; margin: 0;">
+                            Personal Information
+                        </p>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                            <div class="form-field">
+                                <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">First Name</label>
+                                <input type="text" name="first_name" class="clinical-input" placeholder="e.g. John" style="height: 40px;" required>
+                            </div>
+                            <div class="form-field">
+                                <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">Last Name</label>
+                                <input type="text" name="last_name" class="clinical-input" placeholder="e.g. Doe" style="height: 40px;" required>
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                            <div class="form-field">
+                                <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">Birthday</label>
+                                <input type="date" name="birthday" class="clinical-input" style="height: 40px;" required>
+                            </div>
+                            <div class="form-field">
+                                <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">Gender</label>
+                                <select name="gender" class="clinical-input" style="height: 40px;" required>
+                                    <option value="" disabled selected>Select</option>
+                                    <option value="male">Male</option>
+                                    <option value="female">Female</option>
+                                </select>
+                            </div>
                         </div>
 
                         <div class="form-field">
-                            <label>Birthday</label>
-                            <input type="date" name="birthday" class="clinical-input"
-                                style="height: 48px;" required>
+                            <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">Phone Number</label>
+                            <input type="tel" name="contact_number" class="clinical-input" placeholder="09XX XXX XXXX" style="height: 40px;" required>
                         </div>
 
                         <div class="form-field">
-                            <label>Gender</label>
-                            <select name="gender" class="clinical-input"
-                                    style="height: 48px;" required>
-                                <option value="" disabled selected>Select gender</option>
-                                <option value="male">Male</option>
-                                <option value="female">Female</option>
-                                <option value="other">Other</option>
-                                <option value="prefer_not_to_say">Prefer not to say</option>
-                            </select>
+                            <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">Home Address</label>
+                            <textarea name="home_address" class="clinical-input" style="height: 45px; padding-top: 8px; resize: none;" placeholder="St., Brgy, City, Province" required></textarea>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                            <div class="form-field">
+                                <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">Primary ID Type</label>
+                                <select name="primary_id_type" class="clinical-input" style="height: 40px;" required>
+                                    <option value="" disabled selected>Select Type</option>
+                                    <option value="National ID">National ID</option>
+                                    <option value="Driver's License">Driver's License</option>
+                                    <option value="Passport">Passport</option>
+                                    <option value="UMID / SSS">UMID / SSS</option>
+                                </select>
+                            </div>
+                            <div class="form-field">
+                                <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">Secondary ID Type</label>
+                                <select name="secondary_id_type" class="clinical-input" style="height: 40px;" required>
+                                    <option value="" disabled selected>Select Type</option>
+                                    <option value="PhilHealth">PhilHealth</option>
+                                    <option value="Voter's ID">Voter's ID</option>
+                                    <option value="Postal ID">Postal ID</option>
+                                    <option value="TIN ID">TIN ID</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div style="display: flex; flex-direction: column; gap: 15px;">
-                    <div class="form-field">
-                        <label>Home Address</label>
-                        <input type="text" name="home_address" class="clinical-input"
-                            style="height: 48px;" required>
-                    </div>
-
-                    <div class="form-field">
-                        <label>Phone Number</label>
-                        <input type="tel" name="contact_number" class="clinical-input"
-                            style="height: 48px;" required>
-                    </div>
-                </div>
-
-                <div class="modal-footer-actions" style="margin-top: 25px;">
+                <div style="border-top: 1px solid #f1f5f9; padding: 16px 24px; display: flex; justify-content: flex-end; gap: 12px; background: #fff;">
                     <button type="button" class="btn-medical-outline">Cancel</button>
                     <button type="submit" class="btn-medical-primary">Register Customer</button>
                 </div>
@@ -463,179 +496,216 @@
         </div>
     </div>
 
-<div id="profileModal" class="medical-modal-overlay hidden">
-    <div class="medical-modal-content" style="max-width: 650px; position: relative; padding-top: 20px;">
-        
-        <span class="material-symbols-rounded modal-close" 
-              style="position: absolute; top: 15px; right: 15px; cursor: pointer; color: #64748b; font-size: 20px;">
-            close
-        </span>
+    <div id="profileModal" class="medical-modal-overlay hidden">
+        <div class="medical-modal-content" style="max-width: 550px; position: relative; padding: 24px; border-radius: 12px; background: #fff;">
+            
+            <span class="material-symbols-rounded modal-close" 
+                style="position: absolute; top: 15px; right: 15px; cursor: pointer; color: #64748b; font-size: 20px;">
+                close
+            </span>
 
-        <div class="modal-header-row" style="margin-bottom: 10px;">
-            <div class="customer-identity" style="display: flex; align-items: center; gap: 15px;">
-                <div class="avatar-circle" id="modalAvatarContainer"
-                    style="overflow: hidden; width: 60px; height: 60px; display:flex; align-items:center; justify-content:center; border-radius:50%; background:#f0f0f0; border: 1px solid #e2e8f0;">
-                    
-                    <img id="modalAvatarImg" src="" alt="Avatar"
-                        style="width: 100%; height: 100%; object-fit: cover; display: none;">
-
-                    <span id="modalAvatarFallback" class="material-symbols-rounded"
-                        style="font-size: 32px; color: #64748b;">
-                        person
-                    </span>
-                </div>
-
-                <div>
-                    <h2 class="modal-header" id="modalName" style="margin: 0; font-size: 1.25rem;"></h2>
-                    <p id="modalID" style="font-size: 0.75rem; color: #64748b; margin: 0;"></p>
-                </div>
-            </div>
-        </div>
-
-        <div class="section-divider">
-            <span class="material-symbols-rounded">contact_page</span>
-            Patient Information
-        </div>
-
-        <div style="display: flex; gap: 24px; padding: 15px 0; align-items: start;">
-            <div class="info-block" style="flex: 0 0 auto;">
-                <label style="font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; display: block; margin-bottom: 4px;">
-                    Identity Verification (ID)
-                </label>
-                <div id="modalIDPreview" style="border: 1px solid #e2e8f0; border-radius: 8px; height: 50mm; width: 78mm; display: flex; align-items: center; justify-content: center; background: #f8fafc; overflow: hidden;">
-                    <img id="modalIDImg" src="" alt="ID Card" style="width: 100%; height: 100%; object-fit: cover; display: none;">
-                    <span id="modalIDFallback" style="font-size: 0.9rem; color: #64748b;">No ID</span>
-                </div>
+            <div class="section-divider" style="margin-bottom: 20px; display: flex; align-items: center; gap: 8px; color: #1e293b; font-weight: 700; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px;">
+                <span class="material-symbols-rounded" style="color: #3b82f6;">contact_page</span>
+                Customer Information
             </div>
 
-            <div style="flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                <div class="info-block">
-                    <label style="font-size: 0.7rem; color: #94a3b8; text-transform: uppercase;">Birthday</label>
-                    <p id="modalBirthday" class="modal-value" style="margin: 2px 0 0 0; font-size: 0.9rem; font-weight: 500;"></p>
+            <div style="display: flex; gap: 32px; align-items: start;">
+                <div class="info-block" style="flex: 0 0 auto;">
+                    <label style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; display: block; margin-bottom: 8px; font-weight: 700; letter-spacing: 0.025em;">
+                        Primary ID: <span id="modalPrimaryIDType" style="font-weight: 500; text-transform: none; color: #475569;">N/A</span>
+                    </label>
+                    <div id="modalPrimaryIDPreview" style="border: 1px solid #e2e8f0; border-radius: 10px; height: 43.5mm; width: 68mm; display: flex; align-items: center; justify-content: center; background: #f8fafc; overflow: hidden; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
+                        <img id="modalPrimaryIDImg" src="" alt="Primary ID" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+                        <span id="modalPrimaryIDFallback" style="font-size: 0.8rem; color: #94a3b8; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                            <span class="material-symbols-rounded" style="font-size: 24px;">badge</span>
+                            No ID Uploaded
+                        </span>
+                    </div>
+
+                    <label style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; display: block; margin: 12px 0 8px 0; font-weight: 700; letter-spacing: 0.025em;">
+                        Secondary ID: <span id="modalSecondaryIDType" style="font-weight: 500; text-transform: none; color: #475569;">N/A</span>
+                    </label>
+                    <div id="modalSecondaryIDPreview" style="border: 1px solid #e2e8f0; border-radius: 10px; height: 43.5mm; width: 68mm; display: flex; align-items: center; justify-content: center; background: #f8fafc; overflow: hidden; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
+                        <img id="modalSecondaryIDImg" src="" alt="Secondary ID" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+                        <span id="modalSecondaryIDFallback" style="font-size: 0.8rem; color: #94a3b8; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                            <span class="material-symbols-rounded" style="font-size: 24px;">badge</span>
+                            No ID Uploaded
+                        </span>
+                    </div>
                 </div>
-                <div class="info-block">
-                    <label style="font-size: 0.7rem; color: #94a3b8; text-transform: uppercase;">Gender</label>
-                    <p id="modalGender" class="modal-value" style="margin: 2px 0 0 0; font-size: 0.9rem; font-weight: 500;"></p>
-                </div>
-                <div class="info-block" style="grid-column: span 2;">
-                    <label style="font-size: 0.7rem; color: #94a3b8; text-transform: uppercase;">Phone Number</label>
-                    <p id="modalPhone" class="modal-value" style="margin: 2px 0 0 0; font-size: 0.9rem; font-weight: 500;"></p>
-                </div>
-                <div class="info-block" style="grid-column: span 2;">
-                    <label style="font-size: 0.7rem; color: #94a3b8; text-transform: uppercase;">Address</label>
-                    <p id="modalAddress" class="modal-value" style="margin: 2px 0 0 0; font-size: 0.9rem; font-weight: 500;"></p>
+
+                <div style="flex: 1; display: grid; grid-template-columns: 1fr; gap: 20px; margin-top:17px">
+                    <div class="info-block">
+                        <label style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; font-weight: 700;">Fullname</label>
+                        <p id="modalName" class="modal-value" style="margin: 4px 0 0 0; font-size: 1.1rem; font-weight: 600; color: #334155;"></p>
+                    </div>
+
+                    <div class="info-block">
+                        <label style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; font-weight: 700;">Birthday</label>
+                        <p id="modalBirthday" class="modal-value" style="margin: 4px 0 0 0; font-size: 1.1rem; font-weight: 600; color: #334155;"></p>
+                    </div>
+
+                    <div class="info-block">
+                        <label style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; font-weight: 700;">Gender</label>
+                        <p id="modalGender" class="modal-value" style="margin: 4px 0 0 0; font-size: 1.1rem; font-weight: 600; color: #334155;"></p>
+                    </div>
+
+                    <div class="info-block">
+                        <label style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; font-weight: 700;">Phone Number</label>
+                        <p id="modalPhone" class="modal-value" style="margin: 4px 0 0 0; font-size: 1.1rem; font-weight: 600; color: #334155;"></p>
+                    </div>
+
+                    <div class="info-block">
+                        <label style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; font-weight: 700;">Address</label>
+                        <p id="modalAddress" class="modal-value" style="margin: 4px 0 0 0; font-size: 1.1rem; font-weight: 600; color: #334155; line-height: 1.6;"></p>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div class="section-divider"><span class="material-symbols-rounded">history</span> Rental History</div>
-        <div class="history-timeline-container" style="max-height: 100px; overflow-y: auto;">
-            <div class="timeline-item">
-                <div class="timeline-marker info"></div>
-                <div class="timeline-content" style="font-size: 0.85rem;">Active Rental: Oxygen Concentrator</div>
+            <div style="margin-top: 24px; display: flex; justify-content: flex-end; gap: 12px;">
+                <button type="button" class="btn-medical-outline">Close View</button>
             </div>
-        </div>
-
-        <div class="modal-footer-actions" style="margin-top: 15px;">
-            <button type="button" class="btn-medical-outline" onclick="closeProfileModal()">Close</button>
         </div>
     </div>
-</div>
 
     <div id="editCustomerModal" class="medical-modal-overlay hidden">
-        <div class="medical-modal-content" style="max-width: 700px;">
-            <div class="modal-header-row">
-                <h2 class="modal-header">Edit Customer Details</h2>
-                <span class="material-symbols-rounded modal-close">close</span>
+        <div class="medical-modal-content" style="max-width: 850px; border-radius: 12px; padding: 0; overflow: hidden; background: #fff;">
+            
+            <div class="modal-header-row" style="padding: 16px 24px; border-bottom: 1px solid #f1f5f9; background: #fff;">
+                <h2 class="modal-header" style="margin: 0; font-size: 1.1rem; font-weight: 700; color: #1e293b;">Edit Customer Details</h2>
+                <span class="material-symbols-rounded modal-close" style="cursor: pointer; color: #64748b;">close</span>
             </div>
 
             <form id="editCustomerForm" method="POST" action="{{ url_for('admin.update_customer') }}" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="customer_id" id="edit_customer_id">
 
-                <div style="display: flex; gap: 24px; align-items: flex-start; padding-bottom: 20px;">
+                <div style="display: flex; gap: 0; align-items: stretch; padding: 0;"> 
                     
-                    <div class="form-field" style="flex: 0 0 220px;">
-                        <label style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; font-weight: 700;">
-                            Update Valid ID
-                        </label>
+                    <div style="flex: 0 0 320px; padding: 0 0 24px 24px; background: #fcfdfe;">
+                        <p style="font-size: 0.7rem; color: #3b82f6; text-transform: uppercase; font-weight: 800; letter-spacing: 0.05em; margin: 0 0 15px 0;">
+                            Update Documents
+                        </p>
 
-                        <div class="upload-container"
-                            id="edit-id-dropzone"
-                            style="width: 100%; aspect-ratio: 85.6 / 54; margin-top: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-direction: column;">
-                            
-                            <span class="material-symbols-rounded upload-icon" style="font-size: 32px; color: #94a3b8;">
-                                published_with_changes
-                            </span>
-
-                            <p style="margin: 0; color: #475569; font-size: 0.8rem;">
-                                Click to <strong>replace</strong>
-                            </p>
-                            
-                            <input type="file" id="edit-id-upload" name="valid_id" hidden accept="image/*"
-                                onchange="updateUploadUI('edit-id-dropzone', 'edit-id-preview-text', 'edit-file-name', this)">
-
-                            <div id="edit-id-preview-text" class="preview-active-box" style="display:none; position: absolute;">
-                                <span class="material-symbols-rounded btn-file-reset"
-                                    data-input="edit-id-upload"
-                                    data-dropzone="edit-id-dropzone"
-                                    data-preview="edit-id-preview-text">
-                                    close
-                                </span>
-
-                                <div class="thumbnail-wrapper">
-                                    <img src="#" alt="New ID Preview" id="edit-id-img-preview"
-                                        style="width: 100%; height: 100%; object-fit: cover;">
+                        <div class="form-field">
+                            <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; margin-bottom: 4px; display: block;">Primary ID Upload</label>
+                            <div class="upload-container" id="edit-id-dropzone" style="width: 85.6mm; height: 54mm; border: 2px dashed #e2e8f0; border-radius: 10px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; background: #f8fafc; overflow: visible;">
+                                
+                                <div id="edit-id-placeholder-content" style="text-align: center;">
+                                    <span class="material-symbols-rounded" style="font-size: 24px; color: #94a3b8;">badge</span>
+                                    <p style="margin: 2px 0 0; color: #64748b; font-size: 0.65rem;">Click or Drag & Drop</p>
                                 </div>
+                                
+                                <div id="edit-id-preview-text" class="preview-active-box" style="display:none; position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 10px; z-index: 5;">
+                                    <span class="material-symbols-rounded btn-file-reset"
+                                        data-input="edit-id-upload" 
+                                        data-dropzone="edit-id-dropzone" 
+                                        data-preview="edit-id-preview-text"
+                                        style="position: absolute !important; top: -10px !important; right: -10px !important; background: #ef4444 !important; color: white !important; border-radius: 50% !important; width: 26px !important; height: 26px !important; font-size: 18px !important; cursor: pointer !important; display: flex !important; align-items: center !important; justify-content: center !important; z-index: 100 !important; box-shadow: 0 2px 5px rgba(0,0,0,0.2) !important; pointer-events: auto !important;">
+                                        close
+                                    </span>
+                                    <img src="#" alt="Preview" id="edit-id-img-preview" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;">
+                                </div>
+                                
+                                <input type="file" id="edit-id-upload" name="valid_id" hidden accept="image/*">
+                            </div>
+                        </div>
+
+                        <div class="form-field" style="margin-top: 16px;">
+                            <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; margin-bottom: 4px; display: block;">Secondary ID Upload</label>
+                            <div class="upload-container" id="edit-doc-dropzone" style="width: 85.6mm; height: 54mm; border: 2px dashed #e2e8f0; border-radius: 10px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; background: #f8fafc; overflow: visible;">
+                                
+                                <div id="edit-doc-placeholder-content" style="text-align: center;">
+                                    <span class="material-symbols-rounded" style="font-size: 24px; color: #94a3b8;">add_a_photo</span>
+                                    <p style="margin: 2px 0 0; color: #64748b; font-size: 0.65rem;">Click or Drag & Drop</p>
+                                </div>
+
+                                <div id="edit-doc-preview-text" class="preview-active-box" style="display:none; position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 10px; z-index: 5;">
+                                    <span class="material-symbols-rounded btn-file-reset" 
+                                        data-input="edit-doc-upload" 
+                                        data-dropzone="edit-doc-dropzone" 
+                                        data-preview="edit-doc-preview-text"
+                                        style="position: absolute !important; top: -10px !important; right: -10px !important; background: #ef4444 !important; color: white !important; border-radius: 50% !important; width: 26px !important; height: 26px !important; font-size: 18px !important; cursor: pointer !important; display: flex !important; align-items: center !important; justify-content: center !important; z-index: 100 !important; box-shadow: 0 2px 5px rgba(0,0,0,0.2) !important; pointer-events: auto !important;">
+                                        close
+                                    </span>
+                                    <img src="#" alt="Preview" id="edit-doc-img-preview" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;">
+                                </div>
+
+                                <input type="file" id="edit-doc-upload" name="secondary_id" hidden accept="image/*">
                             </div>
                         </div>
                     </div>
 
-                    <div style="flex: 1; display: flex; flex-direction: column; gap: 15px;">
-                        
-                        <div class="form-field">
-                            <label>Full Name</label>
-                            <input type="text" name="full_name" id="edit_full_name" class="clinical-input"
-                                style="height: 48px;" required>
+                    <div style="width: 1px; background: #f1f5f9; align-self: stretch;"></div>
+
+                    <div style="flex: 1; padding: 0 24px 24px 24px; display: flex; flex-direction: column; gap: 12px;">
+                        <p style="font-size: 0.7rem; color: #3b82f6; text-transform: uppercase; font-weight: 800; letter-spacing: 0.05em; margin: 0;">
+                            Customer Profile
+                        </p>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                            <div class="form-field">
+                                <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">First Name</label>
+                                <input type="text" name="first_name" id="edit_first_name" class="clinical-input" style="height: 40px;" required>
+                            </div>
+                            <div class="form-field">
+                                <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">Last Name</label>
+                                <input type="text" name="last_name" id="edit_last_name" class="clinical-input" style="height: 40px;" required>
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                            <div class="form-field">
+                                <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">Birthday</label>
+                                <input type="date" name="birthday" id="edit_birthday" class="clinical-input" style="height: 40px;" required>
+                            </div>
+                            <div class="form-field">
+                                <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">Gender</label>
+                                <select name="gender" id="edit_gender" class="clinical-input" style="height: 40px;" required>
+                                    <option value="male">Male</option>
+                                    <option value="female">Female</option>
+                                </select>
+                            </div>
                         </div>
 
                         <div class="form-field">
-                            <label>Birthday</label>
-                            <input type="date" name="birthday" id="edit_birthday" class="clinical-input"
-                                style="height: 48px;" required>
+                            <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">Phone Number</label>
+                            <input type="tel" name="contact_number" id="edit_contact_number" class="clinical-input" style="height: 40px;" required>
                         </div>
 
                         <div class="form-field">
-                            <label>Gender</label>
-                            <select name="gender" id="edit_gender" class="clinical-input"
-                                    style="height: 48px;" required>
-                                <option value="" disabled selected>Select gender</option>
-                                <option value="male">Male</option>
-                                <option value="female">Female</option>
-                                <option value="other">Other</option>
-                                <option value="prefer_not_to_say">Prefer not to say</option>
-                            </select>
+                            <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">Home Address</label>
+                            <textarea name="home_address" id="edit_home_address" class="clinical-input" style="height: 45px; padding-top: 8px; resize: none;" required></textarea>
                         </div>
 
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                            <div class="form-field">
+                                <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">Primary ID Type</label>
+                                <select name="primary_id_type" id="edit_primary_id_type" class="clinical-input" style="height: 40px;" required>
+                                    <option value="National ID">National ID</option>
+                                    <option value="Driver's License">Driver's License</option>
+                                    <option value="Passport">Passport</option>
+                                    <option value="UMID / SSS">UMID / SSS</option>
+                                </select>
+                            </div>
+                            <div class="form-field">
+                                <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">Secondary ID Type</label>
+                                <select id="edit_secondary_id_type" name="secondary_id_type" class="clinical-input" style="height: 40px;" required>
+                                    <option value="PhilHealth">PhilHealth</option>
+                                    <option value="Voter's ID">Voter's ID</option>
+                                    <option value="Postal ID">Postal ID</option>
+                                    <option value="TIN ID">TIN ID</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="form-layout-grid">
-                    <div class="form-field full-width">
-                        <label>Home Address</label>
-                        <input type="text" name="home_address" id="edit_home_address" class="clinical-input" required>
-                    </div>
-
-                    <div class="form-field full-width">
-                        <label>Phone Number</label>
-                        <input type="tel" name="contact_number" id="edit_contact_number" class="clinical-input" required>
-                    </div>
-                </div>
-
-                <div class="modal-footer-actions">
-                    <button type="button" class="btn-medical-outline">Cancel</button>
+                <div style="border-top: 1px solid #f1f5f9; padding: 16px 24px; display: flex; justify-content: flex-end; gap: 12px; background: #fff;">
+                    <button type="button" class="btn-medical-outline" id="cancelEditBtn">Cancel</button>
                     <button type="submit" class="btn-medical-primary">Save Changes</button>
                 </div>
+
             </form>
         </div>
     </div>

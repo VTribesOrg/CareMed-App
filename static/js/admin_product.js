@@ -439,19 +439,71 @@ if (rentForm) {
 
 /*============= ADDSTOCKMODAL =============*/
 
-const addStockModal = document.getElementById('addStockModal');
-document.addEventListener('click', (e) => {
-    if (e.target.closest('.open-stock-modal')) {
-        addStockModal.classList.remove('hidden');
-    }
-});
+document.addEventListener('DOMContentLoaded', function() {
+    const stockModal = document.getElementById('addStockModal');
+    const stockForm = document.getElementById('addStockForm');
+    const stockInput = document.getElementById('stock-increment-input');
+    const currentStockDisplay = document.getElementById('current-stock-display');
+    const newTotalDisplay = document.getElementById('new-total-display');
+    const stockEquipName = document.getElementById('stock-equipment-name');
 
-const closeStockBtns = document.querySelectorAll('.close-stock-modal');
-closeStockBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-        addStockModal.classList.add('hidden');
+    let currentBaseStock = 0;
+    let activeProductId = null;
+
+    // --- 1. Event Delegation for Opening Modal ---
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.add-stock-trigger');
+        if (btn) {
+            activeProductId = btn.dataset.id;
+            currentBaseStock = parseInt(btn.dataset.stock) || 0;
+            
+            stockEquipName.innerText = btn.dataset.name;
+            currentStockDisplay.innerText = `${currentBaseStock} Units`;
+            newTotalDisplay.innerText = `${currentBaseStock} Units`;
+            stockInput.value = ''; 
+            
+            stockModal.classList.remove('hidden');
+        }
+
+        // Handle closing modal
+        if (e.target.closest('.close-stock-modal')) {
+            stockModal.classList.add('hidden');
+        }
+    });
+
+    // --- 2. Live Calculation ---
+    stockInput.addEventListener('input', function() {
+        const val = parseInt(this.value) || 0;
+        const total = currentBaseStock + val;
+        newTotalDisplay.innerText = `${total} Units`;
+        newTotalDisplay.style.color = total < currentBaseStock ? "#ef4444" : "#52B788";
+    });
+
+    // --- 3. Form Submission (AJAX) ---
+    stockForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const incrementVal = stockInput.value;
+        const reasonVal = this.querySelector('textarea').value;
+
+        fetch(`/admin/update_stock/${activeProductId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                increment: parseInt(incrementVal),
+                reason: reasonVal
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload(); 
+            }
+        })
+        .catch(err => console.error("CSP-Compliant Fetch Error:", err));
     });
 });
+
 
 /*============= END OF ADDSTOCKMODAL =============*/
 
@@ -650,5 +702,24 @@ document.addEventListener('DOMContentLoaded', () => {
     updateTableDisplay();
 });
 /*============= END OF PAGINATION =============*/
+
+
+/*============= RENTAL CUSTOMER SELECTION =============*/
+const customerSelect = document.getElementById('rental-customer-id');
+const idStatusIcon = document.getElementById('customer-id-status');
+
+if (customerSelect) {
+    customerSelect.addEventListener('change', function() {
+        if (this.value) {
+            // Turns the circle next to "Select Customer" into a green checkmark
+            idStatusIcon.innerText = 'check_circle';
+            idStatusIcon.style.color = '#10b981'; 
+        } else {
+            // Reverts to an empty circle if no valid customer is selected
+            idStatusIcon.innerText = 'radio_button_unchecked';
+            idStatusIcon.style.color = '#cbd5e1';
+        }
+    });
+}
 
 

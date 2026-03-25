@@ -1129,11 +1129,12 @@ body.ready .viewport-container {
 }
 
 .btn-medical-primary {
-    background: #52B788;
+    background-color: #f97316 !important;
+    border-color: #f97316 !important;
+    height: 48px; 
     color: white;
     border: none;
     padding: 0 32px;
-    height: 48px;
     border-radius: 12px;
     font-weight: 700;
     cursor: pointer;
@@ -1141,9 +1142,10 @@ body.ready .viewport-container {
 }
 
 .btn-medical-primary:hover {
-    background: #41966e;
-    box-shadow: 0 8px 15px rgba(82, 183, 136, 0.25);
+    background-color: #ea580c !important;
+    box-shadow: 0 8px 15px rgba(249, 115, 22, 0.25) !important;
 }
+
 
 .history-timeline-container {
     max-height: 400px;
@@ -1469,6 +1471,8 @@ body.ready .viewport-container {
     transform: scale(1.1);
 }
 
+
+
 /*============================= END OF FILEUPLOAD =============================*/
 
 
@@ -1501,10 +1505,10 @@ body.ready .viewport-container {
     width: 100vw;
     height: 100vh;
     background: rgba(0, 0, 0, 0.9);
-    display: flex; /* Keeps it centered */
+    display: flex; 
     align-items: center;
     justify-content: center;
-    z-index: 10000 !important; /* Higher than your Profile Modal */
+    z-index: 10000 !important; 
     cursor: zoom-out;
 }
 

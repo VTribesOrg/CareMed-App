@@ -278,7 +278,10 @@
                                                 </button>
                                                 
                                                 <div class="dropdown-menu">
-                                                    <button class="dropdown-item open-stock-modal" style="color: #52B788;">
+                                                    <button class="dropdown-item add-stock-trigger" style="color: #52B788;"
+                                                        data-id="{{ product.id }}"
+                                                        data-name="{{ product.equipment_type }} {{ product.model }}"
+                                                        data-stock="{{ product.stock }}">
                                                         <span class="material-symbols-rounded">add_box</span> Add Stock
                                                     </button>
                                                     
@@ -597,10 +600,13 @@
                         <label>Select Customer</label>
                         <div class="select-wrapper">
                             <span class="material-symbols-rounded filter-icon">person_search</span>
-                            <select class="medical-select rental-customer-select" required>
+                            <select id="rental-customer-id" name="customer_id" class="medical-select rental-customer-select" required>
                                 <option value="" disabled selected>Search customer...</option>
-                                <option>Maria Clara (ID: 10029)</option>
-                                <option>Juan Dela Cruz (ID: 10030)</option>
+                                {% for customer in customers %}
+                                    <option value="{{ customer.id }}">
+                                        {{ customer.first_name }} {{ customer.last_name }} (ID: {{ customer.id }})
+                                    </option>
+                                {% endfor %}
                             </select>
                             <span class="material-symbols-rounded select-icon">expand_more</span>
                         </div>
