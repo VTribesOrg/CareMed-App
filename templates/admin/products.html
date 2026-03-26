@@ -586,13 +586,29 @@
     <div id="rentAssetModal" class="medical-modal-overlay hidden">
         <div class="medical-modal-content rent-modal-width">
             <div class="modal-header-row">
-                <div>
+                <div class="header-content-area">
                     <h2 class="modal-header">Process Equipment Rental</h2>
-                    <p class="selected-asset-info">
-                        Selected: <span id="rent-equipment-name">Oxygen Concentrator (OX-CON-05L)</span>
-                    </p>
+                    
+                    <div class="selected-asset-banner">
+                        <div class="banner-left">
+                            <div class="asset-context-label">
+                                <span class="material-symbols-rounded">inventory_2</span>
+                                RENTAL ITEM
+                            </div>
+                            <div class="asset-display-name">
+                                <span id="rent-equipment-name">--</span>
+                            </div>
+                        </div>
+
+                        <div class="banner-right">
+                            <div id="rent-stock-badge" class="stock-status-badge status-in-stock">
+                                <span class="dot"></span>
+                                <span id="rent-stock-display">0 Units Available</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <span class="material-symbols-rounded modal-close close-rent-modal">close</span>
+                <span class="material-symbols-rounded modal-close close-rent-modal absolute-close-btn" title="" >close</span>
             </div>
 
             <form id="rentEntryForm">
@@ -666,13 +682,30 @@
     <div id="purchaseAssetModal" class="medical-modal-overlay hidden">
         <div class="medical-modal-content rent-modal-width">
             <div class="modal-header-row">
-                <div>
+                <div class="header-content-area">
                     <h2 class="modal-header">Process Equipment Purchase</h2>
-                    <p class="selected-asset-info">
-                        Item: <span id="purchase-equipment-name">Oxygen Concentrator</span>
-                    </p>
+                    
+                    <div class="selected-asset-banner">
+                        <div class="banner-left">
+                            <div class="asset-context-label">
+                                <span class="material-symbols-rounded">shopping_cart</span>
+                                PURCHASE ITEM
+                            </div>
+                            <div class="asset-display-name">
+                                <span id="purchase-equipment-name">--</span>
+                            </div>
+                        </div>
+
+                        <div class="banner-right">
+                            <div id="purchase-stock-badge" class="stock-status-badge status-in-stock">
+                                <span class="dot"></span>
+                                <span id="purchase-stock-display">0 Units Available</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <span class="material-symbols-rounded modal-close close-purchase-modal">close</span>
+                
+                <span class="material-symbols-rounded modal-close close-purchase-modal absolute-close-btn">close</span>
             </div>
 
             <form id="purchaseEntryForm">

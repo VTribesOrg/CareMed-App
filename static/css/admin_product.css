@@ -1222,8 +1222,28 @@ td:nth-child(2) {
 .modal-header-row {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
+    align-items: flex-start; 
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+.header-content-area {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    flex: 1;
+}
+
+.close-icon-top {
+    margin-top: -5px; 
+    padding: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+    border-radius: 50%;
+}
+
+.close-icon-top:hover {
+    background-color: #f1f5f9;
 }
 
 .modal-header {
@@ -1762,6 +1782,105 @@ textarea.clinical-input {
     z-index: 2;
     pointer-events: none;
 }
+/* 1. Modal Header Container Positioning */
+.modal-header-row {
+    position: relative; /* Base for the absolute close button */
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    margin-bottom: 24px;
+    padding-top: 5px; /* Give the title some breathing room */
+}
+
+
+
+.header-content-area {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+}
+
+.modal-header {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+/* 4. Banner Styling (Your Original + Alignments) */
+.selected-asset-banner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-left: 5px solid #f97316; /* Orange accent for Purchases */
+    border-radius: 10px;
+}
+
+.banner-left {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+/* 5. Sub-labels and Asset Names */
+.asset-context-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: #0369a1;
+    text-transform: uppercase;
+}
+
+.asset-display-name {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #0c4a6e;
+}
+
+/* 6. Stock Badge & Animations (Preserved) */
+.stock-status-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.stock-status-badge .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.status-in-stock {
+    background-color: #f0fdf4;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+}
+.status-in-stock .dot { background-color: #22c55e; }
+
+.status-low-stock {
+    background-color: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+    animation: soft-pulse 2s infinite;
+}
+.status-low-stock .dot { background-color: #ef4444; }
+
+@keyframes soft-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+    70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
 
 /*------------------------- END OF RENTAL MODAL --------------------------------------*/
 
@@ -1851,6 +1970,30 @@ textarea.clinical-input {
     color: #94a3b8;
     z-index: 2;
     pointer-events: none;
+}
+
+/* 2. Absolute Positioning for the Close Button */
+.absolute-close-btn {
+    position: absolute !important;
+    /* Adjust these values to match your modal's internal padding */
+    top: -15px; 
+    right: -10px;
+    
+    padding: 8px;
+    cursor: pointer;
+    color: #64748b;
+    transition: all 0.2s ease;
+    border-radius: 50%;
+    z-index: 50; /* Ensure it stays above the banner */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.absolute-close-btn:hover {
+    background-color: #f1f5f9;
+    color: #0f172a;
+    transform: scale(1.1); /* Subtle UX feedback */
 }
 
 

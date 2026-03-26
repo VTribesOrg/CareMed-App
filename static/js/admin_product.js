@@ -443,7 +443,7 @@ const rentBtns = document.querySelectorAll('.asset-action-btn.rent');
 rentBtns.forEach(btn => {
     btn.addEventListener('click', () => {
         const row = btn.closest('tr');
-        const equipmentName = row.cells[2].innerText;
+        const equipmentName = row.cells[1].innerText;
         const equipmentId = row.cells[1].innerText;
         const rentNameDisplay = document.getElementById('rent-equipment-name');
         
@@ -593,7 +593,7 @@ document.addEventListener('click', function(e) {
         activePurchaseProductId = row.getAttribute('data-id');
         
         // Data Extraction
-        const equipmentName = row.cells[2].innerText;
+        const equipmentName = row.cells[1].innerText;
         const rawPrice = row.cells[6].innerText.replace(/[^\d.-]/g, '').trim();
 
         // DOM Mapping
