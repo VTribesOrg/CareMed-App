@@ -303,7 +303,7 @@
                                                     </button>
                                                     
                                                     
-                                                    <button class="dropdown-item logs" onclick="openHistoryModal(this)" style="color: #64748b;">
+                                                    <button class="dropdown-item logs" data-product-id="{{ product.id }}" style="color: #64748b;">
                                                         <span class="material-symbols-rounded">history</span> View Logs
                                                     </button>
 
@@ -499,10 +499,6 @@
                 </div>
 
                 <div class="form-layout-grid" style="grid-template-columns: repeat(3, 1fr); gap: 15px;">
-                    <div class="form-field">
-                        <label>Current Stock (Units)</label>
-                        <input type="number" name="stock" id="edit-stock" class="clinical-input" placeholder="0">
-                    </div>
 
                     <div class="form-field">
                         <label>Monthly Rent (₱)</label>
@@ -691,6 +687,8 @@
                                     <option value="{{ customer.id }}">
                                         {{ customer.first_name }} {{ customer.last_name }} (ID: {{ customer.id }})
                                     </option>
+                                {% else %}
+                                    <option value="" disabled>No customers found</option>
                                 {% endfor %}
                             </select>
                             <span class="material-symbols-rounded select-icon">expand_more</span>

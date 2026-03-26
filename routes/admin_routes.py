@@ -338,28 +338,43 @@ def add_product():
 def edit_product(product_id):
     product = Product.query.get_or_404(product_id)
     
-    equipment_type = request.form.get("equipment_type", "").strip()
-    model = request.form.get("model", "").strip()
-    description = request.form.get("description", "").strip()
+    new_type = request.form.get("equipment_type", "").strip()
+    new_model = request.form.get("model", "").strip()
+    new_description = request.form.get("description", "").strip()
     
-    if not equipment_type:
+    if not new_type:
         flash("Equipment Type is required.", "error")
         return redirect(url_for('admin.products'))
 
-    try:
-        old_stock = product.stock
-        old_rent_price = float(product.rent_price or 0.0)
-        old_sale_price = float(product.sale_price or 0.0)
-        old_equipment_type = product.equipment_type
-        old_model = product.model
-        old_description = product.description
+    changes = []
 
-        product.equipment_type = equipment_type
-        product.model = model
-        product.description = description
-        product.stock = int(request.form.get("stock") or 0)
-        product.rent_price = float(request.form.get("rent_price") or 0.0)
-        product.sale_price = float(request.form.get("sale_price") or 0.0)
+    try:
+        if product.equipment_type != new_type:
+            changes.append(f"Type: {product.equipment_type} → {new_type}")
+            product.equipment_type = new_type
+
+        if (product.model or "") != new_model:
+            changes.append(f"Model: {product.model or 'N/A'} → {new_model}")
+            product.model = new_model
+
+        if (product.description or "").strip() != new_description:
+            changes.append("Description updated")
+            product.description = new_description
+
+        new_stock = int(request.form.get("stock") or 0)
+        if product.stock != new_stock:
+            changes.append(f"Stock: {product.stock} → {new_stock}")
+            product.stock = new_stock
+
+        new_rent = float(request.form.get("rent_price") or 0.0)
+        if float(product.rent_price or 0.0) != new_rent:
+            changes.append(f"Rent: ₱{product.rent_price} → ₱{new_rent}")
+            product.rent_price = new_rent
+
+        new_sale = float(request.form.get("sale_price") or 0.0)
+        if float(product.sale_price or 0.0) != new_sale:
+            changes.append(f"Price: ₱{product.sale_price} → ₱{new_sale}")
+            product.sale_price = new_sale
 
     except ValueError:
         flash("Invalid numeric value provided for stock or price.", "error")
@@ -373,38 +388,34 @@ def edit_product(product_id):
                 try:
                     os.remove(old_path)
                 except Exception as e:
-                    print(f"Warning: Could not delete old image {old_path}: {e}")
+                    print(f"Warning: Could not delete old image: {e}")
 
         ext = os.path.splitext(image_file.filename)[1].lower()
         random_name = f"{uuid.uuid4().hex}{ext}"
         upload_folder = os.path.join("static", "uploads", "products")
         os.makedirs(upload_folder, exist_ok=True)
+        
         new_image_rel_path = f"uploads/products/{random_name}"
-        full_path = os.path.join("static", new_image_rel_path)
-        image_file.save(full_path)
+        image_file.save(os.path.join("static", new_image_rel_path))
+        
         product.image = new_image_rel_path
+        changes.append("Product image updated")
 
     try:
+        if changes:
+            log_note = f"Changes: {'; '.join(changes)}"
+            
+            inventory_log = InventoryLog(
+                product_id=product.id,
+                action="Product Edited",
+                quantity=product.stock,
+                note=log_note,
+                user_id=current_user.id,
+                user_name=f"{current_user.first_name} {current_user.last_name}"
+            )
+            db.session.add(inventory_log)
+        
         db.session.commit()
-
-        log_note = (
-            f"Edited product '{old_equipment_type}' by {current_user.first_name} "
-            f"{current_user.last_name} (ID: {current_user.id}). "
-            f"Changes: Stock {old_stock}→{product.stock}, "
-            f"Rent {old_rent_price}→{product.rent_price}, "
-            f"Sale {old_sale_price}→{product.sale_price}."
-        )
-        inventory_log = InventoryLog(
-            product_id=product.id,
-            action="Edited Product",
-            quantity=product.stock,
-            note=log_note,
-            user_id=current_user.id,
-            user_name=f"{current_user.first_name} {current_user.last_name}"
-        )
-        db.session.add(inventory_log)
-        db.session.commit()
-
         flash(f"Updated {product.equipment_type} successfully!", "success")
 
     except Exception as e:
@@ -501,22 +512,25 @@ def process_purchase():
 
         product_id = int(data.get('product_id')) if data.get('product_id') else None
         customer_id = int(data.get('customer_id')) if data.get('customer_id') else None
-        
         quantity = int(data.get('quantity', 0))
         unit_price = Decimal(str(data.get('unit_price', 0)))
         total_price = unit_price * quantity
-        
         warranty_or_notes = data.get('warranty_or_notes', '').strip() 
-        
+
         if not product_id or not customer_id or quantity <= 0:
-            return jsonify({"success": False, "message": "Invalid purchase data."}), 400
+            return jsonify({"success": False, "message": "Missing product, customer, or quantity."}), 400
 
         product = Product.query.get(product_id)
+        customer = Customer.query.get(customer_id)
+
         if not product:
             return jsonify({"success": False, "message": "Product not found."}), 404
+        
+        if not customer:
+            return jsonify({"success": False, "message": "Customer not found in the database."}), 404
 
         if product.stock < quantity:
-            return jsonify({"success": False, "message": f"Insufficient stock. {product.stock} available."}), 400
+            return jsonify({"success": False, "message": f"Insufficient stock. Only {product.stock} units left."}), 400
 
         new_transaction = Transaction(
             customer_id=customer_id,
@@ -538,27 +552,54 @@ def process_purchase():
         )
         db.session.add(new_purchase)
 
+
         product.stock -= quantity
 
-        p_name = getattr(product, 'equipment_type', getattr(product, 'model', 'Product'))
+        p_name = f"{product.equipment_type} ({product.model})" if product.model else product.equipment_type
+        
 
-        log = InventoryLog(
+        log_note = f"Sold {quantity} unit(s) of {p_name} to {customer.full_name}."
+        if warranty_or_notes:
+            log_note += f" Ref: {warranty_or_notes}"
+
+        inventory_log = InventoryLog(
             product_id=product.id,
             action="Sale",
             quantity=-quantity,
-            note=f"Sold {quantity} units of {p_name}",
+            note=log_note,
             user_id=current_user.id,
             user_name=f"{current_user.first_name} {current_user.last_name}"
         )
-        db.session.add(log)
+        db.session.add(inventory_log)
 
         db.session.commit()
-        return jsonify({"success": True, "message": "Transaction successful"})
+        return jsonify({"success": True, "message": f"Sale processed for {customer.full_name}"})
 
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Purchase Error: {str(e)}")
-        return jsonify({"success": False, "message": "Critical error processing purchase."}), 500
+        return jsonify({"success": False, "message": f"Server Error: {str(e)}"}), 500
+    
+
+@admin_bp.route('/product/<int:product_id>/history')
+@login_required
+@administrator_required
+def product_history(product_id):
+    logs = InventoryLog.query.filter_by(product_id=product_id)\
+        .order_by(InventoryLog.created_at.desc()).all()
+
+    result = []
+    for log in logs:
+        result.append({
+            "type": "log",
+            "action": log.action,
+            "quantity": log.quantity,
+            "note": log.note,
+            "user": log.user_name,
+            "date": log.created_at.strftime("%b %d, %Y %I:%M %p")
+        })
+
+    return jsonify(result)
 
 @admin_bp.route('/orders')
 @limiter.exempt

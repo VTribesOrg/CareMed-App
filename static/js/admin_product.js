@@ -1,11 +1,11 @@
 document.addEventListener('DOMContentLoaded', () => {
+
+
     // 1. Core Element Selectors
     const notifBtn = document.getElementById('notif-btn');
     const notifDropdown = document.getElementById('notif-dropdown');
     
     const regModal = document.getElementById('registerAssetModal');
-    const editModal = document.getElementById('editAssetModal');
-    const histModal = document.getElementById('assetHistoryModal');
     
     const addEquipmentBtn = document.getElementById('add-equipment-btn');
 
@@ -66,6 +66,89 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     /*============= END OF ACTION DROPDOWN TOGGLE =============*/
+    
+
+    /*============= HISTORYMODAL =============*/
+
+    function getMarkerClass(action) {
+        const actionLower = action.toLowerCase();
+        if (actionLower.includes('return') || actionLower.includes('sold')) return 'warning';
+        if (actionLower.includes('clean') || actionLower.includes('ready') || actionLower.includes('restock')) return 'ready';
+        if (actionLower.includes('delete') || actionLower.includes('repair')) return 'danger';
+        return 'info'; // Default
+    }
+
+    const histModal = document.getElementById('assetHistoryModal');
+
+    document.addEventListener('click', async (e) => {
+        const btn = e.target.closest('.logs'); 
+        if (!btn) return;
+
+        const row = btn.closest('tr');
+        if (!row) return;
+
+        const productId = btn.dataset.productId;
+
+        const equipmentName = row.cells[1].innerText;
+        const model = row.cells[2].innerText;
+
+        document.getElementById('history-asset-id').innerText =
+            `${equipmentName} ${model} • ID: ${productId}`;
+
+        const container = document.querySelector('.history-timeline-container');
+        container.innerHTML = "<p>Loading...</p>";
+
+        try {
+            const res = await fetch(`/admin/product/${productId}/history`);
+            const logs = await res.json();
+
+            if (!logs.length) {
+                container.innerHTML = "<p>No history available.</p>";
+            } else {
+                container.innerHTML = logs.map(log => `
+                    <div class="timeline-item">
+                        <div class="timeline-marker ${getMarkerClass(log.action)}"></div>
+                        <div class="timeline-content">
+                            <div class="timeline-header">
+                                <span class="event-title">${log.action}</span>
+                                <span class="event-time">${log.date}</span>
+                            </div>
+                            <p class="event-details">${log.note || "No additional notes."}</p>
+                            <div class="event-meta">
+                                <span><i class="material-symbols-rounded" style="font-size:14px; vertical-align:middle;">person</i> ${log.user || 'System'}</span>
+                                ${log.quantity ? `<span><i class="material-symbols-rounded" style="font-size:14px; vertical-align:middle;">inventory_2</i> Qty: ${log.quantity}</span>` : ""}
+                            </div>
+                        </div>
+                    </div>
+                `).join("");
+            }
+
+        } catch (err) {
+            container.innerHTML = "<p>Error loading history.</p>";
+            console.error(err);
+        }
+
+        histModal.classList.remove('hidden');
+    });
+
+    window.closeHistoryModal = function() {
+        histModal?.classList.add('hidden');
+    };
+
+    document.querySelectorAll('.close-history-modal').forEach(btn => {
+        btn.addEventListener('click', window.closeHistoryModal);
+    });
+
+    document.getElementById('btn-print-history')?.addEventListener('click', () => window.print());
+
+    window.addEventListener('click', (e) => {
+        if (e.target === histModal) {
+            window.closeHistoryModal();
+        }
+    });
+
+    /*============= END OF HISTORYMODAL =============*/
+
 
 /*============= REGISTERASSETMODAL =============*/
 
@@ -129,7 +212,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('edit-product-id').value = productData.id;
         document.getElementById('edit-type').value = productData.type || '';
         document.getElementById('edit-model').value = productData.model || '';
-        document.getElementById('edit-stock').value = productData.stock || 0;
         document.getElementById('edit-rent').value = productData.rent || 0;
         document.getElementById('edit-price').value = productData.price || 0;
         document.getElementById('edit-description').value = productData.description || '';
@@ -173,40 +255,6 @@ document.addEventListener('DOMContentLoaded', () => {
 /*============= END OF EDITASSETMODAL =============*/
 
 
-    /*============= HISTORYMODAL =============*/
-
-    window.openHistoryModal = function(button) {
-        const row = button.closest('tr');
-        if (!row) return;
-
-        const assetTag = row.cells[1].innerText;
-        const equipmentName = row.cells[2].innerText;
-
-        const displayElement = document.getElementById('history-asset-id');
-        if (displayElement) {
-            displayElement.innerText = `${equipmentName} • ID: ${assetTag}`;
-        }
-        
-        histModal?.classList.remove('hidden');
-    };
-
-    window.closeHistoryModal = function() {
-        histModal?.classList.add('hidden');
-    };
-
-    document.querySelectorAll('.close-history-modal').forEach(btn => {
-        btn.addEventListener('click', window.closeHistoryModal);
-    });
-
-    document.getElementById('btn-print-history')?.addEventListener('click', () => window.print());
-
-    window.addEventListener('click', (e) => {
-        if (e.target === histModal) {
-            window.closeHistoryModal();
-        }
-    });
-
-    /*============= END OF HISTORYMODAL =============*/
 
 /*============= IMAGE UPLOAD & DRAG-DROP (CLEAN & SAFE) =============*/
 (function() {
@@ -377,9 +425,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Now call the modal function with the object it expects
                 window.openEditModal(productData);
             } 
-            else if (logsBtn) {
-                window.openHistoryModal(logsBtn);
-            }
                 else if (deleteBtn) {
                     const row = deleteBtn.closest('tr');
                     const assetTag = row.cells[1].innerText;
@@ -513,9 +558,6 @@ const purchaseForm = document.getElementById('purchaseEntryForm');
 const purchaseModal = document.getElementById('purchaseAssetModal'); 
 let activePurchaseProductId = null;
 
-/**
- * Updates the total price display based on qty and unit price
- */
 function updatePurchaseTotal() {
     const qtyInput = document.getElementById('purchase-qty');
     const priceInput = document.getElementById('purchase-unit-price');
@@ -533,9 +575,7 @@ function updatePurchaseTotal() {
     }
 }
 
-/**
- * Resets modal fields to prevent data leaking between sales
- */
+
 function resetPurchaseModal() {
     activePurchaseProductId = null;
     if (purchaseForm) purchaseForm.reset();
@@ -543,10 +583,7 @@ function resetPurchaseModal() {
     if (display) display.innerText = "₱0.00";
 }
 
-/**
- * Open Modal Logic (Event Delegation)
- * Works even after table rows are updated via pagination/search
- */
+
 document.addEventListener('click', function(e) {
     const btn = e.target.closest('.asset-action-btn.purchase');
     if (btn) {
@@ -584,21 +621,38 @@ if (purchaseForm) {
     purchaseForm.addEventListener('submit', function(e) {
         e.preventDefault();
 
-        const customerElement = document.getElementById('purchase-customer') || document.getElementById('rental-customer-id');
+        // 1. Target the specific select for the purchase modal
+        const customerSelect = document.getElementById('purchase-customer');
+        const customerId = customerSelect ? customerSelect.value : null;
 
-        const payload = {
-            product_id: activePurchaseProductId,
-            customer_id: customerElement ? customerElement.value : null,
-            quantity: document.getElementById('purchase-qty').value,
-            unit_price: document.getElementById('purchase-unit-price').value,
-            warranty_or_notes: document.getElementById('purchase-warranty-notes').value.trim()
-        };
+        // 2. Gather other form data
+        const qty = document.getElementById('purchase-qty').value;
+        const price = document.getElementById('purchase-unit-price').value;
+        const notes = document.getElementById('purchase-warranty-notes').value.trim();
 
-        if (!payload.customer_id) {
-            alert("Please select a valid buyer/customer.");
+        // 3. Validation BEFORE sending to the server
+        if (!activePurchaseProductId) {
+            alert("Error: No product selected. Please refresh the page.");
             return;
         }
 
+        if (!customerId || customerId === "") {
+            alert("Please select a valid buyer/customer from the dropdown.");
+            return;
+        }
+
+        const payload = {
+            product_id: activePurchaseProductId,
+            customer_id: customerId,
+            quantity: parseInt(qty),
+            unit_price: parseFloat(price),
+            warranty_or_notes: notes
+        };
+
+        // Log for debugging - Check your browser console (F12) to see this!
+        console.log("Sending Purchase Payload:", payload);
+
+        // 4. Perform the Fetch
         fetch('/admin/process-purchase', {
             method: 'POST',
             headers: {
@@ -607,25 +661,30 @@ if (purchaseForm) {
             },
             body: JSON.stringify(payload)
         })
-        .then(response => {
-            if (!response.ok) return response.json().then(err => { throw err; });
-            return response.json();
+        .then(async response => {
+            const data = await response.json();
+            if (!response.ok) {
+                // This will throw the actual error message from your Python route
+                throw new Error(data.message || "Server error occurred");
+            }
+            return data;
         })
         .then(data => {
             if (data.success) {
                 purchaseModal.classList.add('hidden');
+                // Use a modern approach to reload
                 window.location.reload(); 
             } else {
-                alert("Error: " + data.message);
+                alert("Transaction Failed: " + data.message);
             }
         })
         .catch(error => {
             console.error('Purchase Error:', error);
-            alert(error.message || "An error occurred while processing the purchase.");
+            // This alert now shows the specific "Customer not found" or "Product not found" message
+            alert(error.message);
         });
     });
 }
-
 /**
  * Modal Close Logic
  */

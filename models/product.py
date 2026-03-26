@@ -20,22 +20,6 @@ class Product(db.Model):
     rentals = db.relationship("Rental", back_populates="product")
     inventory_logs = db.relationship("InventoryLog", back_populates="product", passive_deletes=True)
 
-class Transaction(db.Model):
-    __tablename__ = "transaction"
-
-    id = db.Column(db.Integer, primary_key=True)
-    customer_id = db.Column(db.Integer, db.ForeignKey("customer.id", ondelete="SET NULL"), nullable=True)
-    processed_by = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    
-    transaction_type = db.Column(db.String(20), nullable=False)
-    total_amount = db.Column(db.Numeric(10, 2), default=0.00)
-    payment_status = db.Column(db.String(50), default="Pending") 
-    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
-
-    customer = db.relationship("Customer", back_populates="transactions")
-    admin = db.relationship("User", backref="processed_transactions")
-    purchases = db.relationship("Purchase", back_populates="transaction")
-    rentals = db.relationship("Rental", back_populates="transaction")
 
 class Purchase(db.Model):
     __tablename__ = "purchase"
@@ -74,6 +58,25 @@ class Rental(db.Model):
     transaction = db.relationship("Transaction", back_populates="rentals")
     product = db.relationship("Product", back_populates="rentals")
     customer = db.relationship("Customer", back_populates="rentals")
+    
+
+class Transaction(db.Model):
+    __tablename__ = "transaction"
+
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey("customer.id", ondelete="SET NULL"), nullable=True)
+    processed_by = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    
+    transaction_type = db.Column(db.String(20), nullable=False)
+    total_amount = db.Column(db.Numeric(10, 2), default=0.00)
+    payment_status = db.Column(db.String(50), default="Pending") 
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+
+    customer = db.relationship("Customer", back_populates="transactions")
+    admin = db.relationship("User", backref="processed_transactions")
+    purchases = db.relationship("Purchase", back_populates="transaction")
+    rentals = db.relationship("Rental", back_populates="transaction")
+    
     
 
 class InventoryLog(db.Model):

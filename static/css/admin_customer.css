@@ -557,6 +557,8 @@ body.ready .viewport-container {
 /*=================================== END OF TABLE ===================================*/
 
 
+
+
 /*================================== START OF Pagination ==================================*/
 
 .pagination-footer {
@@ -687,6 +689,38 @@ body.ready .viewport-container {
     background: #e2e8f0;
 }
 
+
+.select-icon {
+    position: absolute;
+    right: 8px; 
+    font-size: 18px !important; 
+    color: #64748b;
+    pointer-events: none; 
+    display: flex;
+    align-items: center;
+    transition: transform 0.2s ease;
+    transform: rotate(0deg);
+}
+
+
+
+.medical-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background: white;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 4px 30px 4px 10px; 
+    font-size: 13px;
+    font-weight: 600;
+    color: #1e293b;
+    cursor: pointer;
+    outline: none;
+    height: 32px;
+    min-width: 70px; 
+    transition: all 0.2s ease;
+}
 
 /*================================== END OF Pagination ==================================*/
 
