@@ -170,6 +170,24 @@
             </header>
 
             <main class="content-area">
+
+
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-container">
+          {% for category, message in messages %}
+            <div class="flash-message {{ category }}">
+              <span class="material-symbols-rounded">
+                {{ 'check_circle' if category == 'success' else 'error' if category == 'danger' else 'info' }}
+              </span>
+              <span class="message-text">{{ message }}</span>
+              <button class="flash-close" onclick="this.parentElement.style.display='none';">&times;</button>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+                
                 <div class="asset-registry-card">
                     <div class="registry-controls">
                         <button class="register-asset-btn" data-action="open-register">

@@ -1567,3 +1567,103 @@ body.ready .viewport-container {
 }
 
 /*============================= END OF PROFILE VALID ID =============================*/
+
+
+
+/* =========================================
+   FLASH MESSAGES (CareMed UI)
+   ========================================= */
+
+.flash-container {
+    margin: 0 0 20px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+}
+
+.flash-message {
+    display: flex;
+    align-items: center;
+    padding: 14px 20px;
+    border-radius: 12px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    position: relative;
+    border: 1px solid transparent;
+    transition: all 0.3s ease;
+    animation: slideInDown 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+/* Success Theme */
+.flash-message.success {
+    background-color: #f0fdf4; /* Light Emerald */
+    color: #166534;
+    border-color: #bbf7d0;
+}
+.flash-message.success .material-symbols-rounded {
+    color: #22c55e;
+}
+
+/* Error/Danger Theme */
+.flash-message.danger, 
+.flash-message.error {
+    background-color: #fef2f2; /* Light Rose */
+    color: #991b1b;
+    border-color: #fecaca;
+}
+.flash-message.danger .material-symbols-rounded,
+.flash-message.error .material-symbols-rounded {
+    color: #ef4444;
+}
+
+/* Warning Theme (Optional) */
+.flash-message.warning {
+    background-color: #fffbeb;
+    color: #92400e;
+    border-color: #fef3c7;
+}
+
+/* Icon & Content Layout */
+.flash-message .material-symbols-rounded {
+    margin-right: 12px;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+}
+
+.flash-message .message-text {
+    flex: 1;
+    line-height: 1.4;
+}
+
+/* Close Button Styling */
+.flash-close {
+    background: none;
+    border: none;
+    font-size: 1.4rem;
+    cursor: pointer;
+    color: currentColor;
+    opacity: 0.4;
+    padding: 0 0 0 15px;
+    display: flex;
+    align-items: center;
+    transition: opacity 0.2s ease;
+}
+
+.flash-close:hover {
+    opacity: 1;
+}
+
+/* Entrance Animation */
+@keyframes slideInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-15px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

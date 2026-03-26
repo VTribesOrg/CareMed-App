@@ -171,6 +171,24 @@
             </header>
 
             <main class="content-area">
+
+                <div class="flash-messages-container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show" role="alert">
+             <div>
+                <strong>{{ 'Success!' if category == 'success' else 'Error!' }}</strong> 
+                <span class="ms-1">{{ message }}</span>
+             </div>
+             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+</div>
+
+
                 <div class="asset-registry-card">
 
                     <div class="registry-controls">
