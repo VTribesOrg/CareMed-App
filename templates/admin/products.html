@@ -353,13 +353,32 @@
 
     <div id="registerAssetModal" class="medical-modal-overlay hidden">
         <div class="medical-modal-content rent-modal-width" style="max-width: 750px;">
-            <div class="modal-header-row">
-                <div>
-                    <h2 class="modal-header">Add New Inventory</h2>
-                    <p class="selected-asset-info">Registering new equipment to CareMed Inventory</p>
+                <div class="modal-header-row">
+                    <div class="header-content-area">
+                        <h2 class="modal-header">Add New Inventory</h2>
+                        
+                        <div class="selected-asset-banner entry-banner">
+                            <div class="banner-left">
+                                <div class="asset-context-label">
+                                    <span class="material-symbols-rounded">add_business</span>
+                                    REGISTRATION MODE
+                                </div>
+                                <div class="asset-display-name">
+                                    <span>Registering new equipment to CareMed Inventory</span>
+                                </div>
+                            </div>
+
+                            <div class="banner-right">
+                                <div class="stock-status-badge registration-status">
+                                    <span class="dot"></span>
+                                    <span>New Record</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <span class="material-symbols-rounded modal-close close-reg-modal absolute-close-btn" title="">close</span>
                 </div>
-                <span class="material-symbols-rounded modal-close close-reg-modal">close</span>
-            </div>
 
             <form id="assetEntryForm" method="POST" action="{{ url_for('admin.add_product') }}" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -446,11 +465,30 @@
     <div id="editAssetModal" class="medical-modal-overlay hidden">
         <div class="medical-modal-content rent-modal-width" style="max-width: 750px;">
             <div class="modal-header-row">
-                <div>
+                <div class="header-content-area">
                     <h2 class="modal-header">Edit Equipment Details</h2>
-                    <p class="selected-asset-info">Updating existing equipment in CareMed Inventory</p>
+                    
+                    <div class="selected-asset-banner edit-banner">
+                        <div class="banner-left">
+                            <div class="asset-context-label">
+                                <span class="material-symbols-rounded">edit_note</span>
+                                MODIFICATION MODE
+                            </div>
+                            <div class="asset-display-name">
+                                <span id="edit-equipment-name">Updating CareMed Inventory Record</span>
+                            </div>
+                        </div>
+
+                        <div class="banner-right">
+                            <div class="stock-status-badge edit-status">
+                                <span class="dot"></span>
+                                <span>System Record</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <span class="material-symbols-rounded modal-close close-edit-modal">close</span>
+                
+                <span class="material-symbols-rounded modal-close close-edit-modal absolute-close-btn" title="">close</span>
             </div>
 
             <form id="editAssetForm" method="POST" action="" enctype="multipart/form-data">
@@ -533,7 +571,7 @@
                     <h2 class="modal-header">Equipment History</h2>
                     <p id="history-asset-id" style="font-size: 0.85rem; color: #64748b; font-weight: 600;"></p>
                 </div>
-                <span class="material-symbols-rounded modal-close close-history-modal">close</span>
+                <span class="material-symbols-rounded modal-close close-history-modal absolute-close-btn">close</span>
             </div>
 
             <div class="history-timeline-container">
@@ -769,7 +807,7 @@
                         Equipment: <span id="stock-equipment-name" style="color: #002347;">Oxygen Concentrator</span>
                     </p>
                 </div>
-                <span class="material-symbols-rounded modal-close close-stock-modal">close</span>
+                <span class="material-symbols-rounded modal-close close-stock-modal absolute-close-btn">close</span>
             </div>
 
             <form id="addStockForm">
