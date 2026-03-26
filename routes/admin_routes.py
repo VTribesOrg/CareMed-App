@@ -1,15 +1,16 @@
 from flask import Blueprint, render_template, url_for, redirect, flash, request, jsonify, current_app
 from flask_login import current_user
-from extensions import db, limiter
+from extensions import db, limiter, csrf
 from flask_login import login_required
 from functools import wraps
-from models.product import Product, InventoryLog
+from models.product import Product, InventoryLog, Transaction, Purchase
 from models.customer import Customer
 from models.users import User
 from werkzeug.utils import secure_filename
 from datetime import datetime
 import os
 import uuid
+from decimal import Decimal
 
 
 
@@ -75,7 +76,6 @@ def add_customer():
         flash("Invalid birthday format.", "error")
         return redirect(request.referrer)
 
-    # ✅ File upload setup
     upload_folder = os.path.join('static', 'uploads', 'ids')
     os.makedirs(upload_folder, exist_ok=True)
 
@@ -270,9 +270,7 @@ def products():
 def add_product():
     equipment_type = request.form.get("equipment_type", "").strip()
     model = request.form.get("model", "").strip()
-    
     description = request.form.get("description", "").strip()
-    
     stock = request.form.get("stock")
     rent_price = request.form.get("rent_price")
     sale_price = request.form.get("sale_price")
@@ -285,12 +283,9 @@ def add_product():
     image_path = None
     if image_file and image_file.filename != '':
         ext = os.path.splitext(image_file.filename)[1].lower()
-        
         random_name = f"{uuid.uuid4().hex}{ext}"
-        
         upload_folder = os.path.join("static", "uploads", "products")
         os.makedirs(upload_folder, exist_ok=True)
-        
         image_path = f"uploads/products/{random_name}"
         full_path = os.path.join("static", image_path)
         
@@ -312,7 +307,19 @@ def add_product():
             image=image_path
         )
         db.session.add(new_product)
-        db.session.commit()
+        db.session.flush()  
+
+        log = InventoryLog(
+            product_id=new_product.id,
+            action="Add Product",
+            quantity=new_product.stock,
+            note=f"Initial product added: {equipment_type}",
+            user_id=current_user.id,
+            user_name=f"{current_user.first_name} {current_user.last_name}"
+        )
+        db.session.add(log)
+        db.session.commit()  
+
         flash(f"Product '{equipment_type}' added successfully!", "success")
         
     except Exception as e:
@@ -340,12 +347,20 @@ def edit_product(product_id):
         return redirect(url_for('admin.products'))
 
     try:
+        old_stock = product.stock
+        old_rent_price = float(product.rent_price or 0.0)
+        old_sale_price = float(product.sale_price or 0.0)
+        old_equipment_type = product.equipment_type
+        old_model = product.model
+        old_description = product.description
+
         product.equipment_type = equipment_type
         product.model = model
         product.description = description
         product.stock = int(request.form.get("stock") or 0)
         product.rent_price = float(request.form.get("rent_price") or 0.0)
         product.sale_price = float(request.form.get("sale_price") or 0.0)
+
     except ValueError:
         flash("Invalid numeric value provided for stock or price.", "error")
         return redirect(url_for('admin.products'))
@@ -362,19 +377,36 @@ def edit_product(product_id):
 
         ext = os.path.splitext(image_file.filename)[1].lower()
         random_name = f"{uuid.uuid4().hex}{ext}"
-        
         upload_folder = os.path.join("static", "uploads", "products")
         os.makedirs(upload_folder, exist_ok=True)
-        
         new_image_rel_path = f"uploads/products/{random_name}"
         full_path = os.path.join("static", new_image_rel_path)
-        
         image_file.save(full_path)
         product.image = new_image_rel_path
 
     try:
         db.session.commit()
+
+        log_note = (
+            f"Edited product '{old_equipment_type}' by {current_user.first_name} "
+            f"{current_user.last_name} (ID: {current_user.id}). "
+            f"Changes: Stock {old_stock}→{product.stock}, "
+            f"Rent {old_rent_price}→{product.rent_price}, "
+            f"Sale {old_sale_price}→{product.sale_price}."
+        )
+        inventory_log = InventoryLog(
+            product_id=product.id,
+            action="Edited Product",
+            quantity=product.stock,
+            note=log_note,
+            user_id=current_user.id,
+            user_name=f"{current_user.first_name} {current_user.last_name}"
+        )
+        db.session.add(inventory_log)
+        db.session.commit()
+
         flash(f"Updated {product.equipment_type} successfully!", "success")
+
     except Exception as e:
         db.session.rollback()
         flash(f"Database error: {str(e)}", "error")
@@ -383,6 +415,7 @@ def edit_product(product_id):
 
 @admin_bp.route('/update_stock/<int:product_id>', methods=['POST'])
 @login_required
+@csrf.exempt
 def update_stock(product_id):
     data = request.get_json()
     product = Product.query.get_or_404(product_id)
@@ -390,46 +423,142 @@ def update_stock(product_id):
     increment = int(data.get('increment', 0))
     reason = data.get('reason', 'No reason provided')
 
-    product.stock += increment
-    
-    log = InventoryLog(
-        product_id=product.id,
-        action="Restock",
-        quantity=increment,
-        note=reason
-    )
-    
-    db.session.add(log)
-    db.session.commit()
-    
-    return jsonify({
-        "success": True, 
-        "new_stock": product.stock,
-        "message": f"Successfully added {increment} units."
-    })
+    if increment <= 0:
+        return jsonify({
+            "success": False,
+            "message": "Quantity must be greater than 0."
+        }), 400
 
+    try:
+        product.stock += increment
+        db.session.flush()  
+
+        log = InventoryLog(
+            product_id=product.id,
+            action="Restock",
+            quantity=increment,
+            note=reason,
+            user_id=current_user.id if current_user.is_authenticated else None,
+            user_name=f"{current_user.first_name} {current_user.last_name}" 
+                      if current_user.is_authenticated else "Unknown"
+        )
+        db.session.add(log)
+        db.session.commit()
+
+        return jsonify({
+            "success": True,
+            "new_stock": product.stock,
+            "message": f"Successfully added {increment} units to '{product.equipment_type}'."
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": f"Failed to update stock: {str(e)}"}), 500
+    
+        
 @admin_bp.route('/delete-product/<int:product_id>', methods=['POST'])
 @login_required
 @administrator_required
 def delete_product(product_id):
     product = Product.query.get_or_404(product_id)
-    
+
     try:
+        log_note = f"Product deleted by {current_user.first_name} {current_user.last_name} (ID: {current_user.id})"
+        inventory_log = InventoryLog(
+            product_id=product.id,           
+            action="Deleted Product",      
+            quantity=product.stock,          
+            note=log_note,                   
+            user_id=current_user.id,
+            user_name=f"{current_user.first_name} {current_user.last_name}"
+        )
+        db.session.add(inventory_log)
+        db.session.flush() 
+
         if product.image:
             image_full_path = os.path.join(current_app.root_path, 'static', product.image)
             if os.path.exists(image_full_path):
                 os.remove(image_full_path)
-        
+
         db.session.delete(product)
-        db.session.commit()
-        
+        db.session.commit()  
+
         flash(f"Product '{product.equipment_type}' deleted successfully.", "success")
+
     except Exception as e:
         db.session.rollback()
         flash(f"Error deleting product: {str(e)}", "error")
-        
+
     return redirect(url_for('admin.products'))
 
+
+@admin_bp.route('/process-purchase', methods=['POST'])
+@login_required
+@administrator_required
+def process_purchase():
+    try:
+        data = request.get_json()
+
+        product_id = int(data.get('product_id')) if data.get('product_id') else None
+        customer_id = int(data.get('customer_id')) if data.get('customer_id') else None
+        
+        quantity = int(data.get('quantity', 0))
+        unit_price = Decimal(str(data.get('unit_price', 0)))
+        total_price = unit_price * quantity
+        
+        warranty_or_notes = data.get('warranty_or_notes', '').strip() 
+        
+        if not product_id or not customer_id or quantity <= 0:
+            return jsonify({"success": False, "message": "Invalid purchase data."}), 400
+
+        product = Product.query.get(product_id)
+        if not product:
+            return jsonify({"success": False, "message": "Product not found."}), 404
+
+        if product.stock < quantity:
+            return jsonify({"success": False, "message": f"Insufficient stock. {product.stock} available."}), 400
+
+        new_transaction = Transaction(
+            customer_id=customer_id,
+            transaction_type='Purchase',
+            total_amount=total_price,
+            payment_status='Paid'
+        )
+        db.session.add(new_transaction)
+        db.session.flush()
+
+        new_purchase = Purchase(
+            transaction_id=new_transaction.id,
+            product_id=product.id,
+            customer_id=customer_id,
+            quantity=quantity,
+            unit_price=unit_price,
+            total_price=total_price,
+            warranty_or_notes=warranty_or_notes
+        )
+        db.session.add(new_purchase)
+
+        product.stock -= quantity
+
+        p_name = getattr(product, 'equipment_type', getattr(product, 'model', 'Product'))
+
+        log = InventoryLog(
+            product_id=product.id,
+            action="Sale",
+            quantity=-quantity,
+            note=f"Sold {quantity} units of {p_name}",
+            user_id=current_user.id,
+            user_name=f"{current_user.first_name} {current_user.last_name}"
+        )
+        db.session.add(log)
+
+        db.session.commit()
+        return jsonify({"success": True, "message": "Transaction successful"})
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Purchase Error: {str(e)}")
+        return jsonify({"success": False, "message": "Critical error processing purchase."}), 500
 
 @admin_bp.route('/orders')
 @limiter.exempt

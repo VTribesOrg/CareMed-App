@@ -507,46 +507,136 @@ document.addEventListener('DOMContentLoaded', function() {
 
 /*============= END OF ADDSTOCKMODAL =============*/
 
+/*============= PURCHASE SUBMISSION LOGIC =============*/
 
-/*============= PURCHASEMODAL =============*/
+const purchaseForm = document.getElementById('purchaseEntryForm');
+const purchaseModal = document.getElementById('purchaseAssetModal'); 
+let activePurchaseProductId = null;
 
-const purchaseModal = document.getElementById('purchaseAssetModal');
-
-document.querySelectorAll('.asset-action-btn.purchase').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-        const row = e.target.closest('tr');
-        const equipmentName = row.cells[2].innerText;
-        const price = row.cells[6].innerText.replace('₱', '').replace(',', '');
-
-        document.getElementById('purchase-equipment-name').innerText = equipmentName;
-        document.getElementById('purchase-unit-price').value = price;
-        updatePurchaseTotal();
-        
-        purchaseModal.classList.remove('hidden');
-    });
-});
-
-document.querySelectorAll('.close-purchase-modal').forEach(btn => {
-    btn.addEventListener('click', () => purchaseModal.classList.add('hidden'));
-});
-
+/**
+ * Updates the total price display based on qty and unit price
+ */
 function updatePurchaseTotal() {
     const qtyInput = document.getElementById('purchase-qty');
     const priceInput = document.getElementById('purchase-unit-price');
     const totalDisplay = document.getElementById('purchase-total-display');
 
     if (qtyInput && priceInput && totalDisplay) {
-        const qty = qtyInput.value || 0;
-        const price = priceInput.value || 0;
+        const qty = parseFloat(qtyInput.value) || 0;
+        const price = parseFloat(priceInput.value) || 0;
         const total = qty * price;
-        totalDisplay.innerText = `₱${total.toLocaleString()}`;
+        
+        totalDisplay.innerText = `₱${total.toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        })}`;
     }
 }
 
+/**
+ * Resets modal fields to prevent data leaking between sales
+ */
+function resetPurchaseModal() {
+    activePurchaseProductId = null;
+    if (purchaseForm) purchaseForm.reset();
+    const display = document.getElementById('purchase-total-display');
+    if (display) display.innerText = "₱0.00";
+}
+
+/**
+ * Open Modal Logic (Event Delegation)
+ * Works even after table rows are updated via pagination/search
+ */
+document.addEventListener('click', function(e) {
+    const btn = e.target.closest('.asset-action-btn.purchase');
+    if (btn) {
+        resetPurchaseModal(); 
+        
+        const row = btn.closest('tr');
+        activePurchaseProductId = row.getAttribute('data-id');
+        
+        // Data Extraction
+        const equipmentName = row.cells[2].innerText;
+        const rawPrice = row.cells[6].innerText.replace(/[^\d.-]/g, '').trim();
+
+        // DOM Mapping
+        const nameLabel = document.getElementById('purchase-equipment-name');
+        const unitPriceInput = document.getElementById('purchase-unit-price');
+        const qtyInput = document.getElementById('purchase-qty');
+
+        if (nameLabel) nameLabel.innerText = equipmentName;
+        if (unitPriceInput) unitPriceInput.value = rawPrice;
+        if (qtyInput) qtyInput.value = 1; 
+        
+        updatePurchaseTotal();
+        purchaseModal?.classList.remove('hidden');
+    }
+});
+
+// Live recalculation listeners
 document.getElementById('purchase-qty')?.addEventListener('input', updatePurchaseTotal);
 document.getElementById('purchase-unit-price')?.addEventListener('input', updatePurchaseTotal);
 
-/*============= END OF PURCHASEMODAL =============*/
+/**
+ * Form Submission
+ */
+if (purchaseForm) {
+    purchaseForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const customerElement = document.getElementById('purchase-customer') || document.getElementById('rental-customer-id');
+
+        const payload = {
+            product_id: activePurchaseProductId,
+            customer_id: customerElement ? customerElement.value : null,
+            quantity: document.getElementById('purchase-qty').value,
+            unit_price: document.getElementById('purchase-unit-price').value,
+            warranty_or_notes: document.getElementById('purchase-warranty-notes').value.trim()
+        };
+
+        if (!payload.customer_id) {
+            alert("Please select a valid buyer/customer.");
+            return;
+        }
+
+        fetch('/admin/process-purchase', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value || ''
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(response => {
+            if (!response.ok) return response.json().then(err => { throw err; });
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                purchaseModal.classList.add('hidden');
+                window.location.reload(); 
+            } else {
+                alert("Error: " + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Purchase Error:', error);
+            alert(error.message || "An error occurred while processing the purchase.");
+        });
+    });
+}
+
+/**
+ * Modal Close Logic
+ */
+document.addEventListener('click', function(e) {
+    if (e.target.closest('.close-purchase-modal') || e.target === purchaseModal) {
+        purchaseModal?.classList.add('hidden');
+        resetPurchaseModal();
+    }
+});
+
+/*============= END OF PURCHASE SUBMISSION LOGIC =============*/
 
 
 /*============= DELETEMODAL =============*/

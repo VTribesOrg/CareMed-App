@@ -268,7 +268,12 @@
                                                 <span class="material-symbols-rounded">assignment</span>
                                             </button>
 
-                                            <button class="asset-action-btn purchase" title="Process Sale" style="color: #f59e0b;">
+                                            <button class="asset-action-btn purchase" 
+                                                    title="Process Sale" 
+                                                    style="color: #f59e0b;"
+                                                    data-id="{{ product.id }}"
+                                                    data-name="{{ product.equipment_type }}"
+                                                    data-price="{{ product.sale_price }}">
                                                 <span class="material-symbols-rounded">shopping_cart_checkout</span>
                                             </button>
 
@@ -682,8 +687,11 @@
                             <span class="material-symbols-rounded filter-icon">person</span>
                             <select class="medical-select" required id="purchase-customer">
                                 <option value="" disabled selected>Select buyer...</option>
-                                <option>Maria Clara (ID: 10029)</option>
-                                <option>Juan Dela Cruz (ID: 10030)</option>
+                                {% for customer in customers %}
+                                    <option value="{{ customer.id }}">
+                                        {{ customer.first_name }} {{ customer.last_name }} (ID: {{ customer.id }})
+                                    </option>
+                                {% endfor %}
                             </select>
                             <span class="material-symbols-rounded select-icon">expand_more</span>
                         </div>
@@ -701,7 +709,7 @@
 
                     <div class="form-field full-width">
                         <label>Warranty / Notes</label>
-                        <textarea class="clinical-input" placeholder="Enter warranty terms or serial numbers..." style="height: 80px; padding-top: 12px; resize: none;"></textarea>
+                        <textarea class="clinical-input" id="purchase-warranty-notes" name="warranty_or_notes" placeholder="Enter warranty terms or serial numbers..." style="height: 80px; padding-top: 12px; resize: none;"></textarea>
                     </div>
                 </div>
 
