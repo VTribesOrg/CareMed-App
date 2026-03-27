@@ -1,26 +1,11 @@
 document.addEventListener('DOMContentLoaded', () => {
 
 
-    // 1. Core Element Selectors
-    const notifBtn = document.getElementById('notif-btn');
-    const notifDropdown = document.getElementById('notif-dropdown');
-    
     const regModal = document.getElementById('registerAssetModal');
     
     const addEquipmentBtn = document.getElementById('add-equipment-btn');
 
-    // 2. Dropdown & Navigation Handlers
-    function toggleDropdown(dropdown) {
-        document.querySelectorAll('.header-dropdown').forEach(d => {
-            if (d !== dropdown) d.classList.remove('active');
-        });
-        dropdown?.classList.toggle('active');
-    }
 
-    notifBtn?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        toggleDropdown(notifDropdown);
-    });
 
     /*============= ACTION DROPDOWN TOGGLE =============*/
     // Handle individual row selection
