@@ -12,7 +12,10 @@ body {
     display: flex;
 }
 
-
+html {
+  scrollbar-gutter: stable;
+  overflow-y: scroll;
+}
 
 /* ======================================= START OF SIDEBAR ======================================= */
 .medical-sidebar {
@@ -1356,11 +1359,47 @@ td:nth-child(2) {
     transition: all 0.2s;
 }
 
+.btn-medical-primary:disabled {
+    background-color: #cbd5e1 !important; 
+    border-color: #cbd5e1 !important;
+    color: #94a3b8 !important;
+    cursor: not-allowed;
+    box-shadow: none !important;
+    transform: none !important;
+    opacity: 0.7;
+}
+
 .btn-medical-primary:hover {
     background-color: #ea580c !important;
     box-shadow: 0 8px 15px rgba(249, 115, 22, 0.25) !important;
 }
 
+.btn-spinner {
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: #fff;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    margin-left: -10px;
+    margin-top: -10px;
+    animation: spin 0.8s linear infinite;
+    display: inline-block;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.hidden {
+    display: none !important;
+}
+
+.btn-text {
+    transition: opacity 0.2s;
+}
 
 /*============================= end of modalFooterActions =============================*/
 
@@ -1937,47 +1976,73 @@ textarea.clinical-input {
 /*--------------------- END OF MAIN CONTENT --------------------------------------*/
 
 
-.no-transition * {
-    -webkit-transition: none !important;
-    -moz-transition: none !important;
-    -ms-transition: none !important;
-    -o-transition: none !important;
-    transition: none !important;
-}
 
 
 /*=================================== START OF Purchase ===================================*/
 
 
+#purchaseAssetModal .medical-modal-content {
+    padding: 1rem 1.5rem !important; 
+    max-height: 85vh !important;    
+    overflow-y: auto;
+}
+
+#purchaseAssetModal .form-layout-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 20px !important; 
+}
+
+#purchaseAssetModal .form-field label {
+    margin-bottom: 2px !important; 
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #475569;
+}
+
+#purchaseAssetModal .selected-asset-banner {
+    margin-bottom: 8px !important;
+    padding: 6px 12px !important; 
+}
+
+#purchaseAssetModal .modal-header {
+    margin-bottom: 5px !important;
+    font-size: 1.2rem;
+}
+
+#purchaseAssetModal .rental-summary-box {
+    margin-top: 10px !important;
+    padding: 8px 12px !important;
+}
+
+#purchaseAssetModal .modal-footer-actions {
+    margin-top: 10px !important;
+}
+
+.full-width, 
+#purchase-delivery-fields,
+#purchase-warranty-notes {
+    grid-column: span 2;
+}
+
 #purchase-customer {
-    height: 44px;
+    height: 38px;
     background-color: #f8fafc;
     border: 1px solid #dbe2e1;
-    border-radius: 10px;
-    padding-left: 45px; 
+    border-radius: 8px;
+    padding-left: 40px; 
     padding-right: 40px; 
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     color: #1e293b;
     appearance: none;
     cursor: pointer;
+    width: 100%;
 }
-
-.form-field.full-width .filter-icon {
-    position: absolute;
-    left: 14px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #94a3b8;
-    z-index: 2;
-    pointer-events: none;
-}
-
 
 .absolute-close-btn {
     position: absolute !important;
     top: -15px; 
     right: -10px;
-    
     padding: 8px;
     cursor: pointer;
     color: #64748b;
@@ -1995,6 +2060,76 @@ textarea.clinical-input {
     transform: scale(1.1); 
 }
 
+#purchaseAssetModal .clinical-input,
+#purchaseAssetModal .medical-select {
+    height: 36px;
+    background-color: #f8fafc;
+    border: 1px solid #dbe2e1;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    color: #1e293b;
+    width: 100%;
+    transition: all 0.2s ease;
+}
+
+#purchaseAssetModal .medical-select {
+    padding-left: 40px;
+    padding-right: 35px;
+    appearance: none;
+    cursor: pointer;
+}
+
+#purchaseAssetModal .select-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+#purchaseAssetModal .filter-icon,
+#purchaseAssetModal .select-icon {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    z-index: 2;
+    pointer-events: none;
+}
+
+#purchaseAssetModal .filter-icon { left: 12px; }
+#purchaseAssetModal .select-icon { right: 12px; }
+
+#purchase-delivery-fields {
+    display: none; 
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    padding: 10px;
+    background: #f1f5f9;
+    border-radius: 8px;
+    margin: 4px 0;
+}
+
+#purchaseAssetModal .fulfillment-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    padding: 4px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: #fff;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+}
+
+#purchaseAssetModal .fulfillment-option:hover {
+    background-color: #f1f5f9;
+    border-color: #cbd5e1;
+}
+
+#purchaseAssetModal input[type="radio"]:checked + span {
+    color: #f59e0b;
+    font-weight: bold;
+}
 
 /*=================================== END OF Purchase ===================================*/
 

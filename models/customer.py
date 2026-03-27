@@ -26,6 +26,8 @@ class Customer(db.Model):
     created_by_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete="SET NULL"), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    is_active = db.Column(db.Boolean, default=True)
+    
     creator = db.relationship("User", foreign_keys=[created_by_id])
     user = db.relationship("User", back_populates="customer_profile", uselist=False, foreign_keys=[user_id])
     

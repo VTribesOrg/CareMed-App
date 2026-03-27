@@ -197,61 +197,139 @@ document.addEventListener('DOMContentLoaded', () => {
     /*============= END OF REGISTERASSETMODAL =============*/
 
 
-    /*============= EDITASSETMODAL =============*/
+/*============= EDITASSETMODAL =============*/
+// Variable to store the values as they were when the modal opened
+let originalAssetData = {};
 
-    window.openEditModal = function(productData) {
-        const editModal = document.getElementById('editAssetModal');
-        const editForm = document.getElementById('editAssetForm');
+window.openEditModal = function(productData) {
+    const editModal = document.getElementById('editAssetModal');
+    const editForm = document.getElementById('editAssetForm');
+    const updateBtn = document.getElementById('update-asset-btn'); // Ensure your button has this ID
 
-        if (!editModal || !editForm) return;
+    if (!editModal || !editForm) return;
 
-        // Update the form action URL
-        editForm.action = `/admin/edit-product/${productData.id}`;
+    // Update the form action URL
+    editForm.action = `/admin/edit-product/${productData.id}`;
 
-        // Fill fields
-        document.getElementById('edit-product-id').value = productData.id;
-        document.getElementById('edit-type').value = productData.type || '';
-        document.getElementById('edit-model').value = productData.model || '';
-        document.getElementById('edit-rent').value = productData.rent || 0;
-        document.getElementById('edit-price').value = productData.price || 0;
-        document.getElementById('edit-description').value = productData.description || '';
-
-        // Handle Image Preview
-        const previewContainer = document.getElementById('edit-product-preview-container');
-        const previewImg = document.getElementById('edit-product-image-preview');
-        const placeholder = document.getElementById('edit-product-upload-placeholder');
-
-        if (productData.image && productData.image !== 'None' && productData.image !== '') {
-            previewImg.src = `/static/${productData.image}`;
-            previewContainer.style.display = 'flex';
-            placeholder.style.display = 'none';
-        } else {
-            previewImg.removeAttribute('src');
-            previewContainer.style.display = 'none';
-            placeholder.style.display = 'block';
-        }
-
-        editModal.classList.remove('hidden');
+    // Fill fields and store original state for comparison
+    const fields = {
+        'edit-product-id': productData.id,
+        'edit-type': productData.type || '',
+        'edit-model': productData.model || '',
+        'edit-rent': String(productData.rent || 0),
+        'edit-price': String(productData.price || 0),
+        'edit-description': productData.description || ''
     };
 
+    // Store these values to compare later
+    originalAssetData = { ...fields };
 
-
-    // 2. Close Modal Handler
-    window.closeEditModal = function() {
-        const editModal = document.getElementById('editAssetModal');
-        editModal?.classList.add('hidden');
-        
-        // Cleanup: remove src to prevent the "old" image flashing next time it opens
-        const previewImg = document.getElementById('edit-product-image-preview');
-        if (previewImg) {
-            previewImg.removeAttribute('src');
-        }
-    };
-
-    document.querySelectorAll('.close-edit-modal').forEach(btn => {
-        btn.addEventListener('click', window.closeEditModal);
+    // Apply values to DOM
+    Object.keys(fields).forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = fields[id];
     });
 
+    // Handle Image Preview
+    const previewContainer = document.getElementById('edit-product-preview-container');
+    const previewImg = document.getElementById('edit-product-image-preview');
+    const placeholder = document.getElementById('edit-product-upload-placeholder');
+
+    if (productData.image && productData.image !== 'None' && productData.image !== '') {
+        previewImg.src = `/static/${productData.image}`;
+        previewContainer.style.display = 'flex';
+        placeholder.style.display = 'none';
+    } else {
+        previewImg.removeAttribute('src');
+        previewContainer.style.display = 'none';
+        placeholder.style.display = 'block';
+    }
+
+    // Initial button state: disabled until change detected
+    if (updateBtn) updateBtn.disabled = true;
+
+    editModal.classList.remove('hidden');
+};
+
+// 2. Change Detection Logic
+// This listener checks if current inputs match the original data
+document.getElementById('editAssetForm')?.addEventListener('input', function() {
+    const updateBtn = document.getElementById('update-asset-btn');
+    const fileInput = document.getElementById('edit-product-image-input');
+    
+    const currentData = {
+        'edit-product-id': document.getElementById('edit-product-id').value,
+        'edit-type': document.getElementById('edit-type').value,
+        'edit-model': document.getElementById('edit-model').value,
+        'edit-rent': document.getElementById('edit-rent').value,
+        'edit-price': document.getElementById('edit-price').value,
+        'edit-description': document.getElementById('edit-description').value
+    };
+
+    // Check if any text/number changed
+    const hasChanged = Object.keys(currentData).some(key => 
+        String(currentData[key]) !== String(originalAssetData[key])
+    );
+
+    // Check if a new file has been picked
+    const hasNewFile = fileInput && fileInput.files.length > 0;
+
+    if (updateBtn) {
+        updateBtn.disabled = !(hasChanged || hasNewFile);
+    }
+});
+
+// 3. Close Modal Handler
+window.closeEditModal = function() {
+    const editModal = document.getElementById('editAssetModal');
+    const editForm = document.getElementById('editAssetForm');
+    const fileInput = document.getElementById('edit-product-image-input');
+    
+    editModal?.classList.add('hidden');
+    
+    // Cleanup
+    const previewImg = document.getElementById('edit-product-image-preview');
+    if (previewImg) previewImg.removeAttribute('src');
+    
+    // Reset file input so it doesn't stay "changed" for the next product
+    if (fileInput) fileInput.value = "";
+};
+
+const originalCloseModal = window.closeEditModal;
+window.closeEditModal = function() {
+    originalCloseModal(); // Call your existing cleanup
+    
+    const updateBtn = document.getElementById('update-asset-btn');
+    if (updateBtn) {
+        const btnText = updateBtn.querySelector('.btn-text');
+        const btnSpinner = updateBtn.querySelector('.btn-spinner');
+        
+        updateBtn.disabled = true;
+        if (btnText) btnText.style.opacity = '1';
+        if (btnSpinner) btnSpinner.classList.add('hidden');
+    }
+};
+
+document.querySelectorAll('.close-edit-modal').forEach(btn => {
+    btn.addEventListener('click', window.closeEditModal);
+});
+
+
+document.getElementById('editAssetForm')?.addEventListener('submit', function() {
+    const updateBtn = document.getElementById('update-asset-btn');
+    const btnText = updateBtn.querySelector('.btn-text');
+    const btnSpinner = updateBtn.querySelector('.btn-spinner');
+
+    if (updateBtn) {
+        // Disable again to prevent double-clicks
+        updateBtn.disabled = true;
+        updateBtn.style.cursor = 'wait';
+        
+        // Hide text, show spinner
+        if (btnText) btnText.style.opacity = '0';
+        if (btnSpinner) btnSpinner.classList.remove('hidden');
+    }
+});
 /*============= END OF EDITASSETMODAL =============*/
 
 
@@ -558,9 +636,23 @@ const purchaseForm = document.getElementById('purchaseEntryForm');
 const purchaseModal = document.getElementById('purchaseAssetModal'); 
 let activePurchaseProductId = null;
 
+/**
+ * Handles toggling delivery fields without using onclick in HTML
+ */
+purchaseForm?.addEventListener('change', function(e) {
+    if (e.target.name === 'fulfillment_type') {
+        const isDelivery = e.target.value === 'Delivery';
+        togglePurchaseDelivery(isDelivery);
+    }
+});
+
+/**
+ * Updates the Grand Total and auto-fills the Amount Paid
+ */
 function updatePurchaseTotal() {
     const qtyInput = document.getElementById('purchase-qty');
     const priceInput = document.getElementById('purchase-unit-price');
+    const amountPaidInput = document.getElementById('purchase-amount-paid');
     const totalDisplay = document.getElementById('purchase-total-display');
 
     if (qtyInput && priceInput && totalDisplay) {
@@ -572,87 +664,128 @@ function updatePurchaseTotal() {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
         })}`;
+
+        // Auto-fill Amount Paid to match the total by default
+        if (amountPaidInput) {
+            amountPaidInput.value = total.toFixed(2);
+        }
     }
 }
 
-
+/**
+ * Clears form data and resets UI states
+ */
 function resetPurchaseModal() {
     activePurchaseProductId = null;
-    if (purchaseForm) purchaseForm.reset();
+    if (purchaseForm) {
+        purchaseForm.reset();
+        togglePurchaseDelivery(false); // Hide delivery fields by default
+    }
     const display = document.getElementById('purchase-total-display');
     if (display) display.innerText = "₱0.00";
 }
 
-
+/**
+ * Global click listener to open modal and populate data
+ */
 document.addEventListener('click', function(e) {
     const btn = e.target.closest('.asset-action-btn.purchase');
     if (btn) {
         resetPurchaseModal(); 
         
-        const row = btn.closest('tr');
-        activePurchaseProductId = row.getAttribute('data-id');
+        activePurchaseProductId = btn.getAttribute('data-id'); 
+        const stockValue = parseInt(btn.getAttribute('data-stock')) || 0;
         
-        // Data Extraction
-        const equipmentName = row.cells[1].innerText;
-        const rawPrice = row.cells[6].innerText.replace(/[^\d.-]/g, '').trim();
-
-        // DOM Mapping
-        const nameLabel = document.getElementById('purchase-equipment-name');
-        const unitPriceInput = document.getElementById('purchase-unit-price');
+        const stockBadge = document.getElementById('purchase-stock-badge');
+        const stockDisplay = document.getElementById('purchase-stock-display');
         const qtyInput = document.getElementById('purchase-qty');
 
-        if (nameLabel) nameLabel.innerText = equipmentName;
-        if (unitPriceInput) unitPriceInput.value = rawPrice;
-        if (qtyInput) qtyInput.value = 1; 
+        if (stockDisplay) {
+            stockDisplay.innerText = `${stockValue} Units Available`;
+        }
+
+        if (stockBadge) {
+            stockBadge.classList.remove('status-in-stock', 'status-low-stock', 'status-out-of-stock');
+            if (stockValue <= 0) {
+                stockBadge.classList.add('status-out-of-stock');
+            } else if (stockValue < 5) {
+                stockBadge.classList.add('status-low-stock');
+            } else {
+                stockBadge.classList.add('status-in-stock');
+            }
+        }
+
+        if (qtyInput) {
+            qtyInput.max = stockValue; // Set HTML constraint
+            qtyInput.value = stockValue > 0 ? 1 : 0;
+        }
+
+        const nameLabel = document.getElementById('purchase-equipment-name');
+        const unitPriceInput = document.getElementById('purchase-unit-price');
+
+        if (nameLabel) nameLabel.innerText = btn.getAttribute('data-name');
+        if (unitPriceInput) unitPriceInput.value = btn.getAttribute('data-price');
         
         updatePurchaseTotal();
         purchaseModal?.classList.remove('hidden');
     }
 });
 
-// Live recalculation listeners
+// Real-time calculation listeners
 document.getElementById('purchase-qty')?.addEventListener('input', updatePurchaseTotal);
 document.getElementById('purchase-unit-price')?.addEventListener('input', updatePurchaseTotal);
 
 /**
- * Form Submission
+ * Form Submission Logic
  */
 if (purchaseForm) {
     purchaseForm.addEventListener('submit', function(e) {
         e.preventDefault();
 
-        // 1. Target the specific select for the purchase modal
-        const customerSelect = document.getElementById('purchase-customer');
-        const customerId = customerSelect ? customerSelect.value : null;
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalBtnText = submitBtn.innerText;
+        const formData = new FormData(this);
 
-        // 2. Gather other form data
-        const qty = document.getElementById('purchase-qty').value;
-        const price = document.getElementById('purchase-unit-price').value;
-        const notes = document.getElementById('purchase-warranty-notes').value.trim();
-
-        // 3. Validation BEFORE sending to the server
+        // 1. Validation: Product Selection
         if (!activePurchaseProductId) {
-            alert("Error: No product selected. Please refresh the page.");
+            alert("Error: No product selected.");
             return;
         }
 
-        if (!customerId || customerId === "") {
-            alert("Please select a valid buyer/customer from the dropdown.");
+        // 2. Validation: Stock Check
+        const qtyToPurchase = parseInt(formData.get('quantity'));
+        const qtyInput = document.getElementById('purchase-qty');
+        const maxAvailable = parseInt(qtyInput?.max) || 0;
+
+        if (qtyToPurchase > maxAvailable) {
+            alert(`Insufficient Stock! Only ${maxAvailable} units available.`);
+            return;
+        }
+
+        // 3. Validation: Customer Selection
+        if (!formData.get('customer_id')) {
+            alert("Please select a valid buyer/customer.");
             return;
         }
 
         const payload = {
             product_id: activePurchaseProductId,
-            customer_id: customerId,
-            quantity: parseInt(qty),
-            unit_price: parseFloat(price),
-            warranty_or_notes: notes
+            customer_id: formData.get('customer_id'),
+            quantity: qtyToPurchase,
+            unit_price: parseFloat(formData.get('unit_price')),
+            amount_paid: parseFloat(formData.get('amount_paid')),
+            payment_method: formData.get('payment_method'),
+            payment_ref: formData.get('reference_number'),
+            fulfillment_type: formData.get('fulfillment_type'),
+            delivery_address: formData.get('delivery_address') || "",
+            landmark: formData.get('landmark') || "",
+            warranty_or_notes: formData.get('warranty_or_notes').trim()
         };
 
-        // Log for debugging - Check your browser console (F12) to see this!
-        console.log("Sending Purchase Payload:", payload);
+        // UI: Loading State
+        submitBtn.disabled = true;
+        submitBtn.innerText = "Processing Transaction...";
 
-        // 4. Perform the Fetch
         fetch('/admin/process-purchase', {
             method: 'POST',
             headers: {
@@ -663,30 +796,28 @@ if (purchaseForm) {
         })
         .then(async response => {
             const data = await response.json();
-            if (!response.ok) {
-                // This will throw the actual error message from your Python route
-                throw new Error(data.message || "Server error occurred");
-            }
+            if (!response.ok) throw new Error(data.message || "Server error occurred");
             return data;
         })
         .then(data => {
             if (data.success) {
-                purchaseModal.classList.add('hidden');
-                // Use a modern approach to reload
+                alert(`Success! Transaction Recorded.`);
                 window.location.reload(); 
             } else {
-                alert("Transaction Failed: " + data.message);
+                throw new Error(data.message);
             }
         })
         .catch(error => {
             console.error('Purchase Error:', error);
-            // This alert now shows the specific "Customer not found" or "Product not found" message
             alert(error.message);
+            submitBtn.disabled = false;
+            submitBtn.innerText = originalBtnText;
         });
     });
 }
+
 /**
- * Modal Close Logic
+ * Modal Close Handling
  */
 document.addEventListener('click', function(e) {
     if (e.target.closest('.close-purchase-modal') || e.target === purchaseModal) {
@@ -694,6 +825,18 @@ document.addEventListener('click', function(e) {
         resetPurchaseModal();
     }
 });
+
+/**
+ * Toggles visibility of delivery address fields
+ */
+function togglePurchaseDelivery(isDelivery) {
+    const deliveryFields = document.getElementById('purchase-delivery-fields');
+    if (deliveryFields) {
+        deliveryFields.style.display = isDelivery ? 'grid' : 'none';
+        const addrInput = deliveryFields.querySelector('input[name="delivery_address"]');
+        if (addrInput) addrInput.required = isDelivery;
+    }
+}
 
 /*============= END OF PURCHASE SUBMISSION LOGIC =============*/
 
