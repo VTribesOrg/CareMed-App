@@ -12,9 +12,9 @@ body {
     display: flex;
 }
 
-html {
-  scrollbar-gutter: stable;
-  overflow-y: scroll;
+
+body {
+    overflow-x: hidden;
 }
 
 /* ======================================= START OF SIDEBAR ======================================= */
@@ -394,6 +394,7 @@ body.ready .viewport-container {
     z-index: 1000;
     display: none;
     overflow: hidden;
+    z-index: 9999;
 }
 
 .header-dropdown.active {
