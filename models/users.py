@@ -38,6 +38,11 @@ class User(UserMixin, db.Model):
 
     customer_profile = db.relationship("Customer", back_populates="user", uselist=False, foreign_keys="[Customer.user_id]")
     
+    
+    @property
+    def full_name(self):
+        return f"{self.first_name} {self.last_name}"
+    
 class SecurityLog(db.Model):
     __tablename__ = "security_logs"
  
@@ -66,6 +71,4 @@ class BlockedIP(db.Model):
  
     admin = db.relationship("User", foreign_keys=[blocked_by],
                             backref=db.backref("blocked_ips_created", lazy="dynamic"))
-    @property
-    def full_name(self):
-        return f"{self.first_name} {self.last_name}"
+

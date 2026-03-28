@@ -893,6 +893,9 @@ def transactions():
         'alerts': Transaction.query.filter(Transaction.status == 'Due').count(),
         'empty_tanks': Product.query.filter_by(status='Empty').count()
     }
+    
+    customers = Customer.query.order_by(Customer.last_name).all()
+    all_equipment = Product.query.order_by(Product.equipment_type.asc()).all()
 
     return render_template(
         "admin/transactions.html",
@@ -902,6 +905,8 @@ def transactions():
         current_limit=limit,
         current_type=txn_type,
         current_fulfillment=fulfillment,
+        customers=customers,
+        all_equipment=all_equipment,
         **stats
     )
 

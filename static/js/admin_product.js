@@ -498,7 +498,7 @@ document.getElementById('editAssetForm')?.addEventListener('submit', function() 
 });
 
 
-/*============= RENTMODAL =============*/
+/*============= START OF RENTMODAL =============*/
 
 const rentModal = document.getElementById('rentAssetModal');
 const rentBtns = document.querySelectorAll('.asset-action-btn.rent');
@@ -541,6 +541,26 @@ if (rentForm) {
         }
     });
 }
+
+
+/*============= RENTAL CUSTOMER SELECTION =============*/
+const customerSelect = document.getElementById('rental-customer-id');
+const idStatusIcon = document.getElementById('customer-id-status');
+
+if (customerSelect) {
+    customerSelect.addEventListener('change', function() {
+        if (this.value) {
+            // Turns the circle next to "Select Customer" into a green checkmark
+            idStatusIcon.innerText = 'check_circle';
+            idStatusIcon.style.color = '#10b981'; 
+        } else {
+            // Reverts to an empty circle if no valid customer is selected
+            idStatusIcon.innerText = 'radio_button_unchecked';
+            idStatusIcon.style.color = '#cbd5e1';
+        }
+    });
+}
+
 
 /*============= END OF RENTMODAL =============*/
 
@@ -946,22 +966,5 @@ document.addEventListener('DOMContentLoaded', function() {
 /*============= END OF PAGINATION =============*/
 
 
-/*============= RENTAL CUSTOMER SELECTION =============*/
-const customerSelect = document.getElementById('rental-customer-id');
-const idStatusIcon = document.getElementById('customer-id-status');
-
-if (customerSelect) {
-    customerSelect.addEventListener('change', function() {
-        if (this.value) {
-            // Turns the circle next to "Select Customer" into a green checkmark
-            idStatusIcon.innerText = 'check_circle';
-            idStatusIcon.style.color = '#10b981'; 
-        } else {
-            // Reverts to an empty circle if no valid customer is selected
-            idStatusIcon.innerText = 'radio_button_unchecked';
-            idStatusIcon.style.color = '#cbd5e1';
-        }
-    });
-}
 
 
