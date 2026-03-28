@@ -871,112 +871,77 @@ window.addEventListener('click', (e) => {
 /*============= END OF DELETEMODAL =============*/
 
 /*============= START OF PAGINATION =============*/
-document.addEventListener('DOMContentLoaded', () => {
-    const rowSelect = document.getElementById('row-limit-select');
-    const inventoryTable = document.getElementById('inventory-table');
-    const tableBody = inventoryTable.querySelector('tbody');
-    const paginationContainer = document.querySelector('.pagination-controls');
+document.addEventListener('DOMContentLoaded', function() {
     
-    let currentPage = 1;
+    const updateFilters = () => {
+        const searchVal = document.getElementById('table-search')?.value.trim();
+        const limitVal = document.getElementById('row-limit-select')?.value;
+        const typeVal = document.getElementById('type-filter')?.value;
+        const fullVal = document.getElementById('fulfillment-filter')?.value;
 
-    function updateTableDisplay() {
-        const rows = Array.from(tableBody.querySelectorAll('tr'));
-        const limit = parseInt(rowSelect.value);
-        const totalPages = Math.ceil(rows.length / limit);
+        const urlParams = new URLSearchParams();
         
-        // Safety check for current page
-        if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
+        if (searchVal) urlParams.set('q', searchVal);
+        if (limitVal) urlParams.set('limit', limitVal);
+        if (typeVal) urlParams.set('type', typeVal);
+        if (fullVal) urlParams.set('fulfillment', fullVal);
+        
+        urlParams.set('page', 1);
 
-        const startIndex = (currentPage - 1) * limit;
-        const endIndex = startIndex + limit;
+        window.location.href = window.location.pathname + '?' + urlParams.toString();
+    };
 
-        rows.forEach((row, index) => {
-            row.style.display = (index >= startIndex && index < endIndex) ? "" : "none";
-        });
+    const searchInput = document.getElementById('table-search');
+    let searchTimer;
 
-        updatePaginationInfo(startIndex + 1, Math.min(endIndex, rows.length), rows.length);
-        renderPagination(rows.length, limit);
-    }
-
-    function renderPagination(totalItems, limit) {
-        const totalPages = Math.ceil(totalItems / limit);
-        paginationContainer.innerHTML = ''; 
-
-        // 1. Previous Button
-        const prevBtn = document.createElement('button');
-        prevBtn.className = 'pag-btn';
-        prevBtn.disabled = currentPage === 1;
-        prevBtn.innerHTML = '<span class="material-symbols-rounded">chevron_left</span>';
-        prevBtn.onclick = () => { if(currentPage > 1) { currentPage--; updateTableDisplay(); }};
-        paginationContainer.appendChild(prevBtn);
-
-        // 2. Dynamic Page Numbers (Show max 3 pages for brevity)
-        for (let i = 1; i <= totalPages; i++) {
-            if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
-                const pageBtn = document.createElement('button');
-                pageBtn.className = `pag-btn ${i === currentPage ? 'active' : ''}`;
-                pageBtn.textContent = i;
-                pageBtn.onclick = () => { currentPage = i; updateTableDisplay(); };
-                paginationContainer.appendChild(pageBtn);
-            } else if (i === currentPage - 2 || i === currentPage + 2) {
-                const dots = document.createElement('span');
-                dots.textContent = '...';
-                dots.style.padding = '0 5px';
-                paginationContainer.appendChild(dots);
+    if (searchInput) {
+        searchInput.addEventListener('keyup', (e) => {
+            clearTimeout(searchTimer);
+            if (e.key === 'Enter') {
+                updateFilters();
+            } else {
+                searchTimer = setTimeout(updateFilters, 800);
             }
-        }
-
-        // 3. Next Button
-        const nextBtn = document.createElement('button');
-        nextBtn.className = 'pag-btn';
-        nextBtn.disabled = currentPage === totalPages || totalPages === 0;
-        nextBtn.innerHTML = '<span class="material-symbols-rounded">chevron_right</span>';
-        nextBtn.onclick = () => { if(currentPage < totalPages) { currentPage++; updateTableDisplay(); }};
-        paginationContainer.appendChild(nextBtn);
-
-        // 4. Jump to Page UI
-        if (totalPages > 1) {
-            const jumpWrapper = document.createElement('div');
-            jumpWrapper.className = 'jump-to-wrapper';
-            jumpWrapper.innerHTML = `
-                <span class="jump-text">Go to:</span>
-                <input type="number" class="jump-input" min="1" max="${totalPages}" value="${currentPage}">
-                <button class="jump-btn">Go</button>
-            `;
-            
-            const jBtn = jumpWrapper.querySelector('.jump-btn');
-            const jInput = jumpWrapper.querySelector('.jump-input');
-            
-            const handleJump = () => {
-                const val = parseInt(jInput.value);
-                if (val >= 1 && val <= totalPages) {
-                    currentPage = val;
-                    updateTableDisplay();
-                }
-            };
-
-            jBtn.onclick = handleJump;
-            jInput.onkeypress = (e) => { if(e.key === 'Enter') handleJump(); };
-            
-            paginationContainer.appendChild(jumpWrapper);
-        }
-    }
-
-    function updatePaginationInfo(start, end, total) {
-        const infoLabel = document.querySelector('.pagination-info');
-        if (infoLabel) {
-            infoLabel.textContent = total === 0 ? `Showing 0 to 0 of 0 entries` : `Showing ${start} to ${end} of ${total} entries`;
-        }
-    }
-
-    if (rowSelect) {
-        rowSelect.addEventListener('change', function() {
-            currentPage = 1;
-            updateTableDisplay();
         });
     }
 
-    updateTableDisplay();
+    const filters = ['row-limit-select', 'type-filter', 'fulfillment-filter'];
+    filters.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', updateFilters);
+    });
+
+    const clearBtn = document.getElementById('clear-filters-btn');
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            window.location.href = window.location.pathname;
+        });
+    }
+
+    const jumpBtn = document.querySelector('.jump-btn');
+    const jumpInput = document.getElementById('jump-page-input');
+
+    const handleJump = () => {
+        const page = parseInt(jumpInput.value);
+        const maxPage = parseInt(jumpInput.getAttribute('max'));
+        
+        if (page >= 1 && page <= maxPage) {
+            const urlParams = new URLSearchParams(window.location.search);
+            urlParams.set('page', page);
+            window.location.href = window.location.pathname + '?' + urlParams.toString();
+        } else {
+            jumpInput.style.borderColor = "#ef4444";
+            setTimeout(() => jumpInput.style.borderColor = "#cbd5e1", 2000);
+        }
+    };
+
+    if (jumpBtn) jumpBtn.addEventListener('click', handleJump);
+
+    if (jumpInput) {
+        jumpInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleJump();
+        });
+    }
 });
 /*============= END OF PAGINATION =============*/
 

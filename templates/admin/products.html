@@ -227,19 +227,22 @@
                         <div class="filter-search-container">
                             <div class="search-wrapper">
                                 <span class="material-symbols-rounded search-icon">search</span>
-                                <input type="text" class="asset-search-input"
+                                <input type="text"
+                                    id="table-search"
+                                    class="asset-search-input"
+                                    value="{{ search_query }}"
                                     placeholder="Search Serial, Model or Asset Tag...">
                             </div>
 
                             <div class="filter-group">
                                 <div class="select-wrapper">
                                     <span class="material-symbols-rounded filter-icon">filter_list</span>
-                                    <select class="medical-select">
-                                        <option value="all">All Equipment</option>
-                                        <option>Oxygen Concentrator</option>
-                                        <option>Wheelchair</option>
-                                        <option>CPAP/BiPAP</option>
-                                        <option>Suction Machine</option>
+                                    <select class="medical-select" id="type-filter">
+                                        <option value="all" {{ 'selected' if current_type == 'all' }}>All Equipment</option>
+                                        <option value="Oxygen Concentrator" {{ 'selected' if current_type == 'Oxygen Concentrator' }}>Oxygen Concentrator</option>
+                                        <option value="Wheelchair" {{ 'selected' if current_type == 'Wheelchair' }}>Wheelchair</option>
+                                        <option value="CPAP/BiPAP" {{ 'selected' if current_type == 'CPAP/BiPAP' }}>CPAP/BiPAP</option>
+                                        <option value="Suction Machine" {{ 'selected' if current_type == 'Suction Machine' }}>Suction Machine</option>
                                     </select>
                                 </div>
                             </div>
@@ -375,9 +378,6 @@
 
                                 {% endfor %}
                                 
-                                
-
-                                
                             </tbody>
                         </table>
                     </section>
@@ -385,23 +385,67 @@
                     <div class="pagination-footer">
                         <div class="table-limit-control">
                             <span class="limit-label">Show</span>
-                            <div class="select-wrapper">
-                                <select class="medical-select" id="row-limit-select">
-                                    <option value="10">10</option>
-                                    <option value="25">25</option>
-                                    <option value="50">50</option>
-                                </select>
-                                <span class="material-symbols-rounded select-icon">expand_less</span>
-                            </div>
+                            <select class="medical-select" id="row-limit-select">
+                                <option value="10" {{ 'selected' if current_limit == 10 }}>10</option>
+                                <option value="25" {{ 'selected' if current_limit == 25 }}>25</option>
+                                <option value="50" {{ 'selected' if current_limit == 50 }}>50</option>
+                            </select>
                             <span class="limit-label">entries</span>
                         </div>
 
-                        <div class="pagination-info">Showing 1 to 10 of 1 entries</div>
+                        <div class="pagination-info">
+                            Showing 
+                            <strong>{{ (pagination.page - 1) * pagination.per_page + 1 }}</strong> 
+                            to 
+                            <strong>{{ [pagination.page * pagination.per_page, pagination.total]|min }}</strong> 
+                            of 
+                            <strong>{{ pagination.total }}</strong> entries
+                        </div>
 
-                        <div class="pagination-controls"></div>
+                        <div class="pagination-controls">
+
+                            {% if pagination.has_prev %}
+                            <a href="{{ url_for('admin.products', page=pagination.prev_num, limit=current_limit, q=search_query, type=current_type) }}" class="pag-btn">
+                                <span class="material-symbols-rounded">chevron_left</span>
+                            </a>
+                            {% else %}
+                            <div class="pag-btn disabled" style="opacity: 0.4;">
+                                <span class="material-symbols-rounded">chevron_left</span>
+                            </div>
+                            {% endif %}
+
+                            <span class="page-number">
+                                Page <strong>{{ pagination.page }}</strong> of {{ pagination.pages }}
+                            </span>
+
+                            {% if pagination.has_next %}
+                            <a href="{{ url_for('admin.products', page=pagination.next_num, limit=current_limit, q=search_query, type=current_type) }}" class="pag-btn">
+                                <span class="material-symbols-rounded">chevron_right</span>
+                            </a>
+                            {% else %}
+                            <div class="pag-btn disabled" style="opacity: 0.4;">
+                                <span class="material-symbols-rounded">chevron_right</span>
+                            </div>
+                            {% endif %}
+
+                            <div class="jump-to-wrapper">
+                                <span class="jump-text">Go to</span>
+                                <input type="number"
+                                    id="jump-page-input"
+                                    class="jump-input"
+                                    min="1"
+                                    max="{{ pagination.pages }}"
+                                    value="{{ pagination.page }}">
+                                <!-- ✅ FIX: removed onclick -->
+                                <button class="jump-btn">Go</button>
+                            </div>
+
+                        </div>
                     </div>
 
                 </div>
+
+
             </main>
         </div>
     </div>

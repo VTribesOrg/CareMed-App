@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, url_for, redirect, flash, request,
 from flask_login import current_user
 from extensions import db, limiter, csrf
 from sqlalchemy.orm import joinedload
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from flask_login import login_required
 from functools import wraps
 from models.product import Product, InventoryLog, Transaction, Purchase, Payment
@@ -42,13 +42,36 @@ def dashboard():
     return render_template("admin/dashboard.html")
 
 @admin_bp.route('/customers')
-@limiter.exempt
 @login_required
 @administrator_required
 def customers():
- 
-    customers = Customer.query.options(db.joinedload(Customer.creator)).all()
-    return render_template("admin/customers.html", customers=customers)
+
+    page = request.args.get('page', 1, type=int)
+    limit = request.args.get('limit', 10, type=int)
+    search_query = request.args.get('q', '').strip()
+
+    query = Customer.query
+
+    if search_query:
+        query = query.filter(or_(
+            Customer.first_name.ilike(f"%{search_query}%"),
+            Customer.last_name.ilike(f"%{search_query}%"),
+            Customer.contact_number.ilike(f"%{search_query}%")
+        ))
+
+    pagination = query.order_by(Customer.last_name.asc()).paginate(
+        page=page,
+        per_page=limit,
+        error_out=False
+    )
+
+    return render_template(
+        "admin/customers.html",
+        customers=pagination.items,
+        pagination=pagination,
+        search_query=search_query,
+        current_limit=limit
+    )
 
 
 @admin_bp.route('/admin/add-customer', methods=['POST'])
@@ -313,17 +336,59 @@ def update_customer():
 @administrator_required
 def products():
 
-    products = Product.query.order_by(Product.equipment_type.asc(), Product.model.asc()).all()
+    page = request.args.get('page', 1, type=int)
+    limit = request.args.get('limit', 10, type=int)
+    search_query = request.args.get('q', '').strip()
+    equipment_type = request.args.get('type', 'all')  
 
-    customers = Customer.query.filter_by(is_active=True).order_by(Customer.last_name.asc()).all()
+    query = Product.query
+
+    if search_query:
+        query = query.filter(or_(
+            Product.equipment_type.ilike(f"%{search_query}%"),
+            Product.model.ilike(f"%{search_query}%")
+        ))
+
+    if equipment_type and equipment_type != 'all':
+        query = query.filter(Product.equipment_type.ilike(equipment_type)) 
+
+    pagination = query.order_by(
+        Product.equipment_type.asc(),
+        Product.model.asc()
+    ).paginate(
+        page=page,
+        per_page=limit,
+        error_out=False
+    )
+
+    start_entry = 0
+    end_entry = 0
+
+    if pagination.total > 0:
+        start_entry = (pagination.page - 1) * pagination.per_page + 1
+        end_entry = min(pagination.page * pagination.per_page, pagination.total)
 
     stats = {
-        'total_inventory': sum(p.stock for p in products),
+        'total_inventory': db.session.query(func.sum(Product.stock)).scalar() or 0,
         'low_stock_count': Product.query.filter(Product.stock <= 5).count(),
         'available_for_rent': Product.query.filter_by(status='Available').count()
     }
 
-    return render_template("admin/products.html", products=products, customers=customers, stats=stats)
+    customers = Customer.query.filter_by(is_active=True)\
+        .order_by(Customer.last_name.asc()).all()
+
+    return render_template(
+        "admin/products.html",
+        products=pagination.items,
+        pagination=pagination,
+        customers=customers,
+        search_query=search_query,
+        current_limit=limit,
+        current_type=equipment_type,
+        start_entry=start_entry,
+        end_entry=end_entry,
+        **stats
+    )
 
 
 

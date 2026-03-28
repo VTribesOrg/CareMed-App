@@ -543,6 +543,7 @@ body.ready .viewport-container {
 
 
 
+
 /*================================== START OF Pagination ==================================*/
 
 .pagination-footer {
@@ -550,89 +551,103 @@ body.ready .viewport-container {
     justify-content: space-between;
     align-items: center;
     padding: 16px 24px;
-    padding-bottom: 0 !important;
     border-top: 1px solid #e2e8f0;
     background: #ffffff;
-    border-radius: 0 0 12px 12px;
+    border-radius: 0 0 16px 16px; 
+    flex-wrap: wrap;
+    gap: 15px;
 }
+
 
 .table-limit-control {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
 }
 
 .limit-label {
     font-size: 13px;
     color: #64748b;
+    font-weight: 500;
 }
+
+.select-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.medical-select {
+    appearance: none;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 4px 32px 4px 12px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #1e293b;
+    cursor: pointer;
+    height: 34px;
+    min-width: 75px;
+    transition: all 0.2s ease;
+}
+
+.medical-select:hover {
+    border-color: #52B788;
+    background: #ffffff;
+}
+
 
 .pagination-info {
     font-size: 13px;
     color: #64748b;
-    flex-grow: 1;
-    text-align: center;
     font-weight: 500;
+    padding: 6px 16px;
+    background: #f1f5f9;
+    border-radius: 20px;
 }
+
 
 .pagination-controls {
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 8px;
 }
 
 .pag-btn {
-    min-width: 32px;
-    height: 32px;
-    padding: 0 8px;
+    min-width: 34px;
+    height: 34px;
     display: flex;
     align-items: center;
     justify-content: center;
     border: 1px solid #e2e8f0;
     background: white;
-    border-radius: 6px;
+    border-radius: 8px;
     cursor: pointer;
-    font-size: 13px;
     color: #475569;
-    transition: all 0.2s ease;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    text-decoration: none;
 }
 
-.pag-btn.active {
-    background: #0077b6;
-    color: white;
-    border-color: #0077b6;
+.pag-btn:hover:not(.disabled) {
+    background: #f0fdf4;
+    border-color: #52B788;
+    color: #2D6A4F;
+    transform: translateY(-1px);
 }
 
-.pag-btn:hover:not(:disabled):not(.active) {
-    background: #f1f5f9;
-    border-color: #cbd5e1;
-}
-
-
-.medical-data-table.compact-mode tbody td {
-    padding: 8px 16px;
+.page-number {
     font-size: 13px;
+    color: #1e293b;
+    margin: 0 10px;
 }
 
-.medical-data-table.compact-mode .table-image-container {
-    width: 36px;  
-    height: 36px;
-}
-
-.medical-data-table.compact-mode .asset-action-btn {
-    width: 30px;
-    height: 30px;
-}
-
-.medical-data-table.compact-mode .material-symbols-rounded {
-    font-size: 18px;
-}
 
 .jump-to-wrapper {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-left: 15px;
+    margin-left: 10px;
     padding-left: 15px;
     border-left: 1px solid #e2e8f0;
 }
@@ -644,66 +659,36 @@ body.ready .viewport-container {
 
 .jump-input {
     width: 45px;
-    height: 32px;
-    padding: 0 5px;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
+    height: 34px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
     text-align: center;
     font-size: 13px;
+    font-weight: 600;
     outline: none;
+    transition: all 0.2s;
 }
 
 .jump-input:focus {
-    border-color: #0077b6;
+    border-color: #52B788;
+    box-shadow: 0 0 0 3px rgba(82, 183, 136, 0.1);
 }
 
 .jump-btn {
-    height: 32px;
+    height: 34px;
     padding: 0 12px;
-    background: #f8fafc;
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
+    background: #1B4332;
+    color: white;
+    border: none;
+    border-radius: 8px;
     cursor: pointer;
     font-size: 12px;
     font-weight: 600;
-    transition: all 0.2s ease;
+    transition: opacity 0.2s;
 }
 
 .jump-btn:hover {
-    background: #e2e8f0;
-}
-
-
-.select-icon {
-    position: absolute;
-    right: 8px; 
-    font-size: 18px !important; 
-    color: #64748b;
-    pointer-events: none; 
-    display: flex;
-    align-items: center;
-    transition: transform 0.2s ease;
-    transform: rotate(0deg);
-}
-
-
-
-.medical-select {
-    appearance: none;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    background: white;
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
-    padding: 4px 30px 4px 10px; 
-    font-size: 13px;
-    font-weight: 600;
-    color: #1e293b;
-    cursor: pointer;
-    outline: none;
-    height: 32px;
-    min-width: 70px; 
-    transition: all 0.2s ease;
+    opacity: 0.9;
 }
 
 /*================================== END OF Pagination ==================================*/

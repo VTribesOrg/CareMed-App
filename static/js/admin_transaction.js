@@ -1,21 +1,16 @@
-/**
- * CareMed Table Controller - Pure Event Listeners Version
- */
+
+/*============= START OF PAGINATION =============*/
 document.addEventListener('DOMContentLoaded', function() {
-    
+
     // --- 1. CORE LOGIC: Update URL based on UI State ---
     const updateFilters = () => {
         const searchVal = document.getElementById('table-search')?.value.trim();
         const limitVal = document.getElementById('row-limit-select')?.value;
-        const typeVal = document.getElementById('type-filter')?.value;
-        const fullVal = document.getElementById('fulfillment-filter')?.value;
 
         const urlParams = new URLSearchParams();
         
         if (searchVal) urlParams.set('q', searchVal);
         if (limitVal) urlParams.set('limit', limitVal);
-        if (typeVal) urlParams.set('type', typeVal);
-        if (fullVal) urlParams.set('fulfillment', fullVal);
         
         // Reset to page 1 on any filter change
         urlParams.set('page', 1);
@@ -38,11 +33,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // --- 3. DROPDOWNS: Change Listeners ---
-    const filters = ['row-limit-select', 'type-filter', 'fulfillment-filter'];
-    filters.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.addEventListener('change', updateFilters);
-    });
+    const limitSelect = document.getElementById('row-limit-select');
+    if (limitSelect) limitSelect.addEventListener('change', updateFilters);
 
     // --- 4. CLEAR BUTTON: Click Listener ---
     const clearBtn = document.getElementById('clear-filters-btn');
@@ -77,3 +69,5 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+/*============= END OF PAGINATION =============*/
