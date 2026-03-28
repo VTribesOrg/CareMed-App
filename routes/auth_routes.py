@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_user, logout_user, login_required
 from extensions import db, passhasher, oauth, mail, limiter, get_remote_address
 from flask_mail import Message
-from models.users import User
+from models.users import User, SecurityLog, BlockedIP
 from models.customer import Customer
 from datetime import datetime, timedelta
 from forms.auth_forms import RegisterForm, LoginForm, ResetPasswordForm
@@ -42,71 +42,199 @@ def create_customer_for_user(user):
 
 from datetime import datetime, timedelta # Ensure timedelta is imported
 
+def log_security_event(event_type, description, user=None, is_suspicious=False):
+    """Silently log a security event and auto-block if threshold reached."""
+    try:
+        from models.users import SecurityLog, BlockedIP
+        from extensions import db
+        from datetime import datetime, timedelta
+
+        ip = request.remote_addr
+
+        entry = SecurityLog(
+            ip_address=ip,
+            event_type=event_type,
+            description=description,
+            user_id=user.id if user else None,
+            user_email=user.email if user else None,
+            is_suspicious=is_suspicious
+        )
+        db.session.add(entry)
+        db.session.commit()
+
+        # Auto-block IP after 5 suspicious events in 10 minutes
+        if is_suspicious:
+            cutoff = datetime.utcnow() - timedelta(minutes=10)
+            recent = SecurityLog.query.filter(
+                SecurityLog.ip_address == ip,
+                SecurityLog.is_suspicious == True,
+                SecurityLog.created_at >= cutoff
+            ).count()
+
+            if recent >= 5:
+                already_blocked = BlockedIP.query.filter_by(ip_address=ip, is_active=True).first()
+                if not already_blocked:
+                    block = BlockedIP(
+                        ip_address=ip,
+                        reason=f"Auto-blocked: {recent} suspicious events in 10 minutes",
+                        blocked_until=datetime.utcnow() + timedelta(hours=1),
+                        is_active=True
+                    )
+                    db.session.add(block)
+
+                    # Log the auto-block
+                    auto_log = SecurityLog(
+                        ip_address=ip,
+                        event_type="Auto-Block Triggered",
+                        description=f"IP auto-blocked after {recent} suspicious events",
+                        is_suspicious=True
+                    )
+                    db.session.add(auto_log)
+                    db.session.commit()
+
+                    # Send alert email to admin
+                    try:
+                        from flask_mail import Message
+                        from extensions import mail
+                        admin_email = current_app.config.get('MAIL_USERNAME')
+                        if admin_email:
+                            msg = Message(
+                                subject="[CareMed IDS Alert] Suspicious IP Auto-Blocked",
+                                sender=current_app.config.get('MAIL_DEFAULT_SENDER'),
+                                recipients=[admin_email]
+                            )
+                            msg.body = f"""
+                                CareMed Intrusion Detection System - ALERT
+                                ==========================================
+                                Action     : IP Address Auto-Blocked
+                                IP Address : {ip}
+                                Reason     : {recent} suspicious events in 10 minutes
+                                Last Event : {event_type}
+                                Description: {description}
+                                User       : {user.email if user else 'Unknown'}
+                                Time       : {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC
+
+                                Please review the Security Center in the admin panel.
+                                http://yoursite.com/admin/security
+                                                            """
+                            mail.send(msg)
+                    except Exception as mail_err:
+                        print(f"[IDS] Alert email failed: {mail_err}")
+
+    except Exception as err:
+        print(f"[IDS] Logging failed: {err}")
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+
 @auth_bp.route("/login", methods=["GET", "POST"])
 @limiter.limit("5 per minute", key_func=login_key, methods=["POST"])
 def login():
     form = LoginForm()
     now = datetime.utcnow()
-
+ 
     email_value = session.pop('login_email', '') if request.method == "GET" else ''
-        
+ 
     if form.validate_on_submit():
         email = form.email.data.strip().lower()
         password = form.password.data
-
+ 
         user = User.query.filter_by(email=email).first()
-
+ 
         if not user:
             passhasher.hash("dummy_password")
+            # IDS: log unknown email attempt
+            log_security_event(
+                "Failed Login",
+                f"Login attempt for unknown email: {email}",
+                is_suspicious=True
+            )
             flash("Wrong email or password", "password-error")
             return redirect(url_for("auth.login"))
-
-  
+ 
         if user.account_locked_until and user.account_locked_until > now:
+            # IDS: log attempt on locked account
+            log_security_event(
+                "Locked Account Access Attempt",
+                f"Login attempted on locked account: {email}",
+                user=user,
+                is_suspicious=True
+            )
             flash("Your account is temporarily locked. Please try again later.", "password-error")
             return redirect(url_for("auth.login"))
-
-
+ 
         if not user.is_verified:
             flash("Please verify your email before logging in.", "email-error")
             session['login_email'] = email
             return redirect(url_for("auth.login"))
-
+ 
         try:
-
             if not passhasher.verify(user.password_hash, password):
                 user.failed_login_attempts += 1
+ 
                 if user.failed_login_attempts >= 5:
                     user.account_locked_until = now + timedelta(minutes=15)
                     user.lock_reason = "Too many failed login attempts"
-                
+                    # IDS: account lockout triggered
+                    log_security_event(
+                        "Account Lockout",
+                        f"Account locked after {user.failed_login_attempts} failed attempts: {email}",
+                        user=user,
+                        is_suspicious=True
+                    )
+                else:
+                    # IDS: failed login attempt
+                    log_security_event(
+                        "Failed Login",
+                        f"Wrong password attempt #{user.failed_login_attempts} for: {email}",
+                        user=user,
+                        is_suspicious=(user.failed_login_attempts >= 3)
+                    )
+ 
                 db.session.commit()
                 flash("Wrong email or password", "password-error")
                 return redirect(url_for("auth.login"))
-
-
+ 
+            # ── Successful login 
+            prev_failures = user.failed_login_attempts
+ 
             user.failed_login_attempts = 0
             user.account_locked_until = None
             user.last_login_at = now
             db.session.commit()
-            
+ 
+            if prev_failures >= 3:
+                # IDS: successful login after multiple failures (suspicious)
+                log_security_event(
+                    "Suspicious Login",
+                    f"Successful login after {prev_failures} failed attempts: {email}",
+                    user=user,
+                    is_suspicious=True
+                )
+            else:
+                log_security_event(
+                    "Successful Login",
+                    f"User logged in successfully: {email}",
+                    user=user,
+                    is_suspicious=False
+                )
+ 
             login_user(user, remember=form.remember_me.data if hasattr(form, 'remember_me') else True)
             session.permanent = True
-            
-
+ 
             if user.role == "Administrator":
                 return redirect(url_for("admin.dashboard"))
-
+ 
             return redirect(url_for("user.homepage"))
-
+ 
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f"Login error for {email}: {e}")
             flash("An unexpected error occurred. Please try again.", "password-error")
             return redirect(url_for("auth.login"))
-
+ 
     return render_template("authentication/login.html", form=form, email_value=email_value)
-
 
 @auth_bp.route("/register", methods=["GET", "POST"])
 def register():
@@ -338,6 +466,13 @@ def send_reset_link():
             return jsonify({"success": False, "message": f"Please wait {wait_time}s before resending."})
 
     if user:
+        # IDS: log password reset request
+        log_security_event(
+            "Password Reset Requested",
+            f"Password reset link requested for: {email}",
+            user=user,
+            is_suspicious=False
+        )
         try:
             token = generate_reset_token(user.email, user.password_last_reset_at)
             user.last_otp_sent = now
@@ -350,7 +485,7 @@ def send_reset_link():
                 recipients=[email],
                 sender=current_app.config.get('MAIL_DEFAULT_SENDER')
             )
-            msg.html = render_template("reset_email_link.html", user=user, link=reset_link)
+            msg.html = render_template("authentication/reset_email_link.html", user=user, link=reset_link)
             msg.body = f"Hello {user.first_name}, reset your password here: {reset_link}"
 
             mail.send(msg)

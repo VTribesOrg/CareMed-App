@@ -1,11 +1,12 @@
 import os
-from flask import Flask, request, redirect, url_for, flash, render_template
+from flask import Flask, request, redirect, url_for, flash, render_template, abort
 from flask_login import current_user
 from extensions import db, migrate, login_manager, oauth, mail, csrf, limiter
 from models.users import User
 from models.customer import Customer
 from models.product import Product, Purchase, Rental, InventoryLog
 from flask_talisman import Talisman
+from models.users import SecurityLog, BlockedIP
 
 app = Flask(__name__)
 
@@ -22,10 +23,10 @@ mail.init_app(app)
 csrf.init_app(app)
 limiter.init_app(app)
 
+
 @login_manager.user_loader
 def load_user(user_id):
     return db.session.get(User, user_id)
-
 
 
 login_manager.login_view = 'auth.login'
@@ -37,7 +38,7 @@ csp = {
     "font-src": ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"],
     "img-src": ["'self'", "data:", "https://www.google.com", "https://*.googleusercontent.com"],
     "connect-src": ["'self'"],
-    "frame-ancestors": ["'self'"], 
+    "frame-ancestors": ["'self'"],
     "object-src": ["'none'"]
 }
 Talisman(
@@ -52,22 +53,48 @@ Talisman(
     frame_options="SAMEORIGIN",
 )
 
-def register_error_handlers(app):
-    @app.errorhandler(429)
-    def ratelimit_handler(e):
-        friendly_msg = "Too many attempts. For security, please wait a moment before trying again."
-        
-        if request.endpoint == "auth.login":
-            flash(friendly_msg, "password-error")
-            return redirect(url_for("auth.login"))
-            
-        return {
-            "error": "rate_limit_exceeded",
-            "message": friendly_msg
-        }, 429
 
-register_error_handlers(app)
+# IDS: Block requests from blocked IPs before they reach any route 
+@app.before_request
+def check_blocked_ip():
+    ip = request.remote_addr
+    blocked = BlockedIP.query.filter_by(ip_address=ip, is_active=True).first()
+    if blocked:
+        from datetime import datetime
+        if blocked.blocked_until and blocked.blocked_until < datetime.utcnow():
+            # Temporary block has expired — deactivate it
+            blocked.is_active = False
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+        else:
+            abort(403)
 
+
+# Rate-limit handler: log to IDS + return user-friendly response 
+@app.errorhandler(429)
+def ratelimit_handler(e):
+    try:
+        new_log = SecurityLog(
+            ip_address=request.remote_addr,
+            event_type="Rate Limit Violation",
+            description=f"IDS: IP hit rate limit at endpoint '{request.endpoint}'",
+            is_suspicious=True
+        )
+        db.session.add(new_log)
+        db.session.commit()
+    except Exception as err:
+        print(f"IDS logging failed: {err}")
+        db.session.rollback()
+
+    friendly_msg = "Too many attempts. For security, please wait a moment before trying again."
+
+    if request.endpoint == "auth.login":
+        flash(friendly_msg, "password-error")
+        return redirect(url_for("auth.login"))
+
+    return render_template('errors/429.html'), 429
 
 
 @app.route('/')
@@ -76,8 +103,8 @@ def root():
         if current_user.role == 'Administrator':
             return redirect(url_for('admin.dashboard'))
         return redirect(url_for('user.products'))
-    
     return redirect(url_for('user.homepage'))
+
 
 from routes.user_routes import user_bp
 app.register_blueprint(user_bp)

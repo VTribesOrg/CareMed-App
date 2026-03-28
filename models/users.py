@@ -35,3 +35,32 @@ class User(UserMixin, db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     customer_profile = db.relationship("Customer", back_populates="user", uselist=False, foreign_keys="[Customer.user_id]")
+    
+class SecurityLog(db.Model):
+    __tablename__ = "security_logs"
+ 
+    id = db.Column(db.Integer, primary_key=True)
+    ip_address = db.Column(db.String(45))
+    event_type = db.Column(db.String(100))
+    description = db.Column(db.String(255))
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete="SET NULL"), nullable=True)
+    user_email = db.Column(db.String(120), nullable=True)
+    is_suspicious = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+ 
+    user = db.relationship("User", backref=db.backref("security_logs", lazy="dynamic"))
+ 
+ 
+class BlockedIP(db.Model):
+    __tablename__ = "blocked_ips"
+ 
+    id = db.Column(db.Integer, primary_key=True)
+    ip_address = db.Column(db.String(45), unique=True, nullable=False)
+    reason = db.Column(db.String(255))
+    blocked_at = db.Column(db.DateTime, default=datetime.utcnow)
+    blocked_until = db.Column(db.DateTime, nullable=True)
+    is_active = db.Column(db.Boolean, default=True)
+    blocked_by = db.Column(db.Integer, db.ForeignKey('users.id', ondelete="SET NULL"), nullable=True)
+ 
+    admin = db.relationship("User", foreign_keys=[blocked_by],
+                            backref=db.backref("blocked_ips_created", lazy="dynamic"))
