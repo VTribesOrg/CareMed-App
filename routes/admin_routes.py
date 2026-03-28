@@ -7,7 +7,9 @@ from flask_login import login_required
 from functools import wraps
 from models.product import Product, InventoryLog, Transaction, Purchase, Payment
 from models.customer import Customer
-from models.users import User
+from models.users import User, SecurityLog, BlockedIP
+from flask_mail import Message
+from flask import current_app
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
@@ -865,3 +867,150 @@ def reports():
 
     
     return render_template("admin/reports.html")
+
+# ── Security Dashboard 
+@admin_bp.route('/security')
+@limiter.exempt
+@login_required
+@administrator_required
+def security_dashboard():
+    from datetime import datetime, timedelta
+ 
+    logs = SecurityLog.query.order_by(SecurityLog.created_at.desc()).limit(500).all()
+    blocked = BlockedIP.query.filter_by(is_active=True).order_by(BlockedIP.blocked_at.desc()).all()
+ 
+    # Summary stats
+    total_logs = SecurityLog.query.count()
+    suspicious_count = SecurityLog.query.filter_by(is_suspicious=True).count()
+    blocked_count = BlockedIP.query.filter_by(is_active=True).count()
+    rate_limit_count = SecurityLog.query.filter_by(event_type="Rate Limit Violation").count()
+ 
+    return render_template(
+        'admin/security_dashboard.html',
+        logs=logs,
+        blocked=blocked,
+        total_logs=total_logs,
+        suspicious_count=suspicious_count,
+        blocked_count=blocked_count,
+        rate_limit_count=rate_limit_count,
+    )
+ 
+ 
+# ── Block an IP (manual or auto via JS) 
+@admin_bp.route('/security/block-ip', methods=['POST'])
+@login_required
+@administrator_required
+def block_ip():
+    ip = request.form.get('ip_address', '').strip()
+    reason = request.form.get('reason', 'Manually blocked by admin').strip()
+    duration_hours = request.form.get('duration_hours', '').strip()
+ 
+    if not ip:
+        flash("IP address is required.", "error")
+        return redirect(url_for('admin.security_dashboard'))
+ 
+    from datetime import datetime, timedelta
+ 
+    blocked_until = None
+    if duration_hours:
+        try:
+            h = int(duration_hours)
+            if h > 0:
+                blocked_until = datetime.utcnow() + timedelta(hours=h)
+        except ValueError:
+            pass
+ 
+    existing = BlockedIP.query.filter_by(ip_address=ip).first()
+    if existing:
+        existing.is_active = True
+        existing.reason = reason
+        existing.blocked_until = blocked_until
+        existing.blocked_at = datetime.utcnow()
+        existing.blocked_by = current_user.id
+    else:
+        entry = BlockedIP(
+            ip_address=ip,
+            reason=reason,
+            blocked_until=blocked_until,
+            is_active=True,
+            blocked_by=current_user.id
+        )
+        db.session.add(entry)
+ 
+    # Log the manual block in security logs
+    log = SecurityLog(
+        ip_address=ip,
+        event_type="IP Blocked",
+        description=f"Admin manually blocked IP. Reason: {reason}",
+        user_id=current_user.id,
+        user_email=current_user.email,
+        is_suspicious=True
+    )
+    db.session.add(log)
+ 
+    try:
+        db.session.commit()
+        flash(f"IP {ip} has been blocked successfully.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error blocking IP: {str(e)}", "error")
+ 
+    return redirect(url_for('admin.security_dashboard'))
+ 
+ 
+# ── Unblock an IP 
+@admin_bp.route('/security/unblock/<int:block_id>', methods=['POST'])
+@login_required
+@administrator_required
+def unblock_ip(block_id):
+    entry = BlockedIP.query.get_or_404(block_id)
+    entry.is_active = False
+ 
+    log = SecurityLog(
+        ip_address=entry.ip_address,
+        event_type="IP Unblocked",
+        description=f"Admin unblocked IP {entry.ip_address}",
+        user_id=current_user.id,
+        user_email=current_user.email,
+        is_suspicious=False
+    )
+    db.session.add(log)
+ 
+    try:
+        db.session.commit()
+        flash(f"IP {entry.ip_address} has been unblocked.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error unblocking IP: {str(e)}", "error")
+ 
+    return redirect(url_for('admin.security_dashboard'))
+ 
+ 
+# ── Delete a single security log 
+@admin_bp.route('/security/delete-log/<int:log_id>', methods=['POST'])
+@login_required
+@administrator_required
+def delete_security_log(log_id):
+    log = SecurityLog.query.get_or_404(log_id)
+    try:
+        db.session.delete(log)
+        db.session.commit()
+        return jsonify({"success": True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": str(e)}), 500
+ 
+ 
+# ── Clear ALL security logs 
+@admin_bp.route('/security/clear-logs', methods=['POST'])
+@login_required
+@administrator_required
+def clear_security_logs():
+    try:
+        SecurityLog.query.delete()
+        db.session.commit()
+        flash("All security logs have been cleared.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error clearing logs: {str(e)}", "error")
+    return redirect(url_for('admin.security_dashboard'))

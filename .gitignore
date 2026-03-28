@@ -1,4 +1,12 @@
 .env
 .env*
+/v
+caremed_bundle.txt
 venv/
+__pycache__/
+*.pyc
+.env
+instance/
+*.sqlite
+*.db
 venv
