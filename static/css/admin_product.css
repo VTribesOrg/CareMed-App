@@ -2176,16 +2176,18 @@ textarea.clinical-input {
     background-color: #f59e0b;
 }
 
-/* Container for all flash messages */
+
+/*============= START OF FLASK MESSAGE =============*/
+
 .flash-messages-container {
     position: fixed;
     top: 20px;
     right: 20px;
-    z-index: 1060; /* Higher than Bootstrap modals */
+    z-index: 1060; 
     width: 350px;
 }
 
-/* Base Alert Styling */
+
 .alert {
     border: none;
     border-radius: 10px;
@@ -2197,27 +2199,27 @@ textarea.clinical-input {
     padding: 1rem 1.25rem;
 }
 
-/* Success Alert (Green) */
+
 .alert-success {
     background-color: #e6fffa;
     color: #065646;
     border-left: 6px solid #38b2ac;
 }
 
-/* Error Alert (Red) */
+
 .alert-danger {
     background-color: #fff5f5;
     color: #9b2c2c;
     border-left: 6px solid #e53e3e;
 }
 
-/* Alert Close Button Adjustment */
+
 .alert .btn-close {
     padding: 1.25rem;
     font-size: 0.75rem;
 }
 
-/* Animation: Slide in from the right */
+
 .alert {
     animation: slideIn 0.5s ease-out;
 }
@@ -2232,3 +2234,15 @@ textarea.clinical-input {
         opacity: 1;
     }
 }
+
+.progress {
+    background-color: rgba(0,0,0,0.05);
+    overflow: hidden;
+    border-radius: 5px;
+}
+
+.progress-bar {
+    transition: width linear;
+}
+
+/*============= END OF FLASK MESSAGE =============*/

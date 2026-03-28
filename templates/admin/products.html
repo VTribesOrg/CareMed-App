@@ -208,12 +208,18 @@
                     {% with messages = get_flashed_messages(with_categories=true) %}
                     {% if messages %}
                         {% for category, message in messages %}
-                        <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show" role="alert">
-                            <div>
-                                <strong>{{ 'Success!' if category == 'success' else 'Error!' }}</strong> 
+                        <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show auto-dismiss" role="alert">
+                            <div class="w-100">
+                                <strong>{{ 'Success!' if category == 'success' else '' }}</strong> 
                                 <span class="ms-1">{{ message }}</span>
+
+                                <!-- Progress bar -->
+                                <div class="progress mt-2" style="height: 4px;">
+                                    <div class="progress-bar bg-{{ 'success' if category == 'success' else 'danger' }}" role="progressbar"></div>
+                                </div>
                             </div>
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                         </div>
                         {% endfor %}
                     {% endif %}

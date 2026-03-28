@@ -967,4 +967,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 
+/*============= START OF FLASK MESSAGE =============*/
+document.addEventListener("DOMContentLoaded", function () {
+    const alerts = document.querySelectorAll(".auto-dismiss");
 
+    alerts.forEach(alert => {
+        const duration = 5000; // 5 seconds (change to 3000 for 3 sec)
+        const progressBar = alert.querySelector(".progress-bar");
+
+        // Animate progress bar
+        progressBar.style.width = "100%";
+        progressBar.style.transition = `width ${duration}ms linear`;
+
+        setTimeout(() => {
+            progressBar.style.width = "0%";
+        }, 10);
+
+        // Auto close alert
+        setTimeout(() => {
+            let bsAlert = new bootstrap.Alert(alert);
+            bsAlert.close();
+        }, duration);
+    });
+});
+/*============= END OF FLASK MESSAGE =============*/

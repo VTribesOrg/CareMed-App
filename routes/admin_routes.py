@@ -402,11 +402,21 @@ def add_product():
     
     try:
         stock = int(request.form.get("stock", 0))
-        rent_price = Decimal(request.form.get("rent_price", "0.00"))
-        sale_price = Decimal(request.form.get("sale_price", "0.00"))
+        rent_price_raw = request.form.get("rent_price", "").strip()
+        sale_price_raw = request.form.get("sale_price", "").strip()
         
-        if stock < 0 or rent_price < 0 or sale_price < 0:
+        rent_price = Decimal(rent_price_raw) if rent_price_raw else None
+        sale_price = Decimal(sale_price_raw) if sale_price_raw else None
+        
+        if rent_price is None and sale_price is None:
+            flash("Please provide at least a rent price or a sale price.", "error")
+            return redirect(request.referrer)
+        
+        if stock < 0 or \
+        (rent_price is not None and rent_price < 0) or \
+        (sale_price is not None and sale_price < 0):
             raise ValueError("Numbers cannot be negative.")
+        
     except (ValueError, InvalidOperation):
         flash("Invalid numbers provided for stock or prices.", "error")
         return redirect(request.referrer)
