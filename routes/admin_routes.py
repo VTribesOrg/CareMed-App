@@ -1,6 +1,8 @@
 from flask import Blueprint, render_template, url_for, redirect, flash, request, jsonify, current_app
 from flask_login import current_user
 from extensions import db, limiter, csrf
+from sqlalchemy.orm import joinedload
+from sqlalchemy import or_
 from flask_login import login_required
 from functools import wraps
 from models.product import Product, InventoryLog, Transaction, Purchase, Payment
@@ -784,14 +786,57 @@ def product_history(product_id):
             "message": "Internal server error while fetching history."
         }), 500
 
-@admin_bp.route('/orders')
-@limiter.exempt
+
+
+@admin_bp.route('/transactions')
 @login_required
 @administrator_required
-def orders():
+@csrf.exempt
+def transactions():
+    page = request.args.get('page', 1, type=int)
+    limit = request.args.get('limit', 10, type=int)
+    search_query = request.args.get('q', '').strip()
+    txn_type = request.args.get('type', '')
+    fulfillment = request.args.get('fulfillment', '')
 
+    query = Transaction.query.options(
+        joinedload(Transaction.customer),
+        joinedload(Transaction.rentals)
+    )
+
+    if search_query:
+        query = query.filter(or_(
+            Transaction.reference_no.ilike(f"%{search_query}%"),
+            Transaction.customer_name.ilike(f"%{search_query}%"),
+            Transaction.landmark.ilike(f"%{search_query}%")
+        ))
     
-    return render_template("admin/orders.html")
+    if txn_type:
+        query = query.filter(Transaction.transaction_type == txn_type)
+    
+    if fulfillment:
+        query = query.filter(Transaction.fulfillment_type == fulfillment)
+
+    pagination = query.order_by(Transaction.created_at.desc()).paginate(
+        page=page, per_page=limit, error_out=False
+    )
+
+    stats = {
+        'pending': Transaction.query.filter_by(status='Pending Verification').count(),
+        'alerts': Transaction.query.filter(Transaction.status == 'Due').count(),
+        'empty_tanks': Product.query.filter_by(status='Empty').count()
+    }
+
+    return render_template(
+        "admin/transactions.html",
+        transactions=pagination.items,
+        pagination=pagination,
+        search_query=search_query,
+        current_limit=limit,
+        current_type=txn_type,
+        current_fulfillment=fulfillment,
+        **stats
+    )
 
 
 @admin_bp.route('/payments')

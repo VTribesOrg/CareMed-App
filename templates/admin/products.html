@@ -53,30 +53,56 @@
                             <span class="nav-label">Dashboard</span>
                         </a>
                     </li>
+
                     <li class="nav-item">
                         <a href="{{ url_for('admin.products') }}" class="nav-link active">
                             <span class="material-symbols-rounded">inventory_2</span>
-                            <span class="nav-label">Product & Inventory</span>
+                            <span class="nav-label">Inventory & Tanks</span>
                         </a>
                     </li>
+
+                    <li class="nav-item">
+                        <a href="#" class="nav-link">
+                            <span class="material-symbols-rounded">gas_meter</span>
+                            <span class="nav-label">Refill Requests</span>
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a href="#" class="nav-link">
+                            <span class="material-symbols-rounded">event_repeat</span>
+                            <span class="nav-label">Rentals & Deposits</span>
+                        </a>
+                    </li>
+
                     <li class="nav-item">
                         <a href="{{ url_for('admin.customers') }}" class="nav-link">
-                            <span class="material-symbols-rounded">people</span>
-                            <span class="nav-label">Customer Management</span>
+                            <span class="material-symbols-rounded">groups</span>
+                            <span class="nav-label">Customer Records</span>
                         </a>
                     </li>
+
                     <li class="nav-item">
-                        <a href="{{ url_for('admin.orders') }}" class="nav-link">
-                            <span class="material-symbols-rounded">shopping_cart</span>
-                            <span class="nav-label">Order Management</span>
+                        <a href="{{ url_for('admin.transactions') }}" class="nav-link">
+                            <span class="material-symbols-rounded">receipt_long</span>
+                            <span class="nav-label">Transactions</span>
                         </a>
                     </li>
+                    
                     <li class="nav-item">
                         <a href="{{ url_for('admin.payments') }}" class="nav-link">
-                            <span class="material-symbols-rounded">payment</span>
-                            <span class="nav-label">Payment Management</span>
+                            <span class="material-symbols-rounded">account_balance_wallet</span>
+                            <span class="nav-label">Payment Verifications</span>
                         </a>
                     </li>
+
+                    <li class="nav-item">
+                        <a href="#" class="nav-link">
+                            <span class="material-symbols-rounded">payments</span>
+                            <span class="nav-label">Business Expenses</span>
+                        </a>
+                    </li>
+
                     <li class="nav-item">
                         <a href="{{ url_for('admin.reports') }}" class="nav-link">
                             <span class="material-symbols-rounded">analytics</span>
@@ -213,10 +239,13 @@
                             </div>
                         </div>
 
-                        <button class="register-asset-btn" id="add-equipment-btn">
+                        <button class="register-asset-btn primary-action-btn" id="add-equipment-btn">
                             <span class="material-symbols-rounded">add_circle</span>
-                            <span>Add Equipment</span>
+                            <div class="btn-label">
+                                <strong>New Equipment</strong>
+                            </div>
                         </button>
+
                     </div>
 
                     <section class="table-scroll-container">

@@ -736,26 +736,47 @@ body.ready .viewport-container {
 }
 
 .register-asset-btn {
-    background: #52B788;
-    color: white;
-    border: none;
-    padding: 0 20px;
-    border-radius: 10px;
-    height: 44px;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    cursor: pointer;
-    transition: all 0.2s;
-    white-space: nowrap;
-    margin-left: auto;
     order: 2;
 }
 
-.register-asset-btn:hover {
-    background: #41966e;
-    transform: translateY(-1px);
+.primary-action-btn {
+    background: linear-gradient(135deg, #1B4332 0%, #2D6A4F 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 10px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 12px rgba(27, 67, 50, 0.2);
+}
+
+.primary-action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(27, 67, 50, 0.3);
+    background: linear-gradient(135deg, #2D6A4F 0%, #40916C 100%);
+}
+
+.primary-action-btn .material-symbols-rounded {
+    font-size: 28px;
+}
+
+.btn-label {
+    text-align: left;
+}
+
+.btn-label strong {
+    display: block;
+    font-size: 0.9rem;
+    line-height: 1.1;
+}
+
+.btn-label small {
+    font-size: 0.75rem;
+    opacity: 0.85;
+    font-weight: 400;
 }
 
 .filter-search-container {
