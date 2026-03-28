@@ -179,20 +179,20 @@
             <main class="content-area">
 
                 <div class="flash-messages-container">
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, message in messages %}
-          <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show" role="alert">
-             <div>
-                <strong>{{ 'Success!' if category == 'success' else 'Error!' }}</strong> 
-                <span class="ms-1">{{ message }}</span>
-             </div>
-             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-          </div>
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
-</div>
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                        <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show" role="alert">
+                            <div>
+                                <strong>{{ 'Success!' if category == 'success' else 'Error!' }}</strong> 
+                                <span class="ms-1">{{ message }}</span>
+                            </div>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                        {% endfor %}
+                    {% endif %}
+                    {% endwith %}
+                </div>
 
 
                 <div class="asset-registry-card">
@@ -288,6 +288,7 @@
                                     </td>
                                     <td class="col-actions">
                                         <div class="asset-actions">
+
                                             <button class="asset-action-btn rent" title="Rent Equipment" style="color: #0077b6;">
                                                 <span class="material-symbols-rounded">assignment</span>
                                             </button>
@@ -297,11 +298,13 @@
                                                     style="color: #f59e0b;"
                                                     data-id="{{ product.id }}"
                                                     data-name="{{ product.equipment_type }}"
-                                                    data-price="{{ product.sale_price }}">
-                                                <span class="material-symbols-rounded">shopping_cart_checkout</span>
+                                                    data-price="{{ product.sale_price }}"
+                                                    data-stock="{{ product.stock }}"> 
+                                                    <span class="material-symbols-rounded">shopping_cart_checkout</span>
                                             </button>
 
                                             <div class="action-dropdown">
+
                                                 <button class="asset-action-btn more-trigger" title="More Actions" style="color: #64748b;">
                                                     <span class="material-symbols-rounded">more_vert</span>
                                                 </button>
@@ -325,7 +328,6 @@
                                                         data-image="{{ product.image }}">
                                                         <span class="material-symbols-rounded">edit</span> Edit Details
                                                     </button>
-                                                    
                                                     
                                                     <button class="dropdown-item logs" data-product-id="{{ product.id }}" style="color: #64748b;">
                                                         <span class="material-symbols-rounded">history</span> View Logs
@@ -377,79 +379,84 @@
 
     <div id="registerAssetModal" class="medical-modal-overlay hidden">
         <div class="medical-modal-content rent-modal-width" style="max-width: 750px;">
-                <div class="modal-header-row">
-                    <div class="header-content-area">
-                        <h2 class="modal-header">Add New Inventory</h2>
-                        
-                        <div class="selected-asset-banner entry-banner">
-                            <div class="banner-left">
-                                <div class="asset-context-label">
-                                    <span class="material-symbols-rounded">add_business</span>
-                                    REGISTRATION MODE
-                                </div>
-                                <div class="asset-display-name">
-                                    <span>Registering new equipment to CareMed Inventory</span>
-                                </div>
+            <div class="modal-header-row">
+                <div class="header-content-area">
+                    <h2 class="modal-header">Add New Inventory</h2>
+                    
+                    <div class="selected-asset-banner entry-banner">
+                        <div class="banner-left">
+                            <div class="asset-context-label">
+                                <span class="material-symbols-rounded">add_business</span>
+                                REGISTRATION MODE
                             </div>
+                            <div class="asset-display-name">
+                                <span>Registering new equipment to CareMed Inventory</span>
+                            </div>
+                        </div>
 
-                            <div class="banner-right">
-                                <div class="stock-status-badge registration-status">
-                                    <span class="dot"></span>
-                                    <span>New Record</span>
-                                </div>
+                        <div class="banner-right">
+                            <div class="stock-status-badge registration-status">
+                                <span class="dot"></span>
+                                <span>New Record</span>
                             </div>
                         </div>
                     </div>
-                    
-                    <span class="material-symbols-rounded modal-close close-reg-modal absolute-close-btn" title="">close</span>
                 </div>
+                
+                <span class="material-symbols-rounded modal-close close-reg-modal absolute-close-btn">close</span>
+            </div>
 
             <form id="assetEntryForm" method="POST" action="{{ url_for('admin.add_product') }}" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                 <div style="display: flex; gap: 20px; margin-bottom: 20px;">
-                    
                     <div class="form-field" style="flex: 0 0 220px;">
                         <label>Product Image</label>
                         <div class="upload-container" id="product-dropzone" 
-                            style="height: 160px; padding: 0; overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center; border: 2px dashed #e2e8f0; border-radius: 8px; background-color: #f8fafc;">
+                            style="height: 160px; padding: 0; overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center; border: 2px dashed #e2e8f0; border-radius: 8px; background-color: #f8fafc; cursor: pointer;">
                             
                             <div id="product-upload-placeholder" style="text-align: center; pointer-events: none; z-index: 1;">
                                 <span class="material-symbols-rounded" style="font-size: 32px; color: #94a3b8; display: block;">inventory_2</span>
                                 <p style="margin: 5px 0 0 0; color: #475569; font-size: 0.8rem;"><strong>Click</strong> or drag</p>
                             </div>
                             
-                            <input type="file" name="image" id="product-image-input" hidden accept="image/*">
+                            <input type="file" name="image" id="product-image-input" hidden accept="image/png, image/jpeg, image/webp">
 
                             <div id="product-preview-container" style="display: none; position: absolute; inset: 0; z-index: 2; background-color: #ffffff; align-items: center; justify-content: center;">
-
                                 <img id="product-image-preview" style="width: 100%; height: 100%; object-fit: contain; display: block;">
-                                
                                 <span class="material-symbols-rounded" id="reset-product-upload" 
-                                    style="position: absolute; top: 8px; right: 8px; color: white; background: rgba(0,0,0,0.5); border-radius: 50%; cursor: pointer; font-size: 20px; padding: 2px; transition: background 0.2s;">
+                                    style="position: absolute; top: 8px; right: 8px; color: white; background: rgba(0,0,0,0.5); border-radius: 50%; cursor: pointer; font-size: 20px; padding: 2px; z-index: 3;">
                                     close
                                 </span>
                             </div>
                         </div>
                     </div>
+
                     <div style="flex: 1; display: flex; flex-direction: column; gap: 15px;">
                         <div class="form-field">
                             <label class="clinical-label">Equipment Type</label>
                             <div class="input-wrapper">
-                                <input type="text" name="equipment_type" class="clinical-input medical-select" list="equipment-types" placeholder="e.g. Hospital Bed" required>
+                                <input type="text" name="equipment_type" class="clinical-input" list="equipment-types" placeholder="e.g. Hospital Bed" required>
                                 <span class="material-symbols-rounded input-icon">search_insights</span>
                                 <datalist id="equipment-types">
                                     <option value="Manual Hospital Bed">
                                     <option value="Electric Wheelchair">
                                     <option value="Oxygen Tank Full Set">
                                     <option value="Suction Machine">
+                                    <option value="Nebulizer">
                                 </datalist>
                             </div>
                         </div>
 
-                        <div class="form-field">
-                            <label>Model / OEM</label>
-                            <input type="text" name="model" class="clinical-input" placeholder="Manufacturer Name">
+                        <div style="display: flex; gap: 15px;">
+                            <div class="form-field" style="flex: 2;">
+                                <label>Model / OEM</label>
+                                <input type="text" name="model" class="clinical-input" placeholder="Manufacturer Name" required>
+                            </div>
+                            <div class="form-field" style="flex: 1;">
+                                <label>Asset Tag <small style="color: #94a3b8; font-weight: normal;">(Optional)</small></label>
+                                <input type="text" name="asset_tag" class="clinical-input" placeholder="e.g. OXY-001" style="text-transform: uppercase;">
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -457,30 +464,30 @@
                 <div class="form-layout-grid" style="grid-template-columns: repeat(3, 1fr); gap: 15px;">
                     <div class="form-field">
                         <label>Initial Stock (Units)</label>
-                        <input type="number" name="stock" class="clinical-input" placeholder="0">
+                        <input type="number" name="stock" class="clinical-input" placeholder="0" min="0" required>
                     </div>
 
                     <div class="form-field">
                         <label>Monthly Rent (₱)</label>
-                        <input type="number" name="rent_price" class="clinical-input" placeholder="0.00">
+                        <input type="number" name="rent_price" class="clinical-input" placeholder="0.00" step="0.01" min="0">
                     </div>
 
                     <div class="form-field">
                         <label>Selling Price (₱)</label>
-                        <input type="number" name="sale_price" class="clinical-input" placeholder="0.00">
+                        <input type="number" name="sale_price" class="clinical-input" placeholder="0.00" step="0.01" min="0">
                     </div>
 
                     <div class="form-field full-width" style="grid-column: span 3;">
                         <label>Product Description</label>
                         <textarea name="description" class="clinical-input" rows="3" 
-                            style="width: 100%; resize: none; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; font-family: inherit;" 
-                            placeholder="Enter technical specifications or condition details..."></textarea>
+                            style="width: 100%; resize: none; padding: 10px; border-radius: 8px;" 
+                            placeholder="Enter technical specifications, condition, or warranty details..."></textarea>
                     </div>
                 </div>
 
                 <div class="modal-footer-actions">
                     <button type="button" class="btn-medical-outline close-reg-modal">Cancel</button>
-                    <button type="submit" class="btn-medical-primary">Save to Registry</button>
+                    <button type="submit" class="btn-medical-primary">Add to Inventory</button>
                 </div>
             </form>
         </div>
@@ -582,7 +589,10 @@
 
                 <div class="modal-footer-actions">
                     <button type="button" class="btn-medical-outline close-edit-modal">Cancel</button>
-                    <button type="submit" class="btn-medical-primary">Update Asset</button>
+                    <button type="submit" id="update-asset-btn" class="btn-medical-primary" disabled style="position: relative;">
+                        <span class="btn-text">Update Asset</span>
+                        <span class="btn-spinner hidden"></span>
+                    </button>
                 </div>
             </form>
         </div>
@@ -746,7 +756,6 @@
             <div class="modal-header-row">
                 <div class="header-content-area">
                     <h2 class="modal-header">Process Equipment Purchase</h2>
-                    
                     <div class="selected-asset-banner">
                         <div class="banner-left">
                             <div class="asset-context-label">
@@ -757,7 +766,6 @@
                                 <span id="purchase-equipment-name">--</span>
                             </div>
                         </div>
-
                         <div class="banner-right">
                             <div id="purchase-stock-badge" class="stock-status-badge status-in-stock">
                                 <span class="dot"></span>
@@ -766,24 +774,21 @@
                         </div>
                     </div>
                 </div>
-                
                 <span class="material-symbols-rounded modal-close close-purchase-modal absolute-close-btn">close</span>
             </div>
 
-            <form id="purchaseEntryForm">
+            <form id="purchaseEntryForm" data-fulfillment="Pickup">
                 <div class="form-layout-grid">
                     <div class="form-field full-width">
                         <label>Buyer (Customer)</label>
                         <div class="select-wrapper">
                             <span class="material-symbols-rounded filter-icon">person</span>
-                            <select class="medical-select" required id="purchase-customer">
+                            <select class="medical-select" required id="purchase-customer" name="customer_id">
                                 <option value="" disabled selected>Select buyer...</option>
                                 {% for customer in customers %}
                                     <option value="{{ customer.id }}">
-                                        {{ customer.first_name }} {{ customer.last_name }} (ID: {{ customer.id }})
+                                        {{ customer.first_name }} {{ customer.last_name }}
                                     </option>
-                                {% else %}
-                                    <option value="" disabled>No customers found</option>
                                 {% endfor %}
                             </select>
                             <span class="material-symbols-rounded select-icon">expand_more</span>
@@ -792,26 +797,72 @@
 
                     <div class="form-field">
                         <label>Quantity to Purchase</label>
-                        <input type="number" id="purchase-qty" class="clinical-input" min="1" value="1" required>
+                        <input type="number" id="purchase-qty" name="quantity" class="clinical-input" min="1" value="1" required>
                     </div>
 
                     <div class="form-field">
                         <label>Unit Sale Price (₱)</label>
-                        <input type="number" id="purchase-unit-price" class="clinical-input" value="33500">
+                        <input type="number" id="purchase-unit-price" name="unit_price" class="clinical-input" step="0.01" required>
+                    </div>
+
+                    <div class="form-field">
+                        <label>Payment Method</label>
+                        <div class="select-wrapper">
+                            <span class="material-symbols-rounded filter-icon">payments</span>
+                            <select class="medical-select" id="purchase-payment-method" name="payment_method" style="height=100px;" required>
+                                <option value="Cash">Cash</option>
+                                <option value="GCash">GCash / Maya</option>
+                                <option value="Bank Transfer">Bank Transfer</option>
+                            </select>
+                            <span class="material-symbols-rounded select-icon">expand_more</span>
+                        </div>
+                    </div>
+
+                    <div class="form-field">
+                        <label>Amount Paid (₱)</label>
+                        <input type="number" id="purchase-amount-paid" name="amount_paid" class="clinical-input" step="0.01" placeholder="0.00" required>
+                    </div>
+
+                    <div class="form-field full-width">
+                        <label>Payment Reference #</label>
+                        <input type="text" id="purchase-payment-ref" name="reference_number" class="clinical-input" placeholder="e.g. GCash Ref or Receipt #">
+                    </div>
+
+                    <div class="form-field full-width">
+                        <label>Fulfillment Type</label>
+                        <div id="purchase-fulfillment-group" style="display: flex; gap: 12px; padding: 4px 0;">
+                            <label class="fulfillment-option">
+                                <input type="radio" name="fulfillment_type" value="Pickup" checked>
+                                <span>Pickup</span>
+                            </label>
+                            <label class="fulfillment-option">
+                                <input type="radio" name="fulfillment_type" value="Delivery">
+                                <span>Delivery</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div id="purchase-delivery-fields" class="full-width" style="display: none; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div class="form-field full-width"> <label>Delivery Address</label>
+                            <input type="text" name="delivery_address" class="clinical-input" placeholder="House #, Street, Brgy...">
+                        </div>
+                        <div class="form-field full-width"> <label>Landmark</label>
+                            <input type="text" name="landmark" class="clinical-input" placeholder="Near church, blue gate, etc.">
+                        </div>
                     </div>
 
                     <div class="form-field full-width">
                         <label>Warranty / Notes</label>
-                        <textarea class="clinical-input" id="purchase-warranty-notes" name="warranty_or_notes" placeholder="Enter warranty terms or serial numbers..." style="height: 80px; padding-top: 12px; resize: none;"></textarea>
+                        <textarea class="clinical-input" id="purchase-warranty-notes" name="warranty_or_notes" placeholder="Serial numbers or terms..." style="height: 40px; padding-top: 8px; resize: none;"></textarea>
                     </div>
                 </div>
 
-                <div class="rental-summary-box" style="background-color: #fffbeb; border-color: #fef3c7;">
+                <div class="rental-summary-box">
                     <div class="summary-label-group">
-                        <span style="color: #92400e;">SALE SUMMARY</span>
-                        <span style="color: #92400e;">Grand Total:</span>
+                        <span>SALE SUMMARY</span>
+                        <span>Grand Total:</span>
                     </div>
-                    <span class="total-amount-display" id="purchase-total-display" style="color: #b45309;">₱33,500.00</span>
+                    <span class="total-amount-display" id="purchase-total-display">₱0.00</span>
                 </div>
 
                 <div class="modal-footer-actions">

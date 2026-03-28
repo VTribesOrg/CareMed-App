@@ -258,7 +258,10 @@ def register():
         try:
             existing_user = User.query.filter_by(email=email).first()
             if existing_user:
-                form.email.errors.append("Email already registered")
+                if not existing_user.is_active:
+                    form.email.errors.append("This account is deactivated. Please contact support.")
+                else:
+                    form.email.errors.append("Email already registered.")
                 return render_template("authentication/registration.html", form=form)
 
             hashed_password = passhasher.hash(password)
@@ -266,52 +269,61 @@ def register():
             new_user = User(
                 email=email,
                 password_hash=hashed_password,
+                first_name=first_name,
+                last_name=last_name,
                 is_verified=False,
+                is_active=True,        
                 role="customer"
             )
 
             db.session.add(new_user)
             db.session.flush()
 
-            customer = Customer(
-                user_id=new_user.id,
-                first_name=first_name, 
-                last_name=last_name,
-                contact_number=phone,
-                home_address=address,
-                created_by_id=None
+            new_customer = Customer(
+                    user_id=new_user.id,
+                    first_name=first_name, 
+                    last_name=last_name,
+                    contact_number=phone,
+                    home_address=address,
+                    is_id_verified=False 
             )
-            db.session.add(customer)
-
+            
+            db.session.add(new_customer)
             db.session.commit()
 
-            verification_token = email_verification_token(new_user.email)
-            verify_link = url_for(
-                "auth.verify_email",
-                token=verification_token,
-                _external=True
-            )
+            try:
+                verification_token = email_verification_token(new_user.email)
+                verify_link = url_for(
+                    "auth.verify_email",
+                    token=verification_token,
+                    _external=True
+                )
 
-            msg = Message(
-                subject="CareMed | Verify Your Email",
-                recipients=[new_user.email],
-                sender=current_app.config.get("MAIL_DEFAULT_SENDER")
-            )
+                msg = Message(
+                    subject="CareMed | Verify Your Email",
+                    recipients=[new_user.email],
+                    sender=current_app.config.get("MAIL_DEFAULT_SENDER")
+                )
 
-            msg.body = f"""
-                Hello {first_name},
+                msg.body = f"""
+                    Hello {first_name},
 
-                Please verify your email to activate your CareMed account.
+                    Please verify your email to activate your CareMed account.
 
-                Click the link below:
-                {verify_link}
+                    Click the link below:
+                    {verify_link}
 
-                This link will expire in 24 hours.
+                    This link will expire in 24 hours.
 
-                CareMed Security Team
-                """
+                    CareMed Security Team
+                    """
 
-            mail.send(msg)
+                mail.send(msg)
+            except Exception as mail_error:
+                current_app.logger.error(f"Mail failed for {email}: {mail_error}")
+                flash("Account created, but we couldn't send a verification email. Please try 'Resend Email'.", "warning")
+                return redirect(url_for('auth.login'))
+            
             flash("Registration successful. Please check your email to verify your account.", "info")
             return redirect(url_for('auth.login', success='registered', email=email))
 
@@ -367,21 +379,30 @@ def google_login():
 def callback():
     state = request.args.get("state")
     if not state or state != session.pop("oauth_state", None):
-        flash("Invalid OAuth state")
+        flash("Invalid session state. Please try logging in again.", "danger")
         return redirect(url_for("auth.login"))
 
-    token = google.authorize_access_token()
-    user_info = google.parse_id_token(token, nonce=session.pop("nonce", None))
+    try:
+        token = google.authorize_access_token()
+        user_info = google.parse_id_token(token, nonce=session.pop("nonce", None))
+    except Exception as e:
+        current_app.logger.error(f"OAuth Token Error: {e}")
+        flash("Failed to retrieve user information from Google.", "danger")
+        return redirect(url_for("auth.login"))
 
     if not user_info.get("email_verified"):
-        flash("Google email not verified")
+        flash("Your Google email is not verified. Please verify it first.", "warning")
         return redirect(url_for("auth.login"))
 
     email = user_info["email"].lower()
     google_id = user_info["sub"]
+    
+    f_name = user_info.get("given_name", "Google").strip().title()
+    l_name = user_info.get("family_name", "User").strip().title()
+    profile_pic = user_info.get("picture")
 
     if not email.endswith("@gmail.com"):
-        flash("Only Gmail accounts are allowed")
+        flash("Only personal Gmail accounts are allowed for this service.", "warning")
         return redirect(url_for("auth.login"))
 
     try:
@@ -390,38 +411,51 @@ def callback():
         if not user:
             user = User.query.filter_by(email=email).first()
 
-            if user and user.google_id and user.google_id != google_id:
-                flash("Account already linked with another Google account.")
-                return redirect(url_for("auth.login"))
-
             if user:
+                if user.google_id and user.google_id != google_id:
+                    flash("This email is already linked to a different Google account.", "danger")
+                    return redirect(url_for("auth.login"))
+                
                 user.google_id = google_id
-                user.is_verified = True
-                user.email_verified_at = datetime.utcnow()
+                user.oauth_provider = "google"
+                
+                if not user.first_name: user.first_name = f_name
+                if not user.last_name: user.last_name = l_name
             else:
                 user = User(
                     email=email,
                     google_id=google_id,
+                    first_name=f_name,
+                    last_name=l_name,
+                    profile_path=profile_pic,
                     is_verified=True,
                     email_verified_at=datetime.utcnow(),
                     role="customer",
-                    oauth_provider="google"
+                    oauth_provider="google",
+                    is_active=True 
                 )
                 db.session.add(user)
+
+        
+        if not user.is_active:
+            flash("This account has been deactivated. Please contact support.", "danger")
+            return redirect(url_for("auth.login"))
+
+        if not user.is_verified:
+            user.is_verified = True
+            user.email_verified_at = datetime.utcnow()
+
+        if profile_pic:
+            user.profile_path = profile_pic
 
         db.session.flush()
 
         if user.role != "Administrator" and not user.customer_profile:
-            f_name = user_info.get("given_name") or "Google"
-            l_name = user_info.get("family_name") or "User"
-
             customer = Customer(
                 user_id=user.id,
-                first_name=f_name.capitalize(),
-                last_name=l_name.capitalize(),
-                contact_number=None, 
-                home_address=None,
-                created_by_id=None
+                first_name=user.first_name,
+                last_name=user.last_name,
+                is_id_verified=False
             )
             db.session.add(customer)
                 
@@ -429,16 +463,22 @@ def callback():
 
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"OAuth Callback Error: {e}")
-        flash("Authentication failed. Please try again.")
+        current_app.logger.error(f"OAuth Callback Database Error: {e}")
+        flash("An internal error occurred during login. Please try again.", "danger")
         return redirect(url_for("auth.login"))
 
     login_user(user, remember=True)
     session.permanent = True
-
+    user.last_login_at = datetime.utcnow()
+    db.session.commit()
 
     if user.role == "Administrator":
         return redirect(url_for("admin.dashboard"))
+
+
+    if not user.customer_profile.contact_number or not user.customer_profile.home_address:
+        flash("Welcome! Please complete your profile details to start renting.", "info")
+        return redirect(url_for("user.profile"))
 
     return redirect(url_for("user.homepage"))
 

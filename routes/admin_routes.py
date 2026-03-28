@@ -3,16 +3,17 @@ from flask_login import current_user
 from extensions import db, limiter, csrf
 from flask_login import login_required
 from functools import wraps
-from models.product import Product, InventoryLog, Transaction, Purchase
+from models.product import Product, InventoryLog, Transaction, Purchase, Payment
 from models.customer import Customer
 from models.users import User, SecurityLog, BlockedIP
 from flask_mail import Message
 from flask import current_app
 from werkzeug.utils import secure_filename
 from datetime import datetime
+from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 import os
 import uuid
-from decimal import Decimal
+
 
 
 
@@ -47,77 +48,101 @@ def customers():
     customers = Customer.query.options(db.joinedload(Customer.creator)).all()
     return render_template("admin/customers.html", customers=customers)
 
+
 @admin_bp.route('/admin/add-customer', methods=['POST'])
 @login_required
 def add_customer():
-    first_name = request.form.get('first_name')
-    last_name = request.form.get('last_name')
-    contact_number = request.form.get('contact_number')
-    home_address = request.form.get('home_address')
 
+    if current_user.role not in ['Administrator', 'Staff']:
+        flash("Unauthorized access.", "error")
+        return redirect(url_for('user.homepage'))
+
+
+    first_name = request.form.get('first_name', '').strip().title()
+    last_name = request.form.get('last_name', '').strip().title()
+    contact_number = request.form.get('contact_number', '').strip()
+    home_address = request.form.get('home_address', '').strip()
     birthday_str = request.form.get('birthday')
     gender = request.form.get('gender')
-
     primary_id_type = request.form.get('primary_id_type')
     secondary_id_type = request.form.get('secondary_id_type')
 
-    valid_id_file = request.files.get('valid_id')
-    secondary_id_file = request.files.get('secondary_id')
 
-    if not all([
-        first_name, last_name, contact_number, home_address,
-        birthday_str, gender, primary_id_type, secondary_id_type,
-        valid_id_file, secondary_id_file
-    ]):
-        flash("All fields including ID uploads are required.", "error")
+    if not all([first_name, last_name, contact_number, birthday_str]):
+        flash("Basic details (Name, Contact, Birthday) are required.", "error")
         return redirect(request.referrer)
 
     try:
         birthday = datetime.strptime(birthday_str, '%Y-%m-%d').date()
-    except ValueError:
-        flash("Invalid birthday format.", "error")
+    except (ValueError, TypeError):
+        flash("Invalid birthday format. Please use YYYY-MM-DD.", "error")
         return redirect(request.referrer)
 
-    upload_folder = os.path.join('static', 'uploads', 'ids')
+
+    existing = Customer.query.filter_by(
+        first_name=first_name, 
+        last_name=last_name, 
+        birthday=birthday
+    ).first()
+    if existing:
+        flash(f"A customer named {first_name} {last_name} with this birthday already exists.", "warning")
+        return redirect(request.referrer)
+
+
+    upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'ids')
     os.makedirs(upload_folder, exist_ok=True)
 
-    def save_file(file):
-        filename = f"{uuid.uuid4().hex}_{secure_filename(file.filename)}"
+    def save_id_file(file):
+        if not file or file.filename == '':
+            return None
+
+        ext = os.path.splitext(file.filename)[1]
+        filename = f"{uuid.uuid4().hex}{ext}"
         file_path = os.path.join(upload_folder, filename)
         file.save(file_path)
         return f"uploads/ids/{filename}"
 
-    try:
-        valid_id_path = save_file(valid_id_file)
-        secondary_id_path = save_file(secondary_id_file)
-    except Exception as e:
-        flash("Error uploading files.", "error")
-        return redirect(request.referrer)
+    valid_id_file = request.files.get('valid_id')
+    secondary_id_file = request.files.get('secondary_id')
 
-    customer = Customer(
-        user_id=None,
-        first_name=first_name.strip().title(),
-        last_name=last_name.strip().title(),
+    valid_id_path = save_id_file(valid_id_file)
+    secondary_id_path = save_id_file(secondary_id_file)
+
+
+    new_customer = Customer(
+        user_id=None, 
+        first_name=first_name,
+        last_name=last_name,
         birthday=birthday,
-        gender=gender.title(),
-        contact_number=contact_number.strip(),
-        home_address=home_address.strip(),
+        gender=gender,
+        contact_number=contact_number,
+        home_address=home_address,
         primary_id_type=primary_id_type,
         secondary_id_type=secondary_id_type,
         valid_id_path=valid_id_path,
         secondary_id_path=secondary_id_path,
         id_uploaded_at=datetime.utcnow(),
-        is_id_verified=False,
-        created_by_id=current_user.id
+        is_id_verified=True if valid_id_path else False,
+        created_by_id=current_user.id,
+        is_active=True 
     )
 
     try:
-        db.session.add(customer)
+        db.session.add(new_customer)
+        log = InventoryLog(
+            action="Admin Created Customer",
+            note=f"Customer {first_name} {last_name} added manually by {current_user.email}",
+            user_id=current_user.id,
+            user_name=f"{current_user.first_name} {current_user.last_name}"
+        )
+        db.session.add(log)
+        
         db.session.commit()
-        flash("Customer registered successfully!", "success")
+        flash(f"Customer {new_customer.full_name} added successfully!", "success")
     except Exception as e:
         db.session.rollback()
-        flash(f"An error occurred: {str(e)}", "error")
+        current_app.logger.error(f"Customer Creation Error: {str(e)}")
+        flash("A database error occurred. Please try again.", "error")
 
     return redirect(url_for('admin.customers'))
 
@@ -134,8 +159,16 @@ def get_customer(id):
         if not customer:
             return jsonify({
                 "status": "error",
-                "message": "We couldn’t find the selected customer. Please refresh and try again."
+                "message": "Customer record not found."
             }), 404
+
+
+        profile_url = None
+        if customer.user and customer.user.profile_path:
+            if customer.user.profile_path.startswith(('http://', 'https://')):
+                profile_url = customer.user.profile_path
+            else:
+                profile_url = url_for('static', filename=customer.user.profile_path)
 
         return jsonify({
             "status": "success",
@@ -143,33 +176,38 @@ def get_customer(id):
                 "id": customer.id,
                 "first_name": customer.first_name or "N/A",
                 "last_name": customer.last_name or "N/A",
-                "full_name": f"{customer.first_name} {customer.last_name}",
-
+                "full_name": customer.full_name, 
+                
                 "contact_number": customer.contact_number or "N/A",
                 "home_address": customer.home_address or "N/A",
-
-                "birthday": customer.birthday.strftime('%Y-%m-%d') if customer.birthday else "",
+                
+                "birthday": customer.birthday.strftime('%Y-%m-%d') if customer.birthday else "N/A",
                 "gender": customer.gender or "N/A",
-
-                "primary_id_type": customer.primary_id_type or "N/A",
-                "secondary_id_type": customer.secondary_id_type or "N/A",
-
+                
+                "is_active": customer.is_active,
+                
+                "is_id_verified": customer.is_id_verified,
+                "primary_id_type": customer.primary_id_type or "Not Set",
+                "secondary_id_type": customer.secondary_id_type or "Not Set",
+                
                 "valid_id_path": url_for('static', filename=customer.valid_id_path) if customer.valid_id_path else None,
                 "secondary_id_path": url_for('static', filename=customer.secondary_id_path) if customer.secondary_id_path else None,
-
-                "is_id_verified": customer.is_id_verified,
-                "id_uploaded_at": customer.id_uploaded_at.strftime('%Y-%m-%d %H:%M:%S') if customer.id_uploaded_at else None,
-
-                "profile_path": url_for('static', filename=customer.user.profile_path)
-                    if customer.user and customer.user.profile_path else None
+                
+                "id_uploaded_at": customer.id_uploaded_at.strftime('%b %d, %Y %I:%M %p') if customer.id_uploaded_at else "Never",
+                
+                "has_online_account": True if customer.user_id else False,
+                "email": customer.user.email if customer.user else "Walk-in / No Email",
+                "profile_path": profile_url,
+                
+                "created_at": customer.created_at.strftime('%Y-%m-%d %H:%M:%S') if customer.created_at else None
             }
         })
 
     except Exception as e:
-        current_app.logger.error(f"Error fetching customer {id}: {e}")
+        current_app.logger.error(f"Error fetching customer {id}: {str(e)}")
         return jsonify({
             "status": "error",
-            "message": "Something went wrong while loading customer details. Please try again later."
+            "message": "An internal server error occurred while retrieving customer data."
         }), 500
 
 
@@ -178,21 +216,31 @@ def get_customer(id):
 @administrator_required
 def update_customer():
     customer_id = request.form.get("customer_id")
-    customer = Customer.query.get_or_404(customer_id)
+    customer = Customer.query.options(db.joinedload(Customer.user)).get_or_404(customer_id)
 
-    first_name = request.form.get("first_name", "").strip()
-    last_name = request.form.get("last_name", "").strip()
+    first_name = request.form.get("first_name", "").strip().title()
+    last_name = request.form.get("last_name", "").strip().title()
+    
     if first_name:
-        customer.first_name = first_name.capitalize()
+        customer.first_name = first_name
+        if customer.user: customer.user.first_name = first_name
     if last_name:
-        customer.last_name = " ".join([part.capitalize() for part in last_name.split()])
+        customer.last_name = last_name
+        if customer.user: customer.user.last_name = last_name
 
-    gender = request.form.get("gender", "").strip()
+    gender = request.form.get("gender", "").strip().capitalize()
     if gender:
-        customer.gender = gender[0].upper() + gender[1:].lower()
+        customer.gender = gender
 
     customer.home_address = request.form.get("home_address", "").strip().title()
     customer.contact_number = request.form.get("contact_number", "").strip()
+
+
+    is_active_val = request.form.get("is_active") == "on"
+    if customer.is_active != is_active_val:
+        customer.is_active = is_active_val
+        if customer.user:
+            customer.user.is_active = is_active_val 
 
     birthday_str = request.form.get("birthday")
     if birthday_str:
@@ -202,155 +250,204 @@ def update_customer():
             flash("Invalid birthday format.", "error")
             return redirect(request.referrer)
 
-    def handle_id(file_key, old_path_attr, remove_flag_name):
+    def handle_id(file_key, path_attr, remove_flag_name):
         remove_flag = request.form.get(remove_flag_name)
         image_file = request.files.get(file_key)
-        old_path = getattr(customer, old_path_attr)
+        old_path = getattr(customer, path_attr)
 
         if remove_flag == "true" and old_path:
-            old_full = os.path.join("static", old_path)
-            if os.path.exists(old_full):
-                try:
-                    os.remove(old_full)
-                except Exception as e:
-                    current_app.logger.error(f"Failed to delete old ID: {e}")
-            setattr(customer, old_path_attr, None)
+            full_path = os.path.join(current_app.root_path, 'static', old_path)
+            if os.path.exists(full_path):
+                os.remove(full_path)
+            setattr(customer, path_attr, None)
 
         elif image_file and image_file.filename:
             ext = os.path.splitext(image_file.filename)[1].lower()
-            random_name = f"ID_{uuid.uuid4().hex[:10]}{ext}"
-            upload_folder = os.path.join("static", "uploads", "ids")
-            os.makedirs(upload_folder, exist_ok=True)
-
+            filename = f"ID_{uuid.uuid4().hex[:12]}{ext}"
+            relative_path = f"uploads/ids/{filename}"
+            absolute_path = os.path.join(current_app.root_path, 'static', 'uploads', 'ids')
+            
+            os.makedirs(absolute_path, exist_ok=True)
+            
             if old_path:
-                old_full = os.path.join("static", old_path)
+                old_full = os.path.join(current_app.root_path, 'static', old_path)
                 if os.path.exists(old_full):
-                    try:
-                        os.remove(old_full)
-                    except Exception as e:
-                        current_app.logger.error(f"Failed to delete old ID: {e}")
+                    os.remove(old_full)
 
-            image_path = f"uploads/ids/{random_name}"
-            image_file.save(os.path.join("static", image_path))
-            setattr(customer, old_path_attr, image_path)
+            image_file.save(os.path.join(absolute_path, filename))
+            setattr(customer, path_attr, relative_path)
             if file_key == "valid_id":
                 customer.id_uploaded_at = datetime.utcnow()
-
 
     handle_id("valid_id", "valid_id_path", "remove_valid_id")
     handle_id("secondary_id", "secondary_id_path", "remove_secondary_id")
 
-
     customer.primary_id_type = request.form.get("primary_id_type", "").strip()
     customer.secondary_id_type = request.form.get("secondary_id_type", "").strip()
 
+    customer.is_id_verified = request.form.get("is_id_verified") == "on"
+
     try:
+        audit_log = InventoryLog(
+            action="Admin Updated Customer",
+            note=f"Customer ID {customer.id} updated by {current_user.first_name}",
+            user_id=current_user.id,
+            user_name=current_user.full_name
+        )
+        db.session.add(audit_log)
+        
         db.session.commit()
-        flash("Customer profile updated successfully!", "success")
+        flash(f"Profile for {customer.full_name} updated successfully!", "success")
     except Exception as e:
         db.session.rollback()
-        flash(f"Error updating customer: {str(e)}", "error")
+        current_app.logger.error(f"Update Error: {e}")
+        flash("An error occurred while saving changes.", "error")
 
     return redirect(url_for("admin.customers"))
-
 
 @admin_bp.route('/products')
 @limiter.exempt
 @login_required
 @administrator_required
 def products():
-    
-    products = Product.query.all()
-    customers = Customer.query.order_by(Customer.last_name).all() 
-    
-    return render_template("admin/products.html", products=products, customers=customers)
+
+    products = Product.query.order_by(Product.equipment_type.asc(), Product.model.asc()).all()
+
+    customers = Customer.query.filter_by(is_active=True).order_by(Customer.last_name.asc()).all()
+
+    stats = {
+        'total_inventory': sum(p.stock for p in products),
+        'low_stock_count': Product.query.filter(Product.stock <= 5).count(),
+        'available_for_rent': Product.query.filter_by(status='Available').count()
+    }
+
+    return render_template("admin/products.html", products=products, customers=customers, stats=stats)
+
 
 
 @admin_bp.route('/add-product', methods=['POST'])
 @login_required
 @administrator_required
 def add_product():
-    equipment_type = request.form.get("equipment_type", "").strip()
+    equipment_type = request.form.get("equipment_type", "").strip().title()
     model = request.form.get("model", "").strip()
     description = request.form.get("description", "").strip()
-    stock = request.form.get("stock")
-    rent_price = request.form.get("rent_price")
-    sale_price = request.form.get("sale_price")
-    image_file = request.files.get("image")
-
-    if not equipment_type:
-        flash("Equipment Type is required.", "error")
+    
+    try:
+        stock = int(request.form.get("stock", 0))
+        rent_price = Decimal(request.form.get("rent_price", "0.00"))
+        sale_price = Decimal(request.form.get("sale_price", "0.00"))
+        
+        if stock < 0 or rent_price < 0 or sale_price < 0:
+            raise ValueError("Numbers cannot be negative.")
+    except (ValueError, InvalidOperation):
+        flash("Invalid numbers provided for stock or prices.", "error")
         return redirect(request.referrer)
 
+    if not equipment_type or not model:
+        flash("Equipment Type and Model are required.", "error")
+        return redirect(request.referrer)
+
+    image_file = request.files.get("image")
     image_path = None
+    
     if image_file and image_file.filename != '':
-        ext = os.path.splitext(image_file.filename)[1].lower()
-        random_name = f"{uuid.uuid4().hex}{ext}"
-        upload_folder = os.path.join("static", "uploads", "products")
+        ext = os.path.splitext(secure_filename(image_file.filename))[1].lower()
+        if ext not in ['.jpg', '.jpeg', '.png', '.webp']:
+            flash("Invalid image format. Use JPG, PNG, or WebP.", "error")
+            return redirect(request.referrer)
+            
+        random_name = f"prod_{uuid.uuid4().hex[:12]}{ext}"
+        upload_folder = os.path.join(current_app.root_path, "static", "uploads", "products")
         os.makedirs(upload_folder, exist_ok=True)
+        
         image_path = f"uploads/products/{random_name}"
-        full_path = os.path.join("static", image_path)
+        full_path = os.path.join(upload_folder, random_name)
         
         try:
             image_file.save(full_path)
         except Exception as e:
-            flash(f"Failed to save image: {str(e)}", "error")
+            current_app.logger.error(f"Image Save Error: {e}")
+            flash("Failed to save product image.", "error")
             return redirect(request.referrer)
 
+
     try:
+        asset_tag = request.form.get("asset_tag", "").strip().upper()
+        
+        if asset_tag:
+            existing_tag = Product.query.filter_by(asset_tag=asset_tag).first()
+            if existing_tag:
+                if image_path:
+                    os.remove(os.path.join(current_app.root_path, "static", image_path))
+                flash(f"Asset Tag '{asset_tag}' is already assigned to {existing_tag.model}.", "error")
+                return redirect(request.referrer)
+        else:
+            asset_tag = None
+
         new_product = Product(
-            asset_tag=None, 
+            asset_tag=asset_tag, 
             equipment_type=equipment_type,
             model=model,
             description=description, 
-            stock=int(stock) if stock else 0,
-            rent_price=float(rent_price) if rent_price else 0.0,
-            sale_price=float(sale_price) if sale_price else 0.0,
-            image=image_path
+            stock=stock,
+            rent_price=rent_price,
+            sale_price=sale_price,
+            image=image_path,
+            status="Available" if stock > 0 else "Out of Stock"
         )
+        
         db.session.add(new_product)
-        db.session.flush()  
+        db.session.flush() 
 
         log = InventoryLog(
             product_id=new_product.id,
-            action="Add Product",
-            quantity=new_product.stock,
-            note=f"Initial product added: {equipment_type}",
+            action="Initial Stock Entry",
+            quantity=stock,
+            note=f"Registered {model}. Tag: {asset_tag if asset_tag else 'None'}",
             user_id=current_user.id,
-            user_name=f"{current_user.first_name} {current_user.last_name}"
+            user_name=current_user.full_name 
         )
         db.session.add(log)
-        db.session.commit()  
-
-        flash(f"Product '{equipment_type}' added successfully!", "success")
+        
+        db.session.commit()
+        flash(f"Product '{model}' added successfully.", "success")
         
     except Exception as e:
         db.session.rollback()
         if image_path:
-            abs_image_path = os.path.join("static", image_path)
+            abs_image_path = os.path.join(current_app.root_path, "static", image_path)
             if os.path.exists(abs_image_path):
                 os.remove(abs_image_path)
-        flash(f"Error saving product: {str(e)}", "error")
+        
+        current_app.logger.error(f"Database Error on Product Add: {str(e)}")
+        flash(f"Internal error: {str(e)}", "error")
 
     return redirect(url_for('admin.products'))
+
 
 @admin_bp.route('/edit-product/<int:product_id>', methods=['POST'])
 @login_required
 @administrator_required
 def edit_product(product_id):
     product = Product.query.get_or_404(product_id)
-    
-    new_type = request.form.get("equipment_type", "").strip()
+
+    new_type = request.form.get("equipment_type", "").strip().title()
     new_model = request.form.get("model", "").strip()
     new_description = request.form.get("description", "").strip()
+    new_asset_tag = request.form.get("asset_tag", "").strip().upper()
     
-    if not new_type:
-        flash("Equipment Type is required.", "error")
+    if not new_type or not new_model:
+        flash("Equipment Type and Model are required.", "error")
         return redirect(url_for('admin.products'))
 
     changes = []
 
     try:
+        new_stock = int(request.form.get("stock") or 0)
+        new_rent = Decimal(request.form.get("rent_price") or "0.00")
+        new_sale = Decimal(request.form.get("sale_price") or "0.00")
+
         if product.equipment_type != new_type:
             changes.append(f"Type: {product.equipment_type} → {new_type}")
             product.equipment_type = new_type
@@ -359,114 +456,137 @@ def edit_product(product_id):
             changes.append(f"Model: {product.model or 'N/A'} → {new_model}")
             product.model = new_model
 
+        if product.asset_tag != new_asset_tag:
+            if new_asset_tag:
+                existing = Product.query.filter(Product.asset_tag == new_asset_tag, Product.id != product.id).first()
+                if existing:
+                    flash(f"Asset Tag {new_asset_tag} is already in use.", "error")
+                    return redirect(url_for('admin.products'))
+            changes.append(f"Tag: {product.asset_tag} → {new_asset_tag}")
+            product.asset_tag = new_asset_tag
+
         if (product.description or "").strip() != new_description:
             changes.append("Description updated")
             product.description = new_description
 
-        new_stock = int(request.form.get("stock") or 0)
         if product.stock != new_stock:
             changes.append(f"Stock: {product.stock} → {new_stock}")
             product.stock = new_stock
+            product.status = "Available" if new_stock > 0 else "Out of Stock"
 
-        new_rent = float(request.form.get("rent_price") or 0.0)
-        if float(product.rent_price or 0.0) != new_rent:
+        if product.rent_price != new_rent:
             changes.append(f"Rent: ₱{product.rent_price} → ₱{new_rent}")
             product.rent_price = new_rent
 
-        new_sale = float(request.form.get("sale_price") or 0.0)
-        if float(product.sale_price or 0.0) != new_sale:
+        if product.sale_price != new_sale:
             changes.append(f"Price: ₱{product.sale_price} → ₱{new_sale}")
             product.sale_price = new_sale
 
-    except ValueError:
+    except (ValueError, InvalidOperation):
         flash("Invalid numeric value provided for stock or price.", "error")
         return redirect(url_for('admin.products'))
 
     image_file = request.files.get("image")
     if image_file and image_file.filename != '':
         if product.image:
-            old_path = os.path.join("static", product.image)
-            if os.path.exists(old_path):
+            old_full_path = os.path.join(current_app.root_path, "static", product.image)
+            if os.path.exists(old_full_path):
                 try:
-                    os.remove(old_path)
+                    os.remove(old_full_path)
                 except Exception as e:
-                    print(f"Warning: Could not delete old image: {e}")
+                    current_app.logger.warning(f"Could not delete old image: {e}")
 
-        ext = os.path.splitext(image_file.filename)[1].lower()
-        random_name = f"{uuid.uuid4().hex}{ext}"
-        upload_folder = os.path.join("static", "uploads", "products")
+        ext = os.path.splitext(secure_filename(image_file.filename))[1].lower()
+        random_name = f"prod_{uuid.uuid4().hex[:12]}{ext}"
+        upload_folder = os.path.join(current_app.root_path, "static", "uploads", "products")
         os.makedirs(upload_folder, exist_ok=True)
         
-        new_image_rel_path = f"uploads/products/{random_name}"
-        image_file.save(os.path.join("static", new_image_rel_path))
+        new_rel_path = f"uploads/products/{random_name}"
+        image_file.save(os.path.join(upload_folder, random_name))
         
-        product.image = new_image_rel_path
-        changes.append("Product image updated")
+        product.image = new_rel_path
+        changes.append("Image updated")
 
     try:
         if changes:
-            log_note = f"Changes: {'; '.join(changes)}"
-            
+            log_note = f"{'; '.join(changes)}"
             inventory_log = InventoryLog(
                 product_id=product.id,
                 action="Product Edited",
                 quantity=product.stock,
-                note=log_note,
+                note=log_note[:255], 
                 user_id=current_user.id,
-                user_name=f"{current_user.first_name} {current_user.last_name}"
+                user_name=current_user.full_name
             )
             db.session.add(inventory_log)
-        
-        db.session.commit()
-        flash(f"Updated {product.equipment_type} successfully!", "success")
+            db.session.commit()
+            flash(f"Updated {product.model} successfully!", "success")
+        else:
+            flash("No changes detected.", "info")
 
     except Exception as e:
         db.session.rollback()
-        flash(f"Database error: {str(e)}", "error")
+        current_app.logger.error(f"Product Update Error: {e}")
+        flash("An error occurred while updating the product.", "error")
 
     return redirect(url_for('admin.products'))
 
 @admin_bp.route('/update_stock/<int:product_id>', methods=['POST'])
 @login_required
+@administrator_required 
 @csrf.exempt
 def update_stock(product_id):
-    data = request.get_json()
+
+    data = request.get_json() or {}
     product = Product.query.get_or_404(product_id)
     
-    increment = int(data.get('increment', 0))
-    reason = data.get('reason', 'No reason provided')
+    try:
+        increment = int(data.get('increment', 0))
+        reason = data.get('reason', '').strip() or 'Stock replenishment'
+    except (ValueError, TypeError):
+        return jsonify({"success": False, "message": "Invalid quantity format."}), 400
 
     if increment <= 0:
         return jsonify({
             "success": False,
-            "message": "Quantity must be greater than 0."
+            "message": "Increment must be at least 1 unit."
         }), 400
 
     try:
+        old_stock = product.stock
         product.stock += increment
-        db.session.flush()  
+        
+        if product.status == "Out of Stock" and product.stock > 0:
+            product.status = "Available"
 
-        log = InventoryLog(
+        log_note = f"Restocked: {old_stock} → {product.stock}. Reason: {reason}"
+        
+        inventory_log = InventoryLog(
             product_id=product.id,
             action="Restock",
             quantity=increment,
-            note=reason,
-            user_id=current_user.id if current_user.is_authenticated else None,
-            user_name=f"{current_user.first_name} {current_user.last_name}" 
-                      if current_user.is_authenticated else "Unknown"
+            note=log_note[:255],
+            user_id=current_user.id,
+            user_name=current_user.full_name 
         )
-        db.session.add(log)
+        
+        db.session.add(inventory_log)
         db.session.commit()
 
         return jsonify({
             "success": True,
             "new_stock": product.stock,
-            "message": f"Successfully added {increment} units to '{product.equipment_type}'."
+            "new_status": product.status,
+            "message": f"Added {increment} units. Total stock for {product.model} is now {product.stock}."
         })
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({"success": False, "message": f"Failed to update stock: {str(e)}"}), 500
+        current_app.logger.error(f"Stock Update Error for Product {product_id}: {e}")
+        return jsonify({
+            "success": False, 
+            "message": "A database error occurred while updating stock."
+        }), 500
     
         
 @admin_bp.route('/delete-product/<int:product_id>', methods=['POST'])
@@ -476,31 +596,34 @@ def delete_product(product_id):
     product = Product.query.get_or_404(product_id)
 
     try:
-        log_note = f"Product deleted by {current_user.first_name} {current_user.last_name} (ID: {current_user.id})"
+        active_rentals = [r for r in product.rentals if r.status in ['Active', 'Overdue']]
+        if active_rentals:
+            flash(f"Cannot delete '{product.model}' because it is currently rented out.", "warning")
+            return redirect(url_for('admin.products'))
+
+
+        product.status = "Archived"
+        product.stock = 0  
+        
+        log_note = f"Product Archived by {current_user.full_name}. Final stock was {product.stock}."
         inventory_log = InventoryLog(
             product_id=product.id,           
-            action="Deleted Product",      
-            quantity=product.stock,          
-            note=log_note,                   
+            action="Archived Product",      
+            quantity=0,          
+            note=log_note[:255],                   
             user_id=current_user.id,
-            user_name=f"{current_user.first_name} {current_user.last_name}"
+            user_name=current_user.full_name
         )
         db.session.add(inventory_log)
-        db.session.flush() 
 
-        if product.image:
-            image_full_path = os.path.join(current_app.root_path, 'static', product.image)
-            if os.path.exists(image_full_path):
-                os.remove(image_full_path)
-
-        db.session.delete(product)
         db.session.commit()  
 
-        flash(f"Product '{product.equipment_type}' deleted successfully.", "success")
+        flash(f"Product '{product.model}' has been archived and removed from the shop.", "success")
 
     except Exception as e:
         db.session.rollback()
-        flash(f"Error deleting product: {str(e)}", "error")
+        current_app.logger.error(f"Archive Error for Product {product_id}: {e}")
+        flash("An error occurred while archiving the product.", "error")
 
     return redirect(url_for('admin.products'))
 
@@ -510,38 +633,73 @@ def delete_product(product_id):
 @administrator_required
 def process_purchase():
     try:
-        data = request.get_json()
+        data = request.get_json() or {}
 
-        product_id = int(data.get('product_id')) if data.get('product_id') else None
-        customer_id = int(data.get('customer_id')) if data.get('customer_id') else None
-        quantity = int(data.get('quantity', 0))
-        unit_price = Decimal(str(data.get('unit_price', 0)))
-        total_price = unit_price * quantity
-        warranty_or_notes = data.get('warranty_or_notes', '').strip() 
+        try:
+            product_id = int(data.get('product_id'))
+            customer_id = int(data.get('customer_id'))
+            quantity = int(data.get('quantity', 0))
+            unit_price = Decimal(str(data.get('unit_price', '0.00')))
+            amount_paid = Decimal(str(data.get('amount_paid', '0.00')))
+        except (ValueError, TypeError, InvalidOperation):
+            return jsonify({"success": False, "message": "Check the amount and quantity formats."}), 400
 
-        if not product_id or not customer_id or quantity <= 0:
-            return jsonify({"success": False, "message": "Missing product, customer, or quantity."}), 400
+        if quantity <= 0:
+            return jsonify({"success": False, "message": "Quantity must be 1 or more."}), 400
 
-        product = Product.query.get(product_id)
+        product = Product.query.with_for_update().get(product_id)
         customer = Customer.query.get(customer_id)
 
-        if not product:
-            return jsonify({"success": False, "message": "Product not found."}), 404
+        if not product or product.status == 'Archived':
+            db.session.rollback()
+            return jsonify({"success": False, "message": "Item is no longer available in the catalog."}), 404
         
-        if not customer:
-            return jsonify({"success": False, "message": "Customer not found in the database."}), 404
+        if not customer or not customer.is_active:
+            db.session.rollback()
+            return jsonify({"success": False, "message": "Selected customer account is inactive."}), 403
 
         if product.stock < quantity:
-            return jsonify({"success": False, "message": f"Insufficient stock. Only {product.stock} units left."}), 400
+            db.session.rollback()
+            return jsonify({"success": False, "message": f"Only {product.stock} units left in stock."}), 400
+
+        total_price = (unit_price * quantity).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        balance_due = total_price - amount_paid
+        
+        payment_status = 'Paid' if balance_due <= 0 else 'Partial' if amount_paid > 0 else 'Unpaid'
+        
+        ref_no = f"PUR-{uuid.uuid4().hex[:8].upper()}"
+        fulfillment = data.get('fulfillment_type', 'Pickup')
+        
 
         new_transaction = Transaction(
+            reference_no=ref_no,
             customer_id=customer_id,
+            customer_name=f"{customer.first_name} {customer.last_name}",
+            processed_by=current_user.id,
             transaction_type='Purchase',
             total_amount=total_price,
-            payment_status='Paid'
+            amount_paid=amount_paid,
+            balance_due=max(0, balance_due),
+            payment_status=payment_status,
+            status='Closed' if balance_due <= 0 else 'Open',
+            fulfillment_type=fulfillment,
+            delivery_address=data.get('delivery_address') if fulfillment == 'Delivery' else None,
+            landmark=data.get('landmark') if fulfillment == 'Delivery' else None,
+            delivery_status='Pending' if fulfillment == 'Delivery' else 'N/A'
         )
         db.session.add(new_transaction)
-        db.session.flush()
+        db.session.flush() 
+
+        if amount_paid > 0:
+            new_payment = Payment(
+                transaction_id=new_transaction.id,
+                amount=amount_paid,
+                payment_method=data.get('payment_method', 'Cash'),
+                reference_number=data.get('reference_number'), 
+                status='Verified',
+                verified_by_id=current_user.id
+            )
+            db.session.add(new_payment)
 
         new_purchase = Purchase(
             transaction_id=new_transaction.id,
@@ -550,20 +708,15 @@ def process_purchase():
             quantity=quantity,
             unit_price=unit_price,
             total_price=total_price,
-            warranty_or_notes=warranty_or_notes
+            warranty_or_notes=data.get('warranty_or_notes', '').strip()
         )
         db.session.add(new_purchase)
 
-
         product.stock -= quantity
+        if product.stock <= 0:
+            product.status = "Out of Stock"
 
-        p_name = f"{product.equipment_type} ({product.model})" if product.model else product.equipment_type
-        
-
-        log_note = f"Sold {quantity} unit(s) of {p_name} to {customer.full_name}."
-        if warranty_or_notes:
-            log_note += f" Ref: {warranty_or_notes}"
-
+        log_note = f"Sold {quantity} unit(s) - Ref: {ref_no}"
         inventory_log = InventoryLog(
             product_id=product.id,
             action="Sale",
@@ -572,36 +725,66 @@ def process_purchase():
             user_id=current_user.id,
             user_name=f"{current_user.first_name} {current_user.last_name}"
         )
+        
         db.session.add(inventory_log)
-
         db.session.commit()
-        return jsonify({"success": True, "message": f"Sale processed for {customer.full_name}"})
+        
+        return jsonify({
+            "success": True, 
+            "message": "Purchase processed successfully.",
+            "reference_no": ref_no
+        })
 
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Purchase Error: {str(e)}")
-        return jsonify({"success": False, "message": f"Server Error: {str(e)}"}), 500
+        current_app.logger.error(f"Purchase Transaction Failed: {str(e)}")
+        return jsonify({"success": False, "message": "An error occurred while processing the sale. Please try again or contact support."})
     
 
 @admin_bp.route('/product/<int:product_id>/history')
 @login_required
 @administrator_required
 def product_history(product_id):
-    logs = InventoryLog.query.filter_by(product_id=product_id)\
-        .order_by(InventoryLog.created_at.desc()).all()
+    try:
+        logs = InventoryLog.query.filter_by(product_id=product_id)\
+            .order_by(InventoryLog.created_at.desc())\
+            .limit(100)\
+            .all()
 
-    result = []
-    for log in logs:
-        result.append({
-            "type": "log",
-            "action": log.action,
-            "quantity": log.quantity,
-            "note": log.note,
-            "user": log.user_name,
-            "date": log.created_at.strftime("%b %d, %Y %I:%M %p")
-        })
+        if not logs:
+            product_exists = Product.query.get(product_id)
+            if not product_exists:
+                return jsonify({"status": "error", "message": "Product not found"}), 404
+            return jsonify([]) 
 
-    return jsonify(result)
+        result = []
+        for log in logs:
+            movement_type = "neutral"
+            if log.quantity and log.quantity > 0:
+                movement_type = "increase"
+            elif log.quantity and log.quantity < 0:
+                movement_type = "decrease"
+
+            result.append({
+                "id": log.id,
+                "action": log.action,
+                "quantity": log.quantity if log.quantity != 0 else "-",
+                "movement_type": movement_type, 
+                "note": log.note or "No additional notes.",
+                "user": log.user_name or "System",
+                "date": log.created_at.strftime("%b %d, %Y"),
+                "time": log.created_at.strftime("%I:%M %p"),
+                "timestamp": log.created_at.isoformat() 
+            })
+
+        return jsonify(result)
+
+    except Exception as e:
+        current_app.logger.error(f"Error fetching history for Product {product_id}: {str(e)}")
+        return jsonify({
+            "status": "error", 
+            "message": "Internal server error while fetching history."
+        }), 500
 
 @admin_bp.route('/orders')
 @limiter.exempt

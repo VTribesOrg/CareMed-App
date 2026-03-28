@@ -30,6 +30,8 @@ class User(UserMixin, db.Model):
     reset_code_expiry = db.Column(db.DateTime, nullable=True)
     last_otp_sent = db.Column(db.DateTime, nullable=True)
     
+    is_active = db.Column(db.Boolean, default=True)
+    
     last_login_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -64,3 +66,6 @@ class BlockedIP(db.Model):
  
     admin = db.relationship("User", foreign_keys=[blocked_by],
                             backref=db.backref("blocked_ips_created", lazy="dynamic"))
+    @property
+    def full_name(self):
+        return f"{self.first_name} {self.last_name}"
