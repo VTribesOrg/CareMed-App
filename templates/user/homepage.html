@@ -342,9 +342,7 @@
                         <h3 class="product-name">{{ product.equipment_type }}</h3>
 
                         <ul class="product-specs desktop-only-specs">
-                            <li class="spec-sanitized">
-                                <i class="fa-solid fa-circle-check"></i> Sanitized & Certified
-                            </li>
+
 
                             {% if product.description and product.description != 'None' %}
                                 <li class="product-description-text">
@@ -352,6 +350,7 @@
                                     {{ product.description | truncate(65) }}
                                 </li>
                             {% else %}
+                                <li class="spec-sanitized"><i class="fa-solid fa-circle-check"></i> Sanitized</li>
                                 <li><i class="fa-solid fa-tag"></i> {{ product.equipment_type }}</li>
                                 <li><i class="fa-solid fa-truck-fast"></i> Delivery Available</li>
                             {% endif %}

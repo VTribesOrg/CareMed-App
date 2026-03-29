@@ -117,13 +117,6 @@
                     </li>
 
                     <li class="nav-item">
-                        <a href="#" class="nav-link">
-                            <span class="material-symbols-rounded">payments</span>
-                            <span class="nav-label">Business Expenses</span>
-                        </a>
-                    </li>
-
-                    <li class="nav-item">
                         <a href="{{ url_for('admin.reports') }}" class="nav-link">
                             <span class="material-symbols-rounded">analytics</span>
                             <span class="nav-label">Reports & Analytics</span>
@@ -270,96 +263,108 @@
                             <thead>
                                 <tr>
                                     <th>Ref No.</th>
-                                    <th>Customer & Contact</th>
-                                    <th>Type & Fulfillment</th>
-                                    <th>Financials</th>
-                                    <th>Deposit Info</th>
+                                    <th>Customer Name</th>
+                                    <th>Acquisition Type</th>
+                                    <th>Item</th>
+                                    <th>Fulfillment</th>
+                                    <th>Total</th>
+                                    <th>Paid</th> 
+                                    <th>Balance Due</th>
                                     <th>Status</th>
                                     <th>Date</th>
-                                    <th>Actions</th>
+                                    <th class="text-end">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for txn in transactions %}
                                 <tr>
-                                    <td class="ref-cell">#{{ txn.reference_no[:8]|upper }}</td>
-                                    <td>
-                                        <div class="customer-cell">
-                                            <strong>{{ txn.customer_name or txn.customer.full_name }}</strong>
-                                            <small>{{ txn.customer.contact_number }}</small>
-                                            {% if txn.landmark %}
-                                            <span class="landmark-tag">
-                                                <i class="material-symbols-rounded">location_on</i> {{ txn.landmark }}
-                                            </span>
-                                            {% endif %}
-                                        </div>
+                                    <td class="ref-cell">
+                                        <span class="text-primary fw-bold">#{{ txn.reference_no[:8]|upper }}</span>
                                     </td>
+
                                     <td>
-                                        <span class="badge {{ 'badge-rental' if txn.transaction_type == 'Rental' else 'badge-purchase' }}">
+                                        <span class="fw-bold text-dark">{{ txn.customer_name or txn.customer.full_name }}</span>
+                                    </td>
+
+                                    <td>
+                                        <span class="badge {{ 'badge-soft-blue' if txn.transaction_type == 'Rental' else 'badge-soft-purple' }}">
                                             {{ txn.transaction_type }}
                                         </span>
-                                        <div class="fulfillment-info">
-                                            <small>{{ txn.fulfillment_type }}</small>
-                                            {% if txn.delivery_status != 'N/A' %}
-                                                <span class="delivery-dot {{ txn.delivery_status|lower }}"></span>
-                                            {% endif %}
-                                        </div>
                                     </td>
+
                                     <td>
-                                        <div class="price-cell">
-                                            <strong>₱{{ "{:,.2f}".format(txn.total_amount) }}</strong>
-                                            {% if txn.balance_due > 0 %}
-                                                <small class="text-danger">Due: ₱{{ "{:,.2f}".format(txn.balance_due) }}</small>
+                                        <small class="fw-medium text-dark text-truncate" style="max-width: 120px;" title="{% if txn.rentals %}{{ txn.rentals[0].product.equipment_type }}{% else %}{{ txn.purchases[0].product.equipment_type }}{% endif %}">
+                                            {% if txn.rentals %}
+                                                {{ txn.rentals[0].product.equipment_type }}
+                                            {% elif txn.purchases %}
+                                                {{ txn.purchases[0].product.equipment_type }}
                                             {% else %}
-                                                <small class="text-success">Fully Paid</small>
+                                                <span class="text-muted">—</span>
                                             {% endif %}
+                                        </small>
+                                    </td>
+
+                                    <td>
+                                        <div class="d-flex align-items-center" title="{{ txn.fulfillment_type }}">
+                                            <i class="material-symbols-rounded text-muted me-1" style="font-size: 18px;">
+                                                {{ 'local_shipping' if txn.fulfillment_type == 'Delivery' else 'storefront' }}
+                                            </i>
+                                            <small class="fw-normal">{{ txn.fulfillment_type }}</small>
                                         </div>
                                     </td>
+
+                                    <td class="fw-bold text-dark">
+                                        ₱{{ "{:,.2f}".format(txn.total_amount) }}
+                                    </td>
+
+                                    <td class="text-success fw-medium">
+                                        ₱{{ "{:,.2f}".format(txn.total_amount - txn.balance_due) }}
+                                    </td>
+
                                     <td>
-                                        {% if txn.rentals %}
-                                            {% set rental = txn.rentals[0] %}
-                                            <div class="deposit-details">
-                                                <strong>₱{{ "{:,.2f}".format(rental.deposit_amount) }}</strong>
-                                                <small class="status-{{ rental.deposit_status|lower }}">
-                                                    {{ rental.deposit_status }}
-                                                </small>
+                                        {% if txn.balance_due > 0 %}
+                                            <div class="d-flex flex-column">
+                                                <span class="text-danger fw-bold">₱{{ "{:,.2f}".format(txn.balance_due) }}</span>
+                                                <small class="text-muted" style="font-size: 10px; line-height: 1;">{{ txn.payment_status }}</small>
                                             </div>
                                         {% else %}
-                                            <span class="text-muted">—</span>
+                                            <span class="badge badge-soft-success">Fully Paid</span>
                                         {% endif %}
                                     </td>
+
                                     <td>
-                                        <span class="status-indicator {{ txn.payment_status|lower }}">
-                                            {{ txn.payment_status }}
-                                        </span>
-                                        <small class="block-text">{{ txn.status }}</small>
-                                    </td>
-                                    <td>
-                                        <div class="date-cell">
-                                            {{ txn.created_at.strftime('%b %d, %Y') }}
-                                            <small>{{ txn.created_at.strftime('%I:%M %p') }}</small>
+                                        <div class="status-pill {{ txn.status|lower }}">
+                                            <span class="dot"></span>
+                                            {{ txn.status }}
                                         </div>
                                     </td>
+
                                     <td>
-                                        <div class="action-menu">
-                                            <button class="icon-btn-sm" title="Manage Payments / Refills">
-                                                <span class="material-symbols-rounded">payments</span>
+                                        <div class="date-stack">
+                                            <span>{{ txn.created_at.strftime('%b %d') }}</span>
+                                            <small class="text-muted">{{ txn.created_at.strftime('%Y') }}</small>
+                                        </div>
+                                    </td>
+
+                                    <td class="text-end">
+                                        <div class="d-flex justify-content-end gap-1">
+                                            <button class="btn-action" title="Add Payment" onclick="openPayment('{{ txn.id }}')">
+                                                <i class="material-symbols-rounded">add_card</i>
                                             </button>
-                                            <button class="icon-btn-sm" title="View Logs">
-                                                <span class="material-symbols-rounded">history</span>
+                                            <button class="btn-action" title="View Details">
+                                                <i class="material-symbols-rounded">visibility</i>
                                             </button>
-                                            <button class="icon-btn-sm" title="Print Invoice">
-                                                <span class="material-symbols-rounded">print</span>
+                                            <button class="btn-action" title="Print">
+                                                <i class="material-symbols-rounded">print</i>
                                             </button>
                                         </div>
                                     </td>
                                 </tr>
                                 {% else %}
                                 <tr>
-                                    <td colspan="8"> <div class="no-data-wrapper">
-                                            <span class="material-symbols-rounded" style="font-size: 48px; margin-bottom: 16px;">search_off</span>
-                                            <p style="font-weight: 600; font-size: 16px; margin: 0;">No transactions found</p>
-                                            <p style="font-size: 14px; margin-top: 4px;">Try adjusting your filters or search query.</p>
+                                    <td colspan="11"> <div class="empty-state py-5 text-center">
+                                            <i class="material-symbols-rounded display-4 text-light">inventory_2</i>
+                                            <p class="text-muted mt-2">No transactions found.</p>
                                         </div>
                                     </td>
                                 </tr>
@@ -367,7 +372,6 @@
                             </tbody>
                         </table>
                     </div>
-
                     <div class="pagination-footer">
                         <div class="table-limit-control">
                             <span class="limit-label">Show</span>
