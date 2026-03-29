@@ -201,9 +201,11 @@ window.openEditModal = function(productData) {
         'edit-product-id': productData.id,
         'edit-type': productData.type || '',
         'edit-model': productData.model || '',
-        'edit-rent': String(productData.rent || 0),
-        'edit-price': String(productData.price || 0),
-        'edit-description': productData.description || ''
+        'edit-description': productData.description || '',
+        'edit-offer-type': productData.offer_type || 'both',
+        'edit-rent': String(productData.rent_price || 0),
+        'edit-rent-period': productData.rent_period || 'Monthly',
+        'edit-price': String(productData.sale_price || 0)
     };
 
     // Store these values to compare later
@@ -219,6 +221,10 @@ window.openEditModal = function(productData) {
     const previewContainer = document.getElementById('edit-product-preview-container');
     const previewImg = document.getElementById('edit-product-image-preview');
     const placeholder = document.getElementById('edit-product-upload-placeholder');
+    const offerTypeEl = document.getElementById('edit-offer-type');
+    if (offerTypeEl) {
+        offerTypeEl.dispatchEvent(new Event('change'));
+    }
 
     if (productData.image && productData.image !== 'None' && productData.image !== '') {
         previewImg.src = `/static/${productData.image}`;
@@ -233,7 +239,9 @@ window.openEditModal = function(productData) {
     // Initial button state: disabled until change detected
     if (updateBtn) updateBtn.disabled = true;
 
+    document.getElementById('edit-offer-type')?.dispatchEvent(new Event('change'));
     editModal.classList.remove('hidden');
+
 };
 
 // 2. Change Detection Logic
@@ -246,9 +254,11 @@ document.getElementById('editAssetForm')?.addEventListener('input', function() {
         'edit-product-id': document.getElementById('edit-product-id').value,
         'edit-type': document.getElementById('edit-type').value,
         'edit-model': document.getElementById('edit-model').value,
+        'edit-description': document.getElementById('edit-description').value,
+        'edit-offer-type': document.getElementById('edit-offer-type').value,
         'edit-rent': document.getElementById('edit-rent').value,
-        'edit-price': document.getElementById('edit-price').value,
-        'edit-description': document.getElementById('edit-description').value
+        'edit-rent-period': document.getElementById('edit-rent-period').value,
+        'edit-price': document.getElementById('edit-price').value
     };
 
     // Check if any text/number changed
@@ -262,6 +272,13 @@ document.getElementById('editAssetForm')?.addEventListener('input', function() {
     if (updateBtn) {
         updateBtn.disabled = !(hasChanged || hasNewFile);
     }
+});
+
+document.getElementById('edit-offer-type')?.addEventListener('change', () => {
+    document.getElementById('editAssetForm').dispatchEvent(new Event('input'));
+});
+document.getElementById('edit-rent-period')?.addEventListener('change', () => {
+    document.getElementById('editAssetForm').dispatchEvent(new Event('input'));
 });
 
 // 3. Close Modal Handler
@@ -473,15 +490,17 @@ document.getElementById('editAssetForm')?.addEventListener('submit', function() 
 
             if (editBtn) {
                 const rawDesc = editBtn.dataset.description;
-                // Extract the dataset from the button to create the 'productData' object
+                
                 const productData = {
                     id: editBtn.dataset.id,
                     type: editBtn.dataset.type,
                     model: editBtn.dataset.model,
                     stock: editBtn.dataset.stock,
-                    rent: editBtn.dataset.rent,
-                    price: editBtn.dataset.price,
-                    description: (rawDesc === "None" || !rawDesc || rawDesc.trim() === "") ? "" : rawDesc.trim(),
+                    offer_type: editBtn.dataset.offer || 'both', 
+                    rent_period: editBtn.dataset.period || 'Monthly',
+                    rent_price: editBtn.dataset.rent || '0',
+                    sale_price: editBtn.dataset.price || '0',
+                    description: (rawDesc === "None" || !rawDesc) ? "" : rawDesc.trim(),
                     image: editBtn.dataset.image
                 };
                 
@@ -991,3 +1010,68 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 });
 /*============= END OF FLASK MESSAGE =============*/
+
+
+
+/*============= START OF PRODUCT TYPE =============*/
+document.addEventListener('DOMContentLoaded', function() {
+    const offerTypeSelect = document.getElementById('reg-offer-type');
+    const pricingRow = document.getElementById('pricing-row-container');
+    const rentField = document.getElementById('rent-field');
+    const saleField = document.getElementById('sale-field');
+
+    if (offerTypeSelect && pricingRow) {
+        offerTypeSelect.addEventListener('change', function() {
+            const val = this.value;
+            rentField.style.display = 'none';
+            saleField.style.display = 'none';
+
+            if (val === 'rent') {
+                rentField.style.display = 'block';
+                pricingRow.style.gridTemplateColumns = '200px 260px'; 
+            } 
+            else if (val === 'sale') {
+                saleField.style.display = 'block';
+                pricingRow.style.gridTemplateColumns = '200px 180px'; 
+            } 
+            else if (val === 'both') {
+                rentField.style.display = 'block';
+                saleField.style.display = 'block';
+                pricingRow.style.gridTemplateColumns = '200px 260px 180px'; 
+            }
+        });
+    }
+});
+/*============= END OF PRODUCT TYPE =============*/
+
+
+/*============= START OF EDIT PRODUCT TYPE =============*/
+document.addEventListener('DOMContentLoaded', function() {
+    const editOfferType = document.getElementById('edit-offer-type');
+    const editPricingRow = document.getElementById('edit-pricing-row-container');
+    const editRentField = document.getElementById('edit-rent-field');
+    const editSaleField = document.getElementById('edit-sale-field');
+
+    if (editOfferType && editPricingRow) {
+        editOfferType.addEventListener('change', function() {
+            const val = this.value;
+            editRentField.style.display = 'none';
+            editSaleField.style.display = 'none';
+
+            if (val === 'rent') {
+                editRentField.style.display = 'block';
+                editPricingRow.style.gridTemplateColumns = '200px 260px'; 
+            } 
+            else if (val === 'sale') {
+                editSaleField.style.display = 'block';
+                editPricingRow.style.gridTemplateColumns = '200px 180px'; 
+            } 
+            else if (val === 'both') {
+                editRentField.style.display = 'block';
+                editSaleField.style.display = 'block';
+                editPricingRow.style.gridTemplateColumns = '200px 260px 180px'; 
+            }
+        });
+    }
+});
+/*============= END OF EDIT PRODUCT TYPE =============*/

@@ -399,7 +399,9 @@ def add_product():
     equipment_type = request.form.get("equipment_type", "").strip().title()
     model = request.form.get("model", "").strip()
     description = request.form.get("description", "").strip()
-    
+    offer_type = request.form.get("offer_type", "both").strip().lower()
+    rent_period = request.form.get("rent_period", "Month").strip()
+
     try:
         stock = int(request.form.get("stock", 0))
         rent_price_raw = request.form.get("rent_price", "").strip()
@@ -408,8 +410,14 @@ def add_product():
         rent_price = Decimal(rent_price_raw) if rent_price_raw else None
         sale_price = Decimal(sale_price_raw) if sale_price_raw else None
         
-        if rent_price is None and sale_price is None:
-            flash("Please provide at least a rent price or a sale price.", "error")
+        if offer_type == 'rent' and not rent_price:
+            flash("Please provide a rent price for 'Rent Only' items.", "error")
+            return redirect(request.referrer)
+        if offer_type == 'sale' and not sale_price:
+            flash("Please provide a sale price for 'Sale Only' items.", "error")
+            return redirect(request.referrer)
+        if offer_type == 'both' and (not rent_price or not sale_price):
+            flash("Please provide both rent and sale prices for 'Both' mode.", "error")
             return redirect(request.referrer)
         
         if stock < 0 or \
@@ -448,7 +456,6 @@ def add_product():
             flash("Failed to save product image.", "error")
             return redirect(request.referrer)
 
-
     try:
         asset_tag = request.form.get("asset_tag", "").strip().upper()
         
@@ -468,6 +475,8 @@ def add_product():
             model=model,
             description=description, 
             stock=stock,
+            offer_type=offer_type,     
+            rent_period=rent_period,    
             rent_price=rent_price,
             sale_price=sale_price,
             image=image_path,
@@ -481,7 +490,7 @@ def add_product():
             product_id=new_product.id,
             action="Initial Stock Entry",
             quantity=stock,
-            note=f"Registered {model}. Tag: {asset_tag if asset_tag else 'None'}",
+            note=f"Registered {model} ({offer_type.title()}). Tag: {asset_tag if asset_tag else 'None'}",
             user_id=current_user.id,
             user_name=current_user.full_name 
         )
@@ -514,6 +523,9 @@ def edit_product(product_id):
     new_description = request.form.get("description", "").strip()
     new_asset_tag = request.form.get("asset_tag", "").strip().upper()
     
+    new_offer_type = request.form.get("offer_type", "both") 
+    new_rent_period = request.form.get("rent_period", "Monthly") 
+    
     if not new_type or not new_model:
         flash("Equipment Type and Model are required.", "error")
         return redirect(url_for('admin.products'))
@@ -522,8 +534,20 @@ def edit_product(product_id):
 
     try:
         new_stock = int(request.form.get("stock") or 0)
-        new_rent = Decimal(request.form.get("rent_price") or "0.00")
-        new_sale = Decimal(request.form.get("sale_price") or "0.00")
+        
+        raw_rent = Decimal(request.form.get("rent_price") or "0.00")
+        raw_sale = Decimal(request.form.get("sale_price") or "0.00")
+
+        new_rent = raw_rent if new_offer_type in ['both', 'rent'] else Decimal("0.00")
+        new_sale = raw_sale if new_offer_type in ['both', 'sale'] else Decimal("0.00")
+
+        if product.offer_type != new_offer_type:
+            changes.append(f"Mode: {product.offer_type} → {new_offer_type}")
+            product.offer_type = new_offer_type
+
+        if product.rent_period != new_rent_period:
+            changes.append(f"Period: {product.rent_period} → {new_rent_period}")
+            product.rent_period = new_rent_period
 
         if product.equipment_type != new_type:
             changes.append(f"Type: {product.equipment_type} → {new_type}")

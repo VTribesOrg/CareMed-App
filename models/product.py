@@ -11,8 +11,12 @@ class Product(db.Model):
     model = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text, nullable=True) 
     stock = db.Column(db.Integer, default=0)
+    
+    offer_type = db.Column(db.String(20), nullable=True, default="both") 
+    rent_period = db.Column(db.String(20), nullable=True, default="Month")
     sale_price = db.Column(db.Numeric(10, 2), nullable=True)
     rent_price = db.Column(db.Numeric(10, 2), nullable=True)
+    
     image = db.Column(db.String(255))
     status = db.Column(db.String(50), default="Available")
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
