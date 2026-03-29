@@ -1026,15 +1026,15 @@ document.addEventListener('DOMContentLoaded', function() {
             rentField.style.display = 'none';
             saleField.style.display = 'none';
 
-            if (val === 'rent') {
+            if (val === 'Rent') {
                 rentField.style.display = 'block';
                 pricingRow.style.gridTemplateColumns = '200px 260px'; 
             } 
-            else if (val === 'sale') {
+            else if (val === 'Sale') {
                 saleField.style.display = 'block';
                 pricingRow.style.gridTemplateColumns = '200px 180px'; 
             } 
-            else if (val === 'both') {
+            else if (val === 'Both') {
                 rentField.style.display = 'block';
                 saleField.style.display = 'block';
                 pricingRow.style.gridTemplateColumns = '200px 260px 180px'; 
@@ -1058,15 +1058,15 @@ document.addEventListener('DOMContentLoaded', function() {
             editRentField.style.display = 'none';
             editSaleField.style.display = 'none';
 
-            if (val === 'rent') {
+            if (val === 'Rent') {
                 editRentField.style.display = 'block';
                 editPricingRow.style.gridTemplateColumns = '200px 260px'; 
             } 
-            else if (val === 'sale') {
+            else if (val === 'Sale') {
                 editSaleField.style.display = 'block';
                 editPricingRow.style.gridTemplateColumns = '200px 180px'; 
             } 
-            else if (val === 'both') {
+            else if (val === 'Both') {
                 editRentField.style.display = 'block';
                 editSaleField.style.display = 'block';
                 editPricingRow.style.gridTemplateColumns = '200px 260px 180px'; 

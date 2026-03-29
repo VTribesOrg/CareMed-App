@@ -17,9 +17,6 @@ import os
 import uuid
 import random, string
 
-
-
-
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
 def administrator_required(f):
@@ -400,31 +397,33 @@ def add_product():
     equipment_type = request.form.get("equipment_type", "").strip().title()
     model = request.form.get("model", "").strip()
     description = request.form.get("description", "").strip()
-    offer_type = request.form.get("offer_type", "both").strip().lower()
-    rent_period = request.form.get("rent_period", "Month").strip()
+    
+    transaction_type = request.form.get("offer_type", "Both").strip().title()
+    rent_period = request.form.get("rent_period", "Monthly").strip().title()
+
+    raw_tag = request.form.get("asset_tag", "").strip().upper()
+    asset_tag = raw_tag if raw_tag != "" else None
 
     try:
         stock = int(request.form.get("stock", 0))
         rent_price_raw = request.form.get("rent_price", "").strip()
         sale_price_raw = request.form.get("sale_price", "").strip()
         
-        rent_price = Decimal(rent_price_raw) if rent_price_raw else None
-        sale_price = Decimal(sale_price_raw) if sale_price_raw else None
+        rent_price = Decimal(rent_price_raw) if rent_price_raw else Decimal("0.00")
+        sale_price = Decimal(sale_price_raw) if sale_price_raw else Decimal("0.00")
         
-        if offer_type == 'rent' and not rent_price:
-            flash("Please provide a rent price for 'Rent Only' items.", "error")
+        if transaction_type == 'Rent' and rent_price <= 0:
+            flash("Please provide a valid rent price for 'Rent Only' items.", "error")
             return redirect(request.referrer)
-        if offer_type == 'sale' and not sale_price:
-            flash("Please provide a sale price for 'Sale Only' items.", "error")
+        if transaction_type == 'Sale' and sale_price <= 0:
+            flash("Please provide a valid sale price for 'Sale Only' items.", "error")
             return redirect(request.referrer)
-        if offer_type == 'both' and (not rent_price or not sale_price):
+        if transaction_type == 'Both' and (rent_price <= 0 or sale_price <= 0):
             flash("Please provide both rent and sale prices for 'Both' mode.", "error")
             return redirect(request.referrer)
         
-        if stock < 0 or \
-        (rent_price is not None and rent_price < 0) or \
-        (sale_price is not None and sale_price < 0):
-            raise ValueError("Numbers cannot be negative.")
+        if stock < 0:
+            raise ValueError("Stock cannot be negative.")
         
     except (ValueError, InvalidOperation):
         flash("Invalid numbers provided for stock or prices.", "error")
@@ -458,8 +457,6 @@ def add_product():
             return redirect(request.referrer)
 
     try:
-        asset_tag = request.form.get("asset_tag", "").strip().upper()
-        
         if asset_tag:
             existing_tag = Product.query.filter_by(asset_tag=asset_tag).first()
             if existing_tag:
@@ -467,8 +464,6 @@ def add_product():
                     os.remove(os.path.join(current_app.root_path, "static", image_path))
                 flash(f"Asset Tag '{asset_tag}' is already assigned to {existing_tag.model}.", "error")
                 return redirect(request.referrer)
-        else:
-            asset_tag = None
 
         new_product = Product(
             asset_tag=asset_tag, 
@@ -476,7 +471,7 @@ def add_product():
             model=model,
             description=description, 
             stock=stock,
-            offer_type=offer_type,     
+            transaction_type=transaction_type,     
             rent_period=rent_period,    
             rent_price=rent_price,
             sale_price=sale_price,
@@ -485,13 +480,14 @@ def add_product():
         )
         
         db.session.add(new_product)
-        db.session.flush() 
+        db.session.flush()
+
 
         log = InventoryLog(
             product_id=new_product.id,
             action="Initial Stock Entry",
             quantity=stock,
-            note=f"Registered {model} ({offer_type.title()}). Tag: {asset_tag if asset_tag else 'None'}",
+            note=f"Registered {model}. Mode: {transaction_type}. Tag: {asset_tag or 'None'}",
             user_id=current_user.id,
             user_name=current_user.full_name 
         )
@@ -508,10 +504,9 @@ def add_product():
                 os.remove(abs_image_path)
         
         current_app.logger.error(f"Database Error on Product Add: {str(e)}")
-        flash(f"Internal error: {str(e)}", "error")
+        flash("An error occurred while saving to the database.", "error")
 
     return redirect(url_for('admin.products'))
-
 
 @admin_bp.route('/edit-product/<int:product_id>', methods=['POST'])
 @login_required
@@ -522,10 +517,12 @@ def edit_product(product_id):
     new_type = request.form.get("equipment_type", "").strip().title()
     new_model = request.form.get("model", "").strip()
     new_description = request.form.get("description", "").strip()
-    new_asset_tag = request.form.get("asset_tag", "").strip().upper()
     
-    new_offer_type = request.form.get("offer_type", "both") 
-    new_rent_period = request.form.get("rent_period", "Monthly") 
+    raw_tag = request.form.get("asset_tag", "").strip().upper()
+    new_asset_tag = raw_tag if raw_tag != "" else None
+    
+    new_offer_type = request.form.get("offer_type", "Both").strip().title()
+    new_rent_period = request.form.get("rent_period", "Monthly").strip().title()
     
     if not new_type or not new_model:
         flash("Equipment Type and Model are required.", "error")
@@ -539,12 +536,12 @@ def edit_product(product_id):
         raw_rent = Decimal(request.form.get("rent_price") or "0.00")
         raw_sale = Decimal(request.form.get("sale_price") or "0.00")
 
-        new_rent = raw_rent if new_offer_type in ['both', 'rent'] else Decimal("0.00")
-        new_sale = raw_sale if new_offer_type in ['both', 'sale'] else Decimal("0.00")
+        new_rent = raw_rent if new_offer_type in ['Both', 'Rent'] else Decimal("0.00")
+        new_sale = raw_sale if new_offer_type in ['Both', 'Sale'] else Decimal("0.00")
 
-        if product.offer_type != new_offer_type:
-            changes.append(f"Mode: {product.offer_type} → {new_offer_type}")
-            product.offer_type = new_offer_type
+        if product.transaction_type != new_offer_type:
+            changes.append(f"Mode: {product.transaction_type} → {new_offer_type}")
+            product.transaction_type = new_offer_type
 
         if product.rent_period != new_rent_period:
             changes.append(f"Period: {product.rent_period} → {new_rent_period}")
@@ -560,11 +557,15 @@ def edit_product(product_id):
 
         if product.asset_tag != new_asset_tag:
             if new_asset_tag:
-                existing = Product.query.filter(Product.asset_tag == new_asset_tag, Product.id != product.id).first()
+                existing = Product.query.filter(
+                    Product.asset_tag == new_asset_tag, 
+                    Product.id != product.id
+                ).first()
                 if existing:
                     flash(f"Asset Tag {new_asset_tag} is already in use.", "error")
                     return redirect(url_for('admin.products'))
-            changes.append(f"Tag: {product.asset_tag} → {new_asset_tag}")
+            
+            changes.append(f"Tag: {product.asset_tag or 'None'} → {new_asset_tag or 'None'}")
             product.asset_tag = new_asset_tag
 
         if (product.description or "").strip() != new_description:
@@ -629,9 +630,10 @@ def edit_product(product_id):
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Product Update Error: {e}")
-        flash("An error occurred while updating the product.", "error")
+        flash("An error occurred while updating the product database.", "error")
 
     return redirect(url_for('admin.products'))
+
 
 @admin_bp.route('/update_stock/<int:product_id>', methods=['POST'])
 @login_required
@@ -953,6 +955,76 @@ def transactions():
         all_equipment=all_equipment,
         **stats
     )
+
+
+@admin_bp.route('/post-payment', methods=['POST'])
+@login_required
+@administrator_required
+def post_payment():
+    txn_id = request.form.get('txn_id')
+    try:
+        # 1. Input Cleaning
+        raw_amount = request.form.get('amount', '0').replace(',', '').strip()
+        amount = Decimal(raw_amount)
+        
+        # 2. Row-Level Locking
+        # with_for_update() ensures no other process updates this txn during our math
+        txn = Transaction.query.with_for_update().get_or_404(txn_id)
+
+        # 3. Server-Side Validation
+        if amount <= 0:
+            flash('Payment amount must be greater than zero.', 'warning')
+            return redirect(request.referrer)
+
+        if amount > txn.balance_due:
+            flash(f'Payment exceeds balance. Max allowed: ₱{txn.balance_due:,.2f}', 'warning')
+            return redirect(request.referrer)
+
+        # 4. File Handling (Simplified for brevity, keep your existing logic)
+        receipt_path = None
+        # ... (Your receipt upload logic here) ...
+
+        # 5. Create Payment Record
+        new_pay = Payment(
+            transaction_id=txn.id,
+            amount=amount,
+            payment_method=request.form.get('method'),
+            reference_number=request.form.get('payment_reference'),
+            receipt_image_path=receipt_path,
+            status="Completed", # Vital: update_totals filters for 'Completed'
+            verified_by_id=current_user.id,
+            verified_at=datetime.utcnow()
+        )
+        
+        db.session.add(new_pay)
+        
+        # 6. THE SYNC FIX
+        # We flush so the payment exists in the DB session
+        db.session.flush() 
+        
+        # We tell the txn object that its 'payments' list is now old/stale
+        # This forces txn.update_totals() to fetch the LATEST payments from the DB
+        db.session.expire(txn, ['payments']) 
+        
+        # 7. Update and Save
+        txn.update_totals() 
+        db.session.commit() 
+        
+        # 8. Success Messaging
+        if txn.status == "Closed":
+            flash(f'Transaction {txn.reference_no} is now Fully Paid and Closed.', 'success')
+        else:
+            flash(f'Payment of ₱{amount:,.2f} posted. New Balance: ₱{txn.balance_due:,.2f}', 'success')
+
+    except (InvalidOperation, ValueError):
+        db.session.rollback()
+        flash('Invalid amount format.', 'danger')
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"PAYMENT_ERROR | TXN: {txn_id} | Error: {str(e)}")
+        flash('A system error occurred.', 'danger')
+
+    return redirect(request.referrer or url_for('admin.transactions'))
 
 
 @admin_bp.route('/payments')

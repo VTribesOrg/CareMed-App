@@ -264,7 +264,7 @@
                                     <th>Model / OEM</th>
                                     <th>Stock (Units)</th>
                                     <th>Status</th>
-                                    <th>Offer Type</th> 
+                                    <th>Transaction Type</th> 
                                     <th>Price Details</th> 
                                     <th>Actions</th>
                                 </tr>
@@ -292,14 +292,14 @@
                                     </td>
 
                                     <td>
-                                        {% if product.offer_type == 'both' %}
+                                        {% if product.transaction_type == 'Both' %}
                                             <span class="status-pill" style="background: #f0fdfa; color: #0f766e; border: 1px solid #ccfbf1;">Both</span>
-                                        {% elif product.offer_type == 'rent' %}
-                                            <span class="status-pill" style="background: #eff6ff; color: #1d4ed8; border: 1px solid #dbeafe;">Rent Only</span>
-                                        {% elif product.offer_type == 'sale' %}
-                                            <span class="status-pill" style="background: #fefce8; color: #a16207; border: 1px solid #fef9c3;">Sale Only</span>
+                                        {% elif product.transaction_type == 'Rent' %}
+                                            <span class="status-pill" style="background: #eff6ff; color: #1d4ed8; border: 1px solid #dbeafe;">For Rent</span>
+                                        {% elif product.transaction_type == 'Sale' %}
+                                            <span class="status-pill" style="background: #fefce8; color: #a16207; border: 1px solid #fef9c3;">For Sale</span>
                                         {% else %}
-                                            <span style="color: #94a3b8; font-size: 0.85rem;">Not Set</span>
+                                            <span style="color: #94a3b8; font-size: 0.85rem;">{{ product.transaction_type if product.transaction_type else 'Not Set' }}</span>
                                         {% endif %}
                                     </td>
 
@@ -358,7 +358,7 @@
                                                         data-type="{{ product.equipment_type }}"
                                                         data-model="{{ product.model }}"
                                                         data-stock="{{ product.stock }}"
-                                                        data-offer="{{ product.offer_type }}" 
+                                                        data-offer="{{ product.transaction_type}}" 
                                                         data-period="{{ product.rent_period }}"
                                                         data-rent="{{ product.rent_price }}"
                                                         data-price="{{ product.sale_price }}"
@@ -543,14 +543,14 @@
                 <div id="pricing-row-container" style="display: grid; grid-template-columns: 180px 0px 0px; gap: 20px; align-items: flex-end; margin-bottom: 25px; transition: all 0.3s ease;">
                     
                     <div class="form-field" style="width: 200px;">
-                        <label class="clinical-label" style="color: #64748b; font-weight: 700; font-size: 0.7rem; margin-bottom: 8px; display: block; text-transform: uppercase; letter-spacing: 0.05em;">Offer Type</label>
+                        <label class="clinical-label" style="color: #64748b; font-weight: 700; font-size: 0.7rem; margin-bottom: 8px; display: block; text-transform: uppercase; letter-spacing: 0.05em;">Transaction Type</label>
                         <div class="input-wrapper" style="position: relative;">
                             <select name="offer_type" id="reg-offer-type" class="clinical-input" 
                                     style="width: 100%; cursor: pointer; -webkit-appearance: none; appearance: none; padding: 0 35px 0 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; height: 44px; font-size: 0.9rem; color: #1e293b; background: #ffffff;" required>
                                 <option value="" disabled selected>Select...</option>
-                                <option value="both">Both</option>
-                                <option value="rent">Rent Only </option>
-                                <option value="sale">Sale Only</option>
+                                <option value="Both">Both</option>
+                                <option value="Rent">Rent Only </option>
+                                <option value="Sale">Sale Only</option>
                             </select>
                             <span class="material-symbols-rounded" style="pointer-events: none; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 20px;">unfold_more</span>
                         </div>
@@ -679,14 +679,14 @@
                 <div id="edit-pricing-row-container" style="display: grid; grid-template-columns: 180px 0px 0px; gap: 20px; align-items: flex-end; margin-bottom: 25px; transition: all 0.3s ease;">
                     
                     <div class="form-field" style="width: 200px;">
-                        <label class="clinical-label" style="color: #64748b; font-weight: 700; font-size: 0.7rem; margin-bottom: 8px; display: block; text-transform: uppercase; letter-spacing: 0.05em;">Offer Type</label>
+                        <label class="clinical-label" style="color: #64748b; font-weight: 700; font-size: 0.7rem; margin-bottom: 8px; display: block; text-transform: uppercase; letter-spacing: 0.05em;">Transaction Type</label>
                         <div class="input-wrapper" style="position: relative;">
                             <select name="offer_type" id="edit-offer-type" class="clinical-input" 
                                     style="width: 100%; cursor: pointer; -webkit-appearance: none; appearance: none; padding: 0 35px 0 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; height: 44px; font-size: 0.9rem; color: #1e293b; background: #ffffff;" required>
                                 <option value="" disabled selected>Select...</option>
-                                <option value="both">Both</option>
-                                <option value="rent">Rent Only</option>
-                                <option value="sale">Sale Only</option>
+                                <option value="Both">Both</option>
+                                <option value="Rent">Rent Only</option>
+                                <option value="Sale">Sale Only</option>
                             </select>
                             <span class="material-symbols-rounded" style="pointer-events: none; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 20px;">unfold_more</span>
                         </div>
