@@ -316,173 +316,100 @@
                 </a>
             </header>
 
-            <div class="product-grid" id="productGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 30px;">
-
-                <div class="product-card" data-name="Oxygen Tank Full Set">
-                    <div class="stock-badge">✓ IN STOCK</div>
-                    <div class="product-image-box">
-                        <img src="path/to/oxygen.jpg" alt="Oxygen Tank" class="product-img-element">
-                    </div>
-                    
-                    <h3 class="product-name">Oxygen Tank (Full Set)</h3>
-
-                    {% if current_user.is_authenticated %}
-                        <div class="trust-badge" style="background-color: #f0f9ff; color: #0ea5e9; border-color: #bae6fd;">
-                            <i class="fa-solid fa-certificate"></i> Verified Member Rate
+            <div class="product-grid" id="productGrid">
+                {% for product in products %}
+                    <div class="product-card" data-name="{{ product.equipment_type }}" data-category="{{ product.model }}">
+                        
+                        <div class="stock-badge {% if product.stock <= 0 %}out-of-stock{% endif %}">
+                            {% if product.stock > 0 %}
+                                <i class="fa-solid fa-check"></i> IN STOCK ({{ product.stock }})
+                            {% else %}
+                                <i class="fa-solid fa-xmark"></i> OUT OF STOCK
+                            {% endif %}
                         </div>
-                    {% else %}
-                        <div class="trust-badge">
-                            <i class="fa-solid fa-circle-check"></i> Sanitized & Certified
+
+                        <div class="product-image-box">
+                            {% if product.image and product.image != 'None' %}
+                                <img src="{{ url_for('static', filename=product.image) }}" alt="{{ product.model }}" class="product-img-element">
+                            {% else %}
+                                <div class="placeholder-icon">
+                                    <i class="fa-solid fa-microscope"></i>
+                                    <span>IMAGE PENDING</span>
+                                </div>
+                            {% endif %}
                         </div>
-                    {% endif %}
+                        
+                        <h3 class="product-name">{{ product.equipment_type }}</h3>
 
-                    <ul class="product-specs">
-                        <li><i class="fa-solid fa-wind"></i> Includes Regulator & Humidifier</li>
-                        <li><i class="fa-solid fa-flask"></i> Available: 5lbs / 10lbs</li>
-                        <li><i class="fa-solid fa-truck-fast"></i> Free Setup Included</li>
-                    </ul>
+                        <ul class="product-specs desktop-only-specs">
+                            <li class="spec-sanitized">
+                                <i class="fa-solid fa-circle-check"></i> Sanitized & Certified
+                            </li>
 
-                    <div class="dual-price-wrapper">
-                        <div class="price-item">
-                            <span class="price-tag">RENT</span>
-                            <p class="price-value">₱1,200<small>/mo</small></p>
+                            {% if product.description and product.description != 'None' %}
+                                <li class="product-description-text">
+                                    <i class="fa-solid fa-circle-info"></i> 
+                                    {{ product.description | truncate(65) }}
+                                </li>
+                            {% else %}
+                                <li><i class="fa-solid fa-tag"></i> {{ product.equipment_type }}</li>
+                                <li><i class="fa-solid fa-truck-fast"></i> Delivery Available</li>
+                            {% endif %}
+
+                            {% if product.is_refillable and not product.description %}
+                                <li><i class="fa-solid fa-arrows-rotate"></i> Refillable Unit</li>
+                            {% endif %}
+                        </ul>
+
+                        <div class="pricing-container {% if product.offer_type == 'both' %}has-dual{% else %}has-single{% endif %}">
+                            {% if product.offer_type in ['rent', 'both'] %}
+                            <div class="price-block rent">
+                                <span class="price-label">RENTAL</span>
+                                <p class="price-amount">
+                                    ₱{{ "{:,.0f}".format(product.rent_price or 0) }}
+                                    <span class="period">/{{ product.rent_period or 'Month' }}</span>
+                                </p>
+                            </div>
+                            {% endif %}
+
+                            {% if product.offer_type == 'both' %}
+                                <div class="price-separator"></div>
+                            {% endif %}
+
+                            {% if product.offer_type in ['sale', 'both'] %}
+                            <div class="price-block sale">
+                                <span class="price-label">PURCHASE</span>
+                                <p class="price-amount">₱{{ "{:,.0f}".format(product.sale_price or 0) }}</p>
+                            </div>
+                            {% endif %}
                         </div>
-                        <div class="price-divider"></div>
-                        <div class="price-item">
-                            <span class="price-tag">BUY</span>
-                            <p class="price-value">₱8,500</p>
-                        </div>
-                    </div>
 
-                    <div class="dual-action-buttons">
-                        {% if current_user.is_authenticated %}
-                            <button class="btn-rent" onclick="handleAction('rent', 'Oxygen Tank Full Set')">
-                                <i class="fa-solid fa-calendar-check"></i> Rent Now
-                            </button>
-                            <button class="btn-buy" onclick="handleAction('buy', 'Oxygen Tank Full Set')">
-                                <i class="fa-solid fa-cart-shopping"></i> Purchase
-                            </button>
-                        {% else %}
-                            <a href="{{ url_for('auth.login') }}" class="btn-rent guest-cta">
-                                <i class="fa-solid fa-user-lock"></i> Sign In to Rent
-                            </a>
-                            <button class="btn-buy" onclick="handleAction('buy', 'Oxygen Tank Full Set')">
-                                <i class="fa-solid fa-bag-shopping"></i> Purchase
-                            </button>
-                        {% endif %}
-                    </div>
-                </div>
+                        <div class="action-grid">
+                            {% if product.offer_type in ['rent', 'both'] %}
+                                {% if current_user.is_authenticated %}
+                                    <button class="btn-action btn-rent-outline" onclick="handleAction('rent', '{{ product.id }}')">
+                                        <i class="fa-solid fa-calendar-day"></i> Rent Now
+                                    </button>
+                                {% else %}
+                                    <a href="{{ url_for('auth.login') }}" class="btn-action btn-guest">
+                                        <i class="fa-solid fa-lock"></i> Login to Rent
+                                    </a>
+                                {% endif %}
+                            {% endif %}
 
-                <div class="product-card" data-name="Oxygen Tank Full Set">
-                    <div class="stock-badge">✓ IN STOCK</div>
-                    <div class="product-image-box">
-                        <img src="path/to/oxygen.jpg" alt="Oxygen Tank" class="product-img-element">
-                    </div>
-                    
-                    <h3 class="product-name">Oxygen Tank (Full Set)</h3>
-
-                    {% if current_user.is_authenticated %}
-                        <div class="trust-badge" style="background-color: #f0f9ff; color: #0ea5e9; border-color: #bae6fd;">
-                            <i class="fa-solid fa-certificate"></i> Verified Member Rate
-                        </div>
-                    {% else %}
-                        <div class="trust-badge">
-                            <i class="fa-solid fa-circle-check"></i> Sanitized & Certified
-                        </div>
-                    {% endif %}
-
-                    <ul class="product-specs">
-                        <li><i class="fa-solid fa-wind"></i> Includes Regulator & Humidifier</li>
-                        <li><i class="fa-solid fa-flask"></i> Available: 5lbs / 10lbs</li>
-                        <li><i class="fa-solid fa-truck-fast"></i> Free Setup Included</li>
-                    </ul>
-
-                    <div class="dual-price-wrapper">
-                        <div class="price-item">
-                            <span class="price-tag">RENT</span>
-                            <p class="price-value">₱1,200<small>/mo</small></p>
-                        </div>
-                        <div class="price-divider"></div>
-                        <div class="price-item">
-                            <span class="price-tag">BUY</span>
-                            <p class="price-value">₱8,500</p>
+                            {% if product.offer_type in ['sale', 'both'] %}
+                                <button class="btn-action btn-buy-solid" onclick="handleAction('buy', '{{ product.id }}')">
+                                    <i class="fa-solid fa-cart-plus"></i> Buy
+                                </button>
+                            {% endif %}
                         </div>
                     </div>
-
-                    <div class="dual-action-buttons">
-                        {% if current_user.is_authenticated %}
-                            <button class="btn-rent" onclick="handleAction('rent', 'Oxygen Tank Full Set')">
-                                <i class="fa-solid fa-calendar-check"></i> Rent Now
-                            </button>
-                            <button class="btn-buy" onclick="handleAction('buy', 'Oxygen Tank Full Set')">
-                                <i class="fa-solid fa-cart-shopping"></i> Purchase
-                            </button>
-                        {% else %}
-                            <a href="{{ url_for('auth.login') }}" class="btn-rent guest-cta">
-                                <i class="fa-solid fa-user-lock"></i> Sign In to Rent
-                            </a>
-                            <button class="btn-buy" onclick="handleAction('buy', 'Oxygen Tank Full Set')">
-                                <i class="fa-solid fa-bag-shopping"></i> Purchase
-                            </button>
-                        {% endif %}
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <p>No medical equipment currently available for display.</p>
                     </div>
-                </div>
-
-                <div class="product-card" data-name="Oxygen Tank Full Set">
-                    <div class="stock-badge">✓ IN STOCK</div>
-                    <div class="product-image-box">
-                        <img src="path/to/oxygen.jpg" alt="Oxygen Tank" class="product-img-element">
-                    </div>
-                    
-                    <h3 class="product-name">Oxygen Tank (Full Set)</h3>
-
-                    {% if current_user.is_authenticated %}
-                        <div class="trust-badge" style="background-color: #f0f9ff; color: #0ea5e9; border-color: #bae6fd;">
-                            <i class="fa-solid fa-certificate"></i> Verified Member Rate
-                        </div>
-                    {% else %}
-                        <div class="trust-badge">
-                            <i class="fa-solid fa-circle-check"></i> Sanitized & Certified
-                        </div>
-                    {% endif %}
-
-                    <ul class="product-specs">
-                        <li><i class="fa-solid fa-wind"></i> Includes Regulator & Humidifier</li>
-                        <li><i class="fa-solid fa-flask"></i> Available: 5lbs / 10lbs</li>
-                        <li><i class="fa-solid fa-truck-fast"></i> Free Setup Included</li>
-                    </ul>
-
-                    <div class="dual-price-wrapper">
-                        <div class="price-item">
-                            <span class="price-tag">RENT</span>
-                            <p class="price-value">₱1,200<small>/mo</small></p>
-                        </div>
-                        <div class="price-divider"></div>
-                        <div class="price-item">
-                            <span class="price-tag">BUY</span>
-                            <p class="price-value">₱8,500</p>
-                        </div>
-                    </div>
-
-                    <div class="dual-action-buttons">
-                        {% if current_user.is_authenticated %}
-                            <button class="btn-rent" onclick="handleAction('rent', 'Oxygen Tank Full Set')">
-                                <i class="fa-solid fa-calendar-check"></i> Rent Now
-                            </button>
-                            <button class="btn-buy" onclick="handleAction('buy', 'Oxygen Tank Full Set')">
-                                <i class="fa-solid fa-cart-shopping"></i> Purchase
-                            </button>
-                        {% else %}
-                            <a href="{{ url_for('auth.login') }}" class="btn-rent guest-cta">
-                                <i class="fa-solid fa-user-lock"></i> Sign In to Rent
-                            </a>
-                            <button class="btn-buy" onclick="handleAction('buy', 'Oxygen Tank Full Set')">
-                                <i class="fa-solid fa-bag-shopping"></i> Purchase
-                            </button>
-                        {% endif %}
-                    </div>
-                </div>
-
+                {% endfor %}
             </div>
 
         </section>
@@ -536,7 +463,7 @@
         </div>
     </footer>
 
-    <a href="#" class="messenger-fab" target="_blank" rel="noopener noreferrer">
+    <a href="#" class="messenger-fab hidden" target="_blank" rel="noopener noreferrer">
         <i class="fa-brands fa-facebook-messenger"></i>
     </a>
 
