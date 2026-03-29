@@ -264,7 +264,7 @@
                                 <tr>
                                     <th>Ref No.</th>
                                     <th>Customer Name</th>
-                                    <th>Acquisition Type</th>
+                                    <th>Transaction Type</th>
                                     <th>Item</th>
                                     <th>Fulfillment</th>
                                     <th>Total</th>
@@ -279,7 +279,15 @@
                                 {% for txn in transactions %}
                                 <tr>
                                     <td class="ref-cell">
-                                        <span class="text-primary fw-bold">#{{ txn.reference_no[:8]|upper }}</span>
+                                        <div class="ref-copy-wrapper">
+                                            <input type="text" 
+                                                class="ref-id-input" 
+                                                value="{{ txn.reference_no }}" 
+                                                readonly 
+                                                title="Click to select | Ctrl+A to highlight all">
+                                            <div class="btn-copy-hint" style="cursor: pointer;"> <i class="material-symbols-rounded">content_copy</i>
+                                            </div>
+                                        </div>
                                     </td>
 
                                     <td>
@@ -306,9 +314,6 @@
 
                                     <td>
                                         <div class="d-flex align-items-center" title="{{ txn.fulfillment_type }}">
-                                            <i class="material-symbols-rounded text-muted me-1" style="font-size: 18px;">
-                                                {{ 'local_shipping' if txn.fulfillment_type == 'Delivery' else 'storefront' }}
-                                            </i>
                                             <small class="fw-normal">{{ txn.fulfillment_type }}</small>
                                         </div>
                                     </td>

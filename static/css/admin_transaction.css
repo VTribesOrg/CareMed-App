@@ -1872,7 +1872,7 @@ textarea.clinical-input {
 
 /*=================================== START OF TABLE STYLE ===================================*/
 
-/* Modern Status Pills */
+
 .status-pill {
     display: inline-flex;
     align-items: center;
@@ -1892,12 +1892,12 @@ textarea.clinical-input {
 .status-pill.open { background: #ecfdf5; color: #065f46; }
 .status-pill.open .dot { background: #10b981; }
 
-/* Soft Badges */
+
 .badge-soft-blue { background: #eff6ff; color: #1e40af; border: 1px solid #dbeafe; }
 .badge-soft-purple { background: #faf5ff; color: #6b21a8; border: 1px solid #f3e8ff; }
 .badge-soft-success { background: #f0fdf4; color: #166534; }
 
-/* Action Buttons */
+
 .btn-action {
     border: none;
     background: transparent;
@@ -1909,6 +1909,76 @@ textarea.clinical-input {
 .btn-action:hover {
     background: #f1f5f9;
     color: #0f172a;
+}
+/* Container: Fixed width prevents the table from moving */
+.ref-copy-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 160px; /* Locked width for layout stability */
+}
+
+.ref-id-input {
+    width: 100%;
+    background: #f8fafc; 
+    border: 1px solid #cbd5e1;
+    color: #334155; 
+    border-radius: 6px;
+    padding: 6px 35px 6px 10px;
+    font-size: 0.8rem;
+    font-family: 'JetBrains Mono', 'Menlo', 'Consolas', monospace;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    cursor: text;
+    outline: none;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis; 
+}
+
+
+.ref-id-input:hover {
+    border-color: #94a3b8;
+    background: #ffffff;
+}
+
+
+.ref-id-input:focus {
+    border-color: #3b82f6;
+    background: #ffffff;
+    color: #1e40af;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+
+.ref-id-input::selection {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.btn-copy-hint {
+    position: absolute;
+    right: 10px;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    cursor: pointer; 
+    pointer-events: auto;
+}
+
+.ref-copy-wrapper:hover .btn-copy-hint {
+    opacity: 1;
+}
+
+.btn-copy-hint i {
+    font-size: 16px;
+}
+
+.btn-copy-hint:active {
+    transform: scale(0.9);
 }
 
 /*--------------------- END OF MAIN CONTENT --------------------------------------*/

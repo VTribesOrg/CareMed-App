@@ -15,6 +15,7 @@ from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 import os
 import uuid
+import random, string
 
 
 
@@ -768,10 +769,19 @@ def process_purchase():
         
         payment_status = 'Paid' if balance_due <= 0 else 'Partial' if amount_paid > 0 else 'Unpaid'
         
-        ref_no = f"PUR-{uuid.uuid4().hex[:8].upper()}"
+        
+        transaction_type = data.get('transaction_type', 'Purchase')
+        prefix = "RNT" if transaction_type == "Rental" else "PUR"
+                
+        now = datetime.now()
+        date_part = now.strftime("%m%d%Y")
+        time_part = now.strftime("%H%M%S")
+        random_str = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
+        
+        ref_no = f"{prefix}-{date_part}-{time_part}-{random_str}"
+        
         fulfillment = data.get('fulfillment_type', 'Pickup')
         
-
         new_transaction = Transaction(
             reference_no=ref_no,
             customer_id=customer_id,

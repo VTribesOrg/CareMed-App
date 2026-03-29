@@ -27,6 +27,7 @@
         </div>
 
         <form id="rentEntryForm">
+            <input type="hidden" name="transaction_type" value="Rental">
             <div class="form-layout-grid">
                 <div class="form-field">
                     <label>Select Customer</label>
@@ -122,6 +123,7 @@
 
         <form id="purchaseEntryForm" data-fulfillment="Pickup">
             <input type="hidden" name="csrf_token" id="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="transaction_type" value="Purchase">
             <div class="form-layout-grid">
                 <div class="form-field full-width">
                     <label>Buyer (Customer)</label>
@@ -204,7 +206,7 @@
             <div class="rental-summary-box">
                 <div class="summary-label-group">
                     <span>SALE SUMMARY</span>
-                    <span>Grand Total:</span>
+                    <span>Total Price:</span>
                 </div>
                 <span class="total-amount-display" id="purchase-total-display">₱0.00</span>
             </div>

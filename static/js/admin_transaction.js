@@ -418,6 +418,7 @@ if (rentForm) {
     });
 }
 
+/*============= START OF RENTAL SELECTION =============*/
 
 document.addEventListener('DOMContentLoaded', function() {
     // Helper function to update status icons
@@ -447,56 +448,96 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // 3. The Hand-off from Selection Modal to Final Modals
-// 3. The Hand-off from Selection Modal to Final Modals
-const equipmentSelect = document.getElementById('global-equipment-select');
+    // 3. The Hand-off from Selection Modal to Final Modals
+    const equipmentSelect = document.getElementById('global-equipment-select');
 
-document.querySelectorAll('.type-choice-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-        const flow = this.getAttribute('data-flow');
-        const selectedOption = equipmentSelect.options[equipmentSelect.selectedIndex];
+    document.querySelectorAll('.type-choice-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const flow = this.getAttribute('data-flow');
+            const selectedOption = equipmentSelect.options[equipmentSelect.selectedIndex];
 
-        if (!selectedOption || !selectedOption.value) {
-            alert("Please select equipment first.");
-            return;
-        }
-
-        const productId = selectedOption.value;
-        const name = selectedOption.getAttribute('data-name');
-        const stock = parseInt(selectedOption.getAttribute('data-stock')) || 0;
-        const rentPrice = selectedOption.getAttribute('data-rent');
-        const salePrice = selectedOption.getAttribute('data-price');
-
-        // Close selection modal
-        document.getElementById('txnSelectionModal').classList.add('hidden');
-
-        if (flow === 'Rental') {
-            // POPULATE RENTAL
-            document.getElementById('rent-equipment-name').innerText = name;
-            document.getElementById('rent-stock-display').innerText = `${stock} Units Available`;
-            document.getElementById('rent-rate-display').value = rentPrice;
-            document.getElementById('rentAssetModal').classList.remove('hidden');
-        } else {
-            // POPULATE PURCHASE
-            activePurchaseProductId = productId; 
-
-            // --- CRITICAL FIX START ---
-            const qtyInput = document.getElementById('purchase-qty');
-            if (qtyInput) {
-                qtyInput.max = stock; // Update the max limit so validation passes
-                qtyInput.value = stock > 0 ? 1 : 0; // Default to 1 if stock exists
+            if (!selectedOption || !selectedOption.value) {
+                alert("Please select equipment first.");
+                return;
             }
-            // --- CRITICAL FIX END ---
 
-            document.getElementById('purchase-equipment-name').innerText = name;
-            document.getElementById('purchase-stock-display').innerText = `${stock} Units Available`;
-            document.getElementById('purchase-unit-price').value = salePrice;
-            
-            if (typeof updatePurchaseTotal === "function") {
-                updatePurchaseTotal();
+            const productId = selectedOption.value;
+            const name = selectedOption.getAttribute('data-name');
+            const stock = parseInt(selectedOption.getAttribute('data-stock')) || 0;
+            const rentPrice = selectedOption.getAttribute('data-rent');
+            const salePrice = selectedOption.getAttribute('data-price');
+
+            // Close selection modal
+            document.getElementById('txnSelectionModal').classList.add('hidden');
+
+            if (flow === 'Rental') {
+                // POPULATE RENTAL
+                document.getElementById('rent-equipment-name').innerText = name;
+                document.getElementById('rent-stock-display').innerText = `${stock} Units Available`;
+                document.getElementById('rent-rate-display').value = rentPrice;
+                document.getElementById('rentAssetModal').classList.remove('hidden');
+            } else {
+                // POPULATE PURCHASE
+                activePurchaseProductId = productId; 
+
+                // --- CRITICAL FIX START ---
+                const qtyInput = document.getElementById('purchase-qty');
+                if (qtyInput) {
+                    qtyInput.max = stock; // Update the max limit so validation passes
+                    qtyInput.value = stock > 0 ? 1 : 0; // Default to 1 if stock exists
+                }
+                // --- CRITICAL FIX END ---
+
+                document.getElementById('purchase-equipment-name').innerText = name;
+                document.getElementById('purchase-stock-display').innerText = `${stock} Units Available`;
+                document.getElementById('purchase-unit-price').value = salePrice;
+                
+                if (typeof updatePurchaseTotal === "function") {
+                    updatePurchaseTotal();
+                }
+                
+                document.getElementById('purchaseAssetModal').classList.remove('hidden');
             }
-            
-            document.getElementById('purchaseAssetModal').classList.remove('hidden');
-        }
+        });
     });
 });
+
+/*============= END OF RENTAL SELECTION =============*/
+
+/*============= START OF REFERENCE NO. =============*/
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Find all copy hint containers
+    const copyButtons = document.querySelectorAll('.btn-copy-hint');
+
+    copyButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            // Find the input field that is a "sibling" to this button
+            const input = this.parentElement.querySelector('.ref-id-input');
+            
+            if (input) {
+                // Select the text
+                input.select();
+                input.setSelectionRange(0, 99999); // Mobile support
+
+                // Copy to clipboard
+                navigator.clipboard.writeText(input.value).then(() => {
+                    // Visual feedback
+                    const icon = this.querySelector('i');
+                    const originalIcon = icon.innerText;
+                    
+                    icon.innerText = 'check';
+                    this.style.color = '#22c55e'; // Success green
+                    
+                    setTimeout(() => {
+                        icon.innerText = originalIcon;
+                        this.style.color = '';
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Failed to copy: ', err);
+                });
+            }
+        });
+    });
 });
+/*============= END OF REFERENCE NO. =============*/
