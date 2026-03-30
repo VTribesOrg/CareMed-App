@@ -9,37 +9,149 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background: #0f172a; color: #f8fafc; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-        .container { text-align: center; max-width: 520px; padding: 40px 24px; }
-        .shield-icon { font-size: 72px; color: #ef4444; margin-bottom: 20px; animation: pulse 2s infinite; }
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
-        .code { font-size: 5rem; font-weight: 800; color: #ef4444; line-height: 1; margin-bottom: 8px; }
-        h1 { font-size: 1.4rem; font-weight: 700; color: #f1f5f9; margin-bottom: 12px; }
-        .desc { font-size: 0.9rem; color: #94a3b8; line-height: 1.6; margin-bottom: 20px; }
-        .ip-box { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 14px 20px; margin-bottom: 24px; display: inline-block; }
-        .ip-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: .08em; color: #64748b; margin-bottom: 4px; }
-        .ip-addr { font-family: monospace; font-size: 1.1rem; color: #10b981; font-weight: 700; }
-        .log-note { font-size: 0.78rem; color: #64748b; background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 10px 16px; margin-bottom: 28px; }
-        .log-note span { color: #10b981; }
-        .btn { display: inline-flex; align-items: center; gap: 8px; background: #ef4444; color: #fff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 0.9rem; transition: background .15s; }
-        .btn:hover { background: #b91c1c; }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: #0f172a;
+            color: #f8fafc;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            text-align: center;
+            max-width: 520px;
+            padding: 40px 24px;
+        }
+
+        .shield-icon {
+            font-size: 72px;
+            color: #f59e0b;
+            margin-bottom: 20px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+        .code {
+            font-size: 5rem;
+            font-weight: 800;
+            color: #f59e0b;
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+
+        h1 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #f1f5f9;
+            margin-bottom: 12px;
+        }
+
+        .desc {
+            font-size: 0.9rem;
+            color: #94a3b8;
+            line-height: 1.7;
+            margin-bottom: 28px;
+        }
+
+        .support-note {
+            font-size: 0.78rem;
+            color: #64748b;
+            margin-bottom: 24px;
+        }
+
+        .countdown-text {
+            font-size: 0.9rem;
+            color: #94a3b8;
+            margin-bottom: 24px;
+        }
+
+        .countdown-text span {
+            color: #f59e0b;
+            font-weight: 800;
+            font-size: 1.1rem;
+        }
+
+        .btn {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            background: #f59e0b;
+            color: #0f172a;
+            padding: 12px 28px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 0.9rem;
+            transition: background .15s;
+        }
+
+        .btn.visible {
+            display: inline-flex;
+        }
+
+        .btn:hover { background: #d97706; }
     </style>
 </head>
 <body>
     <div class="container">
-        <span class="material-symbols-rounded shield-icon">gpp_bad</span>
+
+        <span class="material-symbols-rounded shield-icon">timer</span>
+
         <div class="code">429</div>
-        <h1>Rate Limit Exceeded</h1>
-        <p class="desc">Our Intrusion Detection System detected an unusual volume of requests from your IP address. Access has been temporarily restricted to protect the system.</p>
-        <div class="ip-box">
-            <div class="ip-label">Your IP Address</div>
-            <div class="ip-addr">{{ request.remote_addr }}</div>
-        </div>
-        <p class="log-note"><span>✓ Logged</span> — This event has been recorded in the security dashboard for administrator review.</p>
-        <a href="{{ url_for('user.homepage') }}" class="btn">
+        <h1>Slow Down a Moment</h1>
+
+        <p class="desc">{{ message }}</p>
+
+        <p class="support-note">If you believe this is a mistake, please contact support.</p>
+
+        <p class="countdown-text" id="countdown-text">
+            You can try again in <span id="countdown">60</span> seconds.
+        </p>
+
+        <a href="{{ back_url }}" class="btn" id="back-btn">
             <span class="material-symbols-rounded" style="font-size:18px;">arrow_back</span>
-            Return to Home
+            {{ back_label }}
         </a>
+
     </div>
+
+    <script nonce="{{ csp_nonce() }}">
+        const WAIT_SECONDS = 60;
+        const storageKey = 'ratelimit_start';
+
+        if (!sessionStorage.getItem(storageKey)) {
+            sessionStorage.setItem(storageKey, Date.now());
+        }
+
+        const startTime = parseInt(sessionStorage.getItem(storageKey));
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        let seconds = Math.max(0, WAIT_SECONDS - elapsed);
+
+        const countdownEl = document.getElementById('countdown');
+        const countdownText = document.getElementById('countdown-text');
+        const backBtn = document.getElementById('back-btn');
+
+        if (seconds <= 0) {
+            countdownText.style.display = 'none';
+            backBtn.classList.add('visible');
+            sessionStorage.removeItem(storageKey);
+        } else {
+            countdownEl.textContent = seconds;
+            const timer = setInterval(function() {
+                seconds--;
+                countdownEl.textContent = seconds;
+                if (seconds <= 0) {
+                    clearInterval(timer);
+                    countdownText.style.display = 'none';
+                    backBtn.classList.add('visible');
+                    sessionStorage.removeItem(storageKey);
+                }
+            }, 1000);
+        }
+    </script>
 </body>
 </html>

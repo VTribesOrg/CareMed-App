@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, url_for, redirect, flash, request, jsonify, current_app
+from flask import Blueprint, render_template, url_for, redirect, flash, request, jsonify, current_app, abort
 from flask_login import current_user
 from extensions import db, limiter, csrf
 from sqlalchemy.orm import joinedload
@@ -25,7 +25,23 @@ def administrator_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if current_user.role.strip() != 'Administrator':
-            flash("Unauthorized access.", "error")
+            # IDS: log unauthorized admin access attempt
+            try:
+                log = SecurityLog(
+                    ip_address=request.remote_addr,
+                    event_type="Unauthorized Admin Access",
+                    description=f"Non-admin user tried to access: {request.path}",
+                    user_id=current_user.id if current_user.is_authenticated else None,
+                    user_email=current_user.email if current_user.is_authenticated else None,
+                    user_agent=request.headers.get('User-Agent', 'Unknown')[:255],
+                    severity='High',
+                    is_suspicious=True
+                )
+                db.session.add(log)
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
             return redirect(url_for('user.homepage'))
         return f(*args, **kwargs)
     return decorated_function

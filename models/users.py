@@ -45,16 +45,18 @@ class User(UserMixin, db.Model):
     
 class SecurityLog(db.Model):
     __tablename__ = "security_logs"
- 
+
     id = db.Column(db.Integer, primary_key=True)
     ip_address = db.Column(db.String(45))
     event_type = db.Column(db.String(100))
     description = db.Column(db.String(255))
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete="SET NULL"), nullable=True)
     user_email = db.Column(db.String(120), nullable=True)
+    user_agent = db.Column(db.String(255), nullable=True)
+    severity = db.Column(db.String(20), default='Low')  # Low / Medium / High / Critical
     is_suspicious = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
- 
+
     user = db.relationship("User", backref=db.backref("security_logs", lazy="dynamic"))
  
  

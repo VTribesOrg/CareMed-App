@@ -80,6 +80,8 @@ def ratelimit_handler(e):
             ip_address=request.remote_addr,
             event_type="Rate Limit Violation",
             description=f"IDS: IP hit rate limit at endpoint '{request.endpoint}'",
+            user_agent=request.headers.get('User-Agent', 'Unknown')[:255],
+            severity='High',
             is_suspicious=True
         )
         db.session.add(new_log)
@@ -88,14 +90,21 @@ def ratelimit_handler(e):
         print(f"IDS logging failed: {err}")
         db.session.rollback()
 
-    friendly_msg = "Too many attempts. For security, please wait a moment before trying again."
-
     if request.endpoint == "auth.login":
-        flash(friendly_msg, "password-error")
-        return redirect(url_for("auth.login"))
+        message = "Too many login attempts were made from your IP address. For your security, please wait 1 minute before trying again."
+        back_url = url_for("auth.login")
+        back_label = "Back to Login"
+    else:
+        message = "Our system detected an unusual number of requests from your IP address. Access has been temporarily restricted to protect the platform."
+        back_url = url_for("user.homepage")
+        back_label = "Return to Home"
 
-    return render_template('errors/429.html'), 429
-
+    return render_template(
+        'errors/429.html',
+        message=message,
+        back_url=back_url,
+        back_label=back_label
+    ), 429
 
 @app.route('/')
 def root():
