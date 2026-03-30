@@ -1,5 +1,6 @@
 from extensions import db
 from datetime import datetime
+from decimal import Decimal
 
 
 class Product(db.Model):
@@ -11,8 +12,12 @@ class Product(db.Model):
     model = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text, nullable=True) 
     stock = db.Column(db.Integer, default=0)
+    
+    transaction_type = db.Column(db.String(20), nullable=True, default="both") 
+    rent_period = db.Column(db.String(20), nullable=True, default="Month")
     sale_price = db.Column(db.Numeric(10, 2), nullable=True)
     rent_price = db.Column(db.Numeric(10, 2), nullable=True)
+    
     image = db.Column(db.String(255))
     status = db.Column(db.String(50), default="Available")
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
@@ -78,6 +83,7 @@ class Rental(db.Model):
     customer = db.relationship("Customer", back_populates="rentals")
     
 
+
 class Transaction(db.Model):
     __tablename__ = "transaction"
 
@@ -105,12 +111,62 @@ class Transaction(db.Model):
     purchases = db.relationship("Purchase", back_populates="transaction", cascade="all, delete-orphan")
     rentals = db.relationship("Rental", back_populates="transaction", cascade="all, delete-orphan")
     
-    payments = db.relationship("Payment", back_populates="transaction")
+    payments = db.relationship("Payment", back_populates="transaction", cascade="all, delete-orphan")
+    
     fulfillment_type = db.Column(db.String(20), default="Pickup") 
     delivery_status = db.Column(db.String(20), default="N/A") 
     delivery_address = db.Column(db.Text, nullable=True)
     landmark = db.Column(db.String(255), nullable=True) 
+
+
+    def update_totals(self):
+        from decimal import Decimal
+        
+        new_amount_paid = sum(
+            (Decimal(str(p.amount)) for p in self.payments if p.status == 'Completed'), 
+            Decimal('0.00')
+        )
+        
+        self.amount_paid = new_amount_paid
+        
+        total = Decimal(str(self.total_amount or 0))
+        self.balance_due = max(total - self.amount_paid, Decimal('0.00'))
+
+        if self.amount_paid <= 0:
+            self.payment_status = "Unpaid"
+        elif self.balance_due > 0:
+            self.payment_status = "Partially Paid"
+        else:
+            self.payment_status = "Fully Paid"
+
+        if self.payment_status == "Fully Paid":
+            if self.transaction_type == "Sale":
+                if self.delivery_status in ['Delivered', 'Picked Up', 'N/A']:
+                    self.status = "Closed"
+            elif self.transaction_type == "Rental":
+                if self.rentals and all(r.status == 'Returned' for r in self.rentals):
+                    self.status = "Closed"
+                        
+
+class Payment(db.Model):
+    __tablename__ = "payments"
+
+    id = db.Column(db.Integer, primary_key=True)
+    transaction_id = db.Column(db.Integer, db.ForeignKey("transaction.id", ondelete="CASCADE"), nullable=False)
     
+    amount = db.Column(db.Numeric(10, 2), nullable=False)
+    payment_method = db.Column(db.String(50), nullable=False) 
+    reference_number = db.Column(db.String(100), unique=True, index=True) 
+    receipt_image_path = db.Column(db.String(255))
+    
+    status = db.Column(db.String(20), default="Pending")
+    verified_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    verified_at = db.Column(db.DateTime)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    transaction = db.relationship("Transaction", back_populates="payments")
+    verified_by = db.relationship("User", foreign_keys=[verified_by_id])
     
 
 class InventoryLog(db.Model):
@@ -129,25 +185,7 @@ class InventoryLog(db.Model):
     user = db.relationship("User", backref=db.backref("inventory_logs", lazy="dynamic"))
     
     
-class Payment(db.Model):
-    __tablename__ = "payments"
 
-    id = db.Column(db.Integer, primary_key=True)
-    transaction_id = db.Column(db.Integer, db.ForeignKey("transaction.id"), nullable=False)
-    
-    amount = db.Column(db.Numeric(10, 2), nullable=False)
-    payment_method = db.Column(db.String(50), nullable=False)
-    reference_number = db.Column(db.String(100), unique=True, index=True) 
-    receipt_image_path = db.Column(db.String(255))
-    
-    status = db.Column(db.String(20), default="Pending") 
-    verified_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
-    verified_at = db.Column(db.DateTime)
-    
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    transaction = db.relationship("Transaction", back_populates="payments")
-    verified_by = db.relationship("User", foreign_keys=[verified_by_id])
     
     
 class Expense(db.Model):

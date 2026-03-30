@@ -6,6 +6,7 @@ from extensions import db, passhasher, limiter
 from forms.update_profile_form import UpdateProfileForm, ChangePasswordForm
 from functools import wraps
 from models.customer import Customer
+from models.product import Product
 
 user_bp = Blueprint('user', __name__, url_prefix='/customer')
 
@@ -33,16 +34,33 @@ def admin_redirect(f):
 
 
 
+import random
+
 @user_bp.route('/')
 @admin_redirect
 def homepage():
-    return render_template('user/homepage.html')
+    all_products = Product.query.all()
+    
+    rent_only = [p for p in all_products if p.offer_type == 'rent']
+    sale_only = [p for p in all_products if p.offer_type == 'sale']
+    both_types = [p for p in all_products if p.offer_type == 'both']
+
+    featured_products = []
+    if rent_only:
+        featured_products.append(random.choice(rent_only))
+    if sale_only:
+        featured_products.append(random.choice(sale_only))
+    if both_types:
+        featured_products.append(random.choice(both_types))
+
+    return render_template('user/homepage.html', products=featured_products)
 
 
 @user_bp.route('/products')
 @admin_redirect
 def products():
-    return render_template('user/products.html')
+    all_products = Product.query.all() 
+    return render_template('user/products.html', products=all_products)
 
 
 @user_bp.route('/profile', methods=['GET', 'POST'])

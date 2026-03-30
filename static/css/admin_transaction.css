@@ -1870,5 +1870,360 @@ textarea.clinical-input {
 
 
 
+/*=================================== START OF TABLE STYLE ===================================*/
+
+
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    background: #f1f5f9;
+}
+.status-pill .dot {
+    height: 6px;
+    width: 6px;
+    background: #64748b;
+    border-radius: 50%;
+    margin-right: 8px;
+}
+.status-pill.open { background: #ecfdf5; color: #065f46; }
+.status-pill.open .dot { background: #10b981; }
+
+
+.badge-soft-blue { background: #eff6ff; color: #1e40af; border: 1px solid #dbeafe; }
+.badge-soft-purple { background: #faf5ff; color: #6b21a8; border: 1px solid #f3e8ff; }
+.badge-soft-success { background: #f0fdf4; color: #166534; }
+
+
+.btn-action {
+    border: none;
+    background: transparent;
+    color: #64748b;
+    padding: 6px;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+.btn-action:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+.ref-copy-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 160px; 
+}
+
+.ref-id-input {
+    width: 100%;
+    background: #f8fafc; 
+    border: 1px solid #cbd5e1;
+    color: #334155; 
+    border-radius: 6px;
+    padding: 6px 35px 6px 10px;
+    font-size: 0.8rem;
+    font-family: 'JetBrains Mono', 'Menlo', 'Consolas', monospace;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    cursor: text;
+    outline: none;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis; 
+}
+
+
+.ref-id-input:hover {
+    border-color: #94a3b8;
+    background: #ffffff;
+}
+
+
+.ref-id-input:focus {
+    border-color: #3b82f6;
+    background: #ffffff;
+    color: #1e40af;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+
+.ref-id-input::selection {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.btn-copy-hint {
+    position: absolute;
+    right: 10px;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    cursor: pointer; 
+    pointer-events: auto;
+}
+
+.ref-copy-wrapper:hover .btn-copy-hint {
+    opacity: 1;
+}
+
+.btn-copy-hint i {
+    font-size: 16px;
+}
+
+.btn-copy-hint:active {
+    transform: scale(0.9);
+}
+
+/*================= START OF ACTION BUTTON =================*/
+
+
+.action-row-container {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 6px; 
+    white-space: nowrap;
+}
+
+
+.btn-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    color: #64748b; 
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+
+.btn-add-payment:hover {
+    color: #10b981 !important;
+    border-color: #10b981 !important;
+    background-color: #f0fdf4 !important;
+}
+
+.btn-view-details:hover {
+    color: #3b82f6 !important;
+    border-color: #3b82f6 !important;
+    background-color: #eff6ff !important;
+}
+
+
+.btn-print:hover {
+    color: #1e293b !important;
+    border-color: #1e293b !important;
+    background-color: #f8fafc !important;
+}
+
+
+.btn-action:active {
+    transform: scale(0.95);
+}
+
+.btn-action i {
+    font-size: 18px;
+}
+/*================= END OF ACTION BUTTON =================*/
+
+/*=================================== END OF TABLE STYLE ===================================*/
+
+
+
 /*--------------------- END OF MAIN CONTENT --------------------------------------*/
 
+
+
+/*=============== START OF ADD PAYMENT MODAL  ========================*/
+
+
+#addPaymentModal .medical-modal-content {
+    border-radius: 24px !important; 
+    padding: 32px !important; 
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+}
+
+#addPaymentModal .modal-header {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 24px; 
+    letter-spacing: -0.02em;
+}
+
+#addPaymentModal .pm-summary-card {
+    background: #f8fafc; 
+    border: 1.5px dashed #cbd5e1;
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 28px; 
+}
+
+#addPaymentModal .pm-summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+#addPaymentModal .pm-label-text {
+    font-size: 0.85rem;
+    color: #64748b;
+    font-weight: 600;
+}
+
+#addPaymentModal .pm-value-text {
+    font-size: 1rem;
+    color: #0f172a; 
+    font-weight: 700;
+}
+
+
+#addPaymentModal .pm-field-group {
+    margin-top: 1.5rem;
+}
+
+#addPaymentModal .pm-input-label {
+    display: block;
+    font-weight: 700;
+    color: #475569;
+    margin-bottom: 10px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+
+#addPaymentModal .pm-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center; 
+}
+
+#addPaymentModal .pm-input-icon {
+    position: absolute;
+    left: 16px;
+    color: #94a3b8;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+}
+
+#addPaymentModal .pm-custom-input {
+    width: 100%;
+    height: 52px; 
+    padding: 0 16px 0 48px; 
+    border: 1.5px solid #e2e8f0;
+    border-radius: 12px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+    color: #1e293b;
+    background-color: #ffffff;
+}
+
+
+#addPaymentModal .pm-custom-input:focus {
+    outline: none;
+    border-color: #94a3b8; 
+    background-color: #f8fafc;
+    box-shadow: 0 0 0 4px rgba(148, 163, 184, 0.1);
+}
+
+
+#addPaymentModal .pm-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 12px;
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid #f1f5f9;
+}
+
+
+#addPaymentModal .pm-btn-post {
+    background-color: #f97316 !important;
+    color: white !important;
+    height: 52px; 
+    border: none;
+    padding: 0 36px;
+    border-radius: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#addPaymentModal .pm-btn-post:hover {
+    background-color: #ea580c !important;
+    transform: translateY(-2px);
+    box-shadow: 0 12px 20px -5px rgba(249, 115, 22, 0.3);
+}
+
+#addPaymentModal .pm-btn-cancel {
+    background-color: #f1f5f9;
+    color: #64748b;
+    border: none;
+    height: 52px;
+    padding: 0 28px;
+    border-radius: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+#addPaymentModal .pm-btn-cancel:hover {
+    background-color: #e2e8f0;
+    color: #1e293b;
+}
+
+
+#pm-ref-group {
+    animation: pmFadeIn 0.3s ease-in-out;
+}
+
+@keyframes pmFadeIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+
+.pm-balance-danger {
+    color: #ef4444 !important;
+    font-weight: 800 !important;
+    font-size: 1.1rem !important;
+}
+
+
+#addPaymentModal select.pm-custom-input {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 16px center;
+    background-size: 18px;
+    padding-right: 40px;
+}
+
+#addPaymentModal .pm-btn-post:disabled {
+    background-color: #94a3b8 !important;
+    border-color: #94a3b8 !important;
+    cursor: not-allowed !important;
+    opacity: 0.7;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+/*=================================== END OF ADD PAYMENT MODAL ===================================*/
