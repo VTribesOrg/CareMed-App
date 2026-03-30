@@ -1,11 +1,19 @@
-.env
-.env*
-/v
-venv/
+# Python / Flask
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 .env
 instance/
 *.sqlite
 *.db
-venv
+
+# Virtual Environments
+venv/
+env/
+ENV/
+
+# Large Binaries / Installers
+*.msi
+*.exe
+*.zip
