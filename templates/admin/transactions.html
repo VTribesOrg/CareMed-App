@@ -260,152 +260,151 @@
 
                     <div class="table-responsive">
 
-                    <table class="medical-table">
-                        <thead>
-                            <tr>
-                                <th>Ref No.</th>
-                                <th>Customer Name</th>
-                                <th>Type</th>
-                                <th>Item</th>
-                                <th>Fulfillment</th>
-                                <th>Total</th>
-                                <th>Paid</th> 
-                                <th>Balance Due</th>
-                                <th>Status</th>
-                                <th>Date</th>
-                                <th class="text-end">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for txn in transactions %}
-                            <tr>
-                                <td class="ref-cell">
-                                    <div class="ref-copy-wrapper">
-                                        <input type="text" class="ref-id-input" value="{{ txn.reference_no }}" readonly title="Click to select">
-                                        <div class="btn-copy-hint" onclick="navigator.clipboard.writeText('{{ txn.reference_no }}')"> 
-                                            <i class="material-symbols-rounded">content_copy</i>
+                        <table class="medical-table">
+                            <thead>
+                                <tr>
+                                    <th>Ref No.</th>
+                                    <th>Customer Name</th>
+                                    <th>Type</th>
+                                    <th>Item</th>
+                                    <th>Fulfillment</th>
+                                    <th>Total</th>
+                                    <th>Paid</th> 
+                                    <th>Balance Due</th>
+                                    <th>Status</th>
+                                    <th>Date</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for txn in transactions %}
+                                <tr>
+                                    <td class="ref-cell">
+                                        <div class="ref-copy-wrapper">
+                                            <input type="text" class="ref-id-input" value="{{ txn.reference_no }}" readonly title="Click to select">
+                                            <div class="btn-copy-hint" onclick="navigator.clipboard.writeText('{{ txn.reference_no }}')"> 
+                                                <i class="material-symbols-rounded">content_copy</i>
+                                            </div>
                                         </div>
-                                    </div>
-                                </td>
+                                    </td>
 
-                                <td>
-                                    <span class="fw-bold text-dark">{{ txn.customer_name or (txn.customer.first_name ~ ' ' ~ txn.customer.last_name) }}</span>
-                                </td>
+                                    <td>
+                                        <span class="fw-bold text-dark">{{ txn.customer_name or (txn.customer.first_name ~ ' ' ~ txn.customer.last_name) }}</span>
+                                    </td>
 
-                                <td>
-                                    <span class="badge {{ 'badge-soft-info' if txn.transaction_type == 'Rental' else 'badge-soft-primary' }}">
-                                        {{ txn.transaction_type }}
-                                    </span>
-                                </td>
+                                    <td>
+                                        <span class="badge {{ 'badge-soft-info' if txn.transaction_type == 'Rental' else 'badge-soft-primary' }}">
+                                            {{ txn.transaction_type }}
+                                        </span>
+                                    </td>
 
-                                <td>
-                                    <small class="fw-medium text-dark text-truncate d-block" style="max-width: 120px;">
-                                        {% if txn.rentals %}
-                                            {{ txn.rentals[0].product.equipment_type }}
-                                            {% if txn.rentals|length > 1 %}<span class="text-primary">+{{ txn.rentals|length - 1 }}</span>{% endif %}
-                                        {% elif txn.purchases %}
-                                            {{ txn.purchases[0].product.equipment_type }}
-                                            {% if txn.purchases|length > 1 %}<span class="text-primary">+{{ txn.purchases|length - 1 }}</span>{% endif %}
-                                        {% else %}
-                                            <span class="text-muted">—</span>
-                                        {% endif %}
-                                    </small>
-                                </td>
-
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <small>{{ txn.fulfillment_type }}</small>
-                                    </div>
-                                </td>
-
-                                <td class="fw-bold text-dark">
-                                    ₱{{ "{:,.2f}".format(txn.total_amount) }}
-                                </td>
-
-                                <td class="text-success fw-medium">
-                                    ₱{{ "{:,.2f}".format(txn.amount_paid) }}
-                                </td>
-
-                                <td>
-                                    {% if txn.balance_due > 0 %}
-                                        <span class="text-danger fw-bold">₱{{ "{:,.2f}".format(txn.balance_due) }}</span>
-                                    {% else %}
-                                        <div class="d-flex flex-column">
-                                            <span class="badge badge-soft-success w-fit">Fully Paid</span>
-                                        </div>
-                                    {% endif %}
-                                </td>
-
-                                <td>
-                                    <div class="status-pill {{ txn.status|lower }}">
-                                        <span class="dot"></span>
-                                        {{ txn.status }}
-                                    </div>
-                                    
-                                    {% if txn.status == 'Open' and txn.payment_status == 'Fully Paid' %}
-                                        <div class="mt-1">
-                                            {% if txn.transaction_type == 'Rental' %}
-                                                <span class="badge bg-soft-warning text-warning border-0 p-0" style="font-size: 10px;">
-                                                    <i class="material-symbols-rounded" style="font-size: 12px; vertical-align: middle;">assignment_return</i> Awaiting Return
-                                                </span>
+                                    <td>
+                                        <small class="fw-medium text-dark text-truncate d-block" style="max-width: 120px;">
+                                            {% if txn.rentals %}
+                                                {{ txn.rentals[0].product.equipment_type }}
+                                                {% if txn.rentals|length > 1 %}<span class="text-primary">+{{ txn.rentals|length - 1 }}</span>{% endif %}
+                                            {% elif txn.purchases %}
+                                                {{ txn.purchases[0].product.equipment_type }}
+                                                {% if txn.purchases|length > 1 %}<span class="text-primary">+{{ txn.purchases|length - 1 }}</span>{% endif %}
                                             {% else %}
-                                                <span class="badge bg-soft-info text-info border-0 p-0" style="font-size: 10px;">
-                                                    <i class="material-symbols-rounded" style="font-size: 12px; vertical-align: middle;">inventory_2</i> Awaiting Pickup
-                                                </span>
+                                                <span class="text-muted">—</span>
                                             {% endif %}
+                                        </small>
+                                    </td>
+
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <small>{{ txn.fulfillment_type }}</small>
                                         </div>
-                                    {% endif %}
-                                </td>
+                                    </td>
 
-                                <td>
-                                    <div class="date-stack">
-                                        <span class="fw-medium">{{ txn.created_at.strftime('%B %d, %Y') }}</span>
-                                    </div>
-                                </td>
+                                    <td class="fw-bold text-dark">
+                                        ₱{{ "{:,.2f}".format(txn.total_amount) }}
+                                    </td>
 
-                                <td class="text-end">
-                                    <div class="action-row-container d-flex justify-content-end gap-1">
-                                        
-                                        <button type="button" 
-                                                class="btn-action btn-add-payment {{ 'disabled opacity-50' if txn.balance_due <= 0 }}" 
-                                                title="Add Payment" 
-                                                data-txn-id="{{ txn.id }}" 
-                                                data-ref="{{ txn.reference_no }}" 
-                                                data-balance="{{ txn.balance_due }}"
-                                                {% if txn.balance_due <= 0 %}disabled{% endif %}>
-                                            <i class="material-symbols-rounded">add_card</i>
-                                        </button>
+                                    <td class="text-success fw-medium">
+                                        ₱{{ "{:,.2f}".format(txn.amount_paid) }}
+                                    </td>
 
-                                        {% if txn.status == 'Open' and txn.payment_status == 'Fully Paid' and txn.transaction_type == 'Rental' %}
-                                            <a href="{{ url_for('admin.manage_rentals', txn_id=txn.id) }}" class="btn-action btn-warning-light" title="Process Return">
-                                                <i class="material-symbols-rounded">assignment_return</i>
-                                            </a>
+                                    <td>
+                                        {% if txn.balance_due > 0 %}
+                                            <span class="text-danger fw-bold">₱{{ "{:,.2f}".format(txn.balance_due) }}</span>
+                                        {% else %}
+                                            <div class="d-flex flex-column">
+                                                <span class="badge badge-soft-success w-fit">Fully Paid</span>
+                                            </div>
                                         {% endif %}
+                                    </td>
 
-                                        <a href="{{ url_for('admin.transactions', id=txn.id) }}" class="btn-action btn-view-details" title="View Details">
-                                            <i class="material-symbols-rounded">visibility</i>
-                                        </a>
+                                    <td class="status-cell">
+                                        {% if txn.status == 'Open' and txn.payment_status == 'Fully Paid' %}
+                                            {% if txn.transaction_type == 'Rental' %}
+                                                <div class="status-pill status-awaiting-return" title="Payment complete, item with customer">
+                                                    <span class="material-symbols-rounded">assignment_return</span>
+                                                    <span class="status-text">Awaiting Return</span>
+                                                </div>
+                                            {% else %}
+                                                <div class="status-pill status-awaiting-pickup" title="Payment complete, item ready for customer">
+                                                    <span class="material-symbols-rounded">package_2</span>
+                                                    <span class="status-text">Awaiting Pickup</span>
+                                                </div>
+                                            {% endif %}
+                                        {% else %}
+                                            {# Dynamic class mapping for standard statuses #}
+                                            <div class="status-pill status-{{ txn.status|lower }}" data-status="{{ txn.status }}">
+                                                <span class="dot"></span>
+                                                <span class="status-text">{{ txn.status }}</span>
+                                            </div>
+                                        {% endif %}
+                                    </td>
 
-                                        <button class="btn-action btn-print" title="Print Invoice">
-                                            <i class="material-symbols-rounded">print</i>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="11">
-                                    <div class="empty-state py-5 text-center">
-                                        <i class="material-symbols-rounded display-4 text-light">receipt_long</i>
-                                        <p class="text-muted mt-2">No transaction records found matching your criteria.</p>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                                    <td>
+                                        <div class="date-stack">
+                                            <span class="fw-medium">{{ txn.created_at.strftime('%B %d, %Y') }}</span>
+                                        </div>
+                                    </td>
+
+                                    <td class="text-end">
+                                        <div class="action-row-container d-flex justify-content-end gap-1">
+                                            
+                                            <button type="button" 
+                                                    class="btn-action btn-add-payment {{ 'disabled opacity-50' if txn.balance_due <= 0 }}" 
+                                                    title="Add Payment" 
+                                                    data-txn-id="{{ txn.id }}" 
+                                                    data-ref="{{ txn.reference_no }}" 
+                                                    data-balance="{{ txn.balance_due }}"
+                                                    {% if txn.balance_due <= 0 %}disabled{% endif %}>
+                                                <i class="material-symbols-rounded">add_card</i>
+                                            </button>
+
+                                            <a href="{{ url_for('admin.transaction_details', id=txn.id) }}" class="btn-action">
+                                                <i class="material-symbols-rounded">visibility</i>
+                                            </a>
+
+                                            <button class="btn-action btn-print" title="Print Invoice">
+                                                <i class="material-symbols-rounded">print</i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="11" style="height: 400px; text-align: center; vertical-align: middle; border: none;">
+                                        <div class="d-flex flex-column align-items-center justify-content-center h-100 w-100">
+                                            <div class="empty-state-content" style="margin: auto;">
+                                                <i class="material-symbols-rounded text-light" style="font-size: 80px; opacity: 0.4; display: block; margin: 0 auto;">receipt_long</i>
+                                                <p class="text-muted fw-bold mt-3 mb-1">No transactions found</p>
+                                                <p class="text-muted small">Try adjusting your search or filters.</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
 
                     </div>
+                    
                     <div class="pagination-footer">
                         <div class="table-limit-control">
                             <span class="limit-label">Show</span>
@@ -454,6 +453,7 @@
             </main>
 
         </div>
+        
     </div>
 
     <div id="txnSelectionModal" class="medical-modal-overlay hidden">
@@ -581,7 +581,48 @@
         </div>
     </div>
 
-        {% include 'modals/rent_purch_modal.html' %}
+
+    
+
+    <div id="main-toast-container" class="toast-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="medical-toast {{ category or 'info' }}" role="alert">
+                        <div class="toast-progress"></div>
+                        <span class="material-symbols-rounded toast-icon">
+                            {% if category == 'success' %}check_circle
+                            {% elif category == 'error' %}error
+                            {% elif category == 'warning' %}warning
+                            {% else %}info{% endif %}
+                        </span>
+                        <div class="toast-content">
+                            <span class="toast-title">{{ category|capitalize or 'Notice' }}</span>
+                            <span class="toast-message">{{ message|replace('\n', '<br>')|safe }}</span>
+                        </div>
+                        <button class="toast-close" onclick="this.parentElement.remove()">
+                            <span class="material-symbols-rounded">close</span>
+                        </button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <template id="toast-template">
+        <div class="medical-toast" role="alert">
+            <div class="toast-progress"></div> <span class="material-symbols-rounded toast-icon"></span>
+            <div class="toast-content">
+                <span class="toast-title"></span>
+                <span class="toast-message"></span>
+            </div>
+            <button class="toast-close" onclick="this.parentElement.remove()">
+                <span class="material-symbols-rounded">close</span>
+            </button>
+        </div>
+    </template>
+
+    {% include 'modals/rent_purch_modal.html' %}
     <script src="{{ url_for('static', filename='js/global.js') }}"></script>
     <script src="{{ url_for('static', filename='js/admin_transaction.js') }}"></script>
 </body>

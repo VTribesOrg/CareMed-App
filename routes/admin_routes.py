@@ -1,11 +1,11 @@
-from flask import Blueprint, render_template, url_for, redirect, flash, request, jsonify, current_app, abort
+from flask import Blueprint, render_template, url_for, redirect, flash, request, jsonify, current_app
 from flask_login import current_user
 from extensions import db, limiter, csrf
 from sqlalchemy.orm import joinedload
 from sqlalchemy import func, or_
 from flask_login import login_required
 from functools import wraps
-from models.product import Product, InventoryLog, Transaction, Purchase, Payment
+from models.product import Product, InventoryLog, Transaction, Purchase, Payment, Rental
 from models.customer import Customer
 from models.users import User, SecurityLog, BlockedIP
 from flask_mail import Message
@@ -23,23 +23,7 @@ def administrator_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if current_user.role.strip() != 'Administrator':
-            # IDS: log unauthorized admin access attempt
-            try:
-                log = SecurityLog(
-                    ip_address=request.remote_addr,
-                    event_type="Unauthorized Admin Access",
-                    description=f"Non-admin user tried to access: {request.path}",
-                    user_id=current_user.id if current_user.is_authenticated else None,
-                    user_email=current_user.email if current_user.is_authenticated else None,
-                    user_agent=request.headers.get('User-Agent', 'Unknown')[:255],
-                    severity='High',
-                    is_suspicious=True
-                )
-                db.session.add(log)
-                db.session.commit()
-            except Exception:
-                db.session.rollback()
-
+            flash("Unauthorized access.", "error")
             return redirect(url_for('user.homepage'))
         return f(*args, **kwargs)
     return decorated_function
@@ -857,6 +841,8 @@ def process_purchase():
         new_transaction.update_totals()
         db.session.commit()
         
+        flash(f"Purchase processed successfully! \n Ref: {ref_no}", "success")
+        
         return jsonify({
             "success": True, 
             "message": "Purchase processed successfully.",
@@ -868,6 +854,96 @@ def process_purchase():
         current_app.logger.error(f"Purchase Transaction Failed: {str(e)}")
         return jsonify({"success": False, "message": "An error occurred while processing the sale. Please try again or contact support."})
     
+
+@admin_bp.route('/process-rental', methods=['POST'])
+@login_required
+@administrator_required
+def process_rental():
+    product_id = request.form.get('product_id')
+
+    if not product_id:
+        flash("No product was selected. Please restart the transaction.", "danger")
+        return redirect(request.referrer)
+    
+    try:
+        raw_unit_price = request.form.get('unit_price', '0').strip() or '0'
+        raw_deposit = request.form.get('security_deposit', '0').strip() or '0'
+        raw_amount_paid = request.form.get('amount_paid', '0').strip() or '0'
+
+        unit_price = Decimal(raw_unit_price)
+        security_deposit = Decimal(raw_deposit)
+        amount_paid = Decimal(raw_amount_paid)
+    except Exception:
+        flash("Invalid numeric values provided.", "danger")
+        return redirect(request.referrer)
+
+    if security_deposit <= 0 and amount_paid <= 0:
+        flash("Transaction failed: Either a Deposit or an Initial Payment is required.", "warning")
+        return redirect(request.referrer)
+
+    try:
+        transaction_type = request.form.get('transaction_type', 'Rental')
+        prefix = "RNT" if transaction_type == "Rental" else "PUR"
+        
+        now = datetime.now()
+        date_part = now.strftime("%m%d%Y")
+        time_part = now.strftime("%H%M%S")
+        random_str = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
+        
+        ref_no = f"{prefix}-{date_part}-{time_part}-{random_str}"
+
+        new_txn = Transaction(
+            reference_no=ref_no,
+            customer_id=request.form.get('customer_id'),
+            transaction_type=transaction_type,
+            total_amount=unit_price + security_deposit,
+            fulfillment_type=request.form.get('fulfillment_type'),
+            delivery_address=request.form.get('delivery_address'),
+            landmark=request.form.get('landmark'),
+            status="Open"
+        )
+        
+        db.session.add(new_txn)
+        db.session.flush() 
+
+        new_rental = Rental(
+            transaction_id=new_txn.id,
+            product_id=product_id,
+            customer_id=new_txn.customer_id,
+            start_date=datetime.strptime(request.form.get('start_date'), '%Y-%m-%d'),
+            expected_return_date=datetime.strptime(request.form.get('return_date'), '%Y-%m-%d'),
+            monthly_rate=unit_price,
+            deposit_amount=security_deposit,
+            status="Active"
+        )
+        db.session.add(new_rental)
+
+        if amount_paid > 0:
+            raw_ref = request.form.get('reference_number', '').strip()
+            cleaned_ref = raw_ref if raw_ref else None
+
+            new_payment = Payment(
+                transaction_id=new_txn.id,
+                amount=amount_paid,
+                payment_method=request.form.get('payment_method'),
+                reference_number=cleaned_ref, 
+                status="Completed", 
+                created_at=now
+            )
+            db.session.add(new_payment)
+
+        new_txn.update_totals() 
+        
+        db.session.commit()
+        flash(f"Rental confirmed successfully! \n Ref: {ref_no}", "success")
+
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error processing rental: {str(e)}", "danger")
+        return redirect(request.referrer)
+
+    return redirect(url_for('admin.transactions'))
+
 
 @admin_bp.route('/product/<int:product_id>/history')
 @login_required
@@ -971,6 +1047,17 @@ def transactions():
         **stats
     )
 
+
+@admin_bp.route('/transaction_details/<int:id>') 
+@login_required
+@administrator_required
+def transaction_details(id):
+
+    txn = Transaction.query.get_or_404(id)
+    
+    return render_template('admin/transaction_details.html', txn=txn)
+    
+
 @admin_bp.route('/post-payment', methods=['POST'])
 @login_required
 @administrator_required
@@ -1047,7 +1134,7 @@ def post_payment():
         if txn.status == "Closed":
             flash(f'Transaction {txn.reference_no} is now Fully Paid and Closed.', 'success')
         else:
-            flash(f'Payment of ₱{amount:,.2f} posted. New Balance: ₱{txn.balance_due:,.2f}', 'success')
+            flash(f'Payment of ₱{amount:,.2f} posted. \n New Balance: ₱{txn.balance_due:,.2f}', 'success')
 
     except (InvalidOperation, ValueError):
         db.session.rollback()

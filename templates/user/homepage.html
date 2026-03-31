@@ -361,8 +361,8 @@
                             {% endif %}
                         </ul>
 
-                        <div class="pricing-container {% if product.offer_type == 'both' %}has-dual{% else %}has-single{% endif %}">
-                            {% if product.offer_type in ['rent', 'both'] %}
+                        <div class="pricing-container {% if product.transaction_type == 'both' %}has-dual{% else %}has-single{% endif %}">
+                            {% if product.transaction_type in ['rent', 'both'] %}
                             <div class="price-block rent">
                                 <span class="price-label">RENTAL</span>
                                 <p class="price-amount">
@@ -372,11 +372,11 @@
                             </div>
                             {% endif %}
 
-                            {% if product.offer_type == 'both' %}
+                            {% if product.transaction_type == 'Both' %}
                                 <div class="price-separator"></div>
                             {% endif %}
 
-                            {% if product.offer_type in ['sale', 'both'] %}
+                            {% if product.transaction_type in ['Sale', 'Both'] %}
                             <div class="price-block sale">
                                 <span class="price-label">PURCHASE</span>
                                 <p class="price-amount">₱{{ "{:,.0f}".format(product.sale_price or 0) }}</p>
@@ -385,7 +385,7 @@
                         </div>
 
                         <div class="action-grid">
-                            {% if product.offer_type in ['rent', 'both'] %}
+                            {% if product.transaction_type in ['Rent', 'Both'] %}
                                 {% if current_user.is_authenticated %}
                                     <button class="btn-action btn-rent-outline" onclick="handleAction('rent', '{{ product.id }}')">
                                         <i class="fa-solid fa-calendar-day"></i> Rent Now
@@ -397,7 +397,7 @@
                                 {% endif %}
                             {% endif %}
 
-                            {% if product.offer_type in ['sale', 'both'] %}
+                            {% if product.transaction_type in ['Sale', 'Both'] %}
                                 <button class="btn-action btn-buy-solid" onclick="handleAction('buy', '{{ product.id }}')">
                                     <i class="fa-solid fa-cart-plus"></i> Buy
                                 </button>

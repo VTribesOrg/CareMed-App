@@ -1,4 +1,3 @@
-
 /*============= START OF PAGINATION =============*/
 document.addEventListener('DOMContentLoaded', function() {
 
@@ -6,11 +5,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const updateFilters = () => {
         const searchVal = document.getElementById('table-search')?.value.trim();
         const limitVal = document.getElementById('row-limit-select')?.value;
+        // Added these two lines to capture the filter values
+        const typeVal = document.getElementById('type-filter')?.value;
+        const fulfillmentVal = document.getElementById('fulfillment-filter')?.value;
 
         const urlParams = new URLSearchParams();
         
         if (searchVal) urlParams.set('q', searchVal);
         if (limitVal) urlParams.set('limit', limitVal);
+        // Added these to append the filters to the URL
+        if (typeVal) urlParams.set('type', typeVal);
+        if (fulfillmentVal) urlParams.set('fulfillment', fulfillmentVal);
         
         // Reset to page 1 on any filter change
         urlParams.set('page', 1);
@@ -35,6 +40,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // --- 3. DROPDOWNS: Change Listeners ---
     const limitSelect = document.getElementById('row-limit-select');
     if (limitSelect) limitSelect.addEventListener('change', updateFilters);
+    
+    // Added listeners for the Type and Fulfillment filters
+    const typeFilter = document.getElementById('type-filter');
+    if (typeFilter) typeFilter.addEventListener('change', updateFilters);
+    
+    const fulfillmentFilter = document.getElementById('fulfillment-filter');
+    if (fulfillmentFilter) fulfillmentFilter.addEventListener('change', updateFilters);
 
     // --- 4. CLEAR BUTTON: Click Listener ---
     const clearBtn = document.getElementById('clear-filters-btn');
@@ -178,6 +190,15 @@ purchaseForm?.addEventListener('change', function(e) {
     }
 });
 
+
+function togglePurchaseDelivery(isDelivery) {
+    const deliveryFields = document.getElementById('purchase-delivery-fields');
+    if (deliveryFields) {
+        deliveryFields.style.display = isDelivery ? 'grid' : 'none';
+        const addrInput = deliveryFields.querySelector('input[name="delivery_address"]');
+        if (addrInput) addrInput.required = isDelivery;
+    }
+}
 /**
  * Updates the Grand Total and auto-fills the Amount Paid
  */
@@ -333,18 +354,24 @@ if (purchaseForm) {
         })
         .then(data => {
             if (data.success) {
-                alert(`Success! Transaction Recorded.`);
-                window.location.reload(); 
+                window.location.reload();
             } else {
-                throw new Error(data.message);
+                showToast(data.message, 'error');
             }
         })
         .catch(error => {
-            console.error('Purchase Error:', error);
-            alert(error.message);
-            submitBtn.disabled = false;
-            submitBtn.innerText = originalBtnText;
+            showToast("A system error occurred.", "error");
         });
+
+        if (e.target.name === 'fulfillment_type') {
+            const isDelivery = e.target.value === 'Delivery';
+            togglePurchaseDelivery(isDelivery);
+        }
+        
+        // ADD THIS: Payment Method Logic
+        if (e.target.id === 'purchase-payment-method') {
+            updatePurchaseRefVisibility();
+        }
     });
 }
 
@@ -358,11 +385,57 @@ document.addEventListener('click', function(e) {
     }
 });
 
+const purchasePaymentMethod = document.getElementById('purchase-payment-method');
+const purchaseRefGroup = document.getElementById('purchase-ref-group');
+
 /**
- * Toggles visibility of delivery address fields
+ * Handles showing/hiding the reference field for Purchase
  */
-function togglePurchaseDelivery(isDelivery) {
-    const deliveryFields = document.getElementById('purchase-delivery-fields');
+function updatePurchaseRefVisibility() {
+    if (purchasePaymentMethod && purchaseRefGroup) {
+        // Show for GCash and Bank Transfer, Hide for Cash
+        const isElectronic = purchasePaymentMethod.value !== 'Cash';
+        purchaseRefGroup.style.display = isElectronic ? 'block' : 'none';
+        
+        if (!isElectronic) {
+            const refInput = purchaseRefGroup.querySelector('input');
+            if (refInput) refInput.value = '';
+        }
+    }
+}
+
+
+/*============= END OF PURCHASE SUBMISSION LOGIC =============*/
+
+/*============= START OF RENTMODAL =============*/
+
+const rentModal = document.getElementById('rentAssetModal');
+const rentBtns = document.querySelectorAll('.asset-action-btn.rent');
+const rentPaymentMethod = document.getElementById('rent-payment-method');
+const rentRefGroup = document.getElementById('rent-ref-group');
+
+/**
+ * Handles showing/hiding the reference field based on method
+ */
+function updateRentRefVisibility() {
+    if (rentPaymentMethod && rentRefGroup) {
+        // Show for everything EXCEPT Cash
+        const isElectronic = rentPaymentMethod.value !== 'Cash';
+        rentRefGroup.style.display = isElectronic ? 'block' : 'none';
+        
+        // Optional: Clear the input if hidden so old data isn't submitted
+        if (!isElectronic) {
+            const refInput = rentRefGroup.querySelector('input');
+            if (refInput) refInput.value = '';
+        }
+    }
+}
+
+/**
+ * Handles toggling delivery fields for the Rent Modal
+ */
+function toggleRentDelivery(isDelivery) {
+    const deliveryFields = document.getElementById('rent-delivery-fields');
     if (deliveryFields) {
         deliveryFields.style.display = isDelivery ? 'grid' : 'none';
         const addrInput = deliveryFields.querySelector('input[name="delivery_address"]');
@@ -370,17 +443,23 @@ function togglePurchaseDelivery(isDelivery) {
     }
 }
 
-/*============= END OF PURCHASE SUBMISSION LOGIC =============*/
-
-
-
-/*============= START OF RENTMODAL =============*/
-
-const rentModal = document.getElementById('rentAssetModal');
-const rentBtns = document.querySelectorAll('.asset-action-btn.rent');
+/**
+ * Resets the Rent Modal state
+ */
+function resetRentModal() {
+    const form = document.getElementById('rentEntryForm');
+    if (form) {
+        form.reset();
+        toggleRentDelivery(false); 
+        updateRentRefVisibility();
+    }
+    const display = document.getElementById('rent-total-display');
+    if (display) display.innerText = "₱0.00";
+}
 
 rentBtns.forEach(btn => {
     btn.addEventListener('click', () => {
+        resetRentModal(); // Reset before populating
         const row = btn.closest('tr');
         const equipmentName = row.cells[1].innerText;
         const equipmentId = row.cells[1].innerText;
@@ -398,15 +477,26 @@ rentModal.addEventListener('click', (e) => {
     if (e.target.classList.contains('close-rent-modal') || 
         e.target.classList.contains('medical-modal-overlay')) {
         rentModal.classList.add('hidden');
+        resetRentModal(); // Ensure reset on close
     }
 });
 
 const rentForm = document.getElementById('rentEntryForm');
 const rentRateInput = document.getElementById('rent-rate-display');
 const depositInput = document.getElementById('security-deposit-input');
-const totalDisplay = document.querySelector('.total-amount-display');
+const totalDisplay = document.querySelector('#rent-total-display'); // Specific ID for clarity
 
 if (rentForm) {
+    // Listener for Fulfillment Type & Payment Method Changes
+    rentForm.addEventListener('change', (e) => {
+        if (e.target.name === 'fulfillment_type') {
+            toggleRentDelivery(e.target.value === 'Delivery');
+        }
+        if (e.target.id === 'rent-payment-method') {
+            updateRentRefVisibility();
+        }
+    });
+
     rentForm.addEventListener('input', () => {
         const rate = parseFloat(rentRateInput.value) || 0;
         const deposit = parseFloat(depositInput.value) || 0;
@@ -417,10 +507,12 @@ if (rentForm) {
         }
     });
 }
-
 /*============= START OF RENTAL SELECTION =============*/
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Initial check for reference visibility
+    updateRentRefVisibility();
+
     // Helper function to update status icons
     const updateStatusIcon = (selectElement, iconId) => {
         const icon = document.getElementById(iconId);
@@ -448,7 +540,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // 3. The Hand-off from Selection Modal to Final Modals
-    // 3. The Hand-off from Selection Modal to Final Modals
     const equipmentSelect = document.getElementById('global-equipment-select');
 
     document.querySelectorAll('.type-choice-btn').forEach(btn => {
@@ -471,7 +562,13 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('txnSelectionModal').classList.add('hidden');
 
             if (flow === 'Rental') {
-                // POPULATE RENTAL
+                resetRentModal(); // Clear previous data
+                
+                // --- FIX 1: POPULATE HIDDEN PRODUCT ID FOR RENTAL ---
+                const rentHiddenInput = document.getElementById('rent-product-id');
+                if (rentHiddenInput) rentHiddenInput.value = productId;
+
+                // POPULATE RENTAL UI
                 document.getElementById('rent-equipment-name').innerText = name;
                 document.getElementById('rent-stock-display').innerText = `${stock} Units Available`;
                 document.getElementById('rent-rate-display').value = rentPrice;
@@ -480,11 +577,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 // POPULATE PURCHASE
                 activePurchaseProductId = productId; 
 
+                // --- FIX 2: POPULATE HIDDEN PRODUCT ID FOR PURCHASE ---
+                // (Assuming your purchase modal also has a hidden input with this ID)
+                const purchaseHiddenInput = document.getElementById('purchase-product-id');
+                if (purchaseHiddenInput) purchaseHiddenInput.value = productId;
+
                 // --- CRITICAL FIX START ---
                 const qtyInput = document.getElementById('purchase-qty');
                 if (qtyInput) {
-                    qtyInput.max = stock; // Update the max limit so validation passes
-                    qtyInput.value = stock > 0 ? 1 : 0; // Default to 1 if stock exists
+                    qtyInput.max = stock; 
+                    qtyInput.value = stock > 0 ? 1 : 0; 
                 }
                 // --- CRITICAL FIX END ---
 
@@ -671,3 +773,5 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 /*=================================== END OF ADD PAYMENT MODAL ===================================*/
+
+

@@ -3,7 +3,6 @@
         <div class="modal-header-row">
             <div class="header-content-area">
                 <h2 class="modal-header">Process Equipment Rental</h2>
-                
                 <div class="selected-asset-banner">
                     <div class="banner-left">
                         <div class="asset-context-label">
@@ -14,7 +13,6 @@
                             <span id="rent-equipment-name">--</span>
                         </div>
                     </div>
-
                     <div class="banner-right">
                         <div id="rent-stock-badge" class="stock-status-badge status-in-stock">
                             <span class="dot"></span>
@@ -23,21 +21,24 @@
                     </div>
                 </div>
             </div>
-            <span class="material-symbols-rounded modal-close close-rent-modal absolute-close-btn" title="" >close</span>
+            <span class="material-symbols-rounded modal-close close-rent-modal absolute-close-btn">close</span>
         </div>
 
-        <form id="rentEntryForm">
+        <form id="rentEntryForm" action="{{ url_for('admin.process_rental') }}" method="POST" data-fulfillment="Pickup">
+            <input type="hidden" name="csrf_token" id="rent_csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="transaction_type" value="Rental">
+            <input type="hidden" name="product_id" id="rent-product-id">
+            
             <div class="form-layout-grid">
-                <div class="form-field">
-                    <label>Select Customer</label>
+                <div class="form-field full-width">
+                    <label>Renter (Customer)</label>
                     <div class="select-wrapper">
-                        <span class="material-symbols-rounded filter-icon">person_search</span>
-                        <select id="rental-customer-id" name="customer_id" class="medical-select rental-customer-select" required>
-                            <option value="" disabled selected>Search customer...</option>
+                        <span class="material-symbols-rounded filter-icon">person</span>
+                        <select class="medical-select" required id="rental-customer-id" name="customer_id">
+                            <option value="" disabled selected>Select renter...</option>
                             {% for customer in customers %}
                                 <option value="{{ customer.id }}">
-                                    {{ customer.first_name }} {{ customer.last_name }} (ID: {{ customer.id }})
+                                    {{ customer.first_name }} {{ customer.last_name }}
                                 </option>
                             {% endfor %}
                         </select>
@@ -46,50 +47,91 @@
                 </div>
 
                 <div class="form-field">
-                    <label>Asset Tag / Serial</label>
-                    <div class="select-wrapper">
-                        <span class="material-symbols-rounded filter-icon">qr_code_2</span>
-                        <input type="text" class="clinical-input" id="rent-asset-tag" placeholder="e.g. SN-992031" required style="padding-left: 45px;">
-                    </div>
-                </div>
-
-                <div class="form-field">
                     <label>Start Date</label>
-                    <input type="date" class="clinical-input" required>
+                    <input type="date" name="start_date" class="clinical-input" required>
                 </div>
 
                 <div class="form-field">
-                    <label>Expected Return Date</label>
-                    <input type="date" class="clinical-input" required>
+                    <label>Expected Return</label>
+                    <input type="date" name="return_date" class="clinical-input" required>
                 </div>
 
                 <div class="form-field">
-                    <label>Monthly Rental Rate (₱)</label>
-                    <input type="text" id="rent-rate-display" class="clinical-input" value="6000" readonly>
+                    <label>Monthly Rate (₱)</label>
+                    <input type="number" id="rent-rate-display" name="unit_price" class="clinical-input" step="0.01" required>
                 </div>
 
                 <div class="form-field">
                     <label>Deposit (₱)</label>
-                    <input type="number" id="security-deposit-input" class="clinical-input" placeholder="0.00" required>
+                    <input type="number" id="security-deposit-input" name="security_deposit" class="clinical-input" step="0.01" placeholder="0.00">
+                </div>
+
+                <div class="form-field">
+                    <label>Payment Method</label>
+                    <div class="select-wrapper">
+                        <span class="material-symbols-rounded filter-icon">payments</span>
+                        <select class="medical-select" id="rent-payment-method" style="height: 48px;" name="payment_method">
+                            <option value="Cash">Cash</option>
+                            <option value="GCash">GCash / Maya</option>
+                            <option value="Bank Transfer">Bank Transfer</option>
+                        </select>
+                        <span class="material-symbols-rounded select-icon">expand_more</span>
+                    </div>
+                </div>
+
+                <div class="form-field">
+                    <label>Amount Paid (₱)</label>
+                    <input type="number" id="rent-amount-paid" name="amount_paid" class="clinical-input" step="0.01" placeholder="0.00">
+                </div>
+
+                <div class="form-field full-width" id="rent-ref-group" style="display: none;">
+                    <label>Payment Reference #</label>
+                    <input type="text" id="rent-payment-ref" name="reference_number" class="clinical-input" placeholder="e.g. GCash Ref or Receipt #">
+                </div>
+
+
+                <div class="form-field full-width">
+                    <label>Fulfillment Type</label>
+                    <div id="rent-fulfillment-group" style="display: flex; gap: 12px; padding: 4px 0;">
+                        <label class="fulfillment-option">
+                            <input type="radio" name="fulfillment_type" value="Pickup" checked>
+                            <span>Pickup</span>
+                        </label>
+                        <label class="fulfillment-option">
+                            <input type="radio" name="fulfillment_type" value="Delivery">
+                            <span>Delivery</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div id="rent-delivery-fields" class="full-width" style="display: none; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div class="form-field"> 
+                        <label>Delivery Address</label>
+                        <input type="text" name="delivery_address" class="clinical-input" placeholder="House #, Street, Brgy...">
+                    </div>
+                    <div class="form-field"> 
+                        <label>Landmark</label>
+                        <input type="text" name="landmark" class="clinical-input" placeholder="Near church, blue gate, etc.">
+                    </div>
                 </div>
 
                 <div class="form-field full-width">
-                    <label>Delivery/Pickup Notes</label>
-                    <textarea class="clinical-input" placeholder="Enter instructions..." style="height: 100px; padding-top: 15px; resize: none;"></textarea>
+                    <label>Rental Notes / Conditions</label>
+                    <textarea class="clinical-input" id="rent-notes" name="warranty_or_notes" placeholder="Condition of item, serial numbers, etc..." style="height: 40px; padding-top: 8px; resize: none;"></textarea>
                 </div>
             </div>
 
             <div class="rental-summary-box">
                 <div class="summary-label-group">
-                    <span>SUMMARY</span>
+                    <span>RENTAL SUMMARY</span>
                     <span>Total Initial Payment:</span>
                 </div>
-                <span class="total-amount-display">₱0.00</span>
+                <span class="total-amount-display" id="rent-total-display">₱0.00</span>
             </div>
 
             <div class="modal-footer-actions">
                 <button type="button" class="btn-medical-outline close-rent-modal">Cancel</button>
-                <button type="submit" class="btn-medical-primary btn-confirm-rental">Confirm Rental</button>
+                <button type="submit" class="btn-medical-primary">Confirm Rental</button>
             </div>
         </form>
     </div>
@@ -169,7 +211,7 @@
                     <input type="number" id="purchase-amount-paid" name="amount_paid" class="clinical-input" step="0.01" placeholder="0.00" required>
                 </div>
 
-                <div class="form-field full-width">
+                <div class="form-field full-width" id="purchase-ref-group" style="display: none;">
                     <label>Payment Reference #</label>
                     <input type="text" id="purchase-payment-ref" name="reference_number" class="clinical-input" placeholder="e.g. GCash Ref or Receipt #">
                 </div>
@@ -189,10 +231,12 @@
                 </div>
 
                 <div id="purchase-delivery-fields" class="full-width" style="display: none; grid-template-columns: 1fr 1fr; gap: 12px;">
-                    <div class="form-field full-width"> <label>Delivery Address</label>
+                    <div class="form-field"> 
+                        <label>Delivery Address</label>
                         <input type="text" name="delivery_address" class="clinical-input" placeholder="House #, Street, Brgy...">
                     </div>
-                    <div class="form-field full-width"> <label>Landmark</label>
+                    <div class="form-field"> 
+                        <label>Landmark</label>
                         <input type="text" name="landmark" class="clinical-input" placeholder="Near church, blue gate, etc.">
                     </div>
                 </div>

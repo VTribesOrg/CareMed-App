@@ -41,9 +41,9 @@ import random
 def homepage():
     all_products = Product.query.all()
     
-    rent_only = [p for p in all_products if p.offer_type == 'rent']
-    sale_only = [p for p in all_products if p.offer_type == 'sale']
-    both_types = [p for p in all_products if p.offer_type == 'both']
+    rent_only = [p for p in all_products if p.transaction_type == 'Rent']
+    sale_only = [p for p in all_products if p.transaction_type == 'Sale']
+    both_types = [p for p in all_products if p.transaction_type == 'Both']
 
     featured_products = []
     if rent_only:

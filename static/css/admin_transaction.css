@@ -1546,7 +1546,6 @@ textarea.clinical-input {
     border: 2px dashed #00a8cc;
     padding: 20px;
     border-radius: 12px;
-    margin-top: 10px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -1635,7 +1634,6 @@ textarea.clinical-input {
     color: #0f172a;
 }
 
-/* 4. Banner Styling (Your Original + Alignments) */
 .selected-asset-banner {
     display: flex;
     justify-content: space-between;
@@ -1643,7 +1641,7 @@ textarea.clinical-input {
     padding: 12px 16px;
     background-color: #f8fafc;
     border: 1px solid #e2e8f0;
-    border-left: 5px solid #f97316; /* Orange accent for Purchases */
+    border-left: 5px solid #f97316; 
     border-radius: 10px;
 }
 
@@ -1653,7 +1651,7 @@ textarea.clinical-input {
     gap: 2px;
 }
 
-/* 5. Sub-labels and Asset Names */
+
 .asset-context-label {
     display: flex;
     align-items: center;
@@ -1709,6 +1707,128 @@ textarea.clinical-input {
     100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
 }
 
+/*=================================== START OF Rent ===================================*/
+
+#rentAssetModal .medical-modal-content {
+    padding: 1rem 1.5rem !important; 
+    max-height: 90vh !important;    
+    overflow-y: auto;
+}
+
+#rentAssetModal .form-layout-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 20px !important; 
+}
+
+#rentAssetModal .form-field label {
+    margin-bottom: 2px !important; 
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #475569;
+}
+
+#rentAssetModal .selected-asset-banner {
+    margin-bottom: 8px !important;
+    padding: 6px 12px !important; 
+}
+
+#rentAssetModal .modal-header {
+    margin-bottom: 5px !important;
+    font-size: 1.2rem;
+}
+
+#rentAssetModal .rental-summary-box {
+    margin-top: 10px !important;
+    padding: 8px 12px !important;
+}
+
+#rentAssetModal .modal-footer-actions {
+    margin-top: 10px !important;
+}
+
+/* Specific to Rent Modal grid behavior */
+#rent-delivery-fields,
+#rent-notes,
+.full-width {
+    grid-column: span 2;
+}
+
+#rentAssetModal .clinical-input,
+#rentAssetModal .medical-select {
+    height: 36px;
+    background-color: #f8fafc;
+    border: 1px solid #dbe2e1;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    color: #1e293b;
+    width: 100%;
+    transition: all 0.2s ease;
+}
+
+#rentAssetModal .medical-select {
+    padding-left: 40px;
+    padding-right: 35px;
+    appearance: none;
+    cursor: pointer;
+}
+
+#rentAssetModal .select-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+#rentAssetModal .filter-icon,
+#rentAssetModal .select-icon {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    z-index: 2;
+    pointer-events: none;
+}
+
+#rentAssetModal .filter-icon { left: 12px; }
+#rentAssetModal .select-icon { right: 12px; }
+
+/* Rent Delivery Fields Styling */
+#rent-delivery-fields {
+    display: none; /* Controlled by JS */
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    padding: 10px;
+    background: #f1f5f9;
+    border-radius: 8px;
+    margin: 4px 0;
+}
+
+/* Fulfillment Option Styling (Radios) */
+#rentAssetModal .fulfillment-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    padding: 4px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: #fff;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+}
+
+#rentAssetModal .fulfillment-option:hover {
+    background-color: #f1f5f9;
+    border-color: #cbd5e1;
+}
+
+#rentAssetModal input[type="radio"]:checked + span {
+    color: #f59e0b;
+    font-weight: bold;
+}
+
+/*=================================== END OF Rent ===================================*/
+
 /*------------------------- END OF RENTAL MODAL --------------------------------------*/
 
 
@@ -1718,7 +1838,7 @@ textarea.clinical-input {
 
 #purchaseAssetModal .medical-modal-content {
     padding: 1rem 1.5rem !important; 
-    max-height: 85vh !important;    
+    max-height: 90vh !important;    
     overflow-y: auto;
 }
 
@@ -1901,11 +2021,20 @@ textarea.clinical-input {
 .btn-action {
     border: none;
     background: transparent;
-    color: #64748b;
-    padding: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
     border-radius: 8px;
-    transition: all 0.2s;
+    color: #64748b; 
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none !important;
 }
+
 .btn-action:hover {
     background: #f1f5f9;
     color: #0f172a;
@@ -1993,21 +2122,6 @@ textarea.clinical-input {
 }
 
 
-.btn-action {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 34px;
-    height: 34px;
-    background-color: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    color: #64748b; 
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-
 .btn-add-payment:hover {
     color: #10b981 !important;
     border-color: #10b981 !important;
@@ -2036,6 +2150,66 @@ textarea.clinical-input {
     font-size: 18px;
 }
 /*================= END OF ACTION BUTTON =================*/
+
+
+.status-cell {
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    transition: all 0.2s ease;
+}
+
+.status-pill .material-symbols-rounded {
+    font-size: 16px;
+}
+
+.status-awaiting-return {
+    background-color: #fffbeb;
+    color: #b45309;
+    border: 1px solid #fde68a;
+}
+
+.status-awaiting-pickup {
+    background-color: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+}
+
+.status-open {
+    background-color: #f0fdf4;
+    color: #15803d;
+    border: 1px solid #bbf7d0;
+}
+
+.status-closed {
+    background-color: #f8fafc;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+}
+
+.status-cancelled {
+    background-color: #fef2f2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+}
+
+.dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: currentColor;
+}
 
 /*=================================== END OF TABLE STYLE ===================================*/
 
@@ -2227,3 +2401,209 @@ textarea.clinical-input {
 }
 
 /*=================================== END OF ADD PAYMENT MODAL ===================================*/
+
+
+
+
+/*================== START OF MESSAGE NOTIFICATION ==================*/
+/*================== MODERN MEDICAL NOTIFICATION ==================*/
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.medical-toast {
+    background: #ffffff;
+    min-width: 320px;
+    max-width: 400px;
+    padding: 16px;
+    border-radius: 12px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 14px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 
+                0 8px 10px -6px rgba(0, 0, 0, 0.05);
+    position: relative;
+    overflow: hidden;
+    border: 1px solid #f1f5f9;
+    animation: toast-slide-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+
+.medical-toast.success { border-left: 4px solid #10b981; }
+.medical-toast.success .toast-icon { color: #10b981; background: #ecfdf5; }
+
+.medical-toast.error { border-left: 4px solid #ef4444; }
+.medical-toast.error .toast-icon { color: #ef4444; background: #fef2f2; }
+
+.medical-toast.warning { border-left: 4px solid #f59e0b; }
+.medical-toast.warning .toast-icon { color: #f59e0b; background: #fffbeb; }
+
+.medical-toast.info { border-left: 4px solid #3b82f6; }
+.medical-toast.info .toast-icon { color: #3b82f6; background: #eff6ff; }
+
+
+.toast-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px !important;
+}
+
+
+.toast-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.toast-title {
+    font-weight: 700;
+    font-size: 14px;
+    color: #1e293b;
+    margin-bottom: 2px;
+}
+
+.toast-message {
+    font-size: 13px;
+    color: #64748b;
+    line-height: 1.4;
+}
+
+
+.toast-close {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: #94a3b8;
+    padding: 5px;
+    border-radius: 6px;
+    transition: background 0.2s;
+    display: flex;
+    align-items: center;
+}
+
+.toast-close:hover {
+    background: #f8fafc;
+    color: #64748b;
+}
+
+
+.toast-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    width: 100%;
+    background: rgba(0, 0, 0, 0.03);
+}
+
+.toast-progress::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    background: currentColor; 
+    opacity: 0.4;
+    animation: toast-progress-shrink 5s linear forwards;
+}
+
+.medical-toast.success { color: #10b981; }
+.medical-toast.error { color: #ef4444; }
+.medical-toast.warning { color: #f59e0b; }
+.medical-toast.info { color: #3b82f6; }
+
+/* Animations */
+@keyframes toast-slide-in {
+    from { transform: translateX(110%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes toast-fade-out {
+    from { transform: scale(1); opacity: 1; }
+    to { transform: scale(0.9); opacity: 0; }
+}
+
+@keyframes toast-progress-shrink {
+    from { width: 100%; }
+    to { width: 0%; }
+}
+/*================== END OF MESSAGE NOTIFICATION ==================*/
+
+
+/* Detail View Layout */
+.detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 380px; /* Main content vs Sidebar info */
+    gap: 2rem;
+    align-items: start;
+}
+
+/* Status & Badges */
+.badge-soft-success { background: #dcfce7; color: #166534; padding: 6px 12px; border-radius: 6px; font-weight: 600; }
+.badge-soft-danger { background: #fee2e2; color: #991b1b; padding: 6px 12px; border-radius: 6px; font-weight: 600; }
+.badge-soft-info { background: #e0f2fe; color: #075985; padding: 6px 12px; border-radius: 6px; font-weight: 600; }
+
+/* Financial Reconcile Card */
+.reconcile-card {
+    background: #1e293b; /* Dark theme contrast */
+    color: white;
+    border-radius: 16px;
+    padding: 20px;
+}
+
+.reconcile-card .data-label { color: #94a3b8; }
+.reconcile-card .data-value { color: #ffffff; }
+
+/* Timeline UI */
+.timeline-container {
+    padding-top: 10px;
+}
+
+.timeline-item {
+    position: relative;
+    padding-left: 24px;
+    padding-bottom: 20px;
+    border-left: 2px solid #e2e8f0;
+}
+
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -7px;
+    top: 4px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #52B788; 
+    border: 2px solid white;
+}
+
+@media print {
+    body { background: white; }
+    .main-wrapper { display: block; }
+    .medical-sidebar, .system-header, .header-actions, .btn-secondary, .pag-btn {
+        display: none !important;
+    }
+    .viewport-container {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    .info-card {
+        box-shadow: none;
+        border: 1px solid #eee;
+    }
+}
+
+
+
+
