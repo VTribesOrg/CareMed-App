@@ -275,6 +275,7 @@
                             <button class="fbtn" data-filter="locked">Lockouts</button>
                             <button class="fbtn" data-filter="rate">Rate Limits</button>
                             <button class="fbtn" data-filter="blocked">Blocked IPs</button>
+                            <button class="fbtn" onclick="filterLogs('bot',this)">Bot Detection</button>
                         </div>
 
                         <div class="log-scroll">
@@ -286,6 +287,7 @@
                                         <th>Event</th>
                                         <th>IP Address</th>
                                         <th>User</th>
+                                        <th>Severity</th>
                                         <th>Threat</th>
                                         <th></th>
                                     </tr>
@@ -294,7 +296,8 @@
                                     {% for log in logs %}
                                     <tr class="log-row"
                                         data-suspicious="{{ 'true' if log.is_suspicious else 'false' }}"
-                                        data-event="{{ log.event_type | lower }}">
+                                        data-event="{{ log.event_type | lower }}"
+                                        data-useragent="{{ log.user_agent | lower if log.user_agent else '' }}">
                                         <td style="white-space:nowrap; color:#94a3b8; font-size:0.72rem;">
                                             {{ log.created_at.strftime('%m/%d %H:%M:%S') }}
                                         </td>
@@ -325,6 +328,17 @@
                                         </td>
                                         <td style="font-size:0.78rem; color:#64748b; max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
                                             {{ log.user_email or '—' }}
+                                        </td>
+                                        <td>
+                                            {% if log.severity == 'Critical' %}
+                                                <span class="pill pill-red">Critical</span>
+                                            {% elif log.severity == 'High' %}
+                                                <span class="pill pill-orange">High</span>
+                                            {% elif log.severity == 'Medium' %}
+                                                <span class="pill pill-yellow">Medium</span>
+                                            {% else %}
+                                                <span class="pill pill-gray">Low</span>
+                                            {% endif %}
                                         </td>
                                         <td>
                                             {% if log.is_suspicious %}
@@ -443,6 +457,10 @@
                 else if (type === 'locked')     show = ev.includes('lockout') || ev.includes('locked') || ev.includes('lock');
                 else if (type === 'rate')       show = ev.includes('rate');
                 else if (type === 'blocked')    show = ev.includes('block');
+                else if (type === 'bot') {
+                    const ua = (row.dataset.useragent || '').toLowerCase();
+                    show = ua.includes('bot') || ua.includes('crawler') || ua.includes('spider');
+                }
 
                 row.style.display = show ? '' : 'none';
             });

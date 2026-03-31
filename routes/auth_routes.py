@@ -28,8 +28,7 @@ RESET_LINK_EXPIRY = 3600
 OTP_RESEND_COOLDOWN = 60  
 
 def login_key():
-    email = request.form.get("email", "").lower()
-    return f"{request.remote_addr}:{email}"
+    return request.remote_addr
 
 
 def create_customer_for_user(user):
@@ -42,14 +41,14 @@ def create_customer_for_user(user):
 
 from datetime import datetime, timedelta # Ensure timedelta is imported
 
-def log_security_event(event_type, description, user=None, is_suspicious=False):
-    """Silently log a security event and auto-block if threshold reached."""
+def log_security_event(event_type, description, user=None, is_suspicious=False, severity='Low'):
+    """Log a security event with auto-block and email alert."""
     try:
         from models.users import SecurityLog, BlockedIP
         from extensions import db
-        from datetime import datetime, timedelta
 
         ip = request.remote_addr
+        user_agent = request.headers.get('User-Agent', 'Unknown')[:255]
 
         entry = SecurityLog(
             ip_address=ip,
@@ -57,36 +56,39 @@ def log_security_event(event_type, description, user=None, is_suspicious=False):
             description=description,
             user_id=user.id if user else None,
             user_email=user.email if user else None,
+            user_agent=user_agent,
+            severity=severity,
             is_suspicious=is_suspicious
         )
         db.session.add(entry)
         db.session.commit()
 
-        # Auto-block IP after 5 suspicious events in 10 minutes
+        # Auto-block if 5+ suspicious events from same IP in 10 minutes
         if is_suspicious:
             cutoff = datetime.utcnow() - timedelta(minutes=10)
-            recent = SecurityLog.query.filter(
+            recent_suspicious = SecurityLog.query.filter(
                 SecurityLog.ip_address == ip,
                 SecurityLog.is_suspicious == True,
                 SecurityLog.created_at >= cutoff
             ).count()
 
-            if recent >= 5:
+            if recent_suspicious >= 5:
                 already_blocked = BlockedIP.query.filter_by(ip_address=ip, is_active=True).first()
                 if not already_blocked:
                     block = BlockedIP(
                         ip_address=ip,
-                        reason=f"Auto-blocked: {recent} suspicious events in 10 minutes",
+                        reason=f"Auto-blocked: {recent_suspicious} suspicious events in 10 minutes",
                         blocked_until=datetime.utcnow() + timedelta(hours=1),
                         is_active=True
                     )
                     db.session.add(block)
 
-                    # Log the auto-block
                     auto_log = SecurityLog(
                         ip_address=ip,
                         event_type="Auto-Block Triggered",
-                        description=f"IP auto-blocked after {recent} suspicious events",
+                        description=f"IP auto-blocked after {recent_suspicious} suspicious events",
+                        user_agent=user_agent,
+                        severity='Critical',
                         is_suspicious=True
                     )
                     db.session.add(auto_log)
@@ -94,8 +96,6 @@ def log_security_event(event_type, description, user=None, is_suspicious=False):
 
                     # Send alert email to admin
                     try:
-                        from flask_mail import Message
-                        from extensions import mail
                         admin_email = current_app.config.get('MAIL_USERNAME')
                         if admin_email:
                             msg = Message(
@@ -104,25 +104,25 @@ def log_security_event(event_type, description, user=None, is_suspicious=False):
                                 recipients=[admin_email]
                             )
                             msg.body = f"""
-                                CareMed Intrusion Detection System - ALERT
-                                ==========================================
-                                Action     : IP Address Auto-Blocked
-                                IP Address : {ip}
-                                Reason     : {recent} suspicious events in 10 minutes
-                                Last Event : {event_type}
-                                Description: {description}
-                                User       : {user.email if user else 'Unknown'}
-                                Time       : {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC
+CareMed Intrusion Detection System - ALERT
+==========================================
+Action     : IP Address Auto-Blocked
+IP Address : {ip}
+Reason     : {recent_suspicious} suspicious events in 10 minutes
+Last Event : {event_type}
+Description: {description}
+User       : {user.email if user else 'Unknown'}
+User Agent : {user_agent}
+Time       : {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC
 
-                                Please review the Security Center in the admin panel.
-                                http://yoursite.com/admin/security
-                                                            """
+Please review the Security Center: /admin/security
+                            """
                             mail.send(msg)
                     except Exception as mail_err:
-                        print(f"[IDS] Alert email failed: {mail_err}")
+                        current_app.logger.warning(f"[IDS] Alert email failed: {mail_err}")
 
     except Exception as err:
-        print(f"[IDS] Logging failed: {err}")
+        current_app.logger.error(f"[IDS] Logging failed: {err}")
         try:
             db.session.rollback()
         except Exception:
@@ -148,7 +148,8 @@ def login():
             log_security_event(
                 "Failed Login",
                 f"Login attempt for unknown email: {email}",
-                is_suspicious=True
+                is_suspicious=True,
+                severity='High'
             )
             flash("Wrong email or password", "password-error")
             return redirect(url_for("auth.login"))
@@ -159,7 +160,8 @@ def login():
                 "Locked Account Access Attempt",
                 f"Login attempted on locked account: {email}",
                 user=user,
-                is_suspicious=True
+                is_suspicious=True,
+                severity='High'
             )
             flash("Your account is temporarily locked. Please try again later.", "password-error")
             return redirect(url_for("auth.login"))
@@ -181,7 +183,8 @@ def login():
                         "Account Lockout",
                         f"Account locked after {user.failed_login_attempts} failed attempts: {email}",
                         user=user,
-                        is_suspicious=True
+                        is_suspicious=True,
+                        severity='Critical'
                     )
                 else:
                     # IDS: failed login attempt
@@ -189,7 +192,8 @@ def login():
                         "Failed Login",
                         f"Wrong password attempt #{user.failed_login_attempts} for: {email}",
                         user=user,
-                        is_suspicious=(user.failed_login_attempts >= 3)
+                        is_suspicious=(user.failed_login_attempts >= 3),
+                        severity='Medium' if user.failed_login_attempts >= 3 else 'Low'
                     )
  
                 db.session.commit()
@@ -210,7 +214,8 @@ def login():
                     "Suspicious Login",
                     f"Successful login after {prev_failures} failed attempts: {email}",
                     user=user,
-                    is_suspicious=True
+                    is_suspicious=True,
+                    severity='High'
                 )
             else:
                 log_security_event(
@@ -247,6 +252,14 @@ def register():
         phone = form.phone.data.strip()
         address = form.address.data.strip().title()
         password = form.password.data
+        
+        # IDS: log registration attempt
+        log_security_event(
+            "Registration Attempt",
+            f"New account registration attempt for: {email}",
+            is_suspicious=False,
+            severity='Low'
+        )
 
         password_regex = r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$"
         if not re.match(password_regex, password):
@@ -379,7 +392,13 @@ def google_login():
 def callback():
     state = request.args.get("state")
     if not state or state != session.pop("oauth_state", None):
-        flash("Invalid session state. Please try logging in again.", "danger")
+        log_security_event(
+            "OAuth Failure",
+            "Invalid OAuth state parameter — possible CSRF or token replay attempt",
+            is_suspicious=True,
+            severity='High'
+        )
+        flash("Invalid OAuth state")
         return redirect(url_for("auth.login"))
 
     try:
@@ -391,7 +410,13 @@ def callback():
         return redirect(url_for("auth.login"))
 
     if not user_info.get("email_verified"):
-        flash("Your Google email is not verified. Please verify it first.", "warning")
+        log_security_event(
+            "OAuth Failure",
+            "Login attempt with unverified Google email",
+            is_suspicious=True,
+            severity='Medium'
+        )
+        flash("Google email not verified")
         return redirect(url_for("auth.login"))
 
     email = user_info["email"].lower()
@@ -511,7 +536,8 @@ def send_reset_link():
             "Password Reset Requested",
             f"Password reset link requested for: {email}",
             user=user,
-            is_suspicious=False
+            is_suspicious=False,
+            severity='Low'
         )
         try:
             token = generate_reset_token(user.email, user.password_last_reset_at)
