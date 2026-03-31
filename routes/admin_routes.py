@@ -1185,12 +1185,23 @@ def security_dashboard():
  
     logs = SecurityLog.query.order_by(SecurityLog.created_at.desc()).limit(500).all()
     blocked = BlockedIP.query.filter_by(is_active=True).order_by(BlockedIP.blocked_at.desc()).all()
- 
-    # Summary stats
+
     total_logs = SecurityLog.query.count()
     suspicious_count = SecurityLog.query.filter_by(is_suspicious=True).count()
     blocked_count = BlockedIP.query.filter_by(is_active=True).count()
     rate_limit_count = SecurityLog.query.filter_by(event_type="Rate Limit Violation").count()
+
+    # ── ADD THESE ──
+    failed_count = SecurityLog.query.filter(
+        SecurityLog.event_type.ilike("%failed%")
+    ).count()
+    locked_count = SecurityLog.query.filter(
+        SecurityLog.event_type.ilike("%lock%")
+    ).count()
+    blocked_ip_count = SecurityLog.query.filter(
+        SecurityLog.event_type.ilike("%block%")
+    ).count()
+    bot_count = SecurityLog.query.filter_by(event_type="Bot Detected").count()
  
     return render_template(
         'admin/security_dashboard.html',
@@ -1200,6 +1211,10 @@ def security_dashboard():
         suspicious_count=suspicious_count,
         blocked_count=blocked_count,
         rate_limit_count=rate_limit_count,
+        failed_count=failed_count,
+        locked_count=locked_count,
+        blocked_ip_count=blocked_ip_count,
+        bot_count=bot_count,
     )
  
  

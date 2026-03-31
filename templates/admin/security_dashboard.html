@@ -271,11 +271,11 @@
                         <div class="filter-bar">
                             <button class="fbtn active" data-filter="all">All ({{ total_logs }})</button>
                             <button class="fbtn" data-filter="suspicious">Suspicious ({{ suspicious_count }})</button>
-                            <button class="fbtn" data-filter="failed">Failed Logins</button>
-                            <button class="fbtn" data-filter="locked">Lockouts</button>
-                            <button class="fbtn" data-filter="rate">Rate Limits</button>
-                            <button class="fbtn" data-filter="blocked">Blocked IPs</button>
-                            <button class="fbtn" onclick="filterLogs('bot',this)">Bot Detection</button>
+                            <button class="fbtn" data-filter="failed">Failed Logins ({{ failed_count }})</button>
+                            <button class="fbtn" data-filter="locked">Lockouts ({{ locked_count }})</button>
+                            <button class="fbtn" data-filter="rate">Rate Limits ({{ rate_limit_count }})</button>
+                            <button class="fbtn" data-filter="blocked">Blocked IPs ({{ blocked_ip_count }})</button>
+                            <button class="fbtn" data-filter="bot">Bot Detection ({{ bot_count }})</button>
                         </div>
 
                         <div class="log-scroll">
@@ -457,10 +457,7 @@
                 else if (type === 'locked')     show = ev.includes('lockout') || ev.includes('locked') || ev.includes('lock');
                 else if (type === 'rate')       show = ev.includes('rate');
                 else if (type === 'blocked')    show = ev.includes('block');
-                else if (type === 'bot') {
-                    const ua = (row.dataset.useragent || '').toLowerCase();
-                    show = ua.includes('bot') || ua.includes('crawler') || ua.includes('spider');
-                }
+                else if (type === 'bot') {      show = ev.includes('bot detected'); }
 
                 row.style.display = show ? '' : 'none';
             });
