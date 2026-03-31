@@ -314,9 +314,6 @@
 
                                 <td>
                                     <div class="d-flex align-items-center">
-                                        <i class="material-symbols-rounded fs-6 me-1 text-muted">
-                                            {{ 'local_shipping' if txn.fulfillment_type == 'Delivery' else 'package_2' }}
-                                        </i>
                                         <small>{{ txn.fulfillment_type }}</small>
                                     </div>
                                 </td>
@@ -332,12 +329,9 @@
                                 <td>
                                     {% if txn.balance_due > 0 %}
                                         <span class="text-danger fw-bold">₱{{ "{:,.2f}".format(txn.balance_due) }}</span>
-                                        <br>
-                                        <span class="badge badge-soft-warning" style="font-size: 10px;">{{ txn.payment_status }}</span>
                                     {% else %}
                                         <div class="d-flex flex-column">
                                             <span class="badge badge-soft-success w-fit">Fully Paid</span>
-                                            <small class="text-muted mt-1" style="font-size: 10px;">No Balance</small>
                                         </div>
                                     {% endif %}
                                 </td>
@@ -348,7 +342,6 @@
                                         {{ txn.status }}
                                     </div>
                                     
-                                    {# Visual cues for remaining tasks even after payment #}
                                     {% if txn.status == 'Open' and txn.payment_status == 'Fully Paid' %}
                                         <div class="mt-1">
                                             {% if txn.transaction_type == 'Rental' %}
@@ -366,8 +359,7 @@
 
                                 <td>
                                     <div class="date-stack">
-                                        <span class="fw-medium">{{ txn.created_at.strftime('%b %d') }}</span>
-                                        <small class="text-muted" style="font-size: 11px;">{{ txn.created_at.strftime('%I:%M %p') }}</small>
+                                        <span class="fw-medium">{{ txn.created_at.strftime('%B %d, %Y') }}</span>
                                     </div>
                                 </td>
 

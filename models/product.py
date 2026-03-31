@@ -121,30 +121,36 @@ class Transaction(db.Model):
 
     def update_totals(self):
         from decimal import Decimal
-        
-        new_amount_paid = sum(
-            (Decimal(str(p.amount)) for p in self.payments if p.status == 'Completed'), 
-            Decimal('0.00')
-        )
-        
-        self.amount_paid = new_amount_paid
-        
-        total = Decimal(str(self.total_amount or 0))
-        self.balance_due = max(total - self.amount_paid, Decimal('0.00'))
 
-        if self.amount_paid <= 0:
+        total_paid = sum(
+            (Decimal(str(p.amount)) for p in self.payments if p.status == "Completed"),
+            Decimal("0.00")
+        )
+
+        self.amount_paid = total_paid
+
+        total_amount = Decimal(str(self.total_amount or 0))
+        self.balance_due = max(total_amount - total_paid, Decimal("0.00"))
+
+        if total_paid == Decimal("0.00"):
             self.payment_status = "Unpaid"
-        elif self.balance_due > 0:
+        elif total_paid < total_amount:
             self.payment_status = "Partially Paid"
         else:
             self.payment_status = "Fully Paid"
 
         if self.payment_status == "Fully Paid":
+
             if self.transaction_type == "Sale":
-                if self.delivery_status in ['Delivered', 'Picked Up', 'N/A']:
-                    self.status = "Closed"
+                if self.fulfillment_type == "Delivery":
+                    if self.delivery_status == "Delivered":
+                        self.status = "Closed"
+                else:  # Pickup
+                    if self.delivery_status in ["Picked Up", "N/A"]:
+                        self.status = "Closed"
+
             elif self.transaction_type == "Rental":
-                if self.rentals and all(r.status == 'Returned' for r in self.rentals):
+                if self.rentals and all(r.status == "Returned" for r in self.rentals):
                     self.status = "Closed"
                         
 

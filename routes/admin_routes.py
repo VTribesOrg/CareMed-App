@@ -789,28 +789,26 @@ def process_purchase():
             customer_id=customer_id,
             customer_name=f"{customer.first_name} {customer.last_name}",
             processed_by=current_user.id,
-            transaction_type='Purchase',
+            transaction_type='Sale',
             total_amount=total_price,
-            amount_paid=amount_paid,
-            balance_due=max(0, balance_due),
-            payment_status=payment_status,
-            status='Closed' if balance_due <= 0 else 'Open',
             fulfillment_type=fulfillment,
             delivery_address=data.get('delivery_address') if fulfillment == 'Delivery' else None,
             landmark=data.get('landmark') if fulfillment == 'Delivery' else None,
-            delivery_status='Pending' if fulfillment == 'Delivery' else 'N/A'
+            delivery_status='Pending' if fulfillment == 'Delivery' else 'N/A',
+            status='Open' 
         )
         db.session.add(new_transaction)
-        db.session.flush() 
+        db.session.flush()
 
         if amount_paid > 0:
             new_payment = Payment(
                 transaction_id=new_transaction.id,
                 amount=amount_paid,
                 payment_method=data.get('payment_method', 'Cash'),
-                reference_number=data.get('reference_number'), 
-                status='Verified',
-                verified_by_id=current_user.id
+                reference_number=data.get('reference_number'),
+                status='Completed',
+                verified_by_id=current_user.id,
+                verified_at=datetime.utcnow()
             )
             db.session.add(new_payment)
 
@@ -840,6 +838,7 @@ def process_purchase():
         )
         
         db.session.add(inventory_log)
+        new_transaction.update_totals()
         db.session.commit()
         
         return jsonify({
@@ -956,22 +955,18 @@ def transactions():
         **stats
     )
 
-
 @admin_bp.route('/post-payment', methods=['POST'])
 @login_required
 @administrator_required
 def post_payment():
     txn_id = request.form.get('txn_id')
+
     try:
-        # 1. Input Cleaning
         raw_amount = request.form.get('amount', '0').replace(',', '').strip()
         amount = Decimal(raw_amount)
-        
-        # 2. Row-Level Locking
-        # with_for_update() ensures no other process updates this txn during our math
+
         txn = Transaction.query.with_for_update().get_or_404(txn_id)
 
-        # 3. Server-Side Validation
         if amount <= 0:
             flash('Payment amount must be greater than zero.', 'warning')
             return redirect(request.referrer)
@@ -980,37 +975,59 @@ def post_payment():
             flash(f'Payment exceeds balance. Max allowed: ₱{txn.balance_due:,.2f}', 'warning')
             return redirect(request.referrer)
 
-        # 4. File Handling (Simplified for brevity, keep your existing logic)
-        receipt_path = None
-        # ... (Your receipt upload logic here) ...
+        allowed_methods = ["Cash", "GCash", "Bank Transfer", "Check"]
+        method = request.form.get('method')
 
-        # 5. Create Payment Record
+        if method not in allowed_methods:
+            flash("Invalid payment method.", "danger")
+            return redirect(request.referrer)
+
+        ref_number = request.form.get('payment_reference', '').strip()
+        ref_number = ref_number if ref_number else None
+
+        if method in ["GCash", "Bank Transfer", "Check"] and not ref_number:
+            flash("Reference number is required for this payment method.", "warning")
+            return redirect(request.referrer)
+
+        if ref_number:
+            existing = Payment.query.filter_by(reference_number=ref_number).first()
+            if existing:
+                flash("Reference number already exists.", "danger")
+                return redirect(request.referrer)
+
+        receipt_path = None
+        file = request.files.get('receipt_image')
+
+        if file and file.filename:
+            filename = secure_filename(file.filename)
+            upload_folder = current_app.config.get("UPLOAD_FOLDER", "uploads")
+            os.makedirs(upload_folder, exist_ok=True)
+
+            filepath = os.path.join(upload_folder, filename)
+            file.save(filepath)
+
+            receipt_path = filepath
+
         new_pay = Payment(
             transaction_id=txn.id,
             amount=amount,
-            payment_method=request.form.get('method'),
-            reference_number=request.form.get('payment_reference'),
+            payment_method=method,
+            reference_number=ref_number,
             receipt_image_path=receipt_path,
-            status="Completed", # Vital: update_totals filters for 'Completed'
+            status="Completed",
             verified_by_id=current_user.id,
             verified_at=datetime.utcnow()
         )
-        
+
         db.session.add(new_pay)
-        
-        # 6. THE SYNC FIX
-        # We flush so the payment exists in the DB session
-        db.session.flush() 
-        
-        # We tell the txn object that its 'payments' list is now old/stale
-        # This forces txn.update_totals() to fetch the LATEST payments from the DB
-        db.session.expire(txn, ['payments']) 
-        
-        # 7. Update and Save
-        txn.update_totals() 
-        db.session.commit() 
-        
-        # 8. Success Messaging
+
+        db.session.flush()
+        db.session.expire(txn, ['payments'])
+
+        txn.update_totals()
+
+        db.session.commit()
+
         if txn.status == "Closed":
             flash(f'Transaction {txn.reference_no} is now Fully Paid and Closed.', 'success')
         else:
@@ -1019,6 +1036,7 @@ def post_payment():
     except (InvalidOperation, ValueError):
         db.session.rollback()
         flash('Invalid amount format.', 'danger')
+
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"PAYMENT_ERROR | TXN: {txn_id} | Error: {str(e)}")
