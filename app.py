@@ -90,8 +90,11 @@ def ratelimit_handler(e):
         print(f"IDS logging failed: {err}")
         db.session.rollback()
 
+    import time
+    server_time = int(time.time()) 
+
     if request.endpoint == "auth.login":
-        message = "Too many login attempts were made from your IP address. For your security, please wait 1 minute before trying again."
+        message = "Too many login attempts were made from your IP address. For your security, please wait 5 minutes before trying again."
         back_url = url_for("auth.login")
         back_label = "Back to Login"
     else:

@@ -109,7 +109,7 @@
         <p class="support-note">If you believe this is a mistake, please contact support.</p>
 
         <p class="countdown-text" id="countdown-text">
-            You can try again in <span id="countdown">60</span> seconds.
+            You can try again in <span id="countdown">300</span> seconds.
         </p>
 
         <a href="{{ back_url }}" class="btn" id="back-btn">
@@ -120,15 +120,27 @@
     </div>
 
     <script nonce="{{ csp_nonce() }}">
-        const WAIT_SECONDS = 60;
-        const storageKey = 'ratelimit_start';
+        const WAIT_SECONDS = 300;
+        const storageKey = 'ratelimit_active';
 
-        if (!sessionStorage.getItem(storageKey)) {
-            sessionStorage.setItem(storageKey, Date.now());
+        // Only set a new start time if there's no existing active countdown
+        // or if the previous one has already expired
+        const existing = sessionStorage.getItem(storageKey);
+        if (existing) {
+            const data = JSON.parse(existing);
+            const elapsed = Math.floor((Date.now() - data.start) / 1000);
+            if (elapsed >= WAIT_SECONDS) {
+                // Previous countdown already finished — start fresh
+                sessionStorage.setItem(storageKey, JSON.stringify({ start: Date.now() }));
+            }
+            // else: still valid, keep existing start time
+        } else {
+            // No existing countdown — start fresh
+            sessionStorage.setItem(storageKey, JSON.stringify({ start: Date.now() }));
         }
 
-        const startTime = parseInt(sessionStorage.getItem(storageKey));
-        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const data = JSON.parse(sessionStorage.getItem(storageKey));
+        const elapsed = Math.floor((Date.now() - data.start) / 1000);
         let seconds = Math.max(0, WAIT_SECONDS - elapsed);
 
         const countdownEl = document.getElementById('countdown');
@@ -153,5 +165,6 @@
             }, 1000);
         }
     </script>
+
 </body>
 </html>
