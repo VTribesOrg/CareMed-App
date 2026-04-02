@@ -1,7 +1,7 @@
 from extensions import db
 from datetime import datetime
 from decimal import Decimal
-
+from dateutil.relativedelta import relativedelta
 
 class Product(db.Model):
     __tablename__ = "product"
@@ -49,38 +49,6 @@ class Purchase(db.Model):
     transaction = db.relationship("Transaction", back_populates="purchases")
     product = db.relationship("Product", back_populates="purchases")
     customer = db.relationship("Customer", back_populates="purchases")
-
-
-class Rental(db.Model):
-    __tablename__ = "rental"
-
-    id = db.Column(db.Integer, primary_key=True)
-    transaction_id = db.Column(db.Integer, db.ForeignKey("transaction.id"), nullable=False)
-    product_id = db.Column(db.Integer, db.ForeignKey("product.id"))
-    customer_id = db.Column(db.Integer, db.ForeignKey("customer.id"))
-
-    start_date = db.Column(db.Date, nullable=False)
-    expected_return_date = db.Column(db.Date, nullable=False) 
-    actual_return_date = db.Column(db.Date, nullable=True) 
-
-    monthly_rate = db.Column(db.Numeric(10, 2))
-    deposit_amount = db.Column(db.Numeric(10, 2))
-    deposit_status = db.Column(db.String(20), default="Held") 
-    late_fees_incurred = db.Column(db.Numeric(10, 2), default=0.00)
-
-    status = db.Column(db.String(50), default="Active")
-    return_condition_notes = db.Column(db.Text)
-    
-    is_deposit_refunded = db.Column(db.Boolean, default=False)
-    delivery_fee = db.Column(db.Numeric(10, 2), default=0.00)
-    
-    return_condition_img = db.Column(db.String(255), nullable=True)
-    
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    transaction = db.relationship("Transaction", back_populates="rentals")
-    product = db.relationship("Product", back_populates="rentals")
-    customer = db.relationship("Customer", back_populates="rentals")
     
 
 
@@ -159,6 +127,7 @@ class Payment(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     transaction_id = db.Column(db.Integer, db.ForeignKey("transaction.id", ondelete="CASCADE"), nullable=False)
+    invoice_id = db.Column(db.Integer, db.ForeignKey("rental_invoice.id"), nullable=True)
     
     amount = db.Column(db.Numeric(10, 2), nullable=False)
     payment_method = db.Column(db.String(50), nullable=False) 
@@ -173,8 +142,81 @@ class Payment(db.Model):
 
     transaction = db.relationship("Transaction", back_populates="payments")
     verified_by = db.relationship("User", foreign_keys=[verified_by_id])
+    rental_invoice = db.relationship("RentalInvoice", back_populates="payments")
+
+    
     
 
+
+class Rental(db.Model):
+    __tablename__ = "rental"
+
+    id = db.Column(db.Integer, primary_key=True)
+    transaction_id = db.Column(db.Integer, db.ForeignKey("transaction.id"), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey("product.id"))
+    customer_id = db.Column(db.Integer, db.ForeignKey("customer.id"))
+
+    start_date = db.Column(db.Date, nullable=False)
+    expected_return_date = db.Column(db.Date, nullable=False) 
+    actual_return_date = db.Column(db.Date, nullable=True) 
+
+    monthly_rate = db.Column(db.Numeric(10, 2))
+    deposit_amount = db.Column(db.Numeric(10, 2))
+    deposit_status = db.Column(db.String(20), default="Held") 
+    late_fees_incurred = db.Column(db.Numeric(10, 2), default=0.00)
+
+    status = db.Column(db.String(50), default="Active")
+    return_condition_notes = db.Column(db.Text)
+    
+    is_deposit_refunded = db.Column(db.Boolean, default=False)
+    delivery_fee = db.Column(db.Numeric(10, 2), default=0.00)
+    
+    return_condition_img = db.Column(db.String(255), nullable=True)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    transaction = db.relationship("Transaction", back_populates="rentals")
+    product = db.relationship("Product", back_populates="rentals")
+    customer = db.relationship("Customer", back_populates="rentals")
+    
+    invoices = db.relationship("RentalInvoice", backref="rental", cascade="all, delete-orphan", lazy=True)
+
+    def generate_monthly_invoices(self):
+
+        current_period_start = self.start_date
+        
+        while current_period_start < self.expected_return_date:
+            next_period_start = current_period_start + relativedelta(months=1)
+            
+            actual_period_end = next_period_start if next_period_start < self.expected_return_date else self.expected_return_date
+
+            new_invoice = RentalInvoice(
+                rental_id=self.id,
+                service_period_start=current_period_start,
+                service_period_end=actual_period_end,
+                amount_due=self.monthly_rate,
+                status="Unpaid"
+            )
+            db.session.add(new_invoice)
+
+            current_period_start = next_period_start
+
+
+class RentalInvoice(db.Model):
+    __tablename__ = "rental_invoice"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    rental_id = db.Column(db.Integer, db.ForeignKey("rental.id"), nullable=False)
+    
+    service_period_start = db.Column(db.Date, nullable=False)
+    service_period_end = db.Column(db.Date, nullable=False)
+    
+    amount_due = db.Column(db.Numeric(10, 2), nullable=False)
+    late_fee = db.Column(db.Numeric(10, 2), default=0.00)
+    status = db.Column(db.String(20), default="Unpaid") 
+    
+    payments = db.relationship("Payment", back_populates="rental_invoice", lazy=True)
+    
 class InventoryLog(db.Model):
     __tablename__ = "inventory_logs"
 

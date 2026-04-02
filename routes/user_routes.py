@@ -7,6 +7,7 @@ from forms.update_profile_form import UpdateProfileForm, ChangePasswordForm
 from functools import wraps
 from models.customer import Customer
 from models.product import Product
+import random
 
 user_bp = Blueprint('user', __name__, url_prefix='/customer')
 
@@ -32,9 +33,6 @@ def admin_redirect(f):
         return f(*args, **kwargs)
     return decorated_function
 
-
-
-import random
 
 @user_bp.route('/')
 @admin_redirect

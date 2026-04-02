@@ -63,12 +63,6 @@
                     </a>
                 </li>
 
-                <li class="nav-item">
-                    <a href="#" class="nav-link">
-                        <span class="material-symbols-rounded">event_repeat</span>
-                        <span class="nav-label">Rentals & Deposits</span>
-                    </a>
-                </li>
 
                 <li class="nav-item">
                     <a href="{{ url_for('admin.customers') }}" class="nav-link">
@@ -210,7 +204,7 @@
 
                 <div class="details-grid">
                     
-                    <section class="details-main-content">                                         
+                    <section class="details-main-content">                                          
 
                         <div class="action-card">
                             <header class="card-header-custom">
@@ -258,9 +252,87 @@
                             </div>
                         </div>
 
+                        {% if txn.transaction_type == 'Rental' %}
+                        <div class="action-card" style="margin-top: 20px;">
+                            
+                            <header class="card-header-custom">
+                                <div class="header-icon-label">
+                                    <span class="material-symbols-rounded" style="color: var(--medical-primary);">calendar_month</span>
+                                    <span class="header-label-text">Monthly Billing Schedule</span>
+                                </div>
+                            </header>
+
+                            <div class="table-container">
+                                <table class="item-list-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Due Date</th>
+                                            <th>Amount Due</th>
+                                            <th>Status</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for rental in txn.rentals %}
+                                            {% for invoice in rental.invoices %}
+                                            <tr>
+                                                <td>
+                                                    <div class="item-title">
+                                                        Due: {{ invoice.service_period_start.strftime('%B %d, %Y') }}
+                                                    </div>
+                                                </td>
+
+                                                <td class="col-amount">
+                                                    ₱{{ "{:,.2f}".format(invoice.amount_due + (invoice.late_fee or 0)) }}
+                                                </td>
+
+                                                <td class="col-status">
+                                                    {% if invoice.status == 'Paid' %}
+                                                        <span class="badge-soft-success">Paid</span>
+                                                    {% elif invoice.status == 'Partial' %}
+                                                        <span class="badge-soft-warning">Partial</span>
+                                                    {% else %}
+                                                        {% if invoice.service_period_start < current_date %}
+                                                            <span class="badge-soft-danger">Overdue</span>
+                                                        {% else %}
+                                                            <span class="badge-soft-danger">Unpaid</span>
+                                                        {% endif %}
+                                                    {% endif %}
+                                                </td>
+
+                                                <td class="col-action">
+                                                    {% if invoice.status != 'Paid' %}
+                                                        {% set total_invoice_due = invoice.amount_due + (invoice.late_fee or 0) %}
+                                                        
+                                                        <button type="button" 
+                                                                class="btn-medical-primary-sm btn-add-payment" 
+                                                                data-txn-id="{{ txn.id }}" 
+                                                                data-ref="{{ txn.reference_no }}" 
+                                                                data-balance="{{ total_invoice_due }}"
+                                                                data-type="Rental"
+                                                                data-monthly-rate="{{ rental.monthly_rate }}"
+                                                                data-unpaid-count="{{ rental.invoices|selectattr('status', 'ne', 'Paid')|list|length }}">
+                                                            Record Payment
+                                                        </button>
+                                                    {% else %}
+                                                        <div class="settled-container">
+                                                            <small class="text-success fw-medium">Settled</small>
+                                                            <span class="material-symbols-rounded success-icon">check_circle</span>
+                                                        </div>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                        </div>
+                        {% endif %}
 
                         {% if txn.transaction_type == 'Rental' and txn.status == 'Open' %}
-                        <div class="action-card warning">
+                        <div class="action-card warning" style="margin-top: 20px;">
                             <header class="card-header-custom">
                                 <div class="header-icon-label">
                                     <span class="material-symbols-rounded icon-warning">assignment_return</span>
@@ -307,7 +379,9 @@
 
                             <div class="info-row">
                                 <span class="info-label">Deposit</span>
-                                <span class="info-value-deposit">₱{{ "{:,.2f}".format(txn.security_deposit or 0) }}</span>
+                                <span class="info-value-deposit">
+                                    ₱{{ "{:,.2f}".format(txn.rentals|sum(attribute='deposit_amount') or 0) }}
+                                </span>
                             </div>
 
                             <div class="info-row">
@@ -398,6 +472,7 @@
         </div>
     </template>
 
+    {% include 'modals/rent_purch_modal.html' %}
     <script src="{{ url_for('static', filename='js/global.js') }}"></script>
     <script src="{{ url_for('static', filename='js/admin_transaction_details.js') }}"></script>
 </body>

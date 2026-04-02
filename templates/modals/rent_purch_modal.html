@@ -48,12 +48,12 @@
 
                 <div class="form-field">
                     <label>Start Date</label>
-                    <input type="date" name="start_date" class="clinical-input" required>
+                    <input type="date" name="start_date" id="rent-start-date" class="clinical-input" required>
                 </div>
 
                 <div class="form-field">
                     <label>Expected Return</label>
-                    <input type="date" name="return_date" class="clinical-input" required>
+                    <input type="date" name="return_date" id="rent-return-date" class="clinical-input" required>
                 </div>
 
                 <div class="form-field">
@@ -62,8 +62,8 @@
                 </div>
 
                 <div class="form-field">
-                    <label>Deposit (₱)</label>
-                    <input type="number" id="security-deposit-input" name="security_deposit" class="clinical-input" step="0.01" placeholder="0.00">
+                    <label>Security Deposit (₱)</label>
+                    <input type="number" id="security-deposit-input" name="security_deposit" class="clinical-input" step="0.01" value="0.00">
                 </div>
 
                 <div class="form-field">
@@ -80,15 +80,14 @@
                 </div>
 
                 <div class="form-field">
-                    <label>Amount Paid (₱)</label>
-                    <input type="number" id="rent-amount-paid" name="amount_paid" class="clinical-input" step="0.01" placeholder="0.00">
+                    <label>Initial Payment (₱)</label>
+                    <input type="number" id="rent-amount-paid" name="amount_paid" class="clinical-input" step="0.01" value="0.00" placeholder="Payment for 1st month">
                 </div>
 
                 <div class="form-field full-width" id="rent-ref-group" style="display: none;">
                     <label>Payment Reference #</label>
                     <input type="text" id="rent-payment-ref" name="reference_number" class="clinical-input" placeholder="e.g. GCash Ref or Receipt #">
                 </div>
-
 
                 <div class="form-field full-width">
                     <label>Fulfillment Type</label>
@@ -122,11 +121,42 @@
             </div>
 
             <div class="rental-summary-box">
-                <div class="summary-label-group">
-                    <span>RENTAL SUMMARY</span>
-                    <span>Total Initial Payment:</span>
+                <div class="summary-header">
+                    <span class="material-symbols-rounded">receipt_long</span>
+                    <span>RENTAL BILLING SUMMARY</span>
                 </div>
-                <span class="total-amount-display" id="rent-total-display">₱0.00</span>
+                
+                <div class="summary-details">
+                    <div class="summary-row">
+                        <span>Duration Period</span>
+                        <span id="rent-duration-text" class="text-info">-- Months</span>
+                    </div>
+
+                    <div class="summary-row">
+                        <span>Total Contract Value</span>
+                        <span id="rent-total-bill" class="amount">₱0.00</span>
+                    </div>
+                    
+                    <div class="summary-row deduction">
+                        <span>Security Deposit (Refundable)</span>
+                        <span id="summary-deposit-val" class="amount">₱0.00</span>
+                    </div>
+
+                    <div class="summary-row deduction">
+                        <span>Initial Payment</span>
+                        <span id="summary-paid-val" class="amount">- ₱0.00</span>
+                    </div>
+                    
+                    <div class="summary-divider"></div>
+                    
+                    <div class="summary-row total-row">
+                        <div class="total-label-group">
+                            <span class="main-total-label">Balance Remaining</span>
+                            <small id="balance-label">Future monthly dues</small>
+                        </div>
+                        <span class="total-amount-display" id="rent-total-display">₱0.00</span>
+                    </div>
+                </div>
             </div>
 
             <div class="modal-footer-actions">
@@ -258,6 +288,92 @@
             <div class="modal-footer-actions">
                 <button type="button" class="btn-medical-outline close-purchase-modal">Cancel</button>
                 <button type="submit" class="btn-medical-primary" style="background-color: #f59e0b;">Complete Purchase</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<div id="addPaymentModal" class="medical-modal-overlay hidden">
+    <div class="medical-modal-content" style="max-width: 480px;">
+        <h2 class="modal-header">Add Payment</h2>
+
+        <button class="modal-close-btn" id="close-payment-modal">
+            <span class="material-symbols-rounded">close</span>
+        </button>
+
+        <form id="payment-form" action="{{ url_for('admin.post_payment') }}" method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" id="payment-txn-id" name="txn_id">
+            
+            <div class="pm-summary-card">
+                <div class="pm-summary-row">
+                    <span class="pm-label-text">Type</span>
+                    <span class="pm-value-text" id="summary-type">---</span>
+                </div>
+                <div class="pm-summary-row">
+                    <span class="pm-label-text">Reference No.</span>
+                    <span class="pm-value-text" id="summary-ref">---</span>
+                </div>
+                <div class="pm-summary-row" style="margin-bottom: 0;">
+                    <span class="pm-label-text">Balance Due</span>
+                    <span class="pm-value-text pm-balance-danger" id="summary-balance" data-raw-balance="0.00">₱0.00</span>
+                </div>
+
+                <div id="rental-quick-pay" style="display: none; margin-top: 12px; padding-top: 10px; border-top: 1px dashed #ddd;">
+                    <small class="pm-label-text" style="display: block; margin-bottom: 8px;">Quick Pay Advance:</small>
+                    <div id="quick-pay-button-container" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="pm-field-group">
+                <label class="pm-input-label">Amount to Pay</label>
+                <div class="pm-input-wrapper">
+                    <span class="material-symbols-rounded pm-input-icon">payments</span>
+                    <input type="number" id="payment-amount" name="amount" class="pm-custom-input" 
+                        step="0.01" min="0.01" placeholder="0.00" required>
+                </div>
+                <small id="amount-error" style="color: #dc3545; display: none; margin-top: 4px; font-weight: 500;"></small>
+            </div>
+
+            <div class="pm-field-group">
+                <label class="pm-input-label">Payment Method</label>
+                <div class="pm-input-wrapper">
+                    <span class="material-symbols-rounded pm-input-icon">account_balance_wallet</span>
+                    <select id="payment-method" name="method" class="pm-custom-input" required>
+                        <option value="Cash">Cash</option>
+                        <option value="GCash">GCash</option>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                        <option value="Check">Check</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="pm-field-group" id="pm-ref-group" style="display: none;">
+                <label class="pm-input-label" id="pm-ref-label">Reference Number</label>
+                <div class="pm-input-wrapper">
+                    <span class="material-symbols-rounded pm-input-icon">confirmation_number</span>
+                    <input type="text" id="payment-reference" name="payment_reference" 
+                        class="pm-custom-input" placeholder="Enter Ref #">
+                </div>
+            </div>
+
+            <div class="pm-field-group">
+                <label class="pm-input-label">Upload Receipt (Optional)</label>
+                <div class="pm-input-wrapper">
+                    <span class="material-symbols-rounded pm-input-icon">receipt_long</span>
+                    <input type="file" id="receipt-image" name="receipt_image" 
+                        class="pm-custom-input" accept=".jpg,.jpeg,.png,.webp,.pdf">
+                </div>
+            </div>
+
+            <div class="pm-modal-footer">
+                <button type="button" class="pm-btn-cancel" id="cancel-payment">Cancel</button>
+                <button type="submit" id="submit-payment" class="pm-btn-post">
+                    <span class="material-symbols-rounded">check_circle</span>
+                    Post Payment
+                </button>
             </div>
         </form>
     </div>

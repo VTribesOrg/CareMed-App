@@ -497,15 +497,52 @@ if (rentForm) {
         }
     });
 
-    rentForm.addEventListener('input', () => {
-        const rate = parseFloat(rentRateInput.value) || 0;
-        const deposit = parseFloat(depositInput.value) || 0;
+rentForm.addEventListener('input', () => {
+    // Select inputs
+    const rateInput = document.getElementById('rent-rate-display');
+    const depositInput = document.getElementById('security-deposit-input');
+    const cashInput = document.getElementById('rent-amount-paid');
+
+    // Parse values
+    const rate = parseFloat(rateInput.value) || 0;
+    const deposit = parseFloat(depositInput.value) || 0;
+    const amountPaid = parseFloat(cashInput.value) || 0;
+    
+    // Calculate Math
+    const balance = rate - deposit - amountPaid;
+
+    // 1. Update Monthly Rate Display
+    document.getElementById('rent-total-bill').textContent = `₱${rate.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+
+    // 2. Update Deposit Deduction
+    document.getElementById('summary-deposit-val').textContent = `- ₱${deposit.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+
+    // 3. Update Cash Deduction
+    document.getElementById('summary-paid-val').textContent = `- ₱${amountPaid.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+
+    // 4. Update Final Balance Display
+    const totalDisplay = document.getElementById('rent-total-display');
+    const balanceSubText = document.getElementById('balance-label');
+
+    if (totalDisplay) {
+        totalDisplay.textContent = `₱${Math.abs(balance).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
         
-        if (totalDisplay) {
-            const total = rate + deposit;
-            totalDisplay.textContent = `₱${total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        // Handle UI States based on balance
+        if (balance <= 0 && rate > 0) {
+            totalDisplay.className = "total-amount-display status-paid";
+            balanceSubText.textContent = "Fully Settled";
+            balanceSubText.className = "status-paid";
+        } else if (amountPaid > 0 || deposit > 0) {
+            totalDisplay.className = "total-amount-display status-pending";
+            balanceSubText.textContent = "Partial Balance";
+            balanceSubText.className = "status-pending";
+        } else {
+            totalDisplay.className = "total-amount-display";
+            balanceSubText.textContent = "Pending Collection";
+            balanceSubText.className = "";
         }
-    });
+    }
+});
 }
 /*============= START OF RENTAL SELECTION =============*/
 
@@ -645,123 +682,117 @@ document.addEventListener('DOMContentLoaded', function() {
 /*============= END OF REFERENCE NO. =============*/
 
 /*=================================== START OF ADD PAYMENT MODAL ===================================*/
+
 document.addEventListener('DOMContentLoaded', function() {
     const paymentModal = document.getElementById('addPaymentModal');
     const paymentForm = document.getElementById('payment-form');
-    const postBtn = paymentForm.querySelector('.pm-btn-post'); // Target within form
+    const postBtn = document.getElementById('submit-payment');
     
-    // Elements for the Fields
+    // UI Elements inside Modal
     const txnIdInput = document.getElementById('payment-txn-id');
     const summaryRef = document.getElementById('summary-ref');
+    const summaryType = document.getElementById('summary-type');
     const summaryBalance = document.getElementById('summary-balance');
+    const amountInput = document.getElementById('payment-amount');
+    const amountError = document.getElementById('amount-error');
+    const rentalQuickPay = document.getElementById('rental-quick-pay');
+    const quickPayContainer = document.getElementById('quick-pay-button-container'); // Ensure this ID is in your HTML
+    
+    // Method/Ref Elements
     const paymentMethodSelect = document.getElementById('payment-method');
     const refGroup = document.getElementById('pm-ref-group');
     const refLabel = document.getElementById('pm-ref-label');
     const refInput = document.getElementById('payment-reference');
-    const receiptInput = document.getElementById('receipt-image');
-    const amountInput = document.getElementById('payment-amount');
 
-    // 1. Open Modal via Event Delegation
+    let currentMonthlyRate = 0;
+    let currentBalance = 0;
+    let currentType = 'Rental';
+
+    // 1. OPEN MODAL & DYNAMICALLY GENERATE BUTTONS
     document.addEventListener('click', function(e) {
-        // Find the button even if they click the <i> tag inside it
         const btn = e.target.closest('.btn-add-payment');
         if (!btn) return;
 
-        e.preventDefault(); // Stop any default jump behavior
+        e.preventDefault();
 
-        // --- EXTRACT DATA ---
+        // Extract Data
         const txnId = btn.getAttribute('data-txn-id');
         const refNo = btn.getAttribute('data-ref');
-        const rawBalance = btn.getAttribute('data-balance');
-        const balance = parseFloat(rawBalance || 0);
+        currentType = btn.getAttribute('data-type') || 'Rental';
+        currentBalance = parseFloat(btn.getAttribute('data-balance') || 0);
+        currentMonthlyRate = parseFloat(btn.getAttribute('data-monthly-rate') || 0);
+        const unpaidMonths = parseInt(btn.getAttribute('data-unpaid-count') || 1);
 
-        // --- POPULATE HIDDEN ID (Critical Fix) ---
-        if (txnId) {
-            txnIdInput.value = txnId;
-            console.log("Transaction ID Loaded:", txnId); // For your debugging
-        } else {
-            console.error("ID not found on button!");
-        }
-
-        // Populate UI
+        // Populate Fields
+        txnIdInput.value = txnId;
         summaryRef.innerText = refNo || 'N/A';
-        summaryBalance.innerText = `₱${balance.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
-        summaryBalance.setAttribute('data-raw-balance', balance); // For JS validation
+        summaryType.innerText = currentType;
+        summaryBalance.innerText = `₱${currentBalance.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+        amountInput.value = currentBalance.toFixed(2);
         
-        // Set initial amount and max
-        amountInput.value = balance > 0 ? balance.toFixed(2) : "";
-        amountInput.max = balance; 
+        amountError.style.display = 'none';
 
-        // --- LOGIC FOR FULLY PAID ---
-        if (balance <= 0) {
-            postBtn.disabled = true;
-            postBtn.classList.add('pm-btn-disabled');
-            postBtn.innerHTML = `<span class="material-symbols-rounded">verified</span> Fully Paid`;
-            amountInput.disabled = true;
+        // 2. DYNAMIC QUICK PAY GENERATION
+        if (currentType === 'Rental' && unpaidMonths > 1) {
+            rentalQuickPay.style.display = 'block';
+            quickPayContainer.innerHTML = ''; // Clear old buttons
+
+            for (let i = 1; i <= unpaidMonths; i++) {
+                const pill = document.createElement('button');
+                pill.type = 'button';
+                pill.className = 'btn-month-pill';
+                pill.innerText = `${i}${i === 1 ? 'mo' : 'mos'}`;
+                
+                pill.onclick = function() {
+                    const total = (currentMonthlyRate * i).toFixed(2);
+                    amountInput.value = total;
+                    
+                    // Toggle active class
+                    document.querySelectorAll('.btn-month-pill').forEach(b => b.classList.remove('active'));
+                    pill.classList.add('active');
+                };
+                quickPayContainer.appendChild(pill);
+            }
+            amountInput.placeholder = `Monthly Rate: ₱${currentMonthlyRate.toFixed(2)}`;
         } else {
-            postBtn.disabled = false;
-            postBtn.classList.remove('pm-btn-disabled');
-            postBtn.innerHTML = `<span class="material-symbols-rounded">check_circle</span> Post Payment`;
-            amountInput.disabled = false;
+            rentalQuickPay.style.display = 'none';
         }
 
-        // Reset Method & Reference fields
-        paymentMethodSelect.value = 'Cash'; 
-        refGroup.style.display = 'none';
-        refInput.required = false;
-        refInput.value = '';
-
-        // Show Modal
         paymentModal.classList.remove('hidden');
     });
 
-    // 2. DYNAMIC FIELD LOGIC (Method Change)
+    // 3. PAYMENT METHOD LOGIC
     paymentMethodSelect.addEventListener('change', function() {
-        if (this.value === 'Cash') {
-            refGroup.style.display = 'none';
-            refInput.required = false;
-            refInput.value = '';
-        } else {
-            refGroup.style.display = 'block';
-            refInput.required = true;
+        const isCash = this.value === 'Cash';
+        refGroup.style.display = isCash ? 'none' : 'block';
+        refInput.required = !isCash;
+        
+        if (!isCash) {
             refLabel.innerText = (this.value === 'Check') ? "Check Number" : "Reference Number";
-            refInput.placeholder = (this.value === 'Check') ? "Enter check #" : "Enter transaction ID";
+            refInput.placeholder = (this.value === 'Check') ? "Enter check #" : "Enter reference ID";
         }
     });
 
-    // 3. FORM SUBMISSION VALIDATION
+    // 4. VALIDATION & SUBMIT
     paymentForm.addEventListener('submit', function(e) {
-        const idValue = txnIdInput.value;
         const amount = parseFloat(amountInput.value);
-        const maxAmount = parseFloat(amountInput.max);
 
-        if (!idValue || idValue === "") {
+        if (isNaN(amount) || amount <= 0) {
             e.preventDefault();
-            alert("Critical Error: Transaction ID is missing. Please refresh and try again.");
+            alert("Please enter a valid payment amount.");
             return;
         }
 
-        if (amount <= 0) {
-            e.preventDefault();
-            alert("Please enter a valid amount.");
-            return;
-        }
-
-        if (amount > maxAmount + 0.01) { // 0.01 buffer for rounding
-            e.preventDefault();
-            alert(`Payment exceeds balance. Max allowed: ₱${maxAmount.toFixed(2)}`);
-            return;
-        }
-
-        // Change button to loading state
         postBtn.disabled = true;
         postBtn.innerHTML = `<span class="material-symbols-rounded">sync</span> Processing...`;
     });
 
-    // 4. CLOSE LOGIC
+    // 5. MODAL CLOSE LOGIC
     const closeModal = () => {
         paymentModal.classList.add('hidden');
         paymentForm.reset();
+        refGroup.style.display = 'none';
+        if(quickPayContainer) quickPayContainer.innerHTML = ''; 
     };
 
     document.querySelectorAll('#close-payment-modal, #cancel-payment').forEach(el => {
@@ -772,6 +803,10 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.target === paymentModal) closeModal();
     });
 });
+
 /*=================================== END OF ADD PAYMENT MODAL ===================================*/
+
+
+
 
 

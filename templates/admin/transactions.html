@@ -88,12 +88,6 @@
                         </a>
                     </li>
 
-                    <li class="nav-item">
-                        <a href="#" class="nav-link">
-                            <span class="material-symbols-rounded">event_repeat</span>
-                            <span class="nav-label">Rentals & Deposits</span>
-                        </a>
-                    </li>
 
                     <li class="nav-item">
                         <a href="{{ url_for('admin.customers') }}" class="nav-link">
@@ -350,7 +344,6 @@
                                                 </div>
                                             {% endif %}
                                         {% else %}
-                                            {# Dynamic class mapping for standard statuses #}
                                             <div class="status-pill status-{{ txn.status|lower }}" data-status="{{ txn.status }}">
                                                 <span class="dot"></span>
                                                 <span class="status-text">{{ txn.status }}</span>
@@ -366,30 +359,28 @@
 
                                     <td class="text-end">
                                         <div class="action-row-container d-flex justify-content-end gap-1">
-                                            
                                             <button type="button" 
-                                                    class="btn-action btn-add-payment {{ 'disabled opacity-50' if txn.balance_due <= 0 }}" 
-                                                    title="Add Payment" 
-                                                    data-txn-id="{{ txn.id }}" 
-                                                    data-ref="{{ txn.reference_no }}" 
-                                                    data-balance="{{ txn.balance_due }}"
-                                                    {% if txn.balance_due <= 0 %}disabled{% endif %}>
+                                                class="btn-action btn-add-payment {{ 'disabled opacity-50' if txn.balance_due <= 0 }}" 
+                                                title="Add Payment"
+                                                data-txn-id="{{ txn.id }}" 
+                                                data-ref="{{ txn.reference_no }}" 
+                                                data-balance="{{ txn.balance_due }}"
+                                                data-type="{{ txn.transaction_type }}"
+                                                data-monthly-rate="{% if txn.rentals %}{{ txn.rentals[0].monthly_rate }}{% else %}0{% endif %}"
+                                                data-unpaid-count="{% if txn.rentals %}{{ txn.rentals[0].invoices|selectattr('status', 'ne', 'Paid')|list|length }}{% else %}0{% endif %}"
+                                                {% if txn.balance_due <= 0 %}disabled{% endif %}>
                                                 <i class="material-symbols-rounded">add_card</i>
                                             </button>
 
                                             <a href="{{ url_for('admin.transaction_details', id=txn.id) }}" class="btn-action">
                                                 <i class="material-symbols-rounded">visibility</i>
                                             </a>
-
-                                            <button class="btn-action btn-print" title="Print Invoice">
-                                                <i class="material-symbols-rounded">print</i>
-                                            </button>
                                         </div>
                                     </td>
                                 </tr>
                                 {% else %}
                                 <tr>
-                                    <td colspan="11" style="height: 400px; text-align: center; vertical-align: middle; border: none;">
+                                    <td colspan="12" style="height: 400px; text-align: center; vertical-align: middle; border: none;">
                                         <div class="d-flex flex-column align-items-center justify-content-center h-100 w-100">
                                             <div class="empty-state-content" style="margin: auto;">
                                                 <i class="material-symbols-rounded text-light" style="font-size: 80px; opacity: 0.4; display: block; margin: 0 auto;">receipt_long</i>
@@ -501,87 +492,6 @@
         </div>
     </div>
     
-    <div id="addPaymentModal" class="medical-modal-overlay hidden">
-        <div class="medical-modal-content" style="max-width: 480px;">
-            <h2 class="modal-header">Add Payment</h2>
-
-            <button class="modal-close-btn" id="close-payment-modal">
-                <span class="material-symbols-rounded">close</span>
-            </button>
-
-            <form id="payment-form" action="{{ url_for('admin.post_payment') }}" method="POST" enctype="multipart/form-data">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" id="payment-txn-id" name="txn_id">
-                
-                <div class="pm-summary-card">
-                    <div class="pm-summary-row">
-                        <span class="pm-label-text">Reference No.</span>
-                        <span class="pm-value-text" id="summary-ref">---</span>
-                    </div>
-                    <div class="pm-summary-row" style="margin-bottom: 0;">
-                        <span class="pm-label-text">Balance Due</span>
-                        <span class="pm-value-text pm-balance-danger" id="summary-balance" data-raw-balance="0.00">₱0.00</span>
-                    </div>
-                </div>
-
-                <div class="pm-field-group">
-                    <label class="pm-input-label">Amount to Pay</label>
-                    <div class="pm-input-wrapper">
-                        <span class="material-symbols-rounded pm-input-icon">payments</span>
-                        <input type="number" id="payment-amount" name="amount" class="pm-custom-input" 
-                            step="0.01" min="0.01" placeholder="0.00" required>
-                    </div>
-                    <small id="amount-error" style="color: #dc3545; display: none; margin-top: 4px;">
-                        Amount cannot exceed the balance due.
-                    </small>
-                </div>
-
-                <div class="pm-field-group">
-                    <label class="pm-input-label">Payment Method</label>
-                    <div class="pm-input-wrapper">
-                        <span class="material-symbols-rounded pm-input-icon">account_balance_wallet</span>
-                        <select id="payment-method" name="method" class="pm-custom-input" required>
-                            <option value="Cash">Cash</option>
-                            <option value="GCash">GCash</option>
-                            <option value="Bank Transfer">Bank Transfer</option>
-                            <option value="Check">Check</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="pm-field-group" id="pm-ref-group" style="display: none;">
-                    <label class="pm-input-label" id="pm-ref-label">Reference Number</label>
-                    <div class="pm-input-wrapper">
-                        <span class="material-symbols-rounded pm-input-icon">confirmation_number</span>
-                        <input type="text" id="payment-reference" name="payment_reference" 
-                            class="pm-custom-input" placeholder="Enter Ref #">
-                    </div>
-                </div>
-
-                <div class="pm-field-group">
-                    <label class="pm-input-label">Upload Receipt (Optional)</label>
-                    <div class="pm-input-wrapper">
-                        <span class="material-symbols-rounded pm-input-icon">receipt_long</span>
-                        <input type="file" id="receipt-image" name="receipt_image" 
-                            class="pm-custom-input" accept=".jpg,.jpeg,.png,.webp,.pdf">
-                    </div>
-                    <small style="color: #666; font-size: 0.8rem; margin-top: 4px; display: block;">
-                        Accepted: JPG, PNG, WEBP, PDF (Max 5MB)
-                    </small>
-                </div>
-
-                <div class="pm-modal-footer">
-                    <button type="button" class="pm-btn-cancel" id="cancel-payment">Cancel</button>
-                    <button type="submit" id="submit-payment" class="pm-btn-post">
-                        <span class="material-symbols-rounded">check_circle</span>
-                        Post Payment
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-
     
 
     <div id="main-toast-container" class="toast-container">

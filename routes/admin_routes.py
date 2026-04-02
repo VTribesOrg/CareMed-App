@@ -5,7 +5,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy import func, or_
 from flask_login import login_required
 from functools import wraps
-from models.product import Product, InventoryLog, Transaction, Purchase, Payment, Rental
+from models.product import Product, InventoryLog, Transaction, Purchase, Payment, Rental, RentalInvoice
 from models.customer import Customer
 from models.users import User, SecurityLog, BlockedIP
 from flask_mail import Message
@@ -13,6 +13,8 @@ from flask import current_app
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
+from dateutil.relativedelta import relativedelta
+from sqlalchemy.orm import joinedload, selectinload
 import os
 import uuid
 import random, string
@@ -854,7 +856,6 @@ def process_purchase():
         current_app.logger.error(f"Purchase Transaction Failed: {str(e)}")
         return jsonify({"success": False, "message": "An error occurred while processing the sale. Please try again or contact support."})
     
-
 @admin_bp.route('/process-rental', methods=['POST'])
 @login_required
 @administrator_required
@@ -871,13 +872,13 @@ def process_rental():
         raw_amount_paid = request.form.get('amount_paid', '0').strip() or '0'
 
         unit_price = Decimal(raw_unit_price)
-        security_deposit = Decimal(raw_deposit)
+        deposit = Decimal(raw_deposit)
         amount_paid = Decimal(raw_amount_paid)
     except Exception:
         flash("Invalid numeric values provided.", "danger")
         return redirect(request.referrer)
 
-    if security_deposit <= 0 and amount_paid <= 0:
+    if deposit <= 0 and amount_paid <= 0:
         flash("Transaction failed: Either a Deposit or an Initial Payment is required.", "warning")
         return redirect(request.referrer)
 
@@ -889,14 +890,26 @@ def process_rental():
         date_part = now.strftime("%m%d%Y")
         time_part = now.strftime("%H%M%S")
         random_str = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
-        
         ref_no = f"{prefix}-{date_part}-{time_part}-{random_str}"
+
+        # Parse dates
+        start_date = datetime.strptime(request.form.get('start_date'), '%Y-%m-%d').date()
+        expected_return = datetime.strptime(request.form.get('return_date'), '%Y-%m-%d').date()
+
+        # Calculate Total Contract Amount (Months * Monthly Rate)
+        diff = relativedelta(expected_return, start_date)
+        total_months = diff.months + (1 if diff.days > 0 else 0)
+        # If the duration is less than a month, treat as 1 month
+        if total_months == 0: total_months = 1
+        
+        contract_total = unit_price * total_months
 
         new_txn = Transaction(
             reference_no=ref_no,
             customer_id=request.form.get('customer_id'),
             transaction_type=transaction_type,
-            total_amount=unit_price + security_deposit,
+            # Total amount is the sum of all monthly dues
+            total_amount=contract_total,
             fulfillment_type=request.form.get('fulfillment_type'),
             delivery_address=request.form.get('delivery_address'),
             landmark=request.form.get('landmark'),
@@ -904,26 +917,49 @@ def process_rental():
         )
         
         db.session.add(new_txn)
-        db.session.flush() 
+        db.session.flush()
 
+        # 1. Handle Security Deposit (Separate from Rental Invoices)
+        if deposit > 0:
+            deposit_payment = Payment(
+                transaction_id=new_txn.id,
+                amount=deposit,
+                payment_method=request.form.get('payment_method') or "Cash",
+                reference_number=f"DEP-{ref_no}",
+                status="Completed",
+                created_at=now
+            )
+            db.session.add(deposit_payment)
+
+        # 2. Create the Rental Record
         new_rental = Rental(
             transaction_id=new_txn.id,
             product_id=product_id,
             customer_id=new_txn.customer_id,
-            start_date=datetime.strptime(request.form.get('start_date'), '%Y-%m-%d'),
-            expected_return_date=datetime.strptime(request.form.get('return_date'), '%Y-%m-%d'),
+            start_date=start_date,
+            expected_return_date=expected_return,
             monthly_rate=unit_price,
-            deposit_amount=security_deposit,
+            deposit_amount=deposit,
             status="Active"
         )
         db.session.add(new_rental)
+        db.session.flush()
 
+        # 3. Generate all Monthly Invoice Slots automatically
+        new_rental.generate_monthly_invoices()
+        db.session.flush()
+
+        # 4. Apply Initial Payment to the first invoice(s)
         if amount_paid > 0:
             raw_ref = request.form.get('reference_number', '').strip()
-            cleaned_ref = raw_ref if raw_ref else None
+            cleaned_ref = raw_ref if raw_ref else f"PAY-{ref_no}"
 
+            # Get the first invoice to apply the payment to
+            first_invoice = RentalInvoice.query.filter_by(rental_id=new_rental.id).order_by(RentalInvoice.service_period_start).first()
+            
             new_payment = Payment(
                 transaction_id=new_txn.id,
+                invoice_id=first_invoice.id if first_invoice else None,
                 amount=amount_paid,
                 payment_method=request.form.get('payment_method'),
                 reference_number=cleaned_ref, 
@@ -932,6 +968,14 @@ def process_rental():
             )
             db.session.add(new_payment)
 
+            # Update first invoice status based on initial payment
+            if first_invoice:
+                if amount_paid >= first_invoice.amount_due:
+                    first_invoice.status = "Paid"
+                else:
+                    first_invoice.status = "Partially Paid"
+
+        # Update balance and payment status
         new_txn.update_totals() 
         
         db.session.commit()
@@ -943,7 +987,6 @@ def process_rental():
         return redirect(request.referrer)
 
     return redirect(url_for('admin.transactions'))
-
 
 @admin_bp.route('/product/<int:product_id>/history')
 @login_required
@@ -1005,7 +1048,8 @@ def transactions():
 
     query = Transaction.query.options(
         joinedload(Transaction.customer),
-        joinedload(Transaction.rentals)
+        selectinload(Transaction.rentals).selectinload(Rental.invoices),
+        selectinload(Transaction.payments)
     )
 
     if search_query:
@@ -1025,14 +1069,16 @@ def transactions():
         page=page, per_page=limit, error_out=False
     )
 
+    # Stats logic
     stats = {
-        'pending': Transaction.query.filter_by(status='Pending Verification').count(),
+        'pending': Transaction.query.filter_by(payment_status='Unpaid').count(),
         'alerts': Transaction.query.filter(Transaction.status == 'Due').count(),
-        'empty_tanks': Product.query.filter_by(status='Empty').count()
+        # Fixed stats to look for specific product status if applicable
+        'empty_tanks': Product.query.filter(Product.status.ilike('%Empty%')).count()
     }
     
     customers = Customer.query.order_by(Customer.last_name).all()
-    all_equipment = Product.query.order_by(Product.equipment_type.asc()).all()
+    all_equipment = Product.query.filter_by(status='Available').order_by(Product.equipment_type.asc()).all()
 
     return render_template(
         "admin/transactions.html",
@@ -1046,16 +1092,16 @@ def transactions():
         all_equipment=all_equipment,
         **stats
     )
-
-
+    
+    
+    
 @admin_bp.route('/transaction_details/<int:id>') 
 @login_required
 @administrator_required
 def transaction_details(id):
-
     txn = Transaction.query.get_or_404(id)
     
-    return render_template('admin/transaction_details.html', txn=txn)
+    return render_template('admin/transaction_details.html', txn=txn, current_date=datetime.now().date())
     
 
 @admin_bp.route('/post-payment', methods=['POST'])
@@ -1063,53 +1109,43 @@ def transaction_details(id):
 @administrator_required
 def post_payment():
     txn_id = request.form.get('txn_id')
+    invoice_id = request.form.get('invoice_id') 
 
     try:
         raw_amount = request.form.get('amount', '0').replace(',', '').strip()
         amount = Decimal(raw_amount)
-
-        txn = Transaction.query.with_for_update().get_or_404(txn_id)
+        remaining_to_distribute = amount
 
         if amount <= 0:
             flash('Payment amount must be greater than zero.', 'warning')
             return redirect(request.referrer)
 
-        if amount > txn.balance_due:
-            flash(f'Payment exceeds balance. Max allowed: ₱{txn.balance_due:,.2f}', 'warning')
-            return redirect(request.referrer)
+        txn = Transaction.query.with_for_update().get_or_404(txn_id)
 
         allowed_methods = ["Cash", "GCash", "Bank Transfer", "Check"]
         method = request.form.get('method')
-
         if method not in allowed_methods:
             flash("Invalid payment method.", "danger")
             return redirect(request.referrer)
 
-        ref_number = request.form.get('payment_reference', '').strip()
-        ref_number = ref_number if ref_number else None
-
+        ref_number = request.form.get('payment_reference', '').strip() or None
         if method in ["GCash", "Bank Transfer", "Check"] and not ref_number:
             flash("Reference number is required for this payment method.", "warning")
             return redirect(request.referrer)
 
         if ref_number:
-            existing = Payment.query.filter_by(reference_number=ref_number).first()
-            if existing:
+            if Payment.query.filter_by(reference_number=ref_number).first():
                 flash("Reference number already exists.", "danger")
                 return redirect(request.referrer)
 
         receipt_path = None
         file = request.files.get('receipt_image')
-
         if file and file.filename:
-            filename = secure_filename(file.filename)
-            upload_folder = current_app.config.get("UPLOAD_FOLDER", "uploads")
+            filename = secure_filename(f"{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{file.filename}")
+            upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'receipts')
             os.makedirs(upload_folder, exist_ok=True)
-
-            filepath = os.path.join(upload_folder, filename)
-            file.save(filepath)
-
-            receipt_path = filepath
+            file.save(os.path.join(upload_folder, filename))
+            receipt_path = f'uploads/receipts/{filename}'
 
         new_pay = Payment(
             transaction_id=txn.id,
@@ -1121,29 +1157,56 @@ def post_payment():
             verified_by_id=current_user.id,
             verified_at=datetime.utcnow()
         )
-
         db.session.add(new_pay)
+
+        unpaid_invoices = []
+        if invoice_id:
+            target = RentalInvoice.query.get(invoice_id)
+            if target:
+                unpaid_invoices = [target]
+        elif txn.transaction_type == 'Rental':
+            unpaid_invoices = RentalInvoice.query.filter(
+                RentalInvoice.rental_id.in_([r.id for r in txn.rentals]),
+                RentalInvoice.status != 'Paid'
+            ).order_by(RentalInvoice.service_period_start.asc()).all()
+
+        for inv in unpaid_invoices:
+            if remaining_to_distribute <= 0:
+                break
+            
+            inv_total_due = Decimal(str(inv.amount_due)) + Decimal(str(inv.late_fee or 0))
+            inv_already_paid = sum(Decimal(str(p.amount)) for p in inv.payments if p.status == "Completed")
+            inv_remaining_bal = inv_total_due - inv_already_paid
+
+            if inv_remaining_bal > 0:
+                payment_to_apply = min(remaining_to_distribute, inv_remaining_bal)
+                
+                if not new_pay.invoice_id:
+                    new_pay.invoice_id = inv.id
+                    inv.payments.append(new_pay)
+                
+                remaining_to_distribute -= payment_to_apply
+                
+                if (inv_already_paid + payment_to_apply) >= inv_total_due:
+                    inv.status = "Paid"
+                else:
+                    inv.status = "Partially Paid"
 
         db.session.flush()
         db.session.expire(txn, ['payments'])
-
-        txn.update_totals()
-
+        txn.update_totals() 
+        
         db.session.commit()
 
-        if txn.status == "Closed":
-            flash(f'Transaction {txn.reference_no} is now Fully Paid and Closed.', 'success')
-        else:
-            flash(f'Payment of ₱{amount:,.2f} posted. \n New Balance: ₱{txn.balance_due:,.2f}', 'success')
+        flash(f'Payment of ₱{amount:,.2f} recorded successfully for {txn.reference_no}.', 'success')
 
     except (InvalidOperation, ValueError):
         db.session.rollback()
         flash('Invalid amount format.', 'danger')
-
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"PAYMENT_ERROR | TXN: {txn_id} | Error: {str(e)}")
-        flash('A system error occurred.', 'danger')
+        flash(f'A system error occurred: {str(e)}', 'danger')
 
     return redirect(request.referrer or url_for('admin.transactions'))
 
