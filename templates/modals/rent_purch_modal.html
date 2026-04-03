@@ -62,8 +62,11 @@
                 </div>
 
                 <div class="form-field">
-                    <label>Security Deposit (₱)</label>
-                    <input type="number" id="security-deposit-input" name="security_deposit" class="clinical-input" step="0.01" value="0.00">
+                    <label>Quantity to Rent</label>
+                    <div class="quantity-input-wrapper" style="position: relative;">
+                         <span class="material-symbols-rounded" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 18px; color: #64748b;">shopping_cart</span>
+                         <input type="number" id="rent-quantity-input" name="quantity" class="clinical-input" style="padding-left: 40px;" min="1" value="1" required>
+                    </div>
                 </div>
 
                 <div class="form-field">
@@ -128,8 +131,8 @@
                 
                 <div class="summary-details">
                     <div class="summary-row">
-                        <span>Duration Period</span>
-                        <span id="rent-duration-text" class="text-info">-- Months</span>
+                        <span>Items Count & Duration</span>
+                        <span id="rent-duration-text" class="text-info">1 Unit × 0 Months</span>
                     </div>
 
                     <div class="summary-row">
@@ -137,11 +140,6 @@
                         <span id="rent-total-bill" class="amount">₱0.00</span>
                     </div>
                     
-                    <div class="summary-row deduction">
-                        <span>Security Deposit (Refundable)</span>
-                        <span id="summary-deposit-val" class="amount">₱0.00</span>
-                    </div>
-
                     <div class="summary-row deduction">
                         <span>Initial Payment</span>
                         <span id="summary-paid-val" class="amount">- ₱0.00</span>

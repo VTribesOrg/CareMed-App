@@ -229,7 +229,7 @@
                                                     <div class="item-title">{{ item.product.equipment_type }}</div>
                                                     <small class="item-subtitle">Model: {{ item.product.model_number }}</small>
                                                 </td>
-                                                <td>1</td>
+                                                <td>{{ item.quantity }}</td>
                                                 <td>₱{{ "{:,.2f}".format(item.monthly_rate) }}/mo</td>
                                                 <td class="text-right-bold">₱{{ "{:,.2f}".format(item.monthly_rate) }}</td>
                                             </tr>
@@ -268,8 +268,10 @@
                                         <tr>
                                             <th>Due Date</th>
                                             <th>Amount Due</th>
+                                            <th>Progress (Paid/Total)</th>
+                                            <th>Balance</th>
                                             <th>Status</th>
-                                            <th>Action</th>
+                                            <th class="text-end">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -286,10 +288,22 @@
                                                     ₱{{ "{:,.2f}".format(invoice.amount_due + (invoice.late_fee or 0)) }}
                                                 </td>
 
+                                                <td class="text-muted" style="font-size: 0.85rem;">
+                                                    <span class="fw-bold">₱{{ "{:,.2f}".format(invoice.amount_paid) }}</span>
+                                                </td>
+
+                                                <td class="fw-bold">
+                                                    {% if invoice.remaining_balance > 0 %}
+                                                        <span class="text-danger">₱{{ "{:,.2f}".format(invoice.remaining_balance) }}</span>
+                                                    {% else %}
+                                                        <span class="text-success">₱0.00</span>
+                                                    {% endif %}
+                                                </td>
+
                                                 <td class="col-status">
                                                     {% if invoice.status == 'Paid' %}
                                                         <span class="badge-soft-success">Paid</span>
-                                                    {% elif invoice.status == 'Partial' %}
+                                                    {% elif invoice.status == 'Partially Paid' %}
                                                         <span class="badge-soft-warning">Partial</span>
                                                     {% else %}
                                                         {% if invoice.service_period_start < current_date %}
@@ -301,25 +315,27 @@
                                                 </td>
 
                                                 <td class="col-action">
-                                                    {% if invoice.status != 'Paid' %}
-                                                        {% set total_invoice_due = invoice.amount_due + (invoice.late_fee or 0) %}
-                                                        
-                                                        <button type="button" 
-                                                                class="btn-medical-primary-sm btn-add-payment" 
-                                                                data-txn-id="{{ txn.id }}" 
-                                                                data-ref="{{ txn.reference_no }}" 
-                                                                data-balance="{{ total_invoice_due }}"
-                                                                data-type="Rental"
-                                                                data-monthly-rate="{{ rental.monthly_rate }}"
-                                                                data-unpaid-count="{{ rental.invoices|selectattr('status', 'ne', 'Paid')|list|length }}">
-                                                            Record Payment
-                                                        </button>
-                                                    {% else %}
-                                                        <div class="settled-container">
-                                                            <small class="text-success fw-medium">Settled</small>
-                                                            <span class="material-symbols-rounded success-icon">check_circle</span>
-                                                        </div>
-                                                    {% endif %}
+                                                    <div class="action-wrapper d-flex align-items-center">
+                                                        {% if invoice.status != 'Paid' %}
+                                                            <button type="button" 
+                                                                    class="btn-action-payment btn-add-payment" 
+                                                                    data-txn-id="{{ txn.id }}" 
+                                                                    data-ref="{{ txn.reference_no }}" 
+                                                                    data-balance="{{ invoice.remaining_balance }}"
+                                                                    data-type="Rental"
+                                                                    data-monthly-rate="{{ rental.monthly_rate }}"
+                                                                    data-unpaid-count="{{ rental.invoices|selectattr('status', 'ne', 'Paid')|list|length }}"
+                                                                    data-invoice-id="{{ invoice.id }}"> 
+                                                                <i class="material-symbols-rounded">payments</i>
+                                                                <span>Pay Now</span>
+                                                            </button>
+                                                        {% else %}
+                                                            <div class="settled-pill">
+                                                                <span class="material-symbols-rounded">check_circle</span>
+                                                                <span class="settled-text">Settled</span>
+                                                            </div>
+                                                        {% endif %}
+                                                    </div>
                                                 </td>
                                             </tr>
                                             {% endfor %}
@@ -375,13 +391,6 @@
                             <div class="info-row">
                                 <span class="info-label">Total Amount</span>
                                 <span class="info-value">₱{{ "{:,.2f}".format(txn.total_amount) }}</span>
-                            </div>
-
-                            <div class="info-row">
-                                <span class="info-label">Deposit</span>
-                                <span class="info-value-deposit">
-                                    ₱{{ "{:,.2f}".format(txn.rentals|sum(attribute='deposit_amount') or 0) }}
-                                </span>
                             </div>
 
                             <div class="info-row">

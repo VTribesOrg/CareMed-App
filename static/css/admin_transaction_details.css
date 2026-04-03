@@ -453,9 +453,9 @@ body.ready .viewport-container {
 
 .content-area {
     flex: 1;
-    padding: 30px;
+    padding: 15px 30px 0 30px;
     background-color: #f8fafc;
-    height: 100vh;
+    height: 70vh;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     overflow-y: auto;
     flex-direction: column;
@@ -465,7 +465,6 @@ body.ready .viewport-container {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 24px;
     border-bottom: 1px solid #e2e8f0;
 }
 
@@ -530,9 +529,9 @@ body.ready .viewport-container {
 .badge-soft-info { background: #eff6ff; color: #1d4ed8; padding: 4px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
 .badge-soft-primary { background: #e8f5e9; color: #1a4d2e; padding: 4px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
 
-/* --- Layout Grid --- */
+
 .details-grid {
-padding: 32px;
+    padding: 15px 32px 32px 32px;
     display: grid;
     grid-template-columns: 1fr 350px;
     gap: 24px;
@@ -544,7 +543,6 @@ padding: 32px;
 .details-main-content {
     display: flex;
     flex-direction: column;
-    gap: 24px;
 }
 
 .action-card {
@@ -553,6 +551,79 @@ padding: 32px;
     border-radius: 16px;
     overflow: hidden;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+
+.col-action {
+    vertical-align: middle;
+    text-align: center;
+    padding-right: 1.5rem !important;
+}
+
+.text-end {
+    vertical-align: middle  !important;
+    text-align: center  !important;
+    padding-right: 1.5rem !important;
+}
+
+
+.btn-action-payment {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    background-color: #f0f7ff; 
+    color: #0061f2; 
+    border: 1px solid #d0e3ff;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.btn-action-payment i {
+    font-size: 18px;
+}
+
+.btn-action-payment:hover {
+    background-color: #0061f2;
+    color: #ffffff;
+    border-color: #0061f2;
+    box-shadow: 0 4px 12px rgba(0, 97, 242, 0.2);
+}
+
+
+.settled-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background-color: #e6fcf5; 
+    color: #088f62; 
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid #c3fae8;
+}
+
+.settled-pill i {
+    font-size: 16px;
+}
+
+.settled-text {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+
+@media (max-width: 1200px) {
+    .btn-action-payment span {
+        display: none;
+    }
+    .btn-action-payment {
+        padding: 6px;
+    }
 }
 
 

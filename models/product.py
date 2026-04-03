@@ -88,38 +88,52 @@ class Transaction(db.Model):
 
 
     def update_totals(self):
-        from decimal import Decimal
 
-        total_paid = sum(
-            (Decimal(str(p.amount)) for p in self.payments if p.status == "Completed"),
-            Decimal("0.00")
-        )
+            total_paid = sum(
+                (Decimal(str(p.amount)) for p in self.payments if p.status == "Completed"),
+                Decimal("0.00")
+            )
+            self.amount_paid = total_paid
 
-        self.amount_paid = total_paid
+            if self.transaction_type == "Rental":
+                total_invoice_sum = Decimal("0.00")
+                for rental in self.rentals:
+                    for inv in rental.invoices:
+                        total_invoice_sum += Decimal(str(inv.amount_due or 0)) + Decimal(str(inv.late_fee or 0))
 
-        total_amount = Decimal(str(self.total_amount or 0))
-        self.balance_due = max(total_amount - total_paid, Decimal("0.00"))
+                self.total_amount = total_invoice_sum
+            
+            current_total = Decimal(str(self.total_amount or 0))
 
-        if total_paid == Decimal("0.00"):
-            self.payment_status = "Unpaid"
-        elif total_paid < total_amount:
-            self.payment_status = "Partially Paid"
-        else:
-            self.payment_status = "Fully Paid"
+            self.balance_due = max(current_total - total_paid, Decimal("0.00"))
 
-        if self.payment_status == "Fully Paid":
+            if total_paid <= 0:
+                self.payment_status = "Unpaid"
+            elif total_paid < current_total:
+                self.payment_status = "Partially Paid"
+            else:
+                self.payment_status = "Fully Paid"
 
-            if self.transaction_type == "Sale":
-                if self.fulfillment_type == "Delivery":
-                    if self.delivery_status == "Delivered":
-                        self.status = "Closed"
-                else:  # Pickup
-                    if self.delivery_status in ["Picked Up", "N/A"]:
-                        self.status = "Closed"
+            if self.payment_status == "Fully Paid":
+                if self.transaction_type == "Sale":
+                    if self.fulfillment_type == "Delivery":
+                        if self.delivery_status == "Delivered":
+                            self.status = "Closed"
+                    else:  # Pickup
+                        if self.delivery_status in ["Picked Up", "N/A"]:
+                            self.status = "Closed"
 
-            elif self.transaction_type == "Rental":
-                if self.rentals and all(r.status == "Returned" for r in self.rentals):
-                    self.status = "Closed"
+                elif self.transaction_type == "Rental":
+                    if self.rentals and all(r.status == "Returned" for r in self.rentals):
+                        all_invoices_paid = all(
+                            all(inv.status == "Paid" for inv in r.invoices) 
+                            for r in self.rentals
+                        )
+                        if all_invoices_paid:
+                            self.status = "Closed"
+            else:
+                if self.status == "Closed":
+                    self.status = "Open"
                         
 
 class Payment(db.Model):
@@ -144,8 +158,6 @@ class Payment(db.Model):
     verified_by = db.relationship("User", foreign_keys=[verified_by_id])
     rental_invoice = db.relationship("RentalInvoice", back_populates="payments")
 
-    
-    
 
 
 class Rental(db.Model):
@@ -155,6 +167,7 @@ class Rental(db.Model):
     transaction_id = db.Column(db.Integer, db.ForeignKey("transaction.id"), nullable=False)
     product_id = db.Column(db.Integer, db.ForeignKey("product.id"))
     customer_id = db.Column(db.Integer, db.ForeignKey("customer.id"))
+    
 
     start_date = db.Column(db.Date, nullable=False)
     expected_return_date = db.Column(db.Date, nullable=False) 
@@ -165,6 +178,8 @@ class Rental(db.Model):
     deposit_status = db.Column(db.String(20), default="Held") 
     late_fees_incurred = db.Column(db.Numeric(10, 2), default=0.00)
 
+    quantity = db.Column(db.Integer, nullable=False)
+    
     status = db.Column(db.String(50), default="Active")
     return_condition_notes = db.Column(db.Text)
     
@@ -216,6 +231,22 @@ class RentalInvoice(db.Model):
     status = db.Column(db.String(20), default="Unpaid") 
     
     payments = db.relationship("Payment", back_populates="rental_invoice", lazy=True)
+
+    @property
+    def total_invoice_value(self):
+        return Decimal(str(self.amount_due)) + Decimal(str(self.late_fee or 0))
+
+    @property
+    def amount_paid(self):
+        return sum(
+            (Decimal(str(p.amount)) for p in self.payments if p.status == "Completed"),
+            Decimal("0.00")
+        )
+
+    @property
+    def remaining_balance(self):
+        return max(self.total_invoice_value - self.amount_paid, Decimal("0.00"))
+    
     
 class InventoryLog(db.Model):
     __tablename__ = "inventory_logs"
