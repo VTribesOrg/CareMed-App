@@ -289,7 +289,8 @@
                                                 </td>
 
                                                 <td class="text-muted" style="font-size: 0.85rem;">
-                                                    <span class="fw-bold">₱{{ "{:,.2f}".format(invoice.amount_paid) }}</span>
+                                                    <span class="fw-bold">₱{{ "{:,.2f}".format(invoice.total_invoice_value) }}</span>/ 
+                                                    <small>₱{{ "{:,.2f}".format(invoice.amount_paid) }}</small>
                                                 </td>
 
                                                 <td class="fw-bold">

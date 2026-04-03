@@ -407,6 +407,7 @@ function updatePurchaseRefVisibility() {
 
 /*============= END OF PURCHASE SUBMISSION LOGIC =============*/
 
+
 /*============= START OF RENTMODAL =============*/
 
 const rentModal = document.getElementById('rentAssetModal');
@@ -498,47 +499,71 @@ if (rentForm) {
     });
 
 rentForm.addEventListener('input', () => {
-    // Select inputs
+    // Inputs
     const rateInput = document.getElementById('rent-rate-display');
-    const depositInput = document.getElementById('security-deposit-input');
+    const qtyInput = document.getElementById('rent-quantity-input');
+    const startInput = document.getElementById('rent-start-date');
+    const returnInput = document.getElementById('rent-return-date');
     const cashInput = document.getElementById('rent-amount-paid');
 
-    // Parse values
+    // Values
     const rate = parseFloat(rateInput.value) || 0;
-    const deposit = parseFloat(depositInput.value) || 0;
+    const qty = parseInt(qtyInput.value) || 1;
     const amountPaid = parseFloat(cashInput.value) || 0;
-    
-    // Calculate Math
-    const balance = rate - deposit - amountPaid;
 
-    // 1. Update Monthly Rate Display
-    document.getElementById('rent-total-bill').textContent = `₱${rate.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+    // Calculate months (same as before)
+    let months = 0;
+    if (startInput.value && returnInput.value) {
+        const start = new Date(startInput.value);
+        const end = new Date(returnInput.value);
 
-    // 2. Update Deposit Deduction
-    document.getElementById('summary-deposit-val').textContent = `- ₱${deposit.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+        months = (end.getFullYear() - start.getFullYear()) * 12;
+        months += end.getMonth() - start.getMonth();
 
-    // 3. Update Cash Deduction
-    document.getElementById('summary-paid-val').textContent = `- ₱${amountPaid.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+        if (end.getDate() > start.getDate()) months += 1;
+        if (months <= 0) months = 1;
+    }
 
-    // 4. Update Final Balance Display
+    // Fixed total contract = monthly rate ONLY (ignores qty and months)
+    const totalContract = rate;
+
+    // Balance = total contract minus initial payment
+    const balance = totalContract - amountPaid;
+
+    // ============== UI UPDATES ==============
+
+    // 1. Show quantity × months info text only (does not affect price)
+    document.getElementById('rent-duration-text').textContent =
+        `${qty} Unit${qty > 1 ? 's' : ''} × ${months} Month${months > 1 ? 's' : ''}`;
+
+    // 2. Show fixed monthly rate as total contract value
+    document.getElementById('rent-total-bill').textContent =
+        `₱${totalContract.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+
+    // 3. Initial payment display
+    document.getElementById('summary-paid-val').textContent =
+        `- ₱${amountPaid.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+
+    // 4. Balance remaining
     const totalDisplay = document.getElementById('rent-total-display');
     const balanceSubText = document.getElementById('balance-label');
 
     if (totalDisplay) {
-        totalDisplay.textContent = `₱${Math.abs(balance).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
-        
-        // Handle UI States based on balance
-        if (balance <= 0 && rate > 0) {
+        totalDisplay.textContent =
+            `₱${Math.max(balance, 0).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+
+        // Status styling & text
+        if (balance <= 0 && totalContract > 0) {
             totalDisplay.className = "total-amount-display status-paid";
             balanceSubText.textContent = "Fully Settled";
             balanceSubText.className = "status-paid";
-        } else if (amountPaid > 0 || deposit > 0) {
+        } else if (amountPaid > 0) {
             totalDisplay.className = "total-amount-display status-pending";
             balanceSubText.textContent = "Partial Balance";
             balanceSubText.className = "status-pending";
         } else {
             totalDisplay.className = "total-amount-display";
-            balanceSubText.textContent = "Pending Collection";
+            balanceSubText.textContent = "Future monthly dues";
             balanceSubText.className = "";
         }
     }
