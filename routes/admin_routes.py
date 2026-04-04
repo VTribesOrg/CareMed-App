@@ -32,14 +32,30 @@ def administrator_required(f):
 
 
 
-
-@admin_bp.route('dashboard')
-@limiter.exempt
+@admin_bp.route('/dashboard')
 @login_required
-@administrator_required
 def dashboard():
-    
-    return render_template("admin/dashboard.html")
+    total_sales = db.session.query(func.sum(Transaction.amount_paid)).filter_by(transaction_type='Sale').scalar() or 0
+    total_rentals = db.session.query(func.sum(Payment.amount)).join(Transaction).filter(
+        Transaction.transaction_type == 'Rental',
+        Payment.status == 'Completed'
+    ).scalar() or 0
+    active_rentals_count = Rental.query.filter_by(status='Active').count()
+    total_inventory = db.session.query(func.sum(Product.stock + Product.stock_empty)).scalar() or 0
+    low_stock_count = Product.query.filter(Product.stock <= 5).count()
+
+    recent_logs = InventoryLog.query.order_by(InventoryLog.created_at.desc()).limit(5).all()
+
+    security_alerts = SecurityLog.query.order_by(SecurityLog.created_at.desc()).limit(3).all()
+
+    return render_template('admin/dashboard.html', 
+                           total_sales=total_sales,
+                           total_rentals=total_rentals,
+                           active_rentals_count=active_rentals_count,
+                           total_inventory=total_inventory,
+                           low_stock_count=low_stock_count,
+                           recent_logs=recent_logs,
+                           security_alerts=security_alerts)
 
 @admin_bp.route('/customers')
 @login_required

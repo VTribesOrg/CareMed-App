@@ -636,6 +636,7 @@ body.ready .viewport-container {
     display: flex;
     flex-direction: column;
     gap: 16px;
+    height: 300px;
 }
 
 .alert-item {

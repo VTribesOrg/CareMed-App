@@ -195,7 +195,7 @@
                         <div class="stat-icon blue"><span class="material-symbols-rounded">payments</span></div>
                         <div class="stat-info">
                             <span class="stat-label">Total Sales Summary</span>
-                            <span class="stat-value">₱428,500</span>
+                            <span class="stat-value">₱{{ "{:,.0f}".format(total_sales) }}</span>
                             <small style="color: #10b981;">+12% from last month</small>
                         </div>
                     </div>
@@ -203,7 +203,7 @@
                         <div class="stat-icon green"><span class="material-symbols-rounded">calendar_month</span></div>
                         <div class="stat-info">
                             <span class="stat-label">Total Rentals Summary</span>
-                            <span class="stat-value">₱182,300</span>
+                            <span class="stat-value">₱{{ "{:,.0f}".format(total_rentals) }}</span>
                             <small style="color: #10b981;">+5% from last month</small>
                         </div>
                     </div>
@@ -211,7 +211,7 @@
                         <div class="stat-icon orange"><span class="material-symbols-rounded">vitals</span></div>
                         <div class="stat-info">
                             <span class="stat-label">Active Rentals</span>
-                            <span class="stat-value">48 Units</span>
+                            <span class="stat-value">{{ active_rentals_count }} Units</span>
                             <small style="color: #f97316;">6 due this week</small>
                         </div>
                     </div>
@@ -219,8 +219,12 @@
                         <div class="stat-icon red"><span class="material-symbols-rounded">inventory_2</span></div>
                         <div class="stat-info">
                             <span class="stat-label">Inventory Summary</span>
-                            <span class="stat-value">1,204 Total</span>
-                            <small style="color: #ef4444;">12 Low stock items</small>
+                            <span class="stat-value">{{ total_inventory }} Total</span>
+                            {% if low_stock_count > 0 %}
+                            <small style="color: #ef4444;">{{ low_stock_count }} Low stock items</small>
+                            {% else %}
+                                <small style="color: #10b981;">Stock levels healthy</small>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -244,18 +248,14 @@
                                 </tr>
                             </thead>
                             <tbody style="font-size: 0.9rem;">
+                                {% for log in recent_logs %}
                                 <tr style="border-bottom: 1px solid #f8fafc;">
-                                    <td style="padding: 16px 0; font-weight: 600;">Arjun D.</td>
-                                    <td style="padding: 16px 0;">Processed Rental #882</td>
-                                    <td style="padding: 16px 0; color: #94a3b8;">Today, 02:45 PM</td>
+                                    <td style="padding: 16px 0; font-weight: 600;">{{ log.user_name }}</td>
+                                    <td style="padding: 16px 0;">{{ log.action }}</td>
+                                    <td style="padding: 16px 0; color: #94a3b8;">{{ log.created_at.strftime('%I:%M %p') }}</td>
                                     <td style="padding: 16px 0;"><span class="status-pill status-ready" style="padding: 4px 8px; border-radius: 6px; background: #f0fdf4; color: #16a34a; font-size: 0.75rem;">Success</span></td>
                                 </tr>
-                                <tr style="border-bottom: 1px solid #f8fafc;">
-                                    <td style="padding: 16px 0; font-weight: 600;">System</td>
-                                    <td style="padding: 16px 0;">Auto-Inventory Update</td>
-                                    <td style="padding: 16px 0; color: #94a3b8;">Today, 01:12 PM</td>
-                                    <td style="padding: 16px 0;"><span class="status-pill status-ready" style="padding: 4px 8px; border-radius: 6px; background: #f0fdf4; color: #16a34a; font-size: 0.75rem;">Success</span></td>
-                                </tr>
+                                {% endfor %}
                             </tbody>
                         </table>
                     </div>
@@ -266,17 +266,28 @@
                             Security Alerts
                         </h3>
                         <div class="alert-list" style="display: flex; flex-direction: column; gap: 16px;">
-                            <div class="alert-item alert-danger">
-                                <p style="margin: 0; font-weight: 700; color: #991b1b; font-size: 0.85rem;">Unauthorized Login Attempt</p>
-                                <small style="color: #b91c1c;">IP: 192.168.1.45 • 10m ago</small>
+                            {% for alert in security_alerts %}
+                            <div class="alert-item" style="padding: 10px; border-radius: 8px; background: {% if alert.severity in ['High', 'Critical'] %}#fef2f2{% else %}#fff7ed{% endif %};">
+                                <p style="margin: 0; font-weight: 700; color: {% if alert.severity in ['High', 'Critical'] %}#991b1b{% else %}#9a3412{% endif %}; font-size: 0.85rem;">
+                                    {{ alert.event_type }}
+                                </p>
+                                <small style="color: {% if alert.severity in ['High', 'Critical'] %}#b91c1c{% else %}#c2410c{% endif %};">
+                                    IP: {{ alert.ip_address }} • {{ alert.created_at.strftime('%I:%M %p') }}
+                                </small>
                             </div>
+                            {% endfor %}
+                            
+                            {% if not security_alerts %}
+                            <p style="text-align: center; color: #94a3b8; font-size: 0.85rem;">No recent security alerts.</p>
+                            {% endif %}
                         </div>
-                        <button style="width: 100%; margin-top: 20px; padding: 10px; border-radius: 8px; border: none; background: #f1f5f9; color: #475569; font-weight: 600; cursor: pointer;">
+                        <a href="{{ url_for('admin.security_dashboard') }}" style="display: block; text-align: center; text-decoration: none; width: 100%; margin-top: 20px; padding: 10px; border-radius: 8px; border: none; background: #f1f5f9; color: #475569; font-weight: 600; cursor: pointer;">
                             Access Security Center
-                        </button>
+                        </a>
                     </div>
                 </div>
             </main>
+            
         </div>
     </div>
 
