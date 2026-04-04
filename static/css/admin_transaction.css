@@ -2407,6 +2407,7 @@ textarea.clinical-input {
     position: relative;
     display: flex;
     align-items: center; 
+    width: 100%;
 }
 
 #addPaymentModal .pm-input-icon {
@@ -2429,6 +2430,8 @@ textarea.clinical-input {
     transition: all 0.2s ease;
     color: #1e293b;
     background-color: #ffffff;
+    display: flex;
+    align-items: center; 
 }
 
 
@@ -2439,6 +2442,29 @@ textarea.clinical-input {
     box-shadow: 0 0 0 4px rgba(148, 163, 184, 0.1);
 }
 
+
+#addPaymentModal input[type="file"].pm-custom-input {
+    line-height: 48px;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+#addPaymentModal input[type="file"]::file-selector-button {
+    margin-right: 12px;
+    border: none;
+    background: #f1f5f9;
+    padding: 4px 12px;
+    border-radius: 8px;
+    color: #475569;
+    font-weight: 600;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+#addPaymentModal input[type="file"]::file-selector-button:hover {
+    background: #e2e8f0;
+}
 
 #addPaymentModal .pm-modal-footer {
     display: flex;
@@ -2463,6 +2489,7 @@ textarea.clinical-input {
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 10px;
 }
 

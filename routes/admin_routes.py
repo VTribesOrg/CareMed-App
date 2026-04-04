@@ -1258,6 +1258,67 @@ def post_payment():
 
     return redirect(request.referrer or url_for('admin.transactions'))
 
+@admin_bp.route('/transaction/<int:txn_id>/return', methods=['POST'])
+@login_required
+def process_return(txn_id):
+    txn = Transaction.query.get_or_404(txn_id)
+    
+    return_notes = request.form.get('return_notes', '').strip()
+    raw_late_fees = request.form.get('late_fees', '0')
+    
+    try:
+        late_fees = Decimal(raw_late_fees)
+    except (InvalidOperation, ValueError, TypeError):
+        late_fees = Decimal('0.00')
+
+    try:
+        current_balance = txn.balance_due if txn.balance_due is not None else Decimal('0.00')
+        current_total = txn.total_amount if txn.total_amount is not None else Decimal('0.00')
+
+        txn.balance_due = current_balance + late_fees
+        txn.total_amount = current_total + late_fees
+        
+        txn.status = 'Completed'
+
+        if txn.rentals:
+            for rental in txn.rentals:
+                rental.status = 'Returned' 
+                rental.actual_return_date = datetime.utcnow().date() 
+                rental.return_condition_notes = return_notes
+                rental.late_fees_incurred = late_fees
+                
+                if rental.product:
+                    equipment_name = rental.product.equipment_type or ""
+                    
+                    if "Tank" in equipment_name:
+                        rental.product.status = 'Empty'
+                        rental.product.stock_empty = (rental.product.stock_empty or 0) + rental.quantity
+                    else:
+                        rental.product.status = 'Available'
+                        rental.product.stock = (rental.product.stock or 0) + rental.quantity
+
+                    user_display_name = "System"
+                    if current_user:
+                        user_display_name = getattr(current_user, 'username', 'Admin')
+
+                    new_log = InventoryLog(
+                        product_id=rental.product.id,
+                        action="Equipment Return",
+                        quantity=rental.quantity,
+                        note=f"Returned from Txn {txn.reference_no}. \n Condition: {return_notes if return_notes else 'Good'}",
+                        user_id=current_user.id if current_user else None,
+                        user_name=user_display_name
+                    )
+                    db.session.add(new_log)
+
+        db.session.commit()
+        flash(f"Equipment return processed for {txn.reference_no}. \n Stock levels and logs updated.", "success")
+        
+    except Exception as e:
+        db.session.rollback()
+        flash("An error occurred while processing the return. \n Please try again.", "danger")
+
+    return redirect(url_for('admin.transaction_details', id=txn.id))
 
 @admin_bp.route('/payments')
 @limiter.exempt

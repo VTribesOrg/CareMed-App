@@ -359,7 +359,9 @@
                             </header>
                             
                             <div class="card-body-padding">
-                                <form action="{{ url_for('admin.process_rental', txn_id=txn.id) }}" method="POST" class="form-grid">
+                                <form action="{{ url_for('admin.process_return', txn_id=txn.id) }}" method="POST" class="form-grid">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
                                     <div class="form-group-notes">
                                         <label class="form-label-header">Return Condition</label>
                                         <textarea name="return_notes" class="form-control" rows="2" placeholder="Describe any wear or damage..."></textarea>
@@ -373,7 +375,7 @@
                                     <div class="form-group-submit">
                                         <label class="form-label-header" style="visibility: hidden;">Action</label>
                                         <button type="submit" class="btn-warning-action">
-                                            <span class="material-symbols-rounded" style="font-size: 1.2rem;">check_circle</span>
+                                            <span class="material-symbols-rounded">check_circle</span>
                                             Complete Return
                                         </button>
                                     </div>
