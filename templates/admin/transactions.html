@@ -465,11 +465,11 @@
                             <option value="" disabled selected>Search equipment...</option>
                             {% for item in all_equipment %}
                                 <option value="{{ item.id }}" 
-                                        data-name="{{ item.equipment_type }} {{ item.model }}" 
+                                        data-name="{{ item.equipment_type }} {{ item.name }}" 
                                         data-stock="{{ item.stock }}"
                                         data-price="{{ item.sale_price }}"
                                         data-rent="{{ item.rent_price }}">
-                                    {{ item.equipment_type }} {{ item.model }} — (Qty: {{ item.stock }}) — {{ item.transaction_type }}
+                                     {{ item.name }} — (Qty: {{ item.stock }}) — {{ item.transaction_type }}
                                 </option>
                             {% endfor %}
                         </select>
