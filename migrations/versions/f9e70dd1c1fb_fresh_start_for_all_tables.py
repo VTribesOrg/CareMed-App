@@ -1,8 +1,8 @@
-"""initial
+"""Fresh start for all tables
 
-Revision ID: 706d06f8742e
+Revision ID: f9e70dd1c1fb
 Revises: 
-Create Date: 2026-03-29 12:55:01.750544
+Create Date: 2026-04-06 20:08:50.731664
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '706d06f8742e'
+revision = 'f9e70dd1c1fb'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -22,9 +22,11 @@ def upgrade():
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('asset_tag', sa.String(length=20), nullable=True),
     sa.Column('equipment_type', sa.String(length=100), nullable=False),
-    sa.Column('model', sa.String(length=100), nullable=False),
+    sa.Column('name', sa.String(length=100), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
     sa.Column('stock', sa.Integer(), nullable=True),
+    sa.Column('transaction_type', sa.String(length=20), nullable=True),
+    sa.Column('rent_period', sa.String(length=20), nullable=True),
     sa.Column('sale_price', sa.Numeric(precision=10, scale=2), nullable=True),
     sa.Column('rent_price', sa.Numeric(precision=10, scale=2), nullable=True),
     sa.Column('image', sa.String(length=255), nullable=True),
@@ -130,6 +132,8 @@ def upgrade():
     sa.Column('description', sa.String(length=255), nullable=True),
     sa.Column('user_id', sa.Integer(), nullable=True),
     sa.Column('user_email', sa.String(length=120), nullable=True),
+    sa.Column('user_agent', sa.String(length=255), nullable=True),
+    sa.Column('severity', sa.String(length=20), nullable=True),
     sa.Column('is_suspicious', sa.Boolean(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='SET NULL'),
@@ -160,24 +164,6 @@ def upgrade():
     with op.batch_alter_table('transaction', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_transaction_reference_no'), ['reference_no'], unique=True)
 
-    op.create_table('payments',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('transaction_id', sa.Integer(), nullable=False),
-    sa.Column('amount', sa.Numeric(precision=10, scale=2), nullable=False),
-    sa.Column('payment_method', sa.String(length=50), nullable=False),
-    sa.Column('reference_number', sa.String(length=100), nullable=True),
-    sa.Column('receipt_image_path', sa.String(length=255), nullable=True),
-    sa.Column('status', sa.String(length=20), nullable=True),
-    sa.Column('verified_by_id', sa.Integer(), nullable=True),
-    sa.Column('verified_at', sa.DateTime(), nullable=True),
-    sa.Column('created_at', sa.DateTime(), nullable=True),
-    sa.ForeignKeyConstraint(['transaction_id'], ['transaction.id'], ),
-    sa.ForeignKeyConstraint(['verified_by_id'], ['users.id'], ),
-    sa.PrimaryKeyConstraint('id')
-    )
-    with op.batch_alter_table('payments', schema=None) as batch_op:
-        batch_op.create_index(batch_op.f('ix_payments_reference_number'), ['reference_number'], unique=True)
-
     op.create_table('purchase',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('transaction_id', sa.Integer(), nullable=False),
@@ -205,6 +191,7 @@ def upgrade():
     sa.Column('deposit_amount', sa.Numeric(precision=10, scale=2), nullable=True),
     sa.Column('deposit_status', sa.String(length=20), nullable=True),
     sa.Column('late_fees_incurred', sa.Numeric(precision=10, scale=2), nullable=True),
+    sa.Column('quantity', sa.Integer(), nullable=False),
     sa.Column('status', sa.String(length=50), nullable=True),
     sa.Column('return_condition_notes', sa.Text(), nullable=True),
     sa.Column('is_deposit_refunded', sa.Boolean(), nullable=True),
@@ -216,17 +203,49 @@ def upgrade():
     sa.ForeignKeyConstraint(['transaction_id'], ['transaction.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_table('rental_invoice',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('rental_id', sa.Integer(), nullable=False),
+    sa.Column('service_period_start', sa.Date(), nullable=False),
+    sa.Column('service_period_end', sa.Date(), nullable=False),
+    sa.Column('amount_due', sa.Numeric(precision=10, scale=2), nullable=False),
+    sa.Column('late_fee', sa.Numeric(precision=10, scale=2), nullable=True),
+    sa.Column('status', sa.String(length=20), nullable=True),
+    sa.ForeignKeyConstraint(['rental_id'], ['rental.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('payments',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('transaction_id', sa.Integer(), nullable=False),
+    sa.Column('invoice_id', sa.Integer(), nullable=True),
+    sa.Column('amount', sa.Numeric(precision=10, scale=2), nullable=False),
+    sa.Column('payment_method', sa.String(length=50), nullable=False),
+    sa.Column('reference_number', sa.String(length=100), nullable=True),
+    sa.Column('receipt_image_path', sa.String(length=255), nullable=True),
+    sa.Column('status', sa.String(length=20), nullable=True),
+    sa.Column('verified_by_id', sa.Integer(), nullable=True),
+    sa.Column('verified_at', sa.DateTime(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.ForeignKeyConstraint(['invoice_id'], ['rental_invoice.id'], ),
+    sa.ForeignKeyConstraint(['transaction_id'], ['transaction.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['verified_by_id'], ['users.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    with op.batch_alter_table('payments', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_payments_reference_number'), ['reference_number'], unique=True)
+
     # ### end Alembic commands ###
 
 
 def downgrade():
     # ### commands auto generated by Alembic - please adjust! ###
-    op.drop_table('rental')
-    op.drop_table('purchase')
     with op.batch_alter_table('payments', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_payments_reference_number'))
 
     op.drop_table('payments')
+    op.drop_table('rental_invoice')
+    op.drop_table('rental')
+    op.drop_table('purchase')
     with op.batch_alter_table('transaction', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_transaction_reference_no'))
 
