@@ -312,26 +312,38 @@
                     <p class="section-subtitle">Browse and rent medical equipment for home care with fast delivery and setup</p>
                 </div>
                 
-                <a href="/catalog" class="view-all-link" style="color: #38BDF8; text-decoration: none; font-weight: 700; font-size: 1rem; display: flex; align-items: center; gap: 8px; border: 2px solid #38BDF8; padding: 8px 20px; border-radius: 50px; transition: all 0.3s ease;">
+                <a href="{{ url_for('user.products') }}" class="view-all-link" style="color: #38BDF8; text-decoration: none; font-weight: 700; font-size: 1rem; display: flex; align-items: center; gap: 8px; border: 2px solid #38BDF8; padding: 8px 20px; border-radius: 50px; transition: all 0.3s ease;">
                     View All Products <i class="fa-solid fa-arrow-right-long"></i>
                 </a>
             </header>
 
             <div class="product-grid" id="productGrid">
                 {% for product in products %}
-                    <div class="product-card" data-name="{{ product.equipment_type }}" data-category="{{ product.model }}">
+                    <div class="product-card" data-name="{{ product.name }}" data-category="{{ product.equipment_type }}">
                         
-                        <div class="stock-badge {% if product.stock <= 0 %}out-of-stock{% endif %}">
-                            {% if product.stock > 0 %}
-                                <i class="fa-solid fa-check"></i> IN STOCK ({{ product.stock }})
-                            {% else %}
-                                <i class="fa-solid fa-xmark"></i> OUT OF STOCK
-                            {% endif %}
+                        <div class="card-overlays">
+                            <div class="stock-tag {% if product.stock <= 0 %}status-out{% else %}status-in{% endif %}">
+                                {% if product.stock > 0 %}
+                                    <i class="fa-solid fa-check"></i> IN STOCK
+                                {% else %}
+                                    <i class="fa-solid fa-xmark"></i> OUT OF STOCK
+                                {% endif %}
+                            </div>
+
+                            <div class="type-tag trans-{{ product.transaction_type | lower }}">
+                                {% if product.transaction_type == 'Rent' %}
+                                    Rent Only
+                                {% elif product.transaction_type == 'Sale' %}
+                                    Purchase Only
+                                {% else %}
+                                    Rent & Buy
+                                {% endif %}
+                            </div>
                         </div>
 
                         <div class="product-image-box">
                             {% if product.image and product.image != 'None' %}
-                                <img src="{{ url_for('static', filename=product.image) }}" alt="{{ product.model }}" class="product-img-element">
+                                <img src="{{ url_for('static', filename=product.image) }}" alt="{{ product.name }}" class="product-img-element">
                             {% else %}
                                 <div class="placeholder-icon">
                                     <i class="fa-solid fa-microscope"></i>
@@ -340,11 +352,12 @@
                             {% endif %}
                         </div>
                         
-                        <h3 class="product-name">{{ product.equipment_type }}</h3>
+                        <div class="product-text-block">
+                            <h3 class="display-name">{{ product.name }}</h3>
+                            <span class="equipment-category">{{ product.equipment_type }}</span>
+                        </div>
 
                         <ul class="product-specs desktop-only-specs">
-
-
                             {% if product.description and product.description != 'None' %}
                                 <li class="product-description-text">
                                     <i class="fa-solid fa-circle-info"></i> 
@@ -352,17 +365,12 @@
                                 </li>
                             {% else %}
                                 <li class="spec-sanitized"><i class="fa-solid fa-circle-check"></i> Sanitized</li>
-                                <li><i class="fa-solid fa-tag"></i> {{ product.equipment_type }}</li>
                                 <li><i class="fa-solid fa-truck-fast"></i> Delivery Available</li>
-                            {% endif %}
-
-                            {% if product.is_refillable and not product.description %}
-                                <li><i class="fa-solid fa-arrows-rotate"></i> Refillable Unit</li>
                             {% endif %}
                         </ul>
 
                         <div class="pricing-container {% if product.transaction_type == 'both' %}has-dual{% else %}has-single{% endif %}">
-                            {% if product.transaction_type in ['rent', 'both'] %}
+                            {% if product.transaction_type in ['Rent', 'Both'] %}
                             <div class="price-block rent">
                                 <span class="price-label">RENTAL</span>
                                 <p class="price-amount">
@@ -411,7 +419,7 @@
                     </div>
                 {% endfor %}
             </div>
-
+            
         </section>
 
         
@@ -463,9 +471,9 @@
         </div>
     </footer>
 
-    <a href="#" class="messenger-fab hidden" target="_blank" rel="noopener noreferrer">
+    {#<a href="#" class="messenger-fab hidden" target="_blank" rel="noopener noreferrer">
         <i class="fa-brands fa-facebook-messenger"></i>
-    </a>
+    </a>#}
 
     
     <script nonce="{{ csp_nonce() }}">

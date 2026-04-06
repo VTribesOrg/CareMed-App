@@ -362,7 +362,7 @@ def products():
     if search_query:
         query = query.filter(or_(
             Product.equipment_type.ilike(f"%{search_query}%"),
-            Product.model.ilike(f"%{search_query}%")
+            Product.name.ilike(f"%{search_query}%")
         ))
 
     if equipment_type and equipment_type != 'all':
@@ -370,7 +370,7 @@ def products():
 
     pagination = query.order_by(
         Product.equipment_type.asc(),
-        Product.model.asc()
+        Product.name.asc()
     ).paginate(
         page=page,
         per_page=limit,
@@ -413,7 +413,7 @@ def products():
 @administrator_required
 def add_product():
     equipment_type = request.form.get("equipment_type", "").strip().title()
-    model = request.form.get("model", "").strip()
+    name = request.form.get("name", "").strip().title()
     description = request.form.get("description", "").strip()
     
     transaction_type = request.form.get("offer_type", "Both").strip().title()
@@ -447,8 +447,8 @@ def add_product():
         flash("Invalid numbers provided for stock or prices.", "error")
         return redirect(request.referrer)
 
-    if not equipment_type or not model:
-        flash("Equipment Type and Model are required.", "error")
+    if not equipment_type:
+        flash("Equipment Type are required.", "error")
         return redirect(request.referrer)
 
     image_file = request.files.get("image")
@@ -480,13 +480,13 @@ def add_product():
             if existing_tag:
                 if image_path:
                     os.remove(os.path.join(current_app.root_path, "static", image_path))
-                flash(f"Asset Tag '{asset_tag}' is already assigned to {existing_tag.model}.", "error")
+                flash(f"Asset Tag '{asset_tag}' is already assigned to {existing_tag.name}.", "error")
                 return redirect(request.referrer)
 
         new_product = Product(
             asset_tag=asset_tag, 
             equipment_type=equipment_type,
-            model=model,
+            name=name,
             description=description, 
             stock=stock,
             transaction_type=transaction_type,     
@@ -500,19 +500,18 @@ def add_product():
         db.session.add(new_product)
         db.session.flush()
 
-
         log = InventoryLog(
             product_id=new_product.id,
             action="Initial Stock Entry",
             quantity=stock,
-            note=f"Registered {model}. Mode: {transaction_type}. Tag: {asset_tag or 'None'}",
+            note=f"Registered {name}. Mode: {transaction_type}. Tag: {asset_tag or 'None'}",
             user_id=current_user.id,
             user_name=current_user.full_name 
         )
         db.session.add(log)
         
         db.session.commit()
-        flash(f"Product '{model}' added successfully.", "success")
+        flash(f"Product '{name}' added successfully.", "success")
         
     except Exception as e:
         db.session.rollback()
@@ -526,6 +525,7 @@ def add_product():
 
     return redirect(url_for('admin.products'))
 
+
 @admin_bp.route('/edit-product/<int:product_id>', methods=['POST'])
 @login_required
 @administrator_required
@@ -533,7 +533,7 @@ def edit_product(product_id):
     product = Product.query.get_or_404(product_id)
 
     new_type = request.form.get("equipment_type", "").strip().title()
-    new_model = request.form.get("model", "").strip()
+    new_name = request.form.get("name", "").strip().title()
     new_description = request.form.get("description", "").strip()
     
     raw_tag = request.form.get("asset_tag", "").strip().upper()
@@ -542,14 +542,15 @@ def edit_product(product_id):
     new_offer_type = request.form.get("offer_type", "Both").strip().title()
     new_rent_period = request.form.get("rent_period", "Monthly").strip().title()
     
-    if not new_type or not new_model:
-        flash("Equipment Type and Model are required.", "error")
+    if not new_type:
+        flash("Equipment Type are required.", "error")
         return redirect(url_for('admin.products'))
 
     changes = []
 
     try:
-        new_stock = int(request.form.get("stock") or 0)
+        stock_input = request.form.get("stock")
+        new_stock = int(stock_input) if stock_input not in [None, ""] else product.stock
         
         raw_rent = Decimal(request.form.get("rent_price") or "0.00")
         raw_sale = Decimal(request.form.get("sale_price") or "0.00")
@@ -569,9 +570,9 @@ def edit_product(product_id):
             changes.append(f"Type: {product.equipment_type} → {new_type}")
             product.equipment_type = new_type
 
-        if (product.model or "") != new_model:
-            changes.append(f"Model: {product.model or 'N/A'} → {new_model}")
-            product.model = new_model
+        if (product.name or "") != new_name:
+            changes.append(f"Name: {product.name or 'N/A'} → {new_name}")
+            product.name = new_name
 
         if product.asset_tag != new_asset_tag:
             if new_asset_tag:
@@ -641,7 +642,7 @@ def edit_product(product_id):
             )
             db.session.add(inventory_log)
             db.session.commit()
-            flash(f"Updated {product.model} successfully!", "success")
+            flash(f"Updated {product.name} successfully!", "success")
         else:
             flash("No changes detected.", "info")
 

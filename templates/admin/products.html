@@ -191,28 +191,6 @@
 
             <main class="content-area">
 
-                <div class="flash-messages-container">
-                    {% with messages = get_flashed_messages(with_categories=true) %}
-                    {% if messages %}
-                        {% for category, message in messages %}
-                        <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show auto-dismiss" role="alert">
-                            <div class="w-100">
-                                <strong>{{ 'Success!' if category == 'success' else '' }}</strong> 
-                                <span class="ms-1">{{ message }}</span>
-
-                                <!-- Progress bar -->
-                                <div class="progress mt-2" style="height: 4px;">
-                                    <div class="progress-bar bg-{{ 'success' if category == 'success' else 'danger' }}" role="progressbar"></div>
-                                </div>
-                            </div>
-
-                        </div>
-                        {% endfor %}
-                    {% endif %}
-                    {% endwith %}
-                </div>
-
-
                 <div class="asset-registry-card">
 
                     <div class="registry-controls">
@@ -255,7 +233,7 @@
                                 <tr>
                                     <th>Preview</th>
                                     <th>Equipment Type</th>
-                                    <th>Model / OEM</th>
+                                    <th>Equipement Name</th>
                                     <th>Stock (Units)</th>
                                     <th>Status</th>
                                     <th>Transaction Type</th> 
@@ -274,7 +252,7 @@
                                     </td>
 
                                     <td>{{ product.equipment_type if product.equipment_type else 'N/A' }}</td>
-                                    <td>{{ product.model if product.model else 'N/A' }}</td>
+                                    <td>{{ product.name if product.name else 'N/A' }}</td>
                                     
                                     <td class="stock">{{ product.stock }} Units</td>
                                     <td>
@@ -342,7 +320,7 @@
                                                 <div class="dropdown-menu">
                                                     <button class="dropdown-item add-stock-trigger" style="color: #52B788;"
                                                         data-id="{{ product.id }}"
-                                                        data-name="{{ product.equipment_type }} {{ product.model }}"
+                                                        data-name="{{ product.equipment_type }} {{ product.name }}"
                                                         data-stock="{{ product.stock }}">
                                                         <span class="material-symbols-rounded">add_box</span> Add Stock
                                                     </button>
@@ -350,7 +328,7 @@
                                                     <button class="dropdown-item edit" style="color: #00a8cc;"
                                                         data-id="{{ product.id }}"
                                                         data-type="{{ product.equipment_type }}"
-                                                        data-model="{{ product.model }}"
+                                                        data-model="{{ product.name }}"
                                                         data-stock="{{ product.stock }}"
                                                         data-offer="{{ product.transaction_type}}" 
                                                         data-period="{{ product.rent_period }}"
@@ -502,15 +480,19 @@
                                     <input type="text" name="equipment_type" class="clinical-input" list="equipment-types" placeholder="e.g. Hospital Bed" required>
                                     <span class="material-symbols-rounded input-icon">search_insights</span>
                                     <datalist id="equipment-types">
-                                        <option value="Manual Hospital Bed"><option value="Electric Wheelchair"><option value="Oxygen Tank Full Set"><option value="Suction Machine"><option value="Nebulizer">
+                                        <option value="Hospital Bed"></option>
+                                        <option value="Oxygen Equipment"></option>
+                                        <option value="Wheelchairs & Mobility"></option>
+                                        <option value="Medical Devices"></option>
                                     </datalist>
                                 </div>
                             </div>
+                            
                             <div class="form-field">
-                                <label class="clinical-label">Model / OEM</label>
+                                <label class="clinical-label">Product Name</label>
                                 <div class="input-wrapper">
-                                    <input type="text" name="model" class="clinical-input" placeholder="Manufacturer Name" required>
-                                    <span class="material-symbols-rounded input-icon">precision_manufacturing</span>
+                                    <input type="text" name="name" class="clinical-input" placeholder="e.g. Standard Wheelchair" required>
+                                    <span class="material-symbols-rounded input-icon">inventory</span>
                                 </div>
                             </div>
                         </div>
@@ -661,10 +643,10 @@
                         </div>
 
                         <div class="form-field">
-                            <label class="clinical-label">Model / OEM</label>
+                            <label class="clinical-label">Product Name</label>
                             <div class="input-wrapper">
-                                <input type="text" name="model" id="edit-model" class="clinical-input" placeholder="Manufacturer Name" required>
-                                <span class="material-symbols-rounded input-icon">precision_manufacturing</span>
+                                <input type="text" name="name" id="edit-name" class="clinical-input" placeholder="e.g. Standard K1 Wheelchair" required>
+                                <span class="material-symbols-rounded input-icon">inventory</span>
                             </div>
                         </div>
                     </div>
@@ -868,6 +850,45 @@
             </div>
         </div>
     </div>
+
+
+        <div id="main-toast-container" class="toast-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="medical-toast {{ category or 'info' }}" role="alert">
+                        <div class="toast-progress"></div>
+                        <span class="material-symbols-rounded toast-icon">
+                            {% if category == 'success' %}check_circle
+                            {% elif category == 'error' %}error
+                            {% elif category == 'warning' %}warning
+                            {% else %}info{% endif %}
+                        </span>
+                        <div class="toast-content">
+                            <span class="toast-title">{{ category|capitalize or 'Notice' }}</span>
+                            <span class="toast-message">{{ message|replace('\n', '<br>')|safe }}</span>
+                        </div>
+                        <button class="toast-close" onclick="this.parentElement.remove()">
+                            <span class="material-symbols-rounded">close</span>
+                        </button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <template id="toast-template">
+        <div class="medical-toast" role="alert">
+            <div class="toast-progress"></div> <span class="material-symbols-rounded toast-icon"></span>
+            <div class="toast-content">
+                <span class="toast-title"></span>
+                <span class="toast-message"></span>
+            </div>
+            <button class="toast-close" onclick="this.parentElement.remove()">
+                <span class="material-symbols-rounded">close</span>
+            </button>
+        </div>
+    </template>
 
     <script src="{{ url_for('static', filename='js/global.js') }}"></script>
     <script src="{{ url_for('static', filename='js/admin_product.js') }}"></script>

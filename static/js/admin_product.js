@@ -181,7 +181,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /*============= END OF REGISTERASSETMODAL =============*/
 
-
 /*============= EDITASSETMODAL =============*/
 // Variable to store the values as they were when the modal opened
 let originalAssetData = {};
@@ -197,10 +196,11 @@ window.openEditModal = function(productData) {
     editForm.action = `/admin/edit-product/${productData.id}`;
 
     // Fill fields and store original state for comparison
+    // UPDATED: 'edit-model' changed to 'edit-name'
     const fields = {
         'edit-product-id': productData.id,
         'edit-type': productData.type || '',
-        'edit-model': productData.model || '',
+        'edit-name': productData.name || '',
         'edit-description': productData.description || '',
         'edit-offer-type': productData.offer_type || 'both',
         'edit-rent': String(productData.rent_price || 0),
@@ -250,10 +250,11 @@ document.getElementById('editAssetForm')?.addEventListener('input', function() {
     const updateBtn = document.getElementById('update-asset-btn');
     const fileInput = document.getElementById('edit-product-image-input');
     
+    // UPDATED: 'edit-model' changed to 'edit-name'
     const currentData = {
         'edit-product-id': document.getElementById('edit-product-id').value,
         'edit-type': document.getElementById('edit-type').value,
-        'edit-model': document.getElementById('edit-model').value,
+        'edit-name': document.getElementById('edit-name').value,
         'edit-description': document.getElementById('edit-description').value,
         'edit-offer-type': document.getElementById('edit-offer-type').value,
         'edit-rent': document.getElementById('edit-rent').value,

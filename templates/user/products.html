@@ -198,17 +198,23 @@
     </nav>
 
 
-    <main class="gallery-container" style="margin-top: 120px;">
+    <main class="gallery-container">
         <header class="header-row">
-            <h2 class="section-title">Product Catalog</h2>
-            <p style="color: #666; margin-top: 10px;">Select from our premium range of sanitized, hospital-grade equipment.</p>
-            <div class="help-banner" style="margin-top: 15px; padding: 10px; background: #e3f2fd; border-radius: 8px; display: inline-block;">
-                <span class="material-symbols-outlined" style="vertical-align: middle; color: #1976d2;">support_agent</span>
-                <span style="vertical-align: middle; font-size: 0.9rem;">Need help choosing? Call our consultant: <strong>0912-585-6730</strong></span>
+            <div class="header-text">
+                <h2 class="section-title">Product Catalog</h2>
+                <p style="color: #64748b; margin-top: 8px; font-size: 0.95rem;">
+                    Select from our premium range of sanitized, hospital-grade equipment.
+                </p>
+            </div>
+
+            <div class="help-banner">
+                <span class="material-symbols-outlined" style="color: #1976d2;">support_agent</span>
+                <span style="font-size: 0.85rem;">
+                    Need help choosing? Call our consultant: <strong>0912-585-6730</strong>
+                </span>
             </div>
         </header>
 
-        <!-- NEW: Category tabs (inserted between header and controls-row) -->
         <div class="category-tabs" id="categoryTabs">
             <button class="tab-btn active" data-cat="All" onclick="setTab(this)">All</button>
             <button class="tab-btn" data-cat="Hospital Beds" onclick="setTab(this)">Hospital Beds</button>
@@ -231,8 +237,108 @@
             </div>
         </div>
 
-        <!-- Product grid is now JS-rendered -->
-        <div class="product-grid" id="productGrid"></div>
+        <div class="product-grid" id="productGrid">
+            {% for product in products %}
+                <div class="product-card" data-name="{{ product.name }}" data-category="{{ product.equipment_type }}">
+                    
+                    <div class="card-overlays">
+                        <div class="stock-tag {% if product.stock <= 0 %}status-out{% else %}status-in{% endif %}">
+                            {% if product.stock > 0 %}
+                                <i class="fa-solid fa-check"></i> IN STOCK
+                            {% else %}
+                                <i class="fa-solid fa-xmark"></i> OUT OF STOCK
+                            {% endif %}
+                        </div>
+
+                        <div class="type-tag trans-{{ product.transaction_type | lower }}">
+                            {% if product.transaction_type == 'Rent' %}
+                                Rent Only
+                            {% elif product.transaction_type == 'Sale' %}
+                                Purchase Only
+                            {% else %}
+                                Rent & Buy
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="product-image-box">
+                        {% if product.image and product.image != 'None' %}
+                            <img src="{{ url_for('static', filename=product.image) }}" alt="{{ product.name }}" class="product-img-element">
+                        {% else %}
+                            <div class="placeholder-icon">
+                                <i class="fa-solid fa-microscope"></i>
+                                <span>IMAGE PENDING</span>
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="product-text-block">
+                        <h3 class="display-name">{{ product.name }}</h3>
+                        <span class="equipment-category">{{ product.equipment_type }}</span>
+                    </div>
+
+                    <ul class="product-specs desktop-only-specs">
+                        {% if product.description and product.description != 'None' %}
+                            <li class="product-description-text">
+                                <i class="fa-solid fa-circle-info"></i> 
+                                {{ product.description | truncate(65) }}
+                            </li>
+                        {% else %}
+                            <li class="spec-sanitized"><i class="fa-solid fa-circle-check"></i> Sanitized</li>
+                            <li><i class="fa-solid fa-truck-fast"></i> Delivery Available</li>
+                        {% endif %}
+                    </ul>
+
+                    <div class="pricing-container {% if product.transaction_type == 'both' %}has-dual{% else %}has-single{% endif %}">
+                        {% if product.transaction_type in ['Rent', 'Both'] %}
+                        <div class="price-block rent">
+                            <span class="price-label">RENTAL</span>
+                            <p class="price-amount">
+                                ₱{{ "{:,.0f}".format(product.rent_price or 0) }}
+                                <span class="period">/{{ product.rent_period or 'Month' }}</span>
+                            </p>
+                        </div>
+                        {% endif %}
+
+                        {% if product.transaction_type == 'Both' %}
+                            <div class="price-separator"></div>
+                        {% endif %}
+
+                        {% if product.transaction_type in ['Sale', 'Both'] %}
+                        <div class="price-block sale">
+                            <span class="price-label">PURCHASE</span>
+                            <p class="price-amount">₱{{ "{:,.0f}".format(product.sale_price or 0) }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="action-grid">
+                        {% if product.transaction_type in ['Rent', 'Both'] %}
+                            {% if current_user.is_authenticated %}
+                                <button class="btn-action btn-rent-outline" onclick="handleAction('rent', '{{ product.id }}')">
+                                    <i class="fa-solid fa-calendar-day"></i> Rent Now
+                                </button>
+                            {% else %}
+                                <a href="{{ url_for('auth.login') }}" class="btn-action btn-guest">
+                                    <i class="fa-solid fa-lock"></i> Login to Rent
+                                </a>
+                            {% endif %}
+                        {% endif %}
+
+                        {% if product.transaction_type in ['Sale', 'Both'] %}
+                            <button class="btn-action btn-buy-solid" onclick="handleAction('buy', '{{ product.id }}')">
+                                <i class="fa-solid fa-cart-plus"></i> Buy
+                            </button>
+                        {% endif %}
+                    </div>
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <p>No medical equipment currently available for display.</p>
+                </div>
+            {% endfor %}
+        </div>
     </main>
 
     <footer id="footer">

@@ -1703,6 +1703,7 @@ td:nth-child(2) {
 
 /*============================= END OF FILEUPLOAD =============================*/
 
+
 /*============================= START OF RENTAL PROCESS MODAL ============================= */
 
 .rent-modal-width {
@@ -1763,16 +1764,76 @@ textarea.clinical-input {
 }
 
 .rental-summary-box {
-    background: #f0f9ff;
-    border: 2px dashed #00a8cc;
-    padding: 20px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
     border-radius: 12px;
+    padding: 16px;
     margin-top: 10px;
+}
+
+.summary-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #64748b;
+    margin-bottom: 12px;
+    letter-spacing: 0.05em;
+}
+
+.summary-details {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.summary-row {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    transition: all 0.3s ease;
+    font-size: 0.9rem;
+    color: #334155;
 }
+
+.summary-row.deduction {
+    color: #10b981; 
+    font-size: 0.85rem;
+}
+
+.summary-divider {
+    height: 1px;
+    background: #e2e8f0;
+    margin: 8px 0;
+}
+
+.total-row {
+    align-items: center;
+}
+
+.total-label-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.main-total-label {
+    font-weight: 700;
+    color: #1e293b;
+}
+
+#balance-label {
+    font-size: 0.7rem;
+    color: #64748b;
+}
+
+.total-amount-display {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.status-paid { color: #10b981 !important; }
+.status-pending { color: #f59e0b !important; }
+.status-overdue { color: #ef4444 !important; }
 
 .summary-label-group span:first-child {
     color: #64748b;
@@ -1830,14 +1891,14 @@ textarea.clinical-input {
     z-index: 2;
     pointer-events: none;
 }
-/* 1. Modal Header Container Positioning */
+
 .modal-header-row {
-    position: relative; /* Base for the absolute close button */
+    position: relative;
     display: flex;
     flex-direction: column;
     width: 100%;
     margin-bottom: 24px;
-    padding-top: 5px; /* Give the title some breathing room */
+    padding-top: 5px; 
 }
 
 
@@ -1856,7 +1917,6 @@ textarea.clinical-input {
     color: #0f172a;
 }
 
-/* 4. Banner Styling (Your Original + Alignments) */
 .selected-asset-banner {
     display: flex;
     justify-content: space-between;
@@ -1864,7 +1924,7 @@ textarea.clinical-input {
     padding: 12px 16px;
     background-color: #f8fafc;
     border: 1px solid #e2e8f0;
-    border-left: 5px solid #f97316; /* Orange accent for Purchases */
+    border-left: 5px solid #f97316; 
     border-radius: 10px;
 }
 
@@ -1874,7 +1934,7 @@ textarea.clinical-input {
     gap: 2px;
 }
 
-/* 5. Sub-labels and Asset Names */
+
 .asset-context-label {
     display: flex;
     align-items: center;
@@ -1929,6 +1989,130 @@ textarea.clinical-input {
     70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
     100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
 }
+
+/*=================================== START OF Rent ===================================*/
+
+#rentAssetModal .medical-modal-content {
+    padding: 1rem 1.5rem !important; 
+    max-height: 90vh !important;    
+    overflow-y: auto;
+}
+
+#rentAssetModal .form-layout-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 20px !important; 
+}
+
+#rentAssetModal .form-field label {
+    margin-bottom: 2px !important; 
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #475569;
+}
+
+#rentAssetModal .selected-asset-banner {
+    margin-bottom: 8px !important;
+    padding: 6px 12px !important; 
+}
+
+#rentAssetModal .modal-header {
+    margin-bottom: 5px !important;
+    font-size: 1.2rem;
+}
+
+#rentAssetModal .rental-summary-box {
+    margin-top: 10px !important;
+    padding: 8px 12px !important;
+}
+
+#rentAssetModal .modal-footer-actions {
+    margin-top: 10px !important;
+}
+
+/* Specific to Rent Modal grid behavior */
+#rent-delivery-fields,
+#rent-notes,
+.full-width {
+    grid-column: span 2;
+}
+
+#rentAssetModal .clinical-input,
+#rentAssetModal .medical-select {
+    height: 36px;
+    background-color: #f8fafc;
+    border: 1px solid #dbe2e1;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    color: #1e293b;
+    width: 100%;
+    transition: all 0.2s ease;
+}
+
+#rentAssetModal .medical-select {
+    padding-left: 40px;
+    padding-right: 35px;
+    appearance: none;
+    cursor: pointer;
+}
+
+#rentAssetModal .select-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+#rentAssetModal .filter-icon,
+#rentAssetModal .select-icon {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    z-index: 2;
+    pointer-events: none;
+}
+
+#rentAssetModal .filter-icon { left: 12px; }
+#rentAssetModal .select-icon { right: 12px; }
+
+/* Rent Delivery Fields Styling */
+#rent-delivery-fields {
+    display: none; /* Controlled by JS */
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    padding: 10px;
+    background: #f1f5f9;
+    border-radius: 8px;
+    margin: 4px 0;
+}
+
+/* Fulfillment Option Styling (Radios) */
+#rentAssetModal .fulfillment-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    padding: 4px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: #fff;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+}
+
+#rentAssetModal .fulfillment-option:hover {
+    background-color: #f1f5f9;
+    border-color: #cbd5e1;
+}
+
+#rentAssetModal input[type="radio"]:checked + span {
+    color: #f59e0b;
+    font-weight: bold;
+}
+
+
+
+/*=================================== END OF Rent ===================================*/
 
 /*------------------------- END OF RENTAL MODAL --------------------------------------*/
 
@@ -2177,72 +2361,136 @@ textarea.clinical-input {
 }
 
 
-/*============= START OF FLASK MESSAGE =============*/
+/*================== START OF MESSAGE NOTIFICATION ==================*/
 
-.flash-messages-container {
+.toast-container {
     position: fixed;
     top: 20px;
     right: 20px;
-    z-index: 1060; 
-    width: 350px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.medical-toast {
+    background: #ffffff;
+    min-width: 320px;
+    max-width: 400px;
+    padding: 16px;
+    border-radius: 12px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 14px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 
+                0 8px 10px -6px rgba(0, 0, 0, 0.05);
+    position: relative;
+    overflow: hidden;
+    border: 1px solid #f1f5f9;
+    animation: toast-slide-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
 
 
-.alert {
-    border: none;
+.medical-toast.success { border-left: 4px solid #10b981; }
+.medical-toast.success .toast-icon { color: #10b981; background: #ecfdf5; }
+
+.medical-toast.error { border-left: 4px solid #ef4444; }
+.medical-toast.error .toast-icon { color: #ef4444; background: #fef2f2; }
+
+.medical-toast.warning { border-left: 4px solid #f59e0b; }
+.medical-toast.warning .toast-icon { color: #f59e0b; background: #fffbeb; }
+
+.medical-toast.info { border-left: 4px solid #3b82f6; }
+.medical-toast.info .toast-icon { color: #3b82f6; background: #eff6ff; }
+
+
+.toast-icon {
+    width: 40px;
+    height: 40px;
     border-radius: 10px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
-    margin-bottom: 15px;
-    font-size: 0.95rem;
     display: flex;
     align-items: center;
-    padding: 1rem 1.25rem;
+    justify-content: center;
+    font-size: 24px !important;
 }
 
 
-.alert-success {
-    background-color: #e6fffa;
-    color: #065646;
-    border-left: 6px solid #38b2ac;
+.toast-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.toast-title {
+    font-weight: 700;
+    font-size: 14px;
+    color: #1e293b;
+    margin-bottom: 2px;
+}
+
+.toast-message {
+    font-size: 13px;
+    color: #64748b;
+    line-height: 1.4;
 }
 
 
-.alert-danger {
-    background-color: #fff5f5;
-    color: #9b2c2c;
-    border-left: 6px solid #e53e3e;
+.toast-close {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: #94a3b8;
+    padding: 5px;
+    border-radius: 6px;
+    transition: background 0.2s;
+    display: flex;
+    align-items: center;
+}
+
+.toast-close:hover {
+    background: #f8fafc;
+    color: #64748b;
 }
 
 
-.alert .btn-close {
-    padding: 1.25rem;
-    font-size: 0.75rem;
+.toast-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    width: 100%;
+    background: rgba(0, 0, 0, 0.03);
 }
 
-
-.alert {
-    animation: slideIn 0.5s ease-out;
+.toast-progress::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    background: currentColor; 
+    opacity: 0.4;
+    animation: toast-progress-shrink 5s linear forwards;
 }
 
-@keyframes slideIn {
-    from {
-        transform: translateX(100%);
-        opacity: 0;
-    }
-    to {
-        transform: translateX(0);
-        opacity: 1;
-    }
+.medical-toast.success { color: #10b981; }
+.medical-toast.error { color: #ef4444; }
+.medical-toast.warning { color: #f59e0b; }
+.medical-toast.info { color: #3b82f6; }
+
+/* Animations */
+@keyframes toast-slide-in {
+    from { transform: translateX(110%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
 }
 
-.progress {
-    background-color: rgba(0,0,0,0.05);
-    overflow: hidden;
-    border-radius: 5px;
+@keyframes toast-fade-out {
+    from { transform: scale(1); opacity: 1; }
+    to { transform: scale(0.9); opacity: 0; }
 }
 
-.progress-bar {
-    transition: width linear;
+@keyframes toast-progress-shrink {
+    from { width: 100%; }
+    to { width: 0%; }
 }
-
-/*============= END OF FLASK MESSAGE =============*/
+/*================== END OF MESSAGE NOTIFICATION ==================*/

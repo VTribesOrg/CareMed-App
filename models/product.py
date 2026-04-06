@@ -9,7 +9,7 @@ class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     asset_tag = db.Column(db.String(20), nullable=True, unique=True)
     equipment_type = db.Column(db.String(100), nullable=False)
-    model = db.Column(db.String(100), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text, nullable=True) 
     stock = db.Column(db.Integer, default=0)
     

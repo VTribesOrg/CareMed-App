@@ -1340,8 +1340,7 @@ html {
     font-size: 19px;
     color: #1a202c;
     font-weight: 700;
-    margin-bottom: 15px;
-    min-height: 50px;
+    
 }
 
 .trust-badge {
@@ -1771,6 +1770,120 @@ html {
     margin-bottom: 15px;
     display: block;
 }
+
+.product-info-header {
+    margin-bottom: 12px;
+}
+
+.product-name {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 4px;
+    line-height: 1.2;
+}
+
+.equipment-type-tag {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    background: #f1f5f9;
+    padding: 2px 8px;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+
+.card-overlays {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 12px 15px; 
+    z-index: 10;
+    pointer-events: none; 
+}
+
+.card-overlays > div {
+    pointer-events: auto; 
+}
+
+
+.stock-tag,
+.type-tag {
+    font-family: 'Inter', sans-serif; 
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    padding: 4px 10px;
+    border-radius: 4px; 
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.stock-tag i,
+.type-tag i {
+    font-size: 0.8rem;
+}
+
+.status-in {
+    background-color: #e0f2fe; 
+    color: #0369a1; 
+}
+
+.status-out {
+    background-color: #fef2f2;
+    color: #991b1b;
+}
+
+.trans-both {
+    background-color: #ecfdf5; 
+    color: #15803d;
+}
+
+
+.trans-rent {
+    background-color: #eff6ff;
+    color: #1d4ed8;
+}
+
+
+.trans-sale {
+    background-color: #fffbeb; 
+    color: #a16207; 
+}
+
+
+.product-text-block {
+    text-align: center;
+    padding: 15px 10px 5px 10px;
+    border-bottom: 1px solid #f1f5f9; 
+    margin-bottom: 10px;
+}
+
+.display-name {
+    font-size: 1.15rem;
+    font-weight: 800; 
+    color: #111827;
+    margin-bottom: 3px;
+    line-height: 1.2;
+}
+
+.equipment-category {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: block;
+}
+
 /* <END OF PRODUCT-CATALOG SECTION> */
 
 /* <START OF TESTIMONIALS SECTION> */
