@@ -1344,13 +1344,26 @@ def process_return(txn_id):
 def payments():
     return render_template("admin/payments.html")
 
-@admin_bp.route('/profile')
+
+@admin_bp.route('/profile', methods=['GET', 'POST'])
 @limiter.exempt
 @login_required
 @administrator_required
 def profile():
+    if request.method == 'POST':
+        current_user.first_name = request.form.get('fname')
+        current_user.last_name = request.form.get('lname')
+        current_user.email = request.form.get('email')
 
-    
+        try:
+            db.session.commit()
+            flash('Profile updated successfully!', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash('An error occurred while updating.', 'danger')
+            
+        return redirect(url_for('admin.profile')) 
+
     return render_template("admin/profile.html")
 
 @admin_bp.route('/reports')

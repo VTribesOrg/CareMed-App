@@ -630,16 +630,61 @@ html {
     display: none !important;
 }
 
+
+.settings-nav .nav-label {
+    display: inline-block;
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1;
+    /* Ensure text isn't inheriting a 'hidden' or 'transparent' state */
+    visibility: visible !important;
+    opacity: 1 !important;
+    color: inherit; 
+}
+
+.settings-nav nav {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
 .settings-nav .nav-link {
-    padding: 12px 15px;
-    margin-bottom: 8px;
+    display: flex !important;            
+    align-items: center;
+    gap: 12px;                
+    padding: 12px 16px;
+    border-radius: 12px;     
+    text-decoration: none;
+    color: #64748b !important;            
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
     border: 1px solid transparent;
 }
 
+.settings-nav .nav-link:hover {
+    background-color: #f8fafc;
+    color: #002347;
+}
+
 .settings-nav .nav-link.active {
-    border: 1px solid #dbe2e1;
-    background-color: #f0fdf4;
-    box-shadow: 0 2px 4px rgba(82, 183, 136, 0.05);
+    background-color: #f0fdf4; 
+    color: #52B788;            
+    border: 1px solid #dcfce7;
+}
+
+.settings-nav .nav-link .material-symbols-rounded {
+    font-size: 22px;
+    color: #64748b;           
+}
+
+.settings-nav .nav-link.active .material-symbols-rounded {
+    color: #52B788; 
+}
+
+.settings-nav .nav-link:hover:not(.active) {
+    background-color: #f8fafc;
+    color: #002347;
 }
 
 .form-section-header {
@@ -886,6 +931,8 @@ input:checked+.slider:before {
     margin-top: -4px;
     margin-left: 2px;
 }
+
+
 
 
 

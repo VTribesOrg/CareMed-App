@@ -69,6 +69,7 @@
                         </a>
                     </li>
 
+
                     <li class="nav-item">
                         <a href="{{ url_for('admin.customers') }}" class="nav-link">
                             <span class="material-symbols-rounded">groups</span>
@@ -91,7 +92,7 @@
                     </li>
 
                     <li class="nav-item">
-                        <a href="{{ url_for('admin.reports') }}" class="nav-lin">
+                        <a href="{{ url_for('admin.reports') }}" class="nav-link">
                             <span class="material-symbols-rounded">analytics</span>
                             <span class="nav-label">Reports & Analytics</span>
                         </a>
@@ -198,9 +199,12 @@
                             <input type="file" id="avatar-upload" accept="image/*" hidden>
 
                             <div class="profile-avatar-large" id="avatar-container">
-                                <span class="material-symbols-rounded" id="profile-avatar-icon">person</span>
-
-                                <img src="" id="profile-img-display" class="avatar-img">
+                                {% if current_user.image_file %}
+                                    <img src="{{ url_for('static', filename='profile_pics/' + current_user.image_file) }}" id="profile-img-display" class="avatar-img">
+                                {% else %}
+                                    <span class="material-symbols-rounded" id="profile-avatar-icon">person</span>
+                                    <img src="" id="profile-img-display" class="avatar-img" style="display:none;">
+                                {% endif %}
                             </div>
 
                             <button class="icon-btn" id="camera-trigger"
@@ -215,13 +219,17 @@
                         </div>
 
                         <div>
-                            <h2 class="registry-title" style="font-size: 1.5rem; margin-bottom: 4px;">{{ current_user.first_name}} {{ current_user.last_name}}</h2>
-                            <p style="margin: 0; color: #64748b; font-weight: 600; font-size: 0.9rem;">System
-                                {{ current_user.role }} • CareMed Iloilo Branch</p>
+                            <h2 class="registry-title" style="font-size: 1.5rem; margin-bottom: 4px;">
+                                {{ current_user.first_name }} {{ current_user.last_name }}
+                            </h2>
+                            <p style="margin: 0; color: #64748b; font-weight: 600; font-size: 0.9rem;">
+                                {{ current_user.role | capitalize }} • CareMed Iloilo Branch
+                            </p>
                             <div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">
                                 <span class="status-pill status-ready">Verified {{ current_user.role }}</span>
-                                <span class="status-pill" style="background: #e0f2fe; color: #0369a1;">Member since
-                                    2023</span>
+                                <span class="status-pill" style="background: #e0f2fe; color: #0369a1;">
+                                    Member since {{ current_user.created_at.strftime('%Y') if current_user.created_at else '2024' }}
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -233,85 +241,49 @@
                                 <nav style="display: flex; flex-direction: column; gap: 4px;">
                                     <a href="#personal-info" class="nav-link active">
                                         <span class="material-symbols-rounded">account_circle</span>
-                                        <span class="nav-label">Personal Info</span>
+                                        <span class="setting-nav-label">Personal Info</span>
                                     </a>
                                     <a href="#security-settings" class="nav-link">
                                         <span class="material-symbols-rounded">shield_lock</span>
-                                        <span class="nav-label">Security</span>
+                                        <span class="setting-nav-label">Security</span>
                                     </a>
                                     <a href="#system-prefs" class="nav-link">
                                         <span class="material-symbols-rounded">tune</span>
-                                        <span class="nav-label">Preferences</span>
+                                        <span class="setting-nav-label">Preferences</span>
                                     </a>
                                 </nav>
                             </div>
                         </aside>
 
                         <div style="display: flex; flex-direction: column; gap: 24px; flex: 1;">
-                            <form id="profile-master-form">
-                                <section id="personal-info" class="activity-section content-section"
-                                    style="margin-bottom: 24px;">
+                            <form id="profile-master-form" method="POST" action="{{ url_for('admin.profile') }}">
+                                <div class="activity-section profile-header-banner" style="margin-bottom: 24px; display: flex; align-items: center; gap: 24px;">
+                                    <div>
+                                        <h2 class="registry-title" style="font-size: 1.5rem; margin-bottom: 4px;">
+                                            {{ current_user.first_name }} {{ current_user.last_name }}
+                                        </h2>
+                                        <p style="margin: 0; color: #64748b; font-weight: 600; font-size: 0.9rem;">
+                                            System {{ current_user.role | capitalize }} • CareMed Iloilo Branch
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <section id="personal-info" class="activity-section content-section" style="margin-bottom: 24px;">
                                     <div class="form-section-header">
                                         <h3 class="registry-title">Personal Information</h3>
                                     </div>
-                                    <div
-                                        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px;">
+                                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px;">
                                         <div class="input-group">
                                             <label>First Name</label>
-                                            <input type="text" name="fname" value="Arjun" required>
+                                            <input type="text" name="fname" value="{{ current_user.first_name }}" required>
                                         </div>
                                         <div class="input-group">
                                             <label>Last Name</label>
-                                            <input type="text" name="lname" value="Deloterio" required>
+                                            <input type="text" name="lname" value="{{ current_user.last_name }}" required>
                                         </div>
                                         <div class="input-group" style="grid-column: 1 / -1;">
                                             <label>Email Address</label>
-                                            <input type="email" name="email" value="a.deloterio@caremed.ph" required>
-                                        </div>
-                                    </div>
-                                </section>
-
-                                <section id="security-settings" class="activity-section content-section"
-                                    style="margin-bottom: 24px;">
-                                    <div class="form-section-header">
-                                        <h3 class="registry-title">Security & Authentication</h3>
-                                    </div>
-                                    <div class="info-display-card"
-                                        style="display: flex; justify-content: space-between; align-items: center; padding: 16px; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 12px;">
-                                        <div style="display: flex; gap: 12px; align-items: center;">
-                                            <span class="material-symbols-rounded"
-                                                style="color: #52B788;">verified_user</span>
-                                            <div>
-                                                <p style="margin: 0; font-weight: 700; font-size: 0.9rem;">Two-Factor
-                                                    Authentication</p>
-                                                <small style="color: #64748b;">Secure your account with 2FA
-                                                    codes.</small>
-                                            </div>
-                                        </div>
-                                        <label class="switch"><input type="checkbox" checked><span
-                                                class="slider"></span></label>
-                                    </div>
-                                </section>
-
-                                <section id="system-prefs" class="activity-section content-section"
-                                    style="margin-bottom: 24px;">
-                                    <div class="form-section-header">
-                                        <h3 class="registry-title">System Preferences</h3>
-                                    </div>
-                                    <div
-                                        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px;">
-                                        <div class="input-group">
-                                            <label>Language</label>
-                                            <select name="lang">
-                                                <option>English (US)</option>
-                                                <option>Filipino</option>
-                                            </select>
-                                        </div>
-                                        <div class="input-group">
-                                            <label>Timezone</label>
-                                            <select name="tz">
-                                                <option>(GMT+08:00) Manila</option>
-                                            </select>
+                                            <input type="email" name="email" value="{{ current_user.email }}" required>
                                         </div>
                                     </div>
                                 </section>
@@ -325,6 +297,7 @@
                     </div>
                 </div>
             </main>
+            
         </div>
     </div>
 
