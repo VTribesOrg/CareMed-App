@@ -209,7 +209,6 @@ def login():
             session['login_email'] = email
             return redirect(url_for("auth.login"))
 
-        # ── Verify password
         try:
             is_valid = passhasher.verify(user.password_hash, password)
         except VerifyMismatchError:
