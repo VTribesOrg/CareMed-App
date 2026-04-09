@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=0.9" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CareMed</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='icons/favicon-circle.png') }}">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap">
@@ -47,64 +47,62 @@
 
         <div class="sidebar-navigation">
             <ul class="nav-menu">
-                <li class="nav-item">
+                <li class="nav-item" title="Dashboard">
                     <a href="{{ url_for('admin.dashboard') }}" class="nav-link active">
                         <span class="material-symbols-rounded">monitoring</span>
                         <span class="nav-label">Dashboard</span>
                     </a>
                 </li>
 
-                <li class="nav-item">
+                <li class="nav-item" title="Inventory">
                     <a href="{{ url_for('admin.products') }}" class="nav-link">
                         <span class="material-symbols-rounded">inventory_2</span>
-                        <span class="nav-label">Inventory & Tanks</span>
+                        <span class="nav-label">Inventory</span>
                     </a>
                 </li>
 
-                <li class="nav-item">
+                <li class="nav-item" title="Refill Requests">
                     <a href="#" class="nav-link">
                         <span class="material-symbols-rounded">gas_meter</span>
                         <span class="nav-label">Refill Requests</span>
                     </a>
                 </li>
 
-                <li class="nav-item">
+                <li class="nav-item" title="Customer Records">
                     <a href="{{ url_for('admin.customers') }}" class="nav-link">
                         <span class="material-symbols-rounded">groups</span>
                         <span class="nav-label">Customer Records</span>
                     </a>
                 </li>
 
-                <li class="nav-item">
+                <li class="nav-item" title="Transactions">
                     <a href="{{ url_for('admin.transactions') }}" class="nav-link">
                         <span class="material-symbols-rounded">receipt_long</span>
                         <span class="nav-label">Transactions</span>
                     </a>
                 </li>
-                
-                <li class="nav-item">
-                    <a href="{{ url_for('admin.payments') }}" class="nav-link">
-                        <span class="material-symbols-rounded">account_balance_wallet</span>
-                        <span class="nav-label">Payment Verifications</span>
-                    </a>
-                </li>
 
-
-                <li class="nav-item">
+                <li class="nav-item" title="Reporst & Analytics">
                     <a href="{{ url_for('admin.reports') }}" class="nav-link">
                         <span class="material-symbols-rounded">analytics</span>
                         <span class="nav-label">Reports & Analytics</span>
                     </a>
                 </li>
-                <li class="nav-item">
+                <li class="nav-item" title="Security Center">
                     <a href="{{ url_for('admin.security_dashboard') }}" class="nav-link">
                         <span class="material-symbols-rounded">security</span>
                         <span class="nav-label">Security Center</span>
                     </a>
                 </li>
+                <li class="nav-item" title="System Logs">
+                    <a href="{{url_for('admin.system_logs')}}" class="nav-link">
+                        <span class="material-symbols-rounded">list_alt</span>
+                        <span class="nav-label">System Logs</span>
+                    </a>
+                </li>
             </ul>
 
-            <div class="sidebar-footer">
+            <div class="sidebar-footer" title="Settings">
                 <a href="javascript:void(0)" class="nav-link settings-link" id="settings-toggle-btn">
                     <span class="material-symbols-rounded">settings</span>
                     <span class="nav-label theme-label">Settings &amp; help</span>
@@ -233,10 +231,11 @@
                     <div class="activity-section" style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #f1f5f9;">
                         <div class="registry-controls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                             <h3 class="registry-title" style="margin: 0; font-size: 1.1rem;">Recent Activity Logs</h3>
-                            <button class="register-asset-btn" style="background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; padding: 8px 16px; border-radius: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            
+                            <a href="{{ url_for('admin.system_logs') }}" class="register-asset-btn" style="text-decoration: none; background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; padding: 2px 10px; border-radius: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer;">
                                 <span class="material-symbols-rounded" style="font-size: 18px;">history</span>
                                 <span>View All</span>
-                            </button>
+                            </a>
                         </div>
                         <table class="medical-data-table" style="width: 100%; border-collapse: collapse;">
                             <thead>

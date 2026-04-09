@@ -1337,12 +1337,13 @@ def process_return(txn_id):
 
     return redirect(url_for('admin.transaction_details', id=txn.id))
 
-@admin_bp.route('/payments')
+@admin_bp.route('/system_logs')
 @limiter.exempt
 @login_required
 @administrator_required
-def payments():
-    return render_template("admin/payments.html")
+def system_logs():
+    all_logs = InventoryLog.query.order_by(InventoryLog.created_at.desc()).all()
+    return render_template('admin/system_logs.html', all_logs=all_logs)
 
 
 @admin_bp.route('/profile', methods=['GET', 'POST'])

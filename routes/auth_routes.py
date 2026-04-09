@@ -425,7 +425,7 @@ def google_login():
     session["oauth_state"] = state
     redirect_uri = url_for("auth.callback", _external=True)
 
-    return google.authorize_redirect(redirect_uri, nonce=nonce, state=state)
+    return google.authorize_redirect(redirect_uri, nonce=nonce, state=state, prompt="select_account")
 
 
 @auth_bp.route("/callback")
@@ -559,6 +559,7 @@ def callback():
 @login_required
 def logout():
     logout_user()
+    session["force_account_select"] = True 
     return redirect(url_for("auth.login"))
 
 

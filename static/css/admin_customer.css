@@ -10,9 +10,8 @@ body {
 .main-wrapper {
     height: 100vh;
     display: flex;
+    flex-direction: row;
 }
-
-
 
 /* ======================================= START OF SIDEBAR ======================================= */
 .medical-sidebar {
@@ -23,14 +22,15 @@ body {
     z-index: 100;
     border-right: 1px solid #dbe2e1;
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    overflow: hidden;
+    flex-shrink: 0;
 }
 
 .viewport-container {
     flex-grow: 1;
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
-    height: 100vh;
+    width: 100%;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -243,6 +243,9 @@ body.ready .viewport-container {
     visibility: hidden;
     pointer-events: none;
 }
+
+
+
 /* ======================================= END OF SIDEBAR ======================================= */
 
 
@@ -465,13 +468,22 @@ body.ready .viewport-container {
     background: white;
     border-radius: 12px;
     border: 1px solid #e2e8f0;
-    min-height: 580px; 
+    min-height: 350px;
+    max-height: 70vh;
     margin-bottom: 0;
-    overflow-y: auto;  
-    overflow-x: auto;  
+    overflow-y: auto;
+    overflow-x: auto;
     position: relative;
+    -webkit-overflow-scrolling: touch;
 }
 
+@media (max-width: 768px) {
+    .table-scroll-container {
+        border-radius: 8px;
+        min-height: 200px;
+        max-height: 60vh;
+    }
+}
 
 
 .medical-data-table thead th {
@@ -711,9 +723,25 @@ body.ready .viewport-container {
     background: #ffffff;
     border-radius: 16px;
     padding: 24px;
+    padding-bottom: 0;
     border: 1px solid #dbe2e1;
     box-shadow: 0 4px 20px rgba(0, 35, 71, 0.05);
+    display: flex;
+    flex-direction: column;
+    min-height: 630px;
+    max-height: 85vh;
+    overflow: hidden;
 }
+
+@media (max-width: 768px) {
+    .asset-registry-card {
+        padding: 16px;
+        border-radius: 12px;
+        min-height: auto;  
+        max-height: none;  
+    }
+}
+
 
 .registry-title {
     margin: 0 0 20px 0;
