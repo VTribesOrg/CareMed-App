@@ -366,7 +366,7 @@ def products():
         ))
 
     if equipment_type and equipment_type != 'all':
-        query = query.filter(Product.equipment_type.ilike(equipment_type)) 
+        query = query.filter(Product.equipment_type.ilike(f"%{equipment_type}%"))
 
     pagination = query.order_by(
         Product.equipment_type.asc(),
@@ -537,7 +537,6 @@ def edit_product(product_id):
     new_description = request.form.get("description", "").strip()
     
     raw_tag = request.form.get("asset_tag", "").strip().upper()
-    new_asset_tag = raw_tag if raw_tag != "" else None
     
     new_offer_type = request.form.get("offer_type", "Both").strip().title()
     new_rent_period = request.form.get("rent_period", "Monthly").strip().title()
@@ -573,19 +572,6 @@ def edit_product(product_id):
         if (product.name or "") != new_name:
             changes.append(f"Name: {product.name or 'N/A'} → {new_name}")
             product.name = new_name
-
-        if product.asset_tag != new_asset_tag:
-            if new_asset_tag:
-                existing = Product.query.filter(
-                    Product.asset_tag == new_asset_tag, 
-                    Product.id != product.id
-                ).first()
-                if existing:
-                    flash(f"Asset Tag {new_asset_tag} is already in use.", "error")
-                    return redirect(url_for('admin.products'))
-            
-            changes.append(f"Tag: {product.asset_tag or 'None'} → {new_asset_tag or 'None'}")
-            product.asset_tag = new_asset_tag
 
         if (product.description or "").strip() != new_description:
             changes.append("Description updated")
@@ -1337,14 +1323,39 @@ def process_return(txn_id):
 
     return redirect(url_for('admin.transaction_details', id=txn.id))
 
+from flask import request
+
 @admin_bp.route('/system_logs')
 @limiter.exempt
 @login_required
 @administrator_required
 def system_logs():
-    all_logs = InventoryLog.query.order_by(InventoryLog.created_at.desc()).all()
-    return render_template('admin/system_logs.html', all_logs=all_logs)
+    page = request.args.get('page', 1, type=int)
+    limit = request.args.get('limit', 10, type=int)
+    search_query = request.args.get('q', '')
+    current_type = request.args.get('type', '')
 
+    query = InventoryLog.query
+
+    if search_query:
+        query = query.filter(InventoryLog.action.ilike(f'%{search_query}%'))
+    if current_type:
+        query = query.filter(InventoryLog.action == current_type)
+
+    pagination = query.order_by(InventoryLog.created_at.desc()).paginate(
+        page=page, 
+        per_page=limit, 
+        error_out=False
+    )
+
+    return render_template(
+        'admin/system_logs.html', 
+        all_logs=pagination.items, 
+        pagination=pagination, 
+        current_limit=limit,
+        search_query=search_query,
+        current_type=current_type
+    )
 
 @admin_bp.route('/profile', methods=['GET', 'POST'])
 @limiter.exempt

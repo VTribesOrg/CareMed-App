@@ -297,16 +297,51 @@
                         </table>
                     </div>
 
-                    <div class="audit-footer">
-                        <div class="pagination-summary">
-                            Showing <span class="highlight">{{ all_logs|length }}</span> entries
+                    <div class="pagination-footer">
+                        <div class="table-limit-control">
+                            <span class="limit-label">Show</span>
+                            <select class="medical-select-page" id="row-limit-select">
+                                <option value="10" {{ 'selected' if current_limit == 10 }}>10</option>
+                                <option value="25" {{ 'selected' if current_limit == 25 }}>25</option>
+                                <option value="50" {{ 'selected' if current_limit == 50 }}>50</option>
+                            </select>
+                            <span class="limit-label">entries</span>
                         </div>
-                        <div class="pagination-nav">
-                            <button class="btn-nav" disabled><span class="material-symbols-rounded">chevron_left</span></button>
-                            <div class="page-indicator">Page <strong>1</strong> of 12</div>
-                            <button class="btn-nav"><span class="material-symbols-rounded">chevron_right</span></button>
+
+                        <div class="pagination-info">
+                            Showing <strong>{{ (pagination.page - 1) * pagination.per_page + 1 }}</strong> 
+                            to <strong>{{ [pagination.page * pagination.per_page, pagination.total]|min }}</strong> 
+                            of <strong>{{ pagination.total }}</strong> entries
+                        </div>
+
+                        <div class="pagination-controls">
+                            {% if pagination.has_prev %}
+                            <a href="{{ url_for('admin.system_logs', page=pagination.prev_num, limit=current_limit, q=search_query, type=current_type) }}" class="pag-btn">
+                                <span class="material-symbols-rounded">chevron_left</span>
+                            </a>
+                            {% else %}
+                            <div class="pag-btn disabled"><span class="material-symbols-rounded">chevron_left</span></div>
+                            {% endif %}
+
+                            <span class="page-number">
+                                Page <strong>{{ pagination.page }}</strong> of {{ pagination.pages }}
+                            </span>
+
+                            {% if pagination.has_next %}
+                            <a href="{{ url_for('admin.system_logs', page=pagination.next_num, limit=current_limit, q=search_query, type=current_type) }}" class="pag-btn">
+                                <span class="material-symbols-rounded">chevron_right</span>
+                            </a>
+                            {% else %}
+                            <div class="pag-btn disabled"><span class="material-symbols-rounded">chevron_right</span></div>
+                            {% endif %}
+
+                            <div class="jump-to-wrapper">
+                                <input type="number" id="jump-page-input" class="jump-input" min="1" max="{{ pagination.pages }}" value="{{ pagination.page }}">
+                                <button class="jump-btn" id="jump-page-submit">Go</button>
+                            </div>
                         </div>
                     </div>
+
                 </div>
             </div>
         </main>
@@ -315,5 +350,6 @@
     </div>
 
     <script src="{{ url_for('static', filename='js/global.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/admin_logs.js') }}"></script>
 </body>
 </html>

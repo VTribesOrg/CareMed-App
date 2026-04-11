@@ -192,7 +192,7 @@
                     <div class="stat-card">
                         <div class="stat-icon blue"><span class="material-symbols-rounded">payments</span></div>
                         <div class="stat-info">
-                            <span class="stat-label">Total Sales Summary</span>
+                            <span class="stat-label">Total Sales</span>
                             <span class="stat-value">₱{{ "{:,.0f}".format(total_sales) }}</span>
                             {# <small style="color: #10b981;">+12% from last month</small> #}
                         </div>
@@ -200,7 +200,7 @@
                     <div class="stat-card">
                         <div class="stat-icon green"><span class="material-symbols-rounded">calendar_month</span></div>
                         <div class="stat-info">
-                            <span class="stat-label">Total Rentals Summary</span>
+                            <span class="stat-label">Total Rentals</span>
                             <span class="stat-value">₱{{ "{:,.0f}".format(total_rentals) }}</span>
                             {#  <small style="color: #10b981;">+5% from last month</small>  #}
                         </div>
@@ -216,7 +216,7 @@
                     <div class="stat-card">
                         <div class="stat-icon red"><span class="material-symbols-rounded">inventory_2</span></div>
                         <div class="stat-info">
-                            <span class="stat-label">Inventory Summary</span>
+                            <span class="stat-label">Inventory</span>
                             <span class="stat-value">{{ total_inventory }} Total</span>
                             {% if low_stock_count > 0 %}
                             <small style="color: #ef4444;">{{ low_stock_count }} Low stock items</small>

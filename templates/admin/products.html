@@ -207,10 +207,10 @@
                                     <span class="material-symbols-rounded filter-icon">filter_list</span>
                                     <select class="medical-select" id="type-filter">
                                         <option value="all" {{ 'selected' if current_type == 'all' }}>All Equipment</option>
-                                        <option value="Oxygen Concentrator" {{ 'selected' if current_type == 'Oxygen Equipment' }}>Oxygen Equipment</option>
-                                        <option value="Wheelchair" {{ 'selected' if current_type == 'Wheelchairs & Mobility' }}>Wheelchairs & Mobility</option>
+                                        <option value="Oxygen Equipment" {{ 'selected' if current_type == 'Oxygen Equipment' }}>Oxygen Equipment</option>
+                                        <option value="Wheelchairs & Mobility" {{ 'selected' if current_type == 'Wheelchairs & Mobility' }}>Wheelchairs & Mobility</option>
                                         <option value="CPAP/BiPAP" {{ 'selected' if current_type == 'CPAP/BiPAP' }}>CPAP/BiPAP</option>
-                                        <option value="Suction Machine" {{ 'selected' if current_type == 'Medical Devices' }}>Medical Devices</option>
+                                        <option value="Medical Devices" {{ 'selected' if current_type == 'Medical Devices' }}>Medical Devices</option>
                                     </select>
                                 </div>
                             </div>
@@ -476,7 +476,6 @@
                                 <label class="clinical-label">Equipment Type</label>
                                 <div class="input-wrapper">
                                     <input type="text" name="equipment_type" class="clinical-input" list="equipment-types" placeholder="e.g. Hospital Bed" required>
-                                    <span class="material-symbols-rounded input-icon">search_insights</span>
                                     <datalist id="equipment-types">
                                         <option value="Hospital Bed"></option>
                                         <option value="Oxygen Equipment"></option>
@@ -490,7 +489,6 @@
                                 <label class="clinical-label">Product Name</label>
                                 <div class="input-wrapper">
                                     <input type="text" name="name" class="clinical-input" placeholder="e.g. Standard Wheelchair" required>
-                                    <span class="material-symbols-rounded input-icon">inventory</span>
                                 </div>
                             </div>
                         </div>
@@ -500,14 +498,12 @@
                                 <label class="clinical-label">Asset Tag <small style="color: #94a3b8; font-weight: normal;">(Optional)</small></label>
                                 <div class="input-wrapper">
                                     <input type="text" name="asset_tag" class="clinical-input" placeholder="e.g. OXY-001" style="text-transform: uppercase;">
-                                    <span class="material-symbols-rounded input-icon">label</span>
                                 </div>
                             </div>
                             <div class="form-field">
                                 <label class="clinical-label">Initial Stock (Units)</label>
                                 <div class="input-wrapper">
                                     <input type="number" name="stock" class="clinical-input" placeholder="0" min="0" required>
-                                    <span class="material-symbols-rounded input-icon">reorder</span>
                                 </div>
                             </div>
                         </div>
@@ -636,7 +632,6 @@
                             <label class="clinical-label">Equipment Type</label>
                             <div class="input-wrapper">
                                 <input type="text" name="equipment_type" id="edit-type" class="clinical-input" list="equipment-types" placeholder="e.g. Hospital Bed" required>
-                                <span class="material-symbols-rounded input-icon">search_insights</span>
                             </div>
                         </div>
 
@@ -644,7 +639,6 @@
                             <label class="clinical-label">Product Name</label>
                             <div class="input-wrapper">
                                 <input type="text" name="name" id="edit-name" class="clinical-input" placeholder="e.g. Standard K1 Wheelchair" required>
-                                <span class="material-symbols-rounded input-icon">inventory</span>
                             </div>
                         </div>
                     </div>

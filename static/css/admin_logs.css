@@ -448,6 +448,8 @@ body.ready .viewport-container {
 
 /*=================================== START OF MAIN CONTENT ===================================*/
 
+/*=================================== contentArea ===================================*/
+
 .content-area {
     padding: 20px 20px 20px 20px;
     flex: 1; 
@@ -481,6 +483,8 @@ body.ready .viewport-container {
 .content-area::-webkit-scrollbar-thumb:hover {
     background-color: #94a3b8; 
 }
+
+/*================================== END OF CONTENT AREA ==================================*/
 
 .audit-container {
     width: 100%;
@@ -698,12 +702,13 @@ body.ready .viewport-container {
 
 .table-responsive {
     width: 100%;
-    max-height: 487px; 
+    height: 500px; 
     overflow-y: auto;
     overflow-x: auto; 
     position: relative;
     border-bottom: 1px solid #f1f5f9;
 }
+
 
 .medical-table {
     width: 100%;
@@ -929,6 +934,228 @@ body.ready .viewport-container {
 }
 
 /*================================ END OF TABLE ============================= */
+
+
+/*================================== START OF Pagination ==================================*/
+
+.pagination-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    border-top: 1px solid #e2e8f0;
+    background: #ffffff;
+    border-radius: 0 0 12px 12px; 
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+
+.table-limit-control {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.limit-label {
+    font-size: 12px;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.select-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.medical-select-page {
+    appearance: none;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 4px 32px 4px 12px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #1e293b;
+    cursor: pointer;
+    height: 28px;
+    min-width: 60px;
+    transition: all 0.2s ease;
+}
+
+.medical-select:hover {
+    border-color: #52B788;
+    background: #ffffff;
+}
+
+
+.pagination-info {
+    font-size: 12px;
+    padding: 4px 10px;
+    color: #64748b;
+    font-weight: 500;
+    background: #f1f5f9;
+    border-radius: 20px;
+}
+
+
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pag-btn {
+    min-width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #e2e8f0;
+    background: white;
+    border-radius: 6px;
+    cursor: pointer;
+    color: #475569;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    text-decoration: none;
+}
+
+.pag-btn:hover:not(.disabled) {
+    background: #f0fdf4;
+    border-color: #52B788;
+    color: #2D6A4F;
+    transform: translateY(-1px);
+}
+
+.page-number {
+    font-size: 12px;
+    color: #1e293b;
+    margin: 0 6px;
+}
+
+
+.jump-to-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: 6px;
+    padding-left: 10px;
+    border-left: 1px solid #e2e8f0;
+}
+
+.jump-text {
+    font-size: 11px;
+    color: #64748b;
+}
+
+.jump-input {
+    width: 36px;
+    height: 28px; 
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.jump-input:focus {
+    border-color: #52B788;
+    box-shadow: 0 0 0 3px rgba(82, 183, 136, 0.1);
+}
+
+.jump-btn {
+    height: 28px;
+    padding: 0 8px;
+    font-size: 11px;
+    background: #1B4332;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: opacity 0.2s;
+}
+
+.jump-btn:hover {
+    opacity: 0.9;
+}
+
+/*================ MOBILE RESPONSIVENESS ================*/
+
+@media (max-width: 768px) {
+    .pagination-info {
+        display: none !important;
+    }
+
+    .pagination-footer {
+        display: flex;
+        flex-direction: row; 
+        flex-wrap: nowrap;  
+        justify-content: space-between;
+        padding: 8px 10px;
+        gap: 5px;         
+    }
+
+    .table-limit-control {
+        gap: 4px;
+    }
+
+    .medical-select-page {
+        min-width: 45px;
+        height: 30px;
+        padding: 0 4px;
+        font-size: 11px;
+    }
+
+    .pagination-controls {
+        gap: 4px;
+        flex: 1;
+        justify-content: flex-end;
+    }
+
+    .pag-btn {
+        min-width: 30px;
+        height: 30px;
+    }
+
+    .page-number {
+        font-size: 11px;
+        margin: 0 2px;
+        white-space: nowrap;
+    }
+
+    .jump-to-wrapper {
+        margin-left: 4px;
+        padding-left: 6px;
+        gap: 4px;
+    }
+
+
+
+    .jump-input {
+        width: 32px;
+        height: 30px;
+        font-size: 11px;
+    }
+
+    .jump-btn {
+        height: 30px;
+        padding: 0 6px;
+        font-size: 10px;
+    }
+}
+
+@media (max-width: 400px) {
+    .page-number strong:last-child {
+        display: none; 
+    }
+}
+
+/*================================== END OF Pagination ==================================*/
+
 
 
 /*================================== END OF MAIN CONTENT==================================*/
