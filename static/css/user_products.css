@@ -85,6 +85,17 @@ nav {
     transform: translateX(5px);
 }
 
+.feature-icon.material-symbols-outlined {
+    font-size: 40px;
+    display: block;
+    margin-bottom: 15px;
+}
+
+.nav-links a.active-link {
+        color: #71b345;     
+        font-weight: 700;         
+        border-bottom: 2px solid #71b345; 
+}
 
 /* ===================================== BRAND ICON: CareMed =====================================  */
 
@@ -697,7 +708,7 @@ img.user-photo-img:after {
 .gallery-container {
     width: 90%;
     max-width: 1200px;
-    margin: 120px auto 60px;
+    margin: 90px auto 60px;
 }
 
 .section-title {

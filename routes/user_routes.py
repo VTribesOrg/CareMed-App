@@ -60,19 +60,15 @@ from sqlalchemy import or_
 @user_bp.route('/products')
 @admin_redirect
 def products():
-    # 1. Get filter parameters from the URL (e.g., /products?category=Hospital+Beds)
     category = request.args.get('category', 'All')
     search_query = request.args.get('search', '').strip()
     sort_option = request.args.get('sort', 'default')
 
-    # 2. Start the base query
     query = Product.query
 
-    # 3. Apply Category Filter
     if category != 'All':
         query = query.filter(Product.equipment_type == category)
 
-    # 4. Apply Search Filter (Searches Name or Description)
     if search_query:
         query = query.filter(
             or_(
@@ -82,18 +78,45 @@ def products():
             )
         )
 
-    # 5. Apply Sorting
     if sort_option == 'price-low':
-        # Sorts by Sale Price first, then Rent Price
         query = query.order_by(Product.sale_price.asc(), Product.rent_price.asc())
     elif sort_option == 'price-high':
         query = query.order_by(Product.sale_price.desc(), Product.rent_price.desc())
 
-    # 6. Execute and Render
     all_products = query.all()
     return render_template('user/products.html', 
                            products=all_products, 
                            current_category=category)
+
+@user_bp.route('/product/<int:product_id>')
+def product_detail(product_id):
+    product = Product.query.get_or_404(product_id)
+    
+    category = request.args.get('category', 'All')
+    search_query = request.args.get('search', '').strip()
+    sort_option = request.args.get('sort', 'default')
+
+    query = Product.query
+
+    if category != 'All':
+        query = query.filter(Product.equipment_type == category)
+
+    if search_query:
+        query = query.filter(
+            or_(
+                Product.name.ilike(f'%{search_query}%'),
+                Product.equipment_type.ilike(f'%{search_query}%'),
+                Product.description.ilike(f'%{search_query}%')
+            )
+        )
+
+    if sort_option == 'price-low':
+        query = query.order_by(Product.sale_price.asc(), Product.rent_price.asc())
+    elif sort_option == 'price-high':
+        query = query.order_by(Product.sale_price.desc(), Product.rent_price.desc())
+
+    all_products = query.all()
+    return render_template('user/product_detail.html', product=product, products=all_products, current_category=category)
 
 
 @user_bp.route('/profile', methods=['GET', 'POST'])
@@ -201,3 +224,4 @@ def change_password():
             errors[field] = msgs
 
         return jsonify(status="error", errors=errors)
+    

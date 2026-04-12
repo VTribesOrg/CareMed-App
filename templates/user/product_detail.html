@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=0.8">
+    <title>{{ product.name }} - CareMed</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='icons/favicon-circle.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/user_products.css') }}">
+
+    <style>
+        /* --- Main Wrapper --- */
+        .product-page-wrapper {
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 0 20px;
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* --- Breadcrumb --- */
+        .pd-breadcrumb-nav {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 30px;
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+
+        .pd-breadcrumb-nav a {
+            text-decoration: none;
+            color: #38BDF8;
+            font-weight: 600;
+        }
+
+        .pd-breadcrumb-nav i {
+            font-size: 0.7rem;
+            color: #cbd5e1;
+        }
+
+        .pd-current-page {
+            color: #64748b;
+        }
+
+        /* --- Container Grid --- */
+        .pd-detail-container {
+            display: grid;
+            grid-template-columns: 1fr 1.1fr;
+            gap: 60px;
+            align-items: flex-start;
+        }
+
+        /* --- Gallery Section --- */
+        .pd-main-image-wrapper {
+            background: #ffffff;
+            border: 1px solid #f1f5f9; 
+            border-radius: 24px;
+            padding: 50px;
+            text-align: center;
+            box-shadow: 0 10px 25px -5px rgba(0, 35, 71, 0.05);
+        }
+
+        .pd-product-img-element {
+            max-width: 100%;
+            height: auto;
+            object-fit: contain;
+            transition: transform 0.5s ease;
+        }
+
+        .pd-main-image-wrapper:hover .pd-product-img-element {
+            transform: scale(1.03);
+        }
+
+        .pd-placeholder-icon {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: #cbd5e1;
+            gap: 10px;
+        }
+
+        .pd-placeholder-icon i {
+            font-size: 4rem;
+        }
+
+        /* --- Info Content Section --- */
+        .pd-product-title {
+            font-size: 2.8rem;
+            font-weight: 800;
+            color: #1a202c; 
+            margin-top: 10px;
+            letter-spacing: -1px;
+        }
+
+        .pd-description-text {
+            font-size: 1.05rem;
+            line-height: 1.7;
+            color: #475569;
+            margin-bottom: 30px;
+        }
+
+        .pd-badges {
+            display: flex;
+            gap: 12px;
+        }
+
+        .pd-badge {
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .pd-badge-available { background: #e0f2fe; color: #0369a1; } 
+        .pd-badge-oos { background: #fef2f2; color: #991b1b; }      
+        .pd-badge-type { background: #ecfdf5; color: #15803d; }    
+
+        /* --- Pricing --- */
+        .pd-price-container {
+            display: flex;
+            gap: 40px;
+            background: #f8fafc; 
+            padding: 15px;
+            border-radius: 16px;
+            margin-bottom: 30px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .pd-price-label {
+            display: block;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #64748b;
+            margin-bottom: 5px;
+            font-weight: 800;
+        }
+
+        .pd-price-amount {
+            font-size: 2rem;
+            color: #1a202c;
+            font-weight: 800;
+        }
+
+        .pd-price-block:last-child .pd-price-amount {
+            color: #38BDF8;
+        }
+
+        /* --- Action Buttons --- */
+        .pd-action-grid {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 40px;
+        }
+
+        .pd-btn-primary, .pd-btn-secondary {
+            flex: 1;
+            height: 56px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .pd-btn-primary {
+            background: #1a202c;
+            color: white;
+        }
+
+        .pd-btn-primary:hover {
+            background: #38BDF8;
+            transform: translateY(-2px);
+        }
+
+        .pd-btn-secondary {
+            background: white;
+            border: 2px solid #1a202c;
+            color: #1a202c;
+        }
+
+        .pd-btn-secondary:hover {
+            background: #f1f5f9;
+        }
+
+        .pd-btn-disabled {
+            flex: 1;
+            height: 56px;
+            border-radius: 10px;
+            background: #e2e8f0;
+            color: #94a3b8;
+            cursor: not-allowed;
+            border: none;
+            font-weight: 700;
+        }
+
+        .pd-btn-wishlist {
+            width: 56px;
+            height: 56px;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+            background: white;
+            color: #64748b;
+            font-size: 1.2rem;
+            transition: 0.2s;
+        }
+
+        .pd-btn-wishlist:hover {
+            background: #fef2f2;
+            color: #ef4444;
+            border-color: #fee2e2;
+        }
+
+        /* --- Trust & Policy --- */
+        .pd-trust-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            border-top: 1px solid #f1f5f9;
+            padding-top: 20px;
+        }
+
+        .pd-trust-item {
+            font-size: 0.9rem;
+            color: #1e293b;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .pd-trust-item i {
+            color: #16a34a;
+        }
+
+        .pd-policy-infobox {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f0fdf4; 
+            border-radius: 12px;
+            border: 1px solid #bbf7d0;
+        }
+
+        .pd-policy-infobox h5 {
+            margin: 0 0 8px 0;
+            color: #16a34a;
+            font-weight: 800;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 0.05em;
+        }
+
+        .pd-policy-infobox p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: #15803d;
+            line-height: 1.5;
+        }
+
+        /* --- Technical Specifications --- */
+        .pd-extra-info {
+            margin-top: 60px;
+            padding-top: 40px;
+            border-top: 2px solid #f1f5f9;
+        }
+
+        .pd-info-tabs {
+            margin-bottom: 30px;
+        }
+
+        .pd-tab-link {
+            background: none;
+            border: none;
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #1a202c;
+            padding-bottom: 10px;
+            border-bottom: 3px solid transparent;
+            cursor: default;
+        }
+
+        .pd-tab-link.pd-active {
+            border-bottom: 3px solid #38BDF8;
+        }
+
+        .pd-specs-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin-bottom: 40px;
+        }
+
+        .pd-specs-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .pd-specs-table td {
+            padding: 16px 0;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 0.95rem;
+            color: #475569;
+        }
+
+        .pd-specs-table td:first-child {
+            font-weight: 700;
+            color: #1e293b;
+            width: 40%;
+        }
+
+        .pd-specs-table td:last-child {
+            color: #38BDF8;
+            font-weight: 600;
+            text-align: right;
+        }
+
+        /* --- Support Mini Cards --- */
+        .pd-support-card-mini {
+            display: flex;
+            gap: 20px;
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            border: 1px solid #e2e8f0;
+            transition: transform 0.3s ease;
+        }
+
+        .pd-support-card-mini:hover {
+            transform: translateX(5px);
+            border-color: #38BDF8;
+        }
+
+        .pd-support-card-mini i {
+            font-size: 1.5rem;
+            color: #38BDF8;
+            margin-top: 3px;
+        }
+
+        .pd-support-card-mini strong {
+            display: block;
+            color: #1e293b;
+            font-size: 1rem;
+            margin-bottom: 4px;
+        }
+
+        .pd-support-card-mini p {
+            margin: 0;
+            font-size: 0.85rem;
+            color: #64748b;
+            line-height: 1.4;
+        }
+
+        /* --- Safety Banner --- */
+        .pd-safety-banner {
+            background: #fffbeb; 
+            border: 1px solid #fef3c7;
+            padding: 20px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-top: 40px;
+            color: #92400e;
+        }
+
+        .pd-safety-banner i {
+            font-size: 1.4rem;
+        }
+
+        .pd-safety-banner span {
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        /* --- Responsive --- */
+        @media (max-width: 968px) {
+            .pd-detail-container {
+                grid-template-columns: 1fr;
+                gap: 40px;
+            }
+            
+            .pd-product-title {
+                font-size: 2.2rem;
+            }
+
+            .pd-specs-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+
+            .pd-price-container {
+                flex-direction: column;
+                gap: 15px;
+            }
+        }
+    </style>
+
+</head>
+
+<body class="{% if current_user.is_authenticated %}logged-in{% else %}guest{% endif %}">
+
+    <input type="checkbox" id="nav-toggle" style="display: none;">
+
+    <div class="side-drawer">
+        <div class="drawer-header">
+            <a href="{{ url_for('user.homepage')}}" style="text-decoration: none;">
+                <div class="nav-logo">
+                    Care<span>Med</span>
+                </div>
+            </a>
+            <label for="nav-toggle" class="close-drawer">
+                <i class="fa-solid fa-xmark"></i>
+            </label>
+        </div>
+
+        <div class="drawer-links">
+            <div class="mobile-user-info auth-only">
+                <div class="user-avatar mobile-user-avatar" id="mobileAvatarContainer">
+                    {% if current_user.is_authenticated and current_user.profile_path %}
+                        <img src="{{ url_for('static', filename=current_user.profile_path) }}" class="user-photo-img" alt="Profile Picture">
+                    {% else %}
+                        <i class="fa-solid fa-circle-user icon-placeholder"></i>
+                    {% endif %}
+                </div>
+
+                <div class="user-details">
+                    <span class="user-name">
+                        {% if current_user.is_authenticated %}
+                            {% if current_user.customer_profile %}
+                                Hello, {{ current_user.customer_profile.first_name }}
+                            {% else %}
+                                Hello, {{ current_user.email.split('@')[0] }} 
+                            {% endif %}
+                        {% else %}
+                            Welcome, Guest
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+
+            <div class="mobile-user-info guest-only">
+                <div class="user-avatar mobile-user-avatar">
+                    <i class="fa-solid fa-circle-user icon-placeholder"></i>
+                </div>
+                <div class="user-details">
+                    <span class="user-name">Welcome, Guest</span>
+                    <span class="user-role">Sign in to manage rentals</span>
+                </div>
+            </div>
+
+            <a href="{{ url_for('user.products')}}" class="guest-only">
+                <i class="fa-solid fa-hand-holding-medical"></i> Start Renting
+            </a>
+
+            <a href="{{ url_for('user.products')}}" class="active">
+                <i class="fa-solid fa-bag-shopping"></i> Browse Equipment
+            </a>
+
+            <a href="{{ url_for('user.homepage')}}#how">
+                <i class="fa-solid fa-circle-info"></i> How It Works
+            </a>
+
+            <a href="{{ url_for('user.homepage')}}#about">
+                <i class="fa-solid fa-building"></i> About
+            </a>
+
+            <a href="{{ url_for('user.profile')}}" class="auth-only">
+                <i class="fa-solid fa-user"></i> My Profile
+            </a>
+
+            <a href="#" class="auth-only">
+                <i class="fa-solid fa-clock-rotate-left"></i> My Rentals
+            </a>
+
+            <hr class="auth-only" style="border: none; border-top: 1px solid #eee; margin: 10px 0;">
+
+            {% if current_user.is_authenticated %}
+                <a href="{{ url_for('auth.logout') }}" class="logout-link-mobile">
+                    <i class="fa-solid fa-right-from-bracket"></i> Sign Out
+                </a>
+            {% else %}
+                <a href="{{ url_for('auth.login') }}" class="login-link-mobile guest-only">
+                    <i class="fa-solid fa-right-to-bracket"></i> Sign In
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <label for="nav-toggle" class="drawer-overlay"></label>
+
+    <nav>
+        <a href="{{ url_for('user.homepage')}}" class="nav-logo-wrapper">
+            <div class="brand-icon-plus">
+                <div class="box blue top"></div>
+                <div class="box green left"></div>
+                <div class="box green right"></div>
+                <div class="box blue bottom"></div>
+            </div> 
+            <div class="nav-logo">Care<span>Med</span></div>
+        </a>
+
+        <div class="nav-links">
+            <a href="{{ url_for('user.products')}}" class="nav-shop-link active hover">
+                <i class="fa-solid fa-bag-shopping"></i> Browse Equipment
+            </a>
+
+            <a href="{{ url_for('user.homepage')}}#how" class="nav-account-btn hover">How It Works</a>
+
+            <a href="{{ url_for('user.homepage')}}#about" class="nav-account-btn hover">About</a>
+
+            <a href="{{ url_for('auth.login')}}" class="nav-account-btn guest-only hover">
+                <i class="fa-solid fa-right-to-bracket"></i> Sign In
+            </a>
+
+            <a href="{{ url_for('user.products')}}" class="nav-cta-btn guest-only hover">Start Renting</a>
+
+            {% if current_user.is_authenticated %}
+                <button class="cart-nav-btn">
+                    <i class="fa-solid fa-cart-shopping"></i> Order Summary
+                    <span class="cart-count-badge" id="cartBadge" style="display: none;">0</span>
+                </button>
+            {% endif %}
+
+            <div class="user-profile-widget auth-only" id="profileDropdown">
+                <div class="profile-trigger" id="profileTrigger">
+                    <div class="user-avatar" id="navAvatarContainer">
+                        {% if current_user.is_authenticated and current_user.profile_path %}
+                            <img src="{{ url_for('static', filename=current_user.profile_path) }}" class="user-photo-img" alt="Profile Picture">
+                        {% else %}
+                            <i class="fa-solid fa-circle-user icon-placeholder"></i>
+                        {% endif %}
+                    </div>
+
+                    <div class="user-info">
+                        <span class="user-name">
+                            {% if current_user.is_authenticated %}
+                                Hello, {{ current_user.customer_profile.first_name }}
+                            {% else %}
+                                Guest
+                            {% endif %}
+                        </span>
+                    </div>
+
+                    <i class="fa-solid fa-chevron-down"></i>
+                </div>
+
+                <div class="dropdown-menu" id="dropdownMenu">
+                    {% if current_user.is_authenticated %}
+                        <a href="{{ url_for('user.profile')}}">
+                            <i class="fa-solid fa-user"></i> My Profile
+                        </a>
+                        <a href="#">
+                            <i class="fa-solid fa-clock-rotate-left"></i> My Rentals
+                        </a>
+                        <hr>
+                        <a href="{{ url_for('auth.logout') }}" class="logout-item">
+                            <i class="fa-solid fa-right-from-bracket"></i> Sign Out
+                        </a>
+                    {% else %}
+                        <a href="{{ url_for('auth.login') }}">
+                            <i class="fa-solid fa-right-to-bracket"></i> Sign In / Register
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <label for="nav-toggle" class="hamburger-icon">
+            <i class="fa-solid fa-bars"></i>
+        </label>
+    </nav>
+
+
+    <main class="gallery-container">
+
+        <div class="product-page-wrapper">
+            <div class="pd-breadcrumb-nav">
+                <a href="{{ url_for('user.homepage') }}">Home</a>
+                <i class="fa-solid fa-chevron-right"></i>
+                <a href="{{ url_for('user.products') }}">Equipment</a>
+                <i class="fa-solid fa-chevron-right"></i>
+                <span class="pd-current-page">{{ product.name }}</span>
+            </div>
+
+            <div class="pd-detail-container">
+                <section class="pd-product-gallery">
+                    <div class="pd-main-image-wrapper">
+                        {% if product.image %}
+                            <img src="{{ url_for('static', filename=product.image) }}" alt="{{ product.name }}" class="pd-product-img-element">
+                        {% else %}
+                            <div class="pd-placeholder-icon">
+                                <i class="fa-solid fa-microscope"></i>
+                                <span>IMAGE PENDING</span>
+                            </div>
+                        {% endif %}
+                    </div>
+                </section>
+
+                <section class="pd-info-section">
+                    <div class="pd-header-group">
+                        <div class="pd-badges">
+                            {% if product.stock > 0 %}
+                                <span class="pd-badge pd-badge-available">
+                                    <i class="fa-solid fa-circle-check"></i> In Stock ({{ product.stock }} units)
+                                </span>
+                            {% else %}
+                                <span class="pd-badge pd-badge-oos">
+                                    <i class="fa-solid fa-circle-xmark"></i> Out of Stock
+                                </span>
+                            {% endif %}
+                            <span class="pd-badge pd-badge-type">{{ product.equipment_type }}</span>
+                        </div>
+                        <h1 class="pd-product-title">{{ product.name }}</h1>
+                    </div>
+
+                    <p class="pd-description-text">{{ product.description }}</p>
+
+                    <div class="pd-price-container">
+                        {% if product.transaction_type in ['Rent', 'Both'] %}
+                            <div class="pd-price-block">
+                                <span class="pd-price-label">Monthly Rental</span>
+                                <strong class="pd-price-amount">₱{{ "{:,.0f}".format(product.rent_price) }}</strong>
+                            </div>
+                        {% endif %}
+                        
+                        {% if product.transaction_type in ['Sale', 'Both'] %}
+                            <div class="pd-price-block">
+                                <span class="pd-price-label">Purchase Price</span>
+                                <strong class="pd-price-amount">₱{{ "{:,.0f}".format(product.sale_price) }}</strong>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="pd-action-grid">
+                        {% if product.stock > 0 %}
+                            {% if product.transaction_type == 'Rent' %}
+                                <button class="pd-btn-primary">
+                                    <i class="fa-solid fa-calendar-day"></i> Rent This Equipment
+                                </button>
+                            {% elif product.transaction_type == 'Sale' %}
+                                <button class="pd-btn-primary">
+                                    <i class="fa-solid fa-cart-plus"></i> Buy Now
+                                </button>
+                            {% else %}
+                                <button class="pd-btn-secondary">Rent</button>
+                                <button class="pd-btn-primary">Buy Now</button>
+                            {% endif %}
+                        {% else %}
+                            <button class="pd-btn-disabled" disabled>Currently Unavailable</button>
+                        {% endif %}
+                        
+                        <button class="pd-btn-wishlist">
+                            <i class="fa-regular fa-heart"></i>
+                        </button>
+                    </div>
+
+                    <div class="pd-trust-grid">
+                        <div class="pd-trust-item"><i class="fa-solid fa-shield-check"></i> FDA Approved</div>
+                        <div class="pd-trust-item"><i class="fa-solid fa-award"></i> CareMed Certified</div>
+                        <div class="pd-trust-item"><i class="fa-solid fa-sparkles"></i> 100% Sanitized</div>
+                        <div class="pd-trust-item"><i class="fa-solid fa-truck-fast"></i> Same-Day Delivery</div>
+                    </div>
+
+                    {% if product.transaction_type in ['Rent', 'Both'] %}
+                    <div class="pd-policy-infobox">
+                        <h5><i class="fa-solid fa-circle-info"></i> Quick Rental Policy</h5>
+                        <p>Requires 1st month payment. Free maintenance included for the duration of the rental.</p>
+                    </div>
+                    {% endif %}
+                </section>
+            </div>
+
+            <div class="pd-extra-info">
+                <div class="pd-info-tabs">
+                    <button class="pd-tab-link pd-active">Technical Specifications</button>
+                </div>
+
+                <div class="pd-specs-grid">
+                    <div class="pd-specs-column">
+                        <table class="pd-specs-table">
+                            <tr>
+                                <td>Equipment Category</td>
+                                <td>{{ product.equipment_type }}</td>
+                            </tr>
+                            <tr>
+                                <td>Condition</td>
+                                <td>Sterilized / Medical Grade</td>
+                            </tr>
+                            <tr>
+                                <td>Availability</td>
+                                <td>Immediate Dispatch</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="pd-specs-column">
+                        <div class="pd-support-card-mini">
+                            <i class="fa-solid fa-screwdriver-wrench"></i>
+                            <div>
+                                <strong>Free Installation</strong>
+                                <p>Our team will set up the equipment at your home.</p>
+                            </div>
+                        </div>
+                        <div class="pd-support-card-mini">
+                            <i class="fa-solid fa-headset"></i>
+                            <div>
+                                <strong>24/7 Support</strong>
+                                <p>Technical assistance available round the clock.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pd-safety-banner">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <span><strong>Safety Note:</strong> Please consult with a healthcare professional before operating this equipment. Detailed user manuals are provided upon delivery.</span>
+            </div>
+        </div>
+
+        <div class="catalog-separator">
+            <header class="header-row">
+                <div class="header-text">
+                    <h2 class="section-title">Explore Our Catalog</h2>
+                    <p>Discover other premium medical solutions.</p>
+                </div>
+
+                <div class="help-banner">
+                    <span class="material-symbols-outlined">support_agent</span>
+                    <span>Consultant: <strong>0912-585-6730</strong></span>
+                </div>
+            </header>
+
+            <div class="category-tabs" id="categoryTabs">
+                <button class="tab-btn active" data-cat="All" onclick="setTab(this)">All Equipment</button>
+                <button class="tab-btn" data-cat="Hospital Beds" onclick="setTab(this)">Beds</button>
+                <button class="tab-btn" data-cat="Oxygen Equipment" onclick="setTab(this)">Oxygen</button>
+                <button class="tab-btn" data-cat="Wheelchairs & Mobility" onclick="setTab(this)">Mobility</button>
+                <button class="tab-btn" data-cat="Medical Devices" onclick="setTab(this)">Devices</button>
+            </div>
+
+            <div class="controls-row">
+                <div class="search-box">
+                    <span class="material-symbols-outlined search-icon-ui">search</span>
+                    <input type="text" id="productSearch" placeholder="Search equipment..." oninput="renderProducts()">
+                </div>
+                <div class="filter-box">
+                    <select id="sortOrder" onchange="renderProducts()">
+                        <option value="default">Sort: Recommended</option>
+                        <option value="price-low">Price: Low to High</option>
+                        <option value="price-high">Price: High to Low</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="product-grid" id="productGrid">
+                {% for product in products %}
+                    <div class="product-card" data-name="{{ product.name }}" data-category="{{ product.equipment_type }}">
+                        
+                        <div class="card-overlays">
+                            <div class="stock-tag {% if product.stock <= 0 %}status-out{% else %}status-in{% endif %}">
+                                {% if product.stock > 0 %}
+                                    <i class="fa-solid fa-check"></i> IN STOCK
+                                {% else %}
+                                    <i class="fa-solid fa-xmark"></i> OUT OF STOCK
+                                {% endif %}
+                            </div>
+
+                            <div class="type-tag trans-{{ product.transaction_type | lower }}">
+                                {% if product.transaction_type == 'Rent' %}
+                                    Rent Only
+                                {% elif product.transaction_type == 'Sale' %}
+                                    Purchase Only
+                                {% else %}
+                                    Rent & Buy
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="product-image-box">
+                            <a href="{{ url_for('user.product_detail', product_id=product.id) }}" style="text-decoration: none; color: inherit; display: block; height: 100%; width: 100%;">
+                                {% if product.image and product.image != 'None' %}
+                                    <img src="{{ url_for('static', filename=product.image) }}" alt="{{ product.name }}" class="product-img-element">
+                                {% else %}
+                                    <div class="placeholder-icon">
+                                        <i class="fa-solid fa-microscope"></i>
+                                        <span>IMAGE PENDING</span>
+                                    </div>
+                                {% endif %}
+                            </a>
+                        </div>
+                        
+                        <div class="product-text-block">
+                            <a href="{{ url_for('user.product_detail', product_id=product.id) }}"style="text-decoration: none;" >
+                                <h3 class="display-name">{{ product.name }}</h3>
+                            </a>
+                            <span class="equipment-category">{{ product.equipment_type }}</span>
+                        </div>
+
+                        <ul class="product-specs desktop-only-specs">
+                            {% if product.description and product.description != 'None' %}
+                                <li class="product-description-text">
+                                    <i class="fa-solid fa-circle-info"></i> 
+                                    {{ product.description | truncate(65) }}
+                                </li>
+                            {% else %}
+                                <li class="spec-sanitized"><i class="fa-solid fa-circle-check"></i> Sanitized</li>
+                                <li><i class="fa-solid fa-truck-fast"></i> Delivery Available</li>
+                            {% endif %}
+                        </ul>
+
+                        <div class="pricing-container {% if product.transaction_type == 'Both' %}has-dual{% else %}has-single{% endif %}">
+                            {% if product.transaction_type in ['Rent', 'Both'] %}
+                            <div class="price-block rent">
+                                <span class="price-label">RENTAL</span>
+                                <p class="price-amount">
+                                    ₱{{ "{:,.0f}".format(product.rent_price or 0) }}
+                                    <span class="period">/{{ product.rent_period or 'Month' }}</span>
+                                </p>
+                            </div>
+                            {% endif %}
+
+                            {% if product.transaction_type == 'Both' %}
+                                <div class="price-separator"></div>
+                            {% endif %}
+
+                            {% if product.transaction_type in ['Sale', 'Both'] %}
+                            <div class="price-block sale">
+                                <span class="price-label">PURCHASE</span>
+                                <p class="price-amount">₱{{ "{:,.0f}".format(product.sale_price or 0) }}</p>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="action-grid">
+                            {% if product.transaction_type in ['Rent', 'Both'] %}
+                                {% if current_user.is_authenticated %}
+                                    {% if product.stock > 0 %}
+                                        <button class="btn-action btn-rent-outline" onclick="handleAction('rent', '{{ product.id }}')">
+                                            <i class="fa-solid fa-calendar-day"></i> Rent Now
+                                        </button>
+                                    {% else %}
+                                        <a href="{{ url_for('user.product_detail', product_id=product.id) }}" class="btn-action btn-guest" style="background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0;">
+                                            <i class="fa-solid fa-circle-info"></i> View Details
+                                        </a>
+                                    {% endif %}
+                                {% else %}
+                                    <a href="{{ url_for('auth.login') }}" class="btn-action btn-guest">
+                                        <i class="fa-solid fa-lock"></i> Login to Rent
+                                    </a>
+                                {% endif %}
+                            {% endif %}
+
+                            {% if product.transaction_type in ['Sale', 'Both'] %}
+                                {% if product.stock > 0 %}
+                                    <button class="btn-action btn-buy-solid" onclick="handleAction('buy', '{{ product.id }}')">
+                                        <i class="fa-solid fa-cart-plus"></i> Buy
+                                    </button>
+                                {% else %}
+                                    {% if product.transaction_type == 'Sale' %}
+                                        <a href="{{ url_for('user.product_detail', product_id=product.id) }}" class="btn-action btn-guest" style="background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0;">
+                                            <i class="fa-solid fa-circle-info"></i> View Details
+                                        </a>
+                                    {% endif %}
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <p>No medical equipment currently available for display.</p>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </main>
+
+    <footer id="footer">
+        <div class="footer-grid">
+            <div class="footer-col">
+                <div class="footer-logo">Care<span>Med</span></div>
+                <p>Providing the highest standard of medical equipment rentals and sales since 2010.</p>
+            </div>
+            <div class="footer-col">
+                <h4>Quick Links</h4>
+                <ul>
+                    <li>Terms of Service</li>
+                    <li>Rental Policy</li>
+                    <li>Privacy Policy</li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h4>Contact Us</h4>
+                <p><span class="material-symbols-outlined footer-icon-small">call</span> +63 912 585 6730</p>
+                <p><span class="material-symbols-outlined footer-icon-small">mail</span> support@caremed.com</p>
+                <p><span class="material-symbols-outlined footer-icon-small">location_on</span> Oñte de leon, Mandurrao, Iloilo City</p>
+            </div>
+        </div>
+        <div class="copyright">
+            &copy; 2026 CareMed Medical Systems. All Rights Reserved.
+        </div>
+    </footer>
+
+        
+
+    
+</body>
+
+</html>
+
+
