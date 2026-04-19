@@ -149,51 +149,61 @@
             color: #38BDF8;
         }
 
-        /* --- Action Buttons --- */
+        /* --- Action Grid --- */
         .pd-action-grid {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 40px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+            margin-bottom: 30px;
         }
 
-        .pd-btn-primary, .pd-btn-secondary {
-            flex: 1;
-            height: 56px;
+
+        .pd-btn-primary,
+        .pd-btn-secondary {
+            height: 54px;
             border-radius: 10px;
-            font-size: 1rem;
-            font-weight: 700;
+            font-size: 0.95rem;
+            font-weight: 600;
             cursor: pointer;
-            border: none;
             transition: all 0.2s ease;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 10px;
+            gap: 8px;
+            text-decoration: none;
+            white-space: nowrap;
         }
 
+
         .pd-btn-primary {
-            background: #1a202c;
+            background: linear-gradient(135deg, #2563eb, #3b82f6);
             color: white;
+            border: none;
         }
 
         .pd-btn-primary:hover {
-            background: #38BDF8;
+            background: linear-gradient(135deg, #1d4ed8, #2563eb);
             transform: translateY(-2px);
+            box-shadow: 0 6px 14px rgba(37, 99, 235, 0.25);
         }
 
+
         .pd-btn-secondary {
-            background: white;
-            border: 2px solid #1a202c;
-            color: #1a202c;
+            background: #ffffff;
+            border: 2px solid #e2e8f0;
+            color: #1e293b;
         }
 
         .pd-btn-secondary:hover {
-            background: #f1f5f9;
+            border-color: #2563eb;
+            color: #2563eb;
+            background: #f8fafc;
         }
 
+
         .pd-btn-disabled {
-            flex: 1;
-            height: 56px;
+            grid-column: 1 / -1;
+            height: 54px;
             border-radius: 10px;
             background: #e2e8f0;
             color: #94a3b8;
@@ -202,21 +212,86 @@
             font-weight: 700;
         }
 
+        /* --- Wishlist --- */
         .pd-btn-wishlist {
-            width: 56px;
-            height: 56px;
+            width: 54px;
+            height: 54px;
+            flex: 0 0 54px; 
             border-radius: 10px;
             border: 1px solid #e2e8f0;
             background: white;
             color: #64748b;
-            font-size: 1.2rem;
-            transition: 0.2s;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .pd-btn-wishlist:hover {
             background: #fef2f2;
             color: #ef4444;
             border-color: #fee2e2;
+            transform: translateY(-2px);
+        }
+
+        .pd-btn-wishlist:active {
+            transform: scale(0.95);
+        }
+
+        .pd-btn-wishlist i {
+            font-size: 1.1rem;
+        }
+
+        .pd-btn-wishlist {
+            justify-self: end; 
+        }
+
+
+        .pd-btn-primary i,
+        .pd-btn-secondary i {
+            font-size: 0.9rem;
+        }
+
+
+        .pd-btn-primary:active,
+        .pd-btn-secondary:active {
+            transform: scale(0.97);
+        }
+
+
+
+        /* Tablet */
+        @media (max-width: 768px) {
+            .pd-action-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .pd-btn-primary,
+            .pd-btn-secondary {
+                font-size: 0.9rem;
+                height: 50px;
+            }
+        }
+
+        /* Mobile */
+        @media (max-width: 480px) {
+            .pd-action-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .pd-btn-primary,
+            .pd-btn-secondary {
+                width: 100%;
+                height: 50px;
+                font-size: 0.9rem;
+            }
+
+            .pd-btn-wishlist {
+                width: 100%;
+            }
         }
 
         /* --- Trust & Policy --- */
@@ -640,28 +715,99 @@
                         {% endif %}
                     </div>
 
-                    <div class="pd-action-grid">
-                        {% if product.stock > 0 %}
-                            {% if product.transaction_type == 'Rent' %}
-                                <button class="pd-btn-primary">
-                                    <i class="fa-solid fa-calendar-day"></i> Rent This Equipment
+                <div class="pd-action-grid">
+                    {% if product.stock > 0 %}
+
+                        {% if product.transaction_type == 'Rent' %}
+                            {% if current_user.is_authenticated %}
+
+                                <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
+                                class="pd-btn-secondary">
+                                    <i class="fa-solid fa-cart-plus"></i> Add Rental
+                                </a>
+
+                                <button class="pd-btn-primary" onclick="handleAction('rent', '{{ product.id }}')">
+                                    <i class="fa-solid fa-calendar-day"></i> Rent Now
                                 </button>
-                            {% elif product.transaction_type == 'Sale' %}
-                                <button class="pd-btn-primary">
-                                    <i class="fa-solid fa-cart-plus"></i> Buy Now
-                                </button>
+
                             {% else %}
-                                <button class="pd-btn-secondary">Rent</button>
-                                <button class="pd-btn-primary">Buy Now</button>
+                                <a href="{{ url_for('auth.login', next=request.path) }}"
+                                class="pd-btn-primary"
+                                style="text-decoration: none; text-align: center;">
+                                    <i class="fa-solid fa-lock"></i> Login to Rent
+                                </a>
                             {% endif %}
+
+                        {% elif product.transaction_type == 'Sale' %}
+                            {% if current_user.is_authenticated %}
+
+                                {% if (product.id, 'Sale') in in_cart_items %}
+                                    <button class="btn-action" disabled style="background: #f1f5f9; color: #16a34a; border: 1px solid #16a34a; cursor: default;">
+                                        <i class="fa-solid fa-check"></i> In Cart
+                                    </button>
+                                {% else %}
+                                    <form action="{{ url_for('user.add_to_cart', product_id=product.id) }}" method="POST" style="display: contents;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="hidden" name="item_type" value="Sale">
+                                        <button type="submit" class="pd-btn-secondary">
+                                            <i class="fa-solid fa-cart-plus"></i> Add to Cart
+                                        </button>
+                                    </form>
+                                {% endif %}
+
+                                <button class="pd-btn-primary">
+                                    <i class="fa-solid fa-bolt"></i> Buy Now
+                                </button>
+
+                            {% else %}
+                                <a href="{{ url_for('auth.login', next=request.path) }}"
+                                class="pd-btn-primary"
+                                style="text-decoration: none; text-align: center;">
+                                    <i class="fa-solid fa-lock"></i> Login to Buy
+                                </a>
+                            {% endif %}
+
                         {% else %}
-                            <button class="pd-btn-disabled" disabled>Currently Unavailable</button>
+                            {% if current_user.is_authenticated %}
+
+                                <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
+                                class="pd-btn-secondary">
+                                    <i class="fa-solid fa-cart-plus"></i> Add Rental
+                                </a>
+
+                                <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
+                                class="pd-btn-secondary">
+                                    <i class="fa-solid fa-cart-plus"></i> Add to Cart
+                                </a>
+
+                                <button class="pd-btn-primary" onclick="handleAction('rent', '{{ product.id }}')">
+                                    <i class="fa-solid fa-calendar-day"></i> Rent Now
+                                </button>
+
+                                <button class="pd-btn-primary" onclick="handleAction('buy', '{{ product.id }}')">
+                                    <i class="fa-solid fa-bolt"></i> Buy Now
+                                </button>
+
+                            {% else %}
+                                <a href="{{ url_for('auth.login', next=request.path) }}"
+                                class="pd-btn-primary"
+                                style="text-decoration: none; text-align: center; grid-column: span 2;">
+                                    <i class="fa-solid fa-lock"></i> Login to Rent or Buy
+                                </a>
+                            {% endif %}
                         {% endif %}
-                        
-                        <button class="pd-btn-wishlist">
-                            <i class="fa-regular fa-heart"></i>
+
+                    {% else %}
+                        <button class="pd-btn-disabled" disabled>
+                            Currently Unavailable
                         </button>
-                    </div>
+                    {% endif %}
+
+
+                    <button class="pd-btn-wishlist">
+                        <i class="fa-regular fa-heart"></i>
+                    </button>
+                </div>
 
                     <div class="pd-trust-grid">
                         <div class="pd-trust-item"><i class="fa-solid fa-shield-check"></i> FDA Approved</div>
@@ -844,11 +990,21 @@
                             {% if product.transaction_type in ['Rent', 'Both'] %}
                                 {% if current_user.is_authenticated %}
                                     {% if product.stock > 0 %}
-                                        <button class="btn-action btn-rent-outline" onclick="handleAction('rent', '{{ product.id }}')">
+
+                                        <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
+                                        class="btn-action btn-rent-outline">
+                                            <i class="fa-solid fa-cart-plus"></i> Add Rental
+                                        </a>
+
+                                        <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
+                                        class="btn-action btn-rent-outline">
                                             <i class="fa-solid fa-calendar-day"></i> Rent Now
-                                        </button>
+                                        </a>
+
                                     {% else %}
-                                        <a href="{{ url_for('user.product_detail', product_id=product.id) }}" class="btn-action btn-guest" style="background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0;">
+                                        <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
+                                        class="btn-action btn-guest"
+                                        style="background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0;">
                                             <i class="fa-solid fa-circle-info"></i> View Details
                                         </a>
                                     {% endif %}
@@ -861,12 +1017,38 @@
 
                             {% if product.transaction_type in ['Sale', 'Both'] %}
                                 {% if product.stock > 0 %}
-                                    <button class="btn-action btn-buy-solid" onclick="handleAction('buy', '{{ product.id }}')">
-                                        <i class="fa-solid fa-cart-plus"></i> Buy
-                                    </button>
+                                    {% if current_user.is_authenticated %}
+
+                                    {% if (product.id, 'Sale') in in_cart_items %}
+                                        <button class="btn-action" disabled style="background: #f1f5f9; color: #16a34a; border: 1px solid #16a34a; cursor: default;">
+                                            <i class="fa-solid fa-check"></i> In Cart
+                                        </button>
+                                    {% else %}
+                                        <form action="{{ url_for('user.add_to_cart', product_id=product.id) }}" method="POST" style="display: contents;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <input type="hidden" name="item_type" value="Sale">
+                                            <button type="submit"  class="btn-action btn-buy-solid" style="background: #fff; color: #16a34a; border: 1px solid #16a34a;">
+                                                <i class="fa-solid fa-cart-plus"></i> Add to Cart
+                                            </button>
+                                        </form>
+                                    {% endif %}
+
+                                        <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
+                                        class="btn-action btn-buy-solid">
+                                            <i class="fa-solid fa-bolt"></i> Buy Now
+                                        </a>
+
+                                    {% else %}
+                                        <a href="{{ url_for('auth.login') }}"
+                                        class="btn-action btn-buy-solid">
+                                            <i class="fa-solid fa-lock"></i> Login to Buy
+                                        </a>
+                                    {% endif %}
                                 {% else %}
                                     {% if product.transaction_type == 'Sale' %}
-                                        <a href="{{ url_for('user.product_detail', product_id=product.id) }}" class="btn-action btn-guest" style="background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0;">
+                                        <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
+                                        class="btn-action btn-guest"
+                                        style="text-decoration: none; background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0;">
                                             <i class="fa-solid fa-circle-info"></i> View Details
                                         </a>
                                     {% endif %}
@@ -910,7 +1092,7 @@
         </div>
     </footer>
 
-        
+    <script src="{{ url_for('static', filename='js/users/products.js') }}"></script>
 
     
 </body>

@@ -320,11 +320,21 @@
                         {% if product.transaction_type in ['Rent', 'Both'] %}
                             {% if current_user.is_authenticated %}
                                 {% if product.stock > 0 %}
-                                    <button class="btn-action btn-rent-outline" onclick="handleAction('rent', '{{ product.id }}')">
+
+                                    <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
+                                    class="btn-action btn-rent-outline">
+                                        <i class="fa-solid fa-cart-plus"></i> Add Rental
+                                    </a>
+
+                                    <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
+                                    class="btn-action btn-rent-outline">
                                         <i class="fa-solid fa-calendar-day"></i> Rent Now
-                                    </button>
+                                    </a>
+
                                 {% else %}
-                                    <a href="{{ url_for('user.product_detail', product_id=product.id) }}" class="btn-action btn-guest" style="background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0;">
+                                    <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
+                                    class="btn-action btn-guest"
+                                    style="background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0;">
                                         <i class="fa-solid fa-circle-info"></i> View Details
                                     </a>
                                 {% endif %}
@@ -337,12 +347,38 @@
 
                         {% if product.transaction_type in ['Sale', 'Both'] %}
                             {% if product.stock > 0 %}
-                                <button class="btn-action btn-buy-solid" onclick="handleAction('buy', '{{ product.id }}')">
-                                    <i class="fa-solid fa-cart-plus"></i> Buy
-                                </button>
+                                {% if current_user.is_authenticated %}
+
+                                    {% if (product.id, 'Sale') in in_cart_items %}
+                                        <button class="btn-action" disabled style="background: #f1f5f9; color: #16a34a; border: 1px solid #16a34a; cursor: default;">
+                                            <i class="fa-solid fa-check"></i> In Cart
+                                        </button>
+                                    {% else %}
+                                        <form action="{{ url_for('user.add_to_cart', product_id=product.id) }}" method="POST" style="display: contents;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <input type="hidden" name="item_type" value="Sale">
+                                            <button type="submit"  class="btn-action btn-buy-solid" style="background: #fff; color: #16a34a; border: 1px solid #16a34a;">
+                                                <i class="fa-solid fa-cart-plus"></i> Add to Cart
+                                            </button>
+                                        </form>
+                                    {% endif %}
+
+                                    <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
+                                    class="btn-action btn-buy-solid">
+                                        <i class="fa-solid fa-bolt"></i> Buy Now
+                                    </a>
+
+                                {% else %}
+                                    <a href="{{ url_for('auth.login') }}"
+                                    class="btn-action btn-buy-solid">
+                                        <i class="fa-solid fa-lock"></i> Login to Buy
+                                    </a>
+                                {% endif %}
                             {% else %}
                                 {% if product.transaction_type == 'Sale' %}
-                                    <a href="{{ url_for('user.product_detail', product_id=product.id) }}" class="btn-action btn-guest" style="background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0;">
+                                    <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
+                                    class="btn-action btn-guest"
+                                    style="text-decoration: none; background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0;">
                                         <i class="fa-solid fa-circle-info"></i> View Details
                                     </a>
                                 {% endif %}
@@ -393,8 +429,8 @@
         <span id="toastMsg"></span>
     </div>
 
-
-    <script nonce="{{ csp_nonce() }}" src="{{ url_for('static', filename='js/users/products.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/users/products.js') }}"></script>
+   
     
 </body>
 

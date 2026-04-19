@@ -6,7 +6,7 @@ from extensions import db, passhasher, limiter
 from forms.update_profile_form import UpdateProfileForm, ChangePasswordForm
 from functools import wraps
 from models.customer import Customer
-from models.product import Product
+from models.product import Product, Cart, CartItem
 import random
 
 user_bp = Blueprint('user', __name__, url_prefix='/customer')
@@ -84,9 +84,14 @@ def products():
         query = query.order_by(Product.sale_price.desc(), Product.rent_price.desc())
 
     all_products = query.all()
-    return render_template('user/products.html', 
-                           products=all_products, 
-                           current_category=category)
+    
+    in_cart_items = []
+    if current_user.is_authenticated:
+        user_cart = Cart.query.filter_by(user_id=current_user.id).first()
+        if user_cart:
+            in_cart_items = [(item.product_id, item.item_type) for item in user_cart.items]
+            
+    return render_template('user/products.html', products=all_products, current_category=category, in_cart_items=in_cart_items)
 
 @user_bp.route('/product/<int:product_id>')
 def product_detail(product_id):
@@ -116,7 +121,14 @@ def product_detail(product_id):
         query = query.order_by(Product.sale_price.desc(), Product.rent_price.desc())
 
     all_products = query.all()
-    return render_template('user/product_detail.html', product=product, products=all_products, current_category=category)
+    
+    in_cart_items = []
+    if current_user.is_authenticated:
+        user_cart = Cart.query.filter_by(user_id=current_user.id).first()
+        if user_cart:
+            in_cart_items = [(item.product_id, item.item_type) for item in user_cart.items]
+            
+    return render_template('user/product_detail.html', product=product, products=all_products, current_category=category, in_cart_items=in_cart_items)
 
 
 @user_bp.route('/profile', methods=['GET', 'POST'])
@@ -225,3 +237,66 @@ def change_password():
 
         return jsonify(status="error", errors=errors)
     
+from flask import request, redirect, url_for, flash, render_template
+
+@user_bp.route('/add-to-cart/<int:product_id>', methods=['POST'])
+@login_required
+def add_to_cart(product_id):
+    user_cart = Cart.query.filter_by(user_id=current_user.id).first()
+    if not user_cart:
+        user_cart = Cart(user_id=current_user.id)
+        db.session.add(user_cart)
+        db.session.commit()
+
+    item_type = request.form.get('item_type')
+    
+    existing_item = CartItem.query.filter_by(
+        cart_id=user_cart.id, 
+        product_id=product_id, 
+        item_type=item_type
+    ).first()
+
+    if existing_item:
+        existing_item.quantity += 1
+    else:
+        product = Product.query.get_or_404(product_id)
+        price = product.sale_price if item_type == 'Sale' else product.rent_price
+        
+        new_item = CartItem(
+            cart_id=user_cart.id,
+            product_id=product_id,
+            item_type=item_type,
+            price_at_addition=price or 0
+        )
+        db.session.add(new_item)
+
+    try:
+        db.session.commit()
+        flash(f"Successfully added {item_type} to your cart!", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash("Could not add item to cart. Please try again.", "error")
+
+    return redirect(request.referrer or url_for('user.products'))
+
+@user_bp.route('/remove-from-cart/<int:product_id>', methods=['POST'])
+@login_required
+def remove_from_cart(product_id):
+    item_type = request.form.get('item_type')
+    user_cart = Cart.query.filter_by(user_id=current_user.id).first()
+    
+    if user_cart:
+        item_to_remove = CartItem.query.filter_by(
+            cart_id=user_cart.id, 
+            product_id=product_id, 
+            item_type=item_type
+        ).first()
+        
+        if item_to_remove:
+            db.session.delete(item_to_remove)
+            db.session.commit()
+            flash(f"Removed {item_type} from cart.", "info")
+        else:
+            flash("Item not found in cart.", "warning")
+            
+    return redirect(request.referrer or url_for('user.products'))

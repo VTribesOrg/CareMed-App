@@ -279,3 +279,29 @@ class Expense(db.Model):
     recorded_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     date_incurred = db.Column(db.Date, default=datetime.utcnow)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    
+class Cart(db.Model):
+    __tablename__ = "cart"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    items = db.relationship("CartItem", back_populates="cart", cascade="all, delete-orphan")
+    user = db.relationship("User", backref=db.backref("cart", uselist=False))
+
+class CartItem(db.Model):
+    __tablename__ = "cart_item"
+    id = db.Column(db.Integer, primary_key=True)
+    cart_id = db.Column(db.Integer, db.ForeignKey("cart.id"), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey("product.id"), nullable=False)
+    
+    quantity = db.Column(db.Integer, default=1)
+    item_type = db.Column(db.String(20), nullable=False) 
+    
+    # Optional: Cache the price at the time of adding to cart
+    price_at_addition = db.Column(db.Numeric(10, 2))
+
+    cart = db.relationship("Cart", back_populates="items")
+    product = db.relationship("Product")

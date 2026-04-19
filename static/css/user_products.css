@@ -867,7 +867,7 @@ img.user-photo-img:after {
     display: flex;
     flex-direction: column;
     position: relative;
-    max-height: 700px;
+    max-height: 600px;
 }
 
 .product-card:hover {
@@ -1307,7 +1307,7 @@ img.user-photo-img:after {
 
 .action-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
     gap: 10px;
 }
 
@@ -1315,37 +1315,90 @@ img.user-photo-img:after {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 6px;
     padding: 12px;
     border-radius: 10px;
-    font-weight: 700;
+    font-weight: 600;
     font-size: 0.85rem;
     transition: all 0.2s ease;
     cursor: pointer;
-    border: none;
+    text-decoration: none;
+    border: 2px solid transparent;
+    white-space: nowrap;
 }
 
-.btn-rent-outline {
-    background: white;
-    border: 2px solid #1e293b;
-    color: #1e293b;
-}
-
-.btn-buy-solid {
-    background: #1e293b;
+.btn-buy-solid,
+.btn-rent-now {
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
     color: white;
 }
 
-.btn-buy-solid:hover {
-    background: #38BDF8;
+.btn-buy-solid:hover,
+.btn-rent-now:hover {
+    background: linear-gradient(135deg, #1d4ed8, #2563eb);
+    transform: translateY(-1px);
+}
+
+.btn-buy-outline,
+.btn-rent-outline {
+    background: #ffffff;
+    border: 2px solid #e2e8f0;
+    color: #1e293b;
+}
+
+.btn-buy-outline:hover,
+.btn-rent-outline:hover {
+    border-color: #2563eb;
+    color: #2563eb;
+    background: #f8fafc;
+}
+
+.btn-rent-outline {
+    border-color: #c7d2fe;
+}
+
+.btn-rent-now {
+    background: linear-gradient(135deg, #1d4ed8, #2563eb);
 }
 
 .btn-guest {
-    text-decoration: none;
     background: #f1f5f9;
     color: #64748b;
     border: 1px dashed #cbd5e1;
 }
+
+.btn-action i {
+    font-size: 0.8rem;
+}
+
+.btn-action:active {
+    transform: scale(0.96);
+}
+
+@media (max-width: 768px) {
+    .action-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+
+    .btn-action {
+        font-size: 0.8rem;
+        padding: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .action-grid {
+        grid-template-columns: 1fr; 
+    }
+
+    .btn-action {
+        font-size: 0.8rem;
+        padding: 11px;
+        border-radius: 8px;
+    }
+}
+
 
 .stock-badge.out-of-stock {
     background: #fee2e2;
