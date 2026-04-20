@@ -599,10 +599,17 @@
             <a href="{{ url_for('user.products')}}" class="nav-cta-btn guest-only hover">Start Renting</a>
 
             {% if current_user.is_authenticated %}
-                <button class="cart-nav-btn">
-                    <i class="fa-solid fa-cart-shopping"></i> Order Summary
-                    <span class="cart-count-badge" id="cartBadge" style="display: none;">0</span>
-                </button>
+                <a href="{{ url_for('user.cart') }}" class="nav-cart-wrapper" title="View Cart">
+                    <div class="cart-icon-container">
+                        <i class="fa-solid fa-cart-shopping"></i>
+                        
+                        {% set cart_count = current_user.cart.items|length if current_user.cart else 0 %}
+                        
+                        {% if cart_count > 0 %}
+                            <span class="cart-badge" id="cartBadge">{{ cart_count }}</span>
+                        {% endif %}
+                    </div>
+                </a>
             {% endif %}
 
             <div class="user-profile-widget auth-only" id="profileDropdown">

@@ -300,3 +300,85 @@ def remove_from_cart(product_id):
             flash("Item not found in cart.", "warning")
             
     return redirect(request.referrer or url_for('user.products'))
+
+
+@user_bp.route('/cart')
+@login_required
+def cart():
+    user_cart = Cart.query.filter_by(user_id=current_user.id).first()
+    
+    in_cart_items = []
+    if user_cart:
+        in_cart_items = [(item.product_id, item.item_type) for item in user_cart.items]
+
+    product_ids = [item[0] for item in in_cart_items]
+    cart_products = Product.query.filter(Product.id.in_(product_ids)).all() if product_ids else []
+
+    total_amount = 0
+    for product in cart_products:
+        if (product.id, 'Sale') in in_cart_items:
+            total_amount += (product.sale_price or 0)
+        if (product.id, 'Rental') in in_cart_items:
+            total_amount += (product.rent_price or 0)
+
+    return render_template(
+        'user/user_cart.html', 
+        products=cart_products, 
+        in_cart_items=in_cart_items,
+        total_amount=total_amount
+    )
+    
+@user_bp.route('/cart/action', methods=['POST'])
+@login_required
+def cart_actions():
+    action = request.form.get('action')
+    single_delete_val = request.form.get('single_delete')
+    selected_items = request.form.getlist('selected_items')
+    
+    user_cart = Cart.query.filter_by(user_id=current_user.id).first()
+    if not user_cart:
+        flash("Your cart is empty.", "warning")
+        return redirect(url_for('user.cart'))
+
+    to_delete = []
+
+    if single_delete_val:
+        to_delete.append(single_delete_val)
+
+    elif action == 'delete_selected':
+        if not selected_items:
+            flash("No items selected to delete.", "warning")
+            return redirect(url_for('user.cart'))
+        to_delete = selected_items
+
+    elif action == 'checkout':
+        if not selected_items:
+            flash("Please select at least one item to proceed to checkout.", "warning")
+            return redirect(url_for('user.cart'))
+        
+
+        flash("Proceeding to checkout with selected items...", "success")
+        return redirect(url_for('user.cart')) #
+
+    if to_delete:
+        try:
+            for item in to_delete:
+                p_id, i_type = item.split(':')
+                
+                item_to_remove = CartItem.query.filter_by(
+                    cart_id=user_cart.id, 
+                    product_id=int(p_id), 
+                    item_type=i_type
+                ).first()
+                
+                if item_to_remove:
+                    db.session.delete(item_to_remove)
+            
+            db.session.commit()
+            flash(f"Updated your cart successfully.", "info")
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Cart action failed: {e}")
+            flash("An error occurred while updating your cart.", "error")
+
+    return redirect(url_for('user.cart'))
