@@ -87,3 +87,61 @@ document.addEventListener("DOMContentLoaded", function () {
 
 });
 
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('rentalModal');
+    const form = document.getElementById('quickRentalForm');
+    const modalName = document.getElementById('modalProductName');
+    const modalPeriod = document.getElementById('modalRentPeriod');
+    const viewDetailsLink = document.getElementById('viewDetailsLink');
+    const startDateInput = document.getElementById('startDateInput');
+
+    // 1. Handle "Add Rental" button clicks
+    document.querySelectorAll('.open-rental-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            // Extract data from the clicked button's attributes
+            const id = this.getAttribute('data-id');
+            const name = this.getAttribute('data-name');
+            const period = this.getAttribute('data-period');
+            const detailsUrl = this.getAttribute('data-details-url'); // Get the Flask-generated URL
+
+            // Populate Modal Data
+            modalName.textContent = name;
+            modalPeriod.textContent = period;
+            
+            // Set the form action dynamically for the specific product
+            form.action = `/cart/add/${id}`;
+            
+            // Set the "View Details" link using the URL from the data attribute
+            if (viewDetailsLink && detailsUrl) {
+                viewDetailsLink.href = detailsUrl;
+            }
+            
+            // Set default date to today for the start_date input
+            if (startDateInput) {
+                const today = new Date().toISOString().split('T')[0];
+                startDateInput.value = today;
+            }
+
+            // Display the modal
+            modal.style.display = 'flex';
+        });
+    });
+
+    // 2. Handle Closing the Modal
+    const closeElements = [
+        document.getElementById('closeModalX'),
+        document.getElementById('closeModalBtn'),
+        modal // This handles clicking on the blurred overlay/background
+    ];
+
+    closeElements.forEach(el => {
+        if (!el) return;
+        el.addEventListener('click', function(e) {
+            // Close if: clicked 'X', clicked 'Cancel', or clicked the dark overlay itself
+            if (e.target === modal || e.target.closest('.close-modal') || e.target.id === 'closeModalBtn') {
+                modal.style.display = 'none';
+            }
+        });
+    });
+});
+

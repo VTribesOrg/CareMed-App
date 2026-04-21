@@ -139,7 +139,7 @@
                 <i class="fa-solid fa-right-to-bracket"></i> Sign In
             </a>
 
-            <a href="{{ url_for('user.products')}}" class="nav-cta-btn guest-only">Start Renting</a>
+            {#  <a href="{{ url_for('user.products')}}" class="nav-cta-btn guest-only">Start Renting</a>  #}
 
             {% if current_user.is_authenticated %}
                 <a href="{{ url_for('user.cart') }}" class="nav-cart-wrapper" title="View Cart">
@@ -328,10 +328,14 @@
                             {% if current_user.is_authenticated %}
                                 {% if product.stock > 0 %}
 
-                                    <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
-                                    class="btn-action btn-rent-outline">
+                                    <button type="button" 
+                                            class="btn-action btn-rent-outline open-rental-btn" 
+                                            data-id="{{ product.id }}" 
+                                            data-name="{{ product.name }}" 
+                                            data-period="{{ product.rent_period or 'Month' }}"
+                                            data-details-url="{{ url_for('user.product_detail', product_id=product.id) }}">
                                         <i class="fa-solid fa-cart-plus"></i> Add Rental
-                                    </a>
+                                    </button>
 
                                     <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
                                     class="btn-action btn-rent-outline">
@@ -428,6 +432,47 @@
             &copy; 2026 CareMed Medical Systems. All Rights Reserved.
         </div>
     </footer>
+
+
+    <div id="rentalModal" class="modal-overlay" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-calendar-check"></i> Quick Rental</h3>
+                <button type="button" id="closeModalX" class="close-modal">&times;</button>
+            </div>
+
+            <form action="" method="POST" id="quickRentalForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="item_type" value="Rental">
+                
+                <div class="modal-body">
+                    <h4 id="modalProductName">Medical Equipment Name</h4>
+                    
+                    <div class="rental-inputs">
+                        <div class="input-group">
+                            <label for="startDateInput">Start Date</label>
+                            <input type="date" name="start_date" id="startDateInput" required class="modal-field">
+                        </div>
+                        
+                        <div class="input-group">
+                            <label>Duration (<span id="modalRentPeriod">Month</span>)</label>
+                            <input type="number" name="duration" min="1" value="1" class="modal-field">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <a id="viewDetailsLink" href="#" class="btn-text-only">View Details</a>
+                    <div class="footer-btns">
+                        <button type="button" id="closeModalBtn" class="btn-cancel">Cancel</button>
+                        <button type="submit" class="btn-confirm-rent">
+                            <i class="fa-solid fa-cart-plus"></i> Add to Cart
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
 
 
     <!-- ===================== NEW: TOAST ===================== -->

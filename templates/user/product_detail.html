@@ -87,7 +87,7 @@
 
         /* --- Info Content Section --- */
         .pd-product-title {
-            font-size: 2.8rem;
+            font-size: 2.1rem;
             font-weight: 800;
             color: #1a202c; 
             margin-top: 10px;
@@ -214,9 +214,9 @@
 
         /* --- Wishlist --- */
         .pd-btn-wishlist {
-            width: 54px;
-            height: 54px;
-            flex: 0 0 54px; 
+            width: 44px;
+            height: 44px;
+            flex: 0 0 44px; 
             border-radius: 10px;
             border: 1px solid #e2e8f0;
             background: white;
@@ -224,7 +224,6 @@
             font-size: 1.1rem;
             cursor: pointer;
             transition: all 0.2s ease;
-
             display: flex;
             align-items: center;
             justify-content: center;
@@ -596,7 +595,7 @@
                 <i class="fa-solid fa-right-to-bracket"></i> Sign In
             </a>
 
-            <a href="{{ url_for('user.products')}}" class="nav-cta-btn guest-only hover">Start Renting</a>
+            {#  <a href="{{ url_for('user.products')}}" class="nav-cta-btn guest-only">Start Renting</a>  #}
 
             {% if current_user.is_authenticated %}
                 <a href="{{ url_for('user.cart') }}" class="nav-cart-wrapper" title="View Cart">
@@ -688,20 +687,26 @@
                 </section>
 
                 <section class="pd-info-section">
-                    <div class="pd-header-group">
-                        <div class="pd-badges">
-                            {% if product.stock > 0 %}
-                                <span class="pd-badge pd-badge-available">
-                                    <i class="fa-solid fa-circle-check"></i> In Stock ({{ product.stock }} units)
-                                </span>
-                            {% else %}
-                                <span class="pd-badge pd-badge-oos">
-                                    <i class="fa-solid fa-circle-xmark"></i> Out of Stock
-                                </span>
-                            {% endif %}
-                            <span class="pd-badge pd-badge-type">{{ product.equipment_type }}</span>
+                    <div class="pd-header-group" style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div class="pd-title-area">
+                            <div class="pd-badges">
+                                {% if product.stock > 0 %}
+                                    <span class="pd-badge pd-badge-available">
+                                        <i class="fa-solid fa-circle-check"></i> In Stock ({{ product.stock }} units)
+                                    </span>
+                                {% else %}
+                                    <span class="pd-badge pd-badge-oos">
+                                        <i class="fa-solid fa-circle-xmark"></i> Out of Stock
+                                    </span>
+                                {% endif %}
+                                <span class="pd-badge pd-badge-type">{{ product.equipment_type }}</span>
+                            </div>
+                            <h1 class="pd-product-title">{{ product.name }}</h1>
                         </div>
-                        <h1 class="pd-product-title">{{ product.name }}</h1>
+                        
+                        <button class="pd-btn-wishlist" title="Add to Wishlist" style="margin-top: 10px;">
+                            <i class="fa-regular fa-heart"></i>
+                        </button>
                     </div>
 
                     <p class="pd-description-text">{{ product.description }}</p>
@@ -722,78 +727,70 @@
                         {% endif %}
                     </div>
 
-                <div class="pd-action-grid">
-                    {% if product.stock > 0 %}
-
-                        {% if product.transaction_type == 'Rent' %}
+                    <div class="pd-action-grid">
+                        {% if product.stock > 0 %}
                             {% if current_user.is_authenticated %}
 
-                                <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
-                                class="pd-btn-secondary">
-                                    <i class="fa-solid fa-cart-plus"></i> Add Rental
-                                </a>
-
-                                <button class="pd-btn-primary" onclick="handleAction('rent', '{{ product.id }}')">
-                                    <i class="fa-solid fa-calendar-day"></i> Rent Now
-                                </button>
-
-                            {% else %}
-                                <a href="{{ url_for('auth.login', next=request.path) }}"
-                                class="pd-btn-primary"
-                                style="text-decoration: none; text-align: center;">
-                                    <i class="fa-solid fa-lock"></i> Login to Rent
-                                </a>
-                            {% endif %}
-
-                        {% elif product.transaction_type == 'Sale' %}
-                            {% if current_user.is_authenticated %}
-
-                                {% if (product.id, 'Sale') in in_cart_items %}
-                                    <button class="btn-action" disabled style="background: #f1f5f9; color: #16a34a; border: 1px solid #16a34a; cursor: default;">
-                                        <i class="fa-solid fa-check"></i> In Cart
-                                    </button>
-                                {% else %}
-                                    <form action="{{ url_for('user.add_to_cart', product_id=product.id) }}" method="POST" style="display: contents;">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <input type="hidden" name="item_type" value="Sale">
-                                        <button type="submit" class="pd-btn-secondary">
-                                            <i class="fa-solid fa-cart-plus"></i> Add to Cart
-                                        </button>
-                                    </form>
+                                {# RENTAL CONFIGURATION #}
+                                {% if product.transaction_type in ['Rent', 'Both'] %}
+                                    <div class="pd-rental-config-section" style="grid-column: span 2; background: #f8fafc; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 10px;">
+                                        <h5 style="font-size: 0.9rem; margin-bottom: 10px; color: #1e293b;"><i class="fa-solid fa-calendar-lines-pen"></i> Rental Period</h5>
+                                        
+                                        {% if (product.id, 'Rental') in in_cart_items %}
+                                            <div style="color: #16a34a; font-size: 0.85rem; font-weight: 600; padding: 8px; background: #f0fdf4; border-radius: 6px; text-align: center; margin-bottom: 10px;">
+                                                <i class="fa-solid fa-circle-check"></i> Rental configuration added to cart
+                                            </div>
+                                        {% else %}
+                                            <form action="{{ url_for('user.add_to_cart', product_id=product.id) }}" method="POST" style="display: flex; flex-direction: column; gap: 10px;">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <input type="hidden" name="item_type" value="Rental">
+                                                
+                                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                                    <div>
+                                                        <label style="font-size: 0.75rem; color: #64748b; display: block; margin-bottom: 4px;">Start Date</label>
+                                                        <input type="date" name="start_date" required style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem;">
+                                                    </div>
+                                                    <div>
+                                                        <label style="font-size: 0.75rem; color: #64748b; display: block; margin-bottom: 4px;">Duration (Months)</label>
+                                                        <input type="number" name="duration" min="1" value="1" required style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem;">
+                                                    </div>
+                                                </div>
+                                                
+                                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                                    <button type="submit" class="pd-btn-secondary">
+                                                        <i class="fa-solid fa-cart-plus"></i> Add Rental
+                                                    </button>
+                                                    <button type="button" class="pd-btn-primary" onclick="handleAction('rent', '{{ product.id }}')">
+                                                        <i class="fa-solid fa-calendar-day"></i> Rent Now
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        {% endif %}
+                                    </div>
                                 {% endif %}
 
-                                <button class="pd-btn-primary">
-                                    <i class="fa-solid fa-bolt"></i> Buy Now
-                                </button>
+                                {# SALE / PURCHASE SECTION #}
+                                {% if product.transaction_type in ['Sale', 'Both'] %}
+                                    <div class="pd-sale-actions" style="grid-column: span 2; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                        {% if (product.id, 'Sale') in in_cart_items %}
+                                            <button class="pd-btn-secondary" disabled style="background: #f1f5f9; color: #16a34a; border: 1px solid #16a34a; cursor: default;">
+                                                <i class="fa-solid fa-check"></i> In Cart
+                                            </button>
+                                        {% else %}
+                                            <form action="{{ url_for('user.add_to_cart', product_id=product.id) }}" method="POST" style="display: contents;">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <input type="hidden" name="item_type" value="Sale">
+                                                <button type="submit" class="pd-btn-secondary">
+                                                    <i class="fa-solid fa-cart-plus"></i> Add to Cart
+                                                </button>
+                                            </form>
+                                        {% endif %}
 
-                            {% else %}
-                                <a href="{{ url_for('auth.login', next=request.path) }}"
-                                class="pd-btn-primary"
-                                style="text-decoration: none; text-align: center;">
-                                    <i class="fa-solid fa-lock"></i> Login to Buy
-                                </a>
-                            {% endif %}
-
-                        {% else %}
-                            {% if current_user.is_authenticated %}
-
-                                <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
-                                class="pd-btn-secondary">
-                                    <i class="fa-solid fa-cart-plus"></i> Add Rental
-                                </a>
-
-                                <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
-                                class="pd-btn-secondary">
-                                    <i class="fa-solid fa-cart-plus"></i> Add to Cart
-                                </a>
-
-                                <button class="pd-btn-primary" onclick="handleAction('rent', '{{ product.id }}')">
-                                    <i class="fa-solid fa-calendar-day"></i> Rent Now
-                                </button>
-
-                                <button class="pd-btn-primary" onclick="handleAction('buy', '{{ product.id }}')">
-                                    <i class="fa-solid fa-bolt"></i> Buy Now
-                                </button>
+                                        <button class="pd-btn-primary" onclick="handleAction('buy', '{{ product.id }}')">
+                                            <i class="fa-solid fa-bolt"></i> Buy Now
+                                        </button>
+                                    </div>
+                                {% endif %}
 
                             {% else %}
                                 <a href="{{ url_for('auth.login', next=request.path) }}"
@@ -802,19 +799,13 @@
                                     <i class="fa-solid fa-lock"></i> Login to Rent or Buy
                                 </a>
                             {% endif %}
+
+                        {% else %}
+                            <button class="pd-btn-disabled" disabled style="grid-column: span 2;">
+                                Currently Unavailable
+                            </button>
                         {% endif %}
-
-                    {% else %}
-                        <button class="pd-btn-disabled" disabled>
-                            Currently Unavailable
-                        </button>
-                    {% endif %}
-
-
-                    <button class="pd-btn-wishlist">
-                        <i class="fa-regular fa-heart"></i>
-                    </button>
-                </div>
+                    </div>
 
                     <div class="pd-trust-grid">
                         <div class="pd-trust-item"><i class="fa-solid fa-shield-check"></i> FDA Approved</div>

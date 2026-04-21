@@ -1,10 +1,12 @@
 document.addEventListener('DOMContentLoaded', function() {
-    const headerSelectAll = document.getElementById('select-all');
-    const footerSelectAll = document.getElementById('footer-select-all');
+    const headerSelectAll = document.getElementById('select-all'); // Top-most master (if exists)
+    const footerSelectAll = document.getElementById('footer-select-all'); // Sticky footer master
+    const sectionCheckboxes = document.querySelectorAll('.section-checkbox'); // Rental/Purchase headers
     const itemCheckboxes = document.querySelectorAll('.item-checkbox');
     const liveTotal = document.getElementById('live-total');
     const selectedCount = document.getElementById('selected-count');
 
+    // --- 1. CALCULATION LOGIC ---
     function calculateTotal() {
         let total = 0;
         let count = 0;
@@ -21,42 +23,79 @@ document.addEventListener('DOMContentLoaded', function() {
         if (selectedCount) selectedCount.innerText = count;
     }
 
-    // Function to sync all master toggles
-    function syncMasterToggles(isChecked) {
-        if (headerSelectAll) headerSelectAll.checked = isChecked;
-        if (footerSelectAll) footerSelectAll.checked = isChecked;
-        itemCheckboxes.forEach(cb => cb.checked = isChecked);
-        calculateTotal();
-    }
-
-    // Header Toggle
-    if (headerSelectAll) {
-        headerSelectAll.addEventListener('change', function() {
-            syncMasterToggles(this.checked);
+    // --- 2. MASTER SYNC LOGIC ---
+    // Update Section Headers (Check if all items in a category are checked)
+    function updateSectionHeaders() {
+        sectionCheckboxes.forEach(header => {
+            const sectionType = header.getAttribute('data-section');
+            const items = document.querySelectorAll(`.${sectionType}-item`);
+            const checkedItems = document.querySelectorAll(`.${sectionType}-item:checked`);
+            
+            // Check the section header only if all items in it are checked
+            header.checked = items.length > 0 && items.length === checkedItems.length;
         });
     }
 
-    // Footer Toggle
-    if (footerSelectAll) {
-        footerSelectAll.addEventListener('change', function() {
-            syncMasterToggles(this.checked);
-        });
+    // Update the Global Toggles (Check if every single item in the cart is checked)
+    function updateGlobalToggles() {
+        const allChecked = Array.from(itemCheckboxes).every(c => c.checked);
+        if (headerSelectAll) headerSelectAll.checked = allChecked;
+        if (footerSelectAll) footerSelectAll.checked = allChecked;
     }
 
-    // Individual Checkboxes
-    itemCheckboxes.forEach(cb => {
-        cb.addEventListener('change', function() {
-            const allChecked = Array.from(itemCheckboxes).every(c => c.checked);
+    // --- 3. EVENT LISTENERS ---
+
+    // Section Header Toggles (Rentals/Purchases)
+    sectionCheckboxes.forEach(headerCheck => {
+        headerCheck.addEventListener('change', function() {
+            const sectionType = this.getAttribute('data-section');
+            const items = document.querySelectorAll(`.${sectionType}-item`);
             
-            // Update both master toggles
-            if (headerSelectAll) headerSelectAll.checked = allChecked;
-            if (footerSelectAll) footerSelectAll.checked = allChecked;
+            items.forEach(item => {
+                item.checked = this.checked;
+            });
             
+            updateGlobalToggles();
             calculateTotal();
         });
     });
 
+    // Global Toggles (Header/Footer "Select All")
+    const masterToggles = [headerSelectAll, footerSelectAll];
+    masterToggles.forEach(toggle => {
+        if (toggle) {
+            toggle.addEventListener('change', function() {
+                const isChecked = this.checked;
+                
+                // Set every single checkbox on the page to match
+                itemCheckboxes.forEach(cb => cb.checked = isChecked);
+                sectionCheckboxes.forEach(scb => scb.checked = isChecked);
+                
+                // Sync the other global toggle
+                if (headerSelectAll) headerSelectAll.checked = isChecked;
+                if (footerSelectAll) footerSelectAll.checked = isChecked;
+                
+                calculateTotal();
+            });
+        }
+    });
+
+    // Individual Item Checkboxes
+    itemCheckboxes.forEach(cb => {
+        cb.addEventListener('change', function() {
+            updateSectionHeaders();
+            updateGlobalToggles();
+            calculateTotal();
+        });
+    });
+
+    // Run on page load
     calculateTotal();
+    updateSectionHeaders();
+    updateGlobalToggles();
+
+
+    
 
     /* --------------------------------------------------
         DROPDOWN & PROFILE UI
@@ -136,3 +175,59 @@ function showToast(msg) {
         setTimeout(() => t.classList.remove('show'), 3000);
     }
 }
+
+
+function openRentalModal(itemId, currentDate, currentDuration) {
+    const modal = document.getElementById('rentalModal');
+    const form = document.getElementById('update-rental-form');
+    
+    // Set form action dynamically
+    form.action = `/user/update_rental/${itemId}`;
+    
+    // Pre-fill values
+    document.getElementById('modal-start-date').value = currentDate;
+    document.getElementById('modal-duration').value = currentDuration;
+    
+    modal.style.display = "flex";
+}
+
+function closeModal() {
+    document.getElementById('rentalModal').style.display = "none";
+}
+
+// Close modal if user clicks outside of it
+window.onclick = function(event) {
+    if (event.target == document.getElementById('rentalModal')) {
+        closeModal();
+    }
+}
+
+
+document.addEventListener('DOMContentLoaded', function() {
+    const rentalModal = document.getElementById('rentalModal');
+    const updateForm = document.getElementById('update-rental-form');
+    const closeBtn = document.getElementById('close-rental-modal');
+    
+    // Close modal function
+    const hideModal = () => { if(rentalModal) rentalModal.style.display = 'none'; };
+
+    document.querySelectorAll('.open-rental-modal').forEach(trigger => {
+        trigger.addEventListener('click', function() {
+            const itemId = this.dataset.itemId;
+            
+            document.getElementById('modal-start-date').value = this.dataset.startDate;
+            document.getElementById('modal-duration').value = this.dataset.durationVal;
+
+            // Change this to match the result of 'flask routes' exactly
+            updateForm.action = "/user/update_rental/" + itemId;
+
+            rentalModal.style.display = 'flex';
+        });
+    });
+
+    if (closeBtn) closeBtn.addEventListener('click', hideModal);
+
+    window.addEventListener('click', (e) => {
+        if (e.target === rentalModal) hideModal();
+    });
+});

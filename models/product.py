@@ -300,7 +300,8 @@ class CartItem(db.Model):
     quantity = db.Column(db.Integer, default=1)
     item_type = db.Column(db.String(20), nullable=False) 
     
-    # Optional: Cache the price at the time of adding to cart
+    rental_start_date = db.Column(db.Date, nullable=True)
+    rental_duration = db.Column(db.Integer, nullable=True)
     price_at_addition = db.Column(db.Numeric(10, 2))
 
     cart = db.relationship("Cart", back_populates="items")

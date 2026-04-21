@@ -1,5 +1,5 @@
 import os
-from flask import Blueprint, render_template, request, current_app, jsonify, redirect, url_for, flash
+from flask import Blueprint, abort, render_template, request, current_app, jsonify, redirect, url_for, flash
 from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
 from extensions import db, passhasher, limiter
@@ -8,6 +8,7 @@ from functools import wraps
 from models.customer import Customer
 from models.product import Product, Cart, CartItem
 import random
+from datetime import datetime
 
 user_bp = Blueprint('user', __name__, url_prefix='/customer')
 
@@ -237,7 +238,8 @@ def change_password():
 
         return jsonify(status="error", errors=errors)
     
-from flask import request, redirect, url_for, flash, render_template
+
+
 
 @user_bp.route('/add-to-cart/<int:product_id>', methods=['POST'])
 @login_required
@@ -249,24 +251,45 @@ def add_to_cart(product_id):
         db.session.commit()
 
     item_type = request.form.get('item_type')
+    start_date_str = request.form.get('start_date')
+    duration_str = request.form.get('duration')
     
+
     existing_item = CartItem.query.filter_by(
         cart_id=user_cart.id, 
         product_id=product_id, 
-        item_type=item_type
+        item_type=item_type,
+        rental_start_date=start_date_str if item_type == 'Rental' else None
     ).first()
 
     if existing_item:
         existing_item.quantity += 1
     else:
         product = Product.query.get_or_404(product_id)
+        
         price = product.sale_price if item_type == 'Sale' else product.rent_price
         
+        rental_start = None
+        rental_duration = None
+        
+        if item_type == 'Rental':
+            try:
+                if start_date_str:
+                    rental_start = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+                
+                rental_duration = int(duration_str) if duration_str else 1
+            except ValueError:
+                flash("Invalid date or duration provided.", "error")
+                return redirect(request.referrer or url_for('user.products'))
+
         new_item = CartItem(
             cart_id=user_cart.id,
             product_id=product_id,
             item_type=item_type,
-            price_at_addition=price or 0
+            price_at_addition=price or 0,
+            rental_start_date=rental_start,
+            rental_duration=rental_duration,
+            quantity=1
         )
         db.session.add(new_item)
 
@@ -278,6 +301,36 @@ def add_to_cart(product_id):
         flash("Could not add item to cart. Please try again.", "error")
 
     return redirect(request.referrer or url_for('user.products'))
+
+@user_bp.route('/update_rental/<int:item_id>', methods=['POST'])
+@login_required
+def update_rental(item_id):
+    item = CartItem.query.get_or_404(item_id)
+    
+    if item.cart.user_id != current_user.id:
+        current_app.logger.warning(f"Unauthorized update attempt by user {current_user.id} on item {item_id}")
+        return abort(403)
+        
+    start_date_str = request.form.get('start_date')
+    duration_str = request.form.get('duration')
+    
+    if not start_date_str or not duration_str:
+        flash("Missing required rental information.", "warning")
+        return redirect(url_for('user.cart'))
+
+    try:
+        item.rental_start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        item.rental_duration = int(duration_str)
+        
+        db.session.commit()
+        flash("Rental schedule updated successfully!", "success")
+    except (ValueError, TypeError) as e:
+        db.session.rollback()
+        current_app.logger.error(f"Update failed: {str(e)}")
+        flash("Invalid date or duration provided.", "danger")
+    
+    return redirect(url_for('user.cart'))
+
 
 @user_bp.route('/remove-from-cart/<int:product_id>', methods=['POST'])
 @login_required
@@ -306,26 +359,16 @@ def remove_from_cart(product_id):
 @login_required
 def cart():
     user_cart = Cart.query.filter_by(user_id=current_user.id).first()
+    items = user_cart.items if user_cart else []
     
-    in_cart_items = []
-    if user_cart:
-        in_cart_items = [(item.product_id, item.item_type) for item in user_cart.items]
-
-    product_ids = [item[0] for item in in_cart_items]
-    cart_products = Product.query.filter(Product.id.in_(product_ids)).all() if product_ids else []
-
-    total_amount = 0
-    for product in cart_products:
-        if (product.id, 'Sale') in in_cart_items:
-            total_amount += (product.sale_price or 0)
-        if (product.id, 'Rental') in in_cart_items:
-            total_amount += (product.rent_price or 0)
+    rentals = [i for i in items if i.item_type == 'Rental']
+    purchases = [i for i in items if i.item_type == 'Sale']
 
     return render_template(
         'user/user_cart.html', 
-        products=cart_products, 
-        in_cart_items=in_cart_items,
-        total_amount=total_amount
+        rentals=rentals, 
+        purchases=purchases,
+        has_items=len(items) > 0
     )
     
 @user_bp.route('/cart/action', methods=['POST'])

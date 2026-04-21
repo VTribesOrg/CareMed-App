@@ -139,7 +139,7 @@
                 <i class="fa-solid fa-right-to-bracket"></i> Sign In
             </a>
 
-            <a href="{{ url_for('user.products')}}" class="nav-cta-btn guest-only">Start Renting</a>
+            {#  <a href="{{ url_for('user.products')}}" class="nav-cta-btn guest-only">Start Renting</a>  #}
 
             {% if current_user.is_authenticated %}
                 <a href="{{ url_for('user.cart') }}" class="nav-cart-wrapper" title="View Cart">

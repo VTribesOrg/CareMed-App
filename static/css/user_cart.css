@@ -750,18 +750,17 @@ img.user-photo-img:after {
     color: #1e293b;
 }
 
-/* --- THE GRID ENGINE --- */
-/* Ensures header and rows align perfectly */
+
 .cart-table-header, 
 .cart-item-row {
     display: grid;
-    grid-template-columns: 4fr 2fr 2fr 1fr;
+    grid-template-columns: 40px 4fr 2fr 2fr 1fr;
     align-items: center;
+    padding: 15px 20px; 
 }
 
 .cart-table-header {
     background: #ffffff;
-    padding: 15px 20px;
     font-weight: 600;
     color: #64748b;
     font-size: 0.85rem;
@@ -777,7 +776,7 @@ img.user-photo-img:after {
 }
 
 .cart-item-row {
-    padding: 20px;
+    padding: 20px; 
     transition: background 0.2s ease;
     border-bottom: 1px solid #f8fafc;
 }
@@ -833,6 +832,11 @@ img.user-photo-img:after {
     display: flex;
     align-items: center;
     gap: 15px;
+    grid-column: 2; 
+}
+
+.text-center { 
+    text-align: center; 
 }
 
 .cart-img-min {
@@ -1013,6 +1017,46 @@ img.user-photo-img:after {
 .cart-item-link:hover .cart-img-min {
     border-color: #16a34a; 
 }
+
+
+.cart-section-container {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    margin-bottom: 20px;
+    overflow: hidden;
+}
+
+.section-label {
+    padding: 15px 20px;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #1e293b;
+}
+
+
+
+.rental-edit-trigger {
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px dashed #cbd5e1;
+    transition: 0.2s;
+}
+
+.rental-edit-trigger:hover {
+    background: #f8fafc;
+    border-color: #3b82f6;
+}
+
+.edit-link {
+    font-size: 0.75rem;
+    color: #3b82f6;
+    text-decoration: underline;
+}
+
+
+
 
 /* <END OF PRODUCT-CATALOG SECTION> */
 
@@ -1440,21 +1484,127 @@ footer {
     color: #71b345;
 }
 
-/* Responsive for new elements */
-@media screen and (max-width: 768px) {
-    .modal-option-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .cart-panel {
-        width: 100%;
-        right: -100vw;
-    }
-
-    .avail-badge {
-        top: 10px;
-        right: 10px;
-        font-size: 8px;
-        padding: 3px 8px;
-    }
+.modal-rental-period {
+    display: none; 
+    position: fixed;
+    z-index: 9999;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.7);
+    backdrop-filter: blur(8px);
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
 }
+
+.modal-rental-content {
+    background: #ffffff;
+    width: 100%;
+    max-width: 450px;
+    border-radius: 24px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    overflow: hidden;
+    animation: modalSlideUp 0.3s ease-out;
+}
+
+@keyframes modalSlideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.modal-header {
+     padding: 30px 30px 10px; 
+     text-align: center; 
+    }
+
+.modal-header h3 {
+    font-size: 1.5rem; 
+    font-weight: 800;
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    gap: 12px; 
+    margin-bottom: 8px; 
+}
+
+.modal-header h3 i { 
+    color: #3b82f6; 
+}
+
+.modal-header p { 
+    color: #64748b; 
+    font-size: 0.95rem; 
+}
+
+.modal-body { 
+    padding: 20px 30px; 
+}
+
+.form-group-rental { 
+    margin-bottom: 20px; 
+}
+
+.form-group-rental label { 
+    display: block; 
+    font-weight: 700; 
+    font-size: 0.85rem; 
+    color: #475569; 
+    margin-bottom: 8px; 
+    text-transform: uppercase; }
+
+.input-with-icon { 
+    position: relative; 
+    display: flex; 
+    align-items: center; 
+}
+
+.input-with-icon i { 
+    position: absolute; 
+    left: 16px; 
+    color: #94a3b8; 
+}
+
+.input-with-icon input, .input-with-icon select {
+    width: 100%;
+    padding: 14px 16px 14px 45px;
+    background: #f8fafc;
+    border: 2px solid #f1f5f9;
+    border-radius: 14px;
+    font-size: 1rem;
+    transition: all 0.2s;
+}
+
+.input-with-icon input:focus { 
+    outline: none; 
+    border-color: #3b82f6; 
+    background: #fff; 
+}
+
+.modal-footer-actions { 
+    padding: 20px 30px 30px; 
+    display: flex; 
+    gap: 12px; 
+}
+
+.btn-rental-save { 
+    flex: 2; 
+    background: #3b82f6; 
+    color: white; 
+    border: none; 
+    padding: 16px; 
+    border-radius: 14px; 
+    font-weight: 700;
+    cursor: pointer; 
+}
+
+.btn-rental-cancel { 
+    flex: 1; 
+    background: #f1f5f9; 
+    color: #64748b; 
+    border: none; 
+    padding: 16px; 
+    border-radius: 14px; 
+    font-weight: 700; 
+    cursor: pointer; }
