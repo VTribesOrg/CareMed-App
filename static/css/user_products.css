@@ -1789,15 +1789,11 @@ footer {
 }
 
 
-/* ======================================================
-   NEW ADDITIONS ONLY — nothing above this line changed
-   ====================================================== */
-
 .category-tabs {
     display: flex;
     gap: 12px;
     margin-bottom: 25px;
-    overflow-x: auto; /* Allow scrolling on mobile if many tabs */
+    overflow-x: auto;
     padding-bottom: 5px;
 }
 
@@ -1935,7 +1931,7 @@ footer {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(15, 23, 42, 0.7); /* Slightly darker for focus */
+    background: rgba(15, 23, 42, 0.7); 
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1946,7 +1942,7 @@ footer {
 
 .modal-content {
     background: #ffffff;
-    padding: 0; /* Changed to handle header/body/footer separately */
+    padding: 0; 
     border-radius: 16px;
     width: 95%;
     max-width: 480px;

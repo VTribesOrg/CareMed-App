@@ -38,7 +38,6 @@ class User(UserMixin, db.Model):
 
     customer_profile = db.relationship("Customer", back_populates="user", uselist=False, foreign_keys="[Customer.user_id]")
     
-    
     @property
     def full_name(self):
         return f"{self.first_name} {self.last_name}"

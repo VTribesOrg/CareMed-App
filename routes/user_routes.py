@@ -1,14 +1,19 @@
 import os
-from flask import Blueprint, abort, render_template, request, current_app, jsonify, redirect, url_for, flash
+from dateutil.relativedelta import relativedelta
+from flask import Blueprint, abort, render_template, request, current_app, jsonify, redirect, url_for, flash, session
 from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
 from extensions import db, passhasher, limiter
 from forms.update_profile_form import UpdateProfileForm, ChangePasswordForm
 from functools import wraps
 from models.customer import Customer
-from models.product import Product, Cart, CartItem
+from models.product import Product, Cart, CartItem, Payment, Transaction, Rental, Purchase, InventoryLog
 import random
-from datetime import datetime
+import string
+from datetime import datetime, date
+from decimal import Decimal, ROUND_HALF_UP
+
+
 
 user_bp = Blueprint('user', __name__, url_prefix='/customer')
 
@@ -140,7 +145,6 @@ def profile():
     profile_form = UpdateProfileForm()
     password_form = ChangePasswordForm()
 
-    # Ensure the user has a customer profile
     if not current_user.customer_profile:
         current_user.customer_profile = Customer(user_id=current_user.id)
         db.session.add(current_user.customer_profile)
@@ -158,13 +162,11 @@ def profile():
 
     if profile_form.validate_on_submit() and profile_form.submit_profile.data:
         try:
-            # Update customer profile
             customer.first_name = profile_form.first_name.data.strip().title()
             customer.last_name = profile_form.last_name.data.strip().title()
             customer.contact_number = profile_form.phone.data.strip()
             customer.home_address = profile_form.address.data.title()
 
-            # Handle profile photo
             remove_photo_signal = request.form.get('remove_photo') == 'true'
             new_file = profile_form.profile_path.data
 
@@ -371,6 +373,7 @@ def cart():
         has_items=len(items) > 0
     )
     
+
 @user_bp.route('/cart/action', methods=['POST'])
 @login_required
 def cart_actions():
@@ -387,7 +390,6 @@ def cart_actions():
 
     if single_delete_val:
         to_delete.append(single_delete_val)
-
     elif action == 'delete_selected':
         if not selected_items:
             flash("No items selected to delete.", "warning")
@@ -399,29 +401,209 @@ def cart_actions():
             flash("Please select at least one item to proceed to checkout.", "warning")
             return redirect(url_for('user.cart'))
         
+        session['checkout_items'] = selected_items
+        return redirect(url_for('user.checkout'))
 
-        flash("Proceeding to checkout with selected items...", "success")
-        return redirect(url_for('user.cart')) #
 
     if to_delete:
         try:
             for item in to_delete:
                 p_id, i_type = item.split(':')
-                
                 item_to_remove = CartItem.query.filter_by(
                     cart_id=user_cart.id, 
                     product_id=int(p_id), 
                     item_type=i_type
                 ).first()
-                
                 if item_to_remove:
                     db.session.delete(item_to_remove)
-            
             db.session.commit()
-            flash(f"Updated your cart successfully.", "info")
+            flash("Updated your cart successfully.", "info")
         except Exception as e:
             db.session.rollback()
-            current_app.logger.error(f"Cart action failed: {e}")
             flash("An error occurred while updating your cart.", "error")
 
     return redirect(url_for('user.cart'))
+
+
+@user_bp.route('/checkout', methods=['GET'])
+@login_required
+def checkout():
+    selected_keys = session.get('checkout_items', [])
+    
+    if not selected_keys:
+        flash("No items selected for checkout.", "warning")
+        return redirect(url_for('user.cart'))
+
+    user_cart = Cart.query.filter_by(user_id=current_user.id).first()
+    
+    if not current_user.customer_profile or not current_user.customer_profile.home_address:
+            flash("Please provide a delivery address in your profile before checking out.", "info")
+            return redirect(url_for('user.profile'))
+
+    items_to_buy = []
+    total_price = Decimal('0.00')
+
+    for key in selected_keys:
+        try:
+            p_id, i_type = key.split(':')
+            cart_item = CartItem.query.filter_by(
+                cart_id=user_cart.id,
+                product_id=int(p_id),
+                item_type=i_type
+            ).first()
+
+            if cart_item:
+                items_to_buy.append(cart_item)
+                price = Decimal(str(cart_item.price_at_addition or 0))
+                total_price += price * cart_item.quantity
+        except Exception:
+            continue
+
+    if not items_to_buy:
+        flash("Selected items are no longer in your cart.", "error")
+        return redirect(url_for('user.cart'))
+
+    return render_template('user/check_out.html', 
+                           items=items_to_buy, 
+                           total_price=total_price)
+    
+
+@user_bp.route('/checkout/update-profile', methods=['POST'])
+@login_required
+def update_checkout_profile():
+    profile = current_user.customer_profile
+    
+    if not profile:
+        flash("Customer profile not found. Please complete your profile first.", "error")
+        return redirect(url_for('user.checkout'))
+    
+    first_name = request.form.get('first_name')
+    last_name = request.form.get('last_name')
+    contact_number = request.form.get('contact_number')
+    home_address = request.form.get('home_address')
+
+    try:
+        profile.first_name = first_name
+        profile.last_name = last_name
+        profile.contact_number = contact_number
+        profile.home_address = home_address.title()
+
+        db.session.commit()
+        flash("Delivery details updated successfully!", "success")
+        
+    except Exception as e:
+        db.session.rollback()
+        flash("An error occurred while updating your details. Please try again.", "error")
+
+    return redirect(url_for('user.checkout'))
+    
+@user_bp.route('/place-order', methods=['POST'])
+@login_required
+def place_order():
+    if not current_user.customer_profile:
+        flash("Please complete your profile details before placing an order.", "warning")
+        return redirect(url_for('user.checkout'))
+
+    cart = Cart.query.filter_by(user_id=current_user.id).first()
+    if not cart or not cart.items:
+        flash("Your cart is empty.", "error")
+        return redirect(url_for('user.cart'))
+
+    try:
+        now = datetime.now()
+        is_rental = any(i.item_type == 'Rental' for i in cart.items)
+        prefix = "RNT" if is_rental else "PUR"
+        date_str = now.strftime("%m%d%Y")
+        rand_str = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
+        ref_no = f"{prefix}-{date_str}-{rand_str}"
+
+
+        new_transaction = Transaction(
+            reference_no=ref_no,
+            customer_id=current_user.customer_profile.id,
+            customer_name=f"{current_user.customer_profile.first_name} {current_user.customer_profile.last_name}",
+            transaction_type='Rental' if is_rental else 'Sale',
+            total_amount=Decimal("0.00"), 
+            payment_status="Unpaid",
+            status="Open",
+            fulfillment_type="Delivery",
+            delivery_address=current_user.customer_profile.home_address,
+            delivery_status="Pending"
+        )
+        
+        db.session.add(new_transaction)
+        db.session.flush() 
+
+        total_accumulated = Decimal("0.00")
+
+        for item in cart.items:
+            product = Product.query.with_for_update().get(item.product_id)
+            
+            if not product or product.status == 'Archived':
+                raise Exception(f"Item '{item.product.name}' is no longer available.")
+
+            if product.stock < item.quantity:
+                raise Exception(f"Insufficient stock for {product.name}. Only {product.stock} left.")
+
+            item_total = Decimal(str(item.price_at_addition)) * item.quantity
+            total_accumulated += item_total
+
+            if item.item_type == 'Sale':
+                purchase = Purchase(
+                    transaction_id=new_transaction.id,
+                    product_id=product.id,
+                    customer_id=current_user.customer_profile.id,
+                    quantity=item.quantity,
+                    unit_price=item.price_at_addition,
+                    total_price=item_total
+                )
+                db.session.add(purchase)
+            
+            elif item.item_type == 'Rental':
+                end_date = item.rental_start_date + relativedelta(months=item.rental_duration)
+                rental = Rental(
+                    transaction_id=new_transaction.id,
+                    product_id=product.id,
+                    customer_id=current_user.customer_profile.id,
+                    start_date=item.rental_start_date,
+                    expected_return_date=end_date,
+                    monthly_rate=item.price_at_addition,
+                    quantity=item.quantity,
+                    status="Active",
+                    deposit_amount=Decimal("0.00")
+                )
+                db.session.add(rental)
+                db.session.flush()
+                rental.generate_monthly_invoices()
+
+            product.stock -= item.quantity
+            if product.stock <= 0:
+                product.status = "Out of Stock"
+
+            inventory_log = InventoryLog(
+                product_id=product.id,
+                action="Online Sale" if item.item_type == 'Sale' else "Online Rental",
+                quantity=-item.quantity,
+                note=f"Web Order Ref: {ref_no}",
+                user_id=current_user.id,
+                user_name=f"{current_user.customer_profile.first_name} {current_user.customer_profile.last_name}"
+            )
+            db.session.add(inventory_log)
+
+        new_transaction.total_amount = total_accumulated
+        new_transaction.update_totals()
+
+        for item in cart.items:
+            db.session.delete(item)
+        
+        db.session.commit()
+        flash(f"Order placed successfully! Ref: {ref_no}", "success")
+        return redirect(url_for('user.order_success', ref=ref_no))
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Checkout Error: {str(e)}")
+        flash(f"Checkout failed: {str(e)}", "error")
+        return redirect(url_for('user.checkout'))
+    
+    

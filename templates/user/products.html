@@ -288,18 +288,6 @@
                         <span class="equipment-category">{{ product.equipment_type }}</span>
                     </div>
 
-                    <ul class="product-specs desktop-only-specs">
-                        {% if product.description and product.description != 'None' %}
-                            <li class="product-description-text">
-                                <i class="fa-solid fa-circle-info"></i> 
-                                {{ product.description | truncate(65) }}
-                            </li>
-                        {% else %}
-                            <li class="spec-sanitized"><i class="fa-solid fa-circle-check"></i> Sanitized</li>
-                            <li><i class="fa-solid fa-truck-fast"></i> Delivery Available</li>
-                        {% endif %}
-                    </ul>
-
                     <div class="pricing-container {% if product.transaction_type == 'Both' %}has-dual{% else %}has-single{% endif %}">
                         {% if product.transaction_type in ['Rent', 'Both'] %}
                         <div class="price-block rent">
