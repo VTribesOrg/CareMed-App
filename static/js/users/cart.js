@@ -161,6 +161,34 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         };
     });
+
+        // 1. Get URL Parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const addedId = urlParams.get('added_id');
+    const addedType = urlParams.get('added_type');
+
+    if (addedId && addedType) {
+        // 2. Construct the value to look for (matches your checkbox 'value' attribute)
+        const targetValue = `${addedId}:${addedType}`;
+        
+        // 3. Find the checkbox with that specific value
+        const checkbox = document.querySelector(`input[name="selected_items"][value="${targetValue}"]`);
+        
+        if (checkbox) {
+            // 4. Check the box
+            checkbox.checked = true;
+
+            // 5. Trigger the 'change' event so your Total Price calculation updates
+            checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+
+            // 6. Optional: Scroll the item into view if the cart is long
+            checkbox.closest('.cart-item-row').scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            // 7. Clean up the URL (Removes the parameters so a page refresh doesn't keep checking it)
+            const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+            window.history.replaceState({path: cleanUrl}, '', cleanUrl);
+        }
+    }
 });
 
 /* --------------------------------------------------
@@ -231,3 +259,4 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.target === rentalModal) hideModal();
     });
 });
+

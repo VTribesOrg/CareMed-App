@@ -315,7 +315,6 @@
                         {% if product.transaction_type in ['Rent', 'Both'] %}
                             {% if current_user.is_authenticated %}
                                 {% if product.stock > 0 %}
-
                                     <button type="button" 
                                             class="btn-action btn-rent-outline open-rental-btn" 
                                             data-id="{{ product.id }}" 
@@ -325,10 +324,14 @@
                                         <i class="fa-solid fa-cart-plus"></i> Add Rental
                                     </button>
 
-                                    <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
-                                    class="btn-action btn-rent-outline">
-                                        <i class="fa-solid fa-calendar-day"></i> Rent Now
-                                    </a>
+                                    <form action="{{ url_for('user.add_to_cart', product_id=product.id) }}" method="POST" style="display: contents;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="hidden" name="item_type" value="Rental">
+                                        <input type="hidden" name="next_page" value="cart">
+                                        <button type="submit" class="btn-action btn-rent-outline">
+                                            <i class="fa-solid fa-calendar-day"></i> Rent Now
+                                        </button>
+                                    </form>
 
                                 {% else %}
                                     <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
@@ -356,16 +359,20 @@
                                         <form action="{{ url_for('user.add_to_cart', product_id=product.id) }}" method="POST" style="display: contents;">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <input type="hidden" name="item_type" value="Sale">
-                                            <button type="submit"  class="btn-action btn-buy-solid" style="background: #fff; color: #16a34a; border: 1px solid #16a34a;">
+                                            <button type="submit" class="btn-action btn-buy-solid" style="background: #fff; color: #16a34a; border: 1px solid #16a34a;">
                                                 <i class="fa-solid fa-cart-plus"></i> Add to Cart
                                             </button>
                                         </form>
                                     {% endif %}
 
-                                    <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
-                                    class="btn-action btn-buy-solid">
-                                        <i class="fa-solid fa-bolt"></i> Buy Now
-                                    </a>
+                                    <form action="{{ url_for('user.add_to_cart', product_id=product.id) }}" method="POST" style="display: contents;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="hidden" name="item_type" value="Sale">
+                                        <input type="hidden" name="next_page" value="cart">
+                                        <button type="submit" class="btn-action btn-buy-solid">
+                                            <i class="fa-solid fa-bolt"></i> Buy Now
+                                        </button>
+                                    </form>
 
                                 {% else %}
                                     <a href="{{ url_for('auth.login') }}"

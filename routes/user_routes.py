@@ -242,48 +242,55 @@ def change_password():
     
 
 
-
 @user_bp.route('/add-to-cart/<int:product_id>', methods=['POST'])
 @login_required
 def add_to_cart(product_id):
+    product = Product.query.get_or_404(product_id)
+    if product.stock <= 0:
+        flash(f"Sorry, {product.name} is currently out of stock.", "error")
+        return redirect(request.referrer or url_for('user.products'))
+
+    item_type = request.form.get('item_type', 'Sale') 
+    start_date_str = request.form.get('start_date')
+    duration_str = request.form.get('duration')
+    next_page = request.form.get('next_page') 
+
     user_cart = Cart.query.filter_by(user_id=current_user.id).first()
     if not user_cart:
         user_cart = Cart(user_id=current_user.id)
         db.session.add(user_cart)
-        db.session.commit()
+        db.session.flush() 
 
-    item_type = request.form.get('item_type')
-    start_date_str = request.form.get('start_date')
-    duration_str = request.form.get('duration')
+    rental_start = None
+    rental_duration = None
     
+    if item_type == 'Rental':
+        try:
+            if start_date_str:
+                rental_start = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            else:
+                rental_start = datetime.utcnow().date()
+            
+            rental_duration = int(duration_str) if duration_str else 1
+        except (ValueError, TypeError):
+            flash("Invalid date or duration provided.", "error")
+            return redirect(request.referrer or url_for('user.products'))
 
     existing_item = CartItem.query.filter_by(
         cart_id=user_cart.id, 
         product_id=product_id, 
         item_type=item_type,
-        rental_start_date=start_date_str if item_type == 'Rental' else None
+        rental_start_date=rental_start
     ).first()
 
     if existing_item:
-        existing_item.quantity += 1
+        if existing_item.quantity + 1 > product.stock:
+            flash(f"Cannot add more. Only {product.stock} units available.", "warning")
+        else:
+            existing_item.quantity += 1
     else:
-        product = Product.query.get_or_404(product_id)
-        
         price = product.sale_price if item_type == 'Sale' else product.rent_price
         
-        rental_start = None
-        rental_duration = None
-        
-        if item_type == 'Rental':
-            try:
-                if start_date_str:
-                    rental_start = datetime.strptime(start_date_str, '%Y-%m-%d').date()
-                
-                rental_duration = int(duration_str) if duration_str else 1
-            except ValueError:
-                flash("Invalid date or duration provided.", "error")
-                return redirect(request.referrer or url_for('user.products'))
-
         new_item = CartItem(
             cart_id=user_cart.id,
             product_id=product_id,
@@ -297,10 +304,15 @@ def add_to_cart(product_id):
 
     try:
         db.session.commit()
-        flash(f"Successfully added {item_type} to your cart!", "success")
+        
+        if next_page == 'cart':
+            return redirect(url_for('user.cart', added_id=product_id, added_type=item_type))
+            
+        flash(f"Added {product.name} to cart.", "success")
+        
     except Exception as e:
         db.session.rollback()
-        flash("Could not add item to cart. Please try again.", "error")
+        flash("An error occurred while updating your cart.", "error")
 
     return redirect(request.referrer or url_for('user.products'))
 
