@@ -706,355 +706,188 @@ img.user-photo-img:after {
 
 /*================================== START OF MAIN CONTENT ==================================*/
 
-.checkout-main {
-    width: 90%;
-    max-width: 1200px;
-    margin: 90px auto 60px;
+.success-main {
+    background-color: #f4f7f6;
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start; 
+    justify-content: center;
+    padding: 6rem 1rem 3rem;  
     font-family: 'Inter', -apple-system, sans-serif;
+    box-sizing: border-box;
+    overflow: hidden; 
 }
 
-.checkout-container {
-    max-width: 1080px;
-    margin: 0 auto;
-}
-
-/* --- Layout --- */
-.checkout-flex-layout {
-    display: flex;
-    gap: 25px;
-    align-items: flex-start;
-}
-
-.checkout-details-column {
-    flex: 0 0 65%;
-}
-
-.checkout-summary-column {
-    flex: 1;
-}
-
-.checkout-section-card {
-    background: #ffffff;
-    border-radius: 8px;
-    padding: 20px;
-    margin-bottom: 15px;
-    border: 1px solid #e1e8ed;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-}
-
-.section-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 18px;
-    border-bottom: 1px solid #f0f3f5;
-    padding-bottom: 12px;
-}
-
-.section-header h3 {
-    font-size: 1.1rem;
-    font-weight: 600;
-    margin: 0;
-    color: #1a2b3c;
-}
-
-.section-header .material-symbols-outlined {
-    color: #007bff;
-    font-size: 20px;
-}
-
-/* --- Address Styling (Inside Section Card) --- */
-.address-display {
-    padding: 5px 0;
-}
-
-.address-top-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-}
-
-.checkout-user-info {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-}
-
-.checkout-user-info strong {
-    font-size: 1rem;
-    color: #1a2b3c;
-}
-
-.phone-tag {
-    background: #eef2f7;
-    color: #475569;
-    font-size: 0.85rem;
-    padding: 2px 10px;
-    border-radius: 6px;
-    border: 1px solid #cbd5e1;
-    font-weight: 600;
-}
-
-.full-address {
-    font-size: 0.95rem;
-    color: #4a5568;
-    line-height: 1.6;
-    margin: 0;
-    max-width: 90%;
-}
-
-.edit-address-btn {
-    border: none;
-    background: transparent;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-
-    font-size: 0.9rem;
-    color: #007bff;
-    text-decoration: none;
-    font-weight: 600;
-    padding: 4px 8px;
-    border-radius: 4px;
-    transition: background 0.2s;
-    font-family: inherit; 
-}
-
-.edit-address-btn:hover {
-    background: #f0f7ff;
-    text-decoration: underline;
-}
-
-.edit-address-btn:focus {
-    outline: none;
-}
-
-/* --- Order Review --- */
-.order-items-compact {
-    max-height: 400px;
-    overflow-y: auto;
-    padding-right: 10px;
-}
-
-.checkout-item {
-    display: grid;
-    grid-template-columns: 60px 1fr 100px;
-    align-items: center;
-    gap: 15px;
-    padding: 15px 0;
-    border-bottom: 1px solid #f1f5f9;
-}
-
-.checkout-item:last-child { border-bottom: none; }
-
-.item-img-wrapper {
-    position: relative;
-    width: 60px;
-    height: 60px;
-}
-
-.item-img-wrapper img {
+.success-container {
     width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 8px;
-    border: 1px solid #e2e8f0;
+    max-width: 580px; 
+    animation: fadeIn 0.5s ease-out;
 }
 
-.item-qty-badge {
-    position: absolute;
-    top: -8px;
-    right: -8px;
-    background: #1e293b;
-    color: #fff;
-    font-size: 0.7rem;
-    min-width: 20px;
-    height: 20px;
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.success-card {
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.04);
+    padding: 1.5rem 1.75rem;
+    border: 1px solid #eef2f1;
+}
+
+
+.success-header-section {
+    text-align: center;
+    margin-bottom: 1.25rem;
+}
+
+.success-icon-wrapper {
+    width: 44px;
+    height: 44px;
+    background: #e6fcf5;
+    color: #0ca678;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 10px;
-    font-weight: bold;
-    border: 2px solid #fff;
+    margin: 0 auto 0.75rem;
 }
 
-.item-description h4 {
-    margin: 0 0 6px 0;
-    font-size: 0.95rem;
-    color: #1e293b;
-    font-weight: 600;
+.icon-animate {
+    font-size: 28px;
+    animation: scaleIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-.item-tags {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+.success-header-section h1 {
+    font-size: 1.4rem; 
+    color: #1a535c;
+    margin-bottom: 0.25rem;
 }
 
-.badge {
-    font-size: 0.65rem;
+.order-number {
+    font-size: 0.8rem;
+    color: #868e96;
+    background: #f8f9fa;
+    display: inline-block;
     padding: 2px 8px;
-    border-radius: 4px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.025em;
+    border-radius: 50px;
 }
 
-.badge.rental { background: #dbeafe; color: #1e40af; }
-.badge.sale { background: #dcfce7; color: #166534; }
-
-.rental-period-text {
-    font-size: 0.75rem;
-    color: #64748b;
-}
-
-.item-subtotal {
-    text-align: right;
-    font-weight: 700;
-    color: #1e293b;
-    font-size: 1rem;
-}
-
-/* --- Payment Method --- */
-.payment-grid {
+/* Content Grid */
+.success-content-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 15px;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
 }
 
-.payment-card {
-    cursor: pointer;
-    position: relative;
-}
-
-.payment-card input {
-    position: absolute;
-    opacity: 0;
-}
-
-.payment-card-content {
-    border: 2px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 15px;
+.success-info-section h3 {
+    font-size: 0.75rem;
+    color: #1a535c;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
     display: flex;
     align-items: center;
-    gap: 12px;
-    transition: all 0.2s ease;
-    background: #fff;
+    gap: 5px;
 }
 
-.payment-card-content i {
-    font-size: 1.2rem;
-    color: #64748b;
+.summary-box, .delivery-box {
+    background: #f8f9fa;
+    padding: 0.85rem;
+    border-radius: 8px;
+    height: auto;
 }
 
-.payment-card input:checked + .payment-card-content {
-    border-color: #007bff;
-    background-color: #f8fbff;
-}
-
-.payment-card input:checked + .payment-card-content i,
-.payment-card input:checked + .payment-card-content span {
-    color: #007bff;
-    font-weight: 600;
-}
-
-/* --- Sidebar Summary --- */
-.summary-card-sticky {
-    position: sticky;
-    top: 110px;
-    background: #fff;
-    padding: 25px;
-    border-radius: 12px;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
-}
-
-.summary-card-sticky h3 {
-    margin-top: 0;
-    margin-bottom: 20px;
-    font-size: 1.2rem;
-    color: #1e293b;
-}
-
-.price-breakdown {
-    margin-bottom: 20px;
-}
-
-.price-row {
+.success-details-row {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 12px;
-    font-size: 0.95rem;
-    color: #64748b;
-}
-
-.free-shipping {
-    color: #10b981;
-    font-weight: 700;
+    font-size: 0.8rem;
+    margin-bottom: 0.4rem;
 }
 
 .total-row {
-    border-top: 2px dashed #e2e8f0;
-    padding-top: 15px;
-    margin-top: 15px;
-    color: #0f172a;
-    font-weight: 800;
-}
-
-.final-price {
-    font-size: 1.6rem;
-    color: #007bff;
-}
-
-.place-order-btn {
-    width: 100%;
-    background: #007bff;
-    color: white;
-    border: none;
-    padding: 16px;
-    border-radius: 10px;
-    font-size: 1.1rem;
+    font-size: 0.95rem;
     font-weight: 700;
-    margin-top: 10px;
-    cursor: pointer;
+    color: #2c7da0;
+    margin-top: 0.4rem;
+    padding-top: 0.4rem;
+}
+
+/* Items Table */
+.order-items-table table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.order-items-table th {
+    text-align: left;
+    font-size: 0.7rem;
+    color: #adb5bd;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid #f8f9fa;
+    text-transform: uppercase;
+}
+
+.order-items-table td {
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #f8f9fa;
+    font-size: 0.85rem;
+}
+
+.type-tag {
+    font-size: 0.6rem;
+    background: #e7f5ff;
+    color: #228be6;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-weight: 700;
+}
+
+/* Buttons */
+.success-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1.5rem;
+    gap: 1rem;
+}
+
+.btn-primary {
+    background: #2c7da0;
+    color: white;
+    padding: 0.6rem 1.25rem;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.85rem;
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 10px;
-    transition: all 0.3s;
+    gap: 6px;
 }
 
-.place-order-btn:hover { 
-    background: #0056b3;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
-}
-
-.security-assurance {
-    font-size: 0.8rem;
-    color: #94a3b8;
+.btn-outline {
+    color: #495057;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.85rem;
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-top: 20px;
-    justify-content: center;
+    gap: 5px;
 }
 
-@media (max-width: 850px) {
-    .checkout-flex-layout { flex-direction: column; }
-    .checkout-details-column, .checkout-summary-column { flex: 0 0 100%; width: 100%; }
-    .payment-grid { grid-template-columns: 1fr; }
-    .summary-card-sticky { position: static; margin-top: 20px; }
-}
 
+@media (max-width: 600px) {
+    .success-main { padding-top: 1.5rem; overflow-y: auto; }
+    .success-content-grid { grid-template-columns: 1fr; }
+    .success-card { padding: 1.25rem; }
+}
 /*================================== END OF MAIN CONTENT ==================================*/
 
 
 
-/* <END OF PRODUCT-CATALOG SECTION> */
 
 footer {
     background: #002347;
@@ -1279,138 +1112,5 @@ footer {
     color: #71b345;
 }
 
-
-
-/* Unique Scoped Styles for Address Modal */
-.addr-modal-overlay {
-    display: none;
-    position: fixed;
-    top: 0; 
-    left: 0;
-    width: 100%; 
-    height: 100%;
-    background: rgba(15, 23, 42, 0.6); /* Slightly darker for better focus */
-    z-index: 9999;
-    backdrop-filter: blur(4px);
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-}
-
-.addr-modal-container {
-    background: #ffffff;
-    width: 100%;
-    max-width: 500px;
-    border-radius: 12px;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-    animation: addrFadeIn 0.3s ease-out;
-}
-
-.addr-modal-header {
-    padding: 20px;
-    border-bottom: 1px solid #f1f5f9;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.addr-modal-header h3 {
-    margin: 0;
-    font-size: 1.2rem;
-    color: #1e293b;
-    font-weight: 700;
-}
-
-.addr-close-btn {
-    background: none;
-    border: none;
-    font-size: 24px;
-    color: #94a3b8;
-    cursor: pointer;
-    line-height: 1;
-}
-
-.addr-modal-body {
-    padding: 24px;
-}
-
-.addr-form-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    margin-bottom: 16px;
-}
-
-.addr-form-group {
-    margin-bottom: 16px;
-}
-
-.addr-form-group label {
-    display: block;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #475569;
-    margin-bottom: 6px;
-}
-
-.addr-form-group input, 
-.addr-form-group textarea {
-    width: 100%;
-    padding: 12px;
-    border: 1px solid #cbd5e1;
-    border-radius: 8px;
-    font-size: 0.95rem;
-    color: #1e293b;
-    transition: border-color 0.2s;
-    background-color: #f8fafc;
-}
-
-.addr-form-group input:focus, 
-.addr-form-group textarea:focus {
-    outline: none;
-    border-color: #007bff;
-    background-color: #fff;
-}
-
-.addr-modal-footer {
-    padding: 16px 24px;
-    background: #f8fafc;
-    border-top: 1px solid #f1f5f9;
-    display: flex;
-    justify-content: flex-end;
-    gap: 12px;
-    border-bottom-left-radius: 12px;
-    border-bottom-right-radius: 12px;
-}
-
-.addr-btn-save {
-    background: #007bff;
-    color: white;
-    border: none;
-    padding: 10px 24px;
-    border-radius: 8px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.2s;
-}
-
-.addr-btn-save:hover {
-    background: #0056b3;
-}
-
-.addr-btn-cancel {
-    background: white;
-    color: #64748b;
-    border: 1px solid #e2e8f0;
-    padding: 10px 24px;
-    border-radius: 8px;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-@keyframes addrFadeIn {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
 
 

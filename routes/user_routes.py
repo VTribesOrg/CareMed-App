@@ -512,8 +512,9 @@ def update_checkout_profile():
 @user_bp.route('/place-order', methods=['POST'])
 @login_required
 def place_order():
-    if not current_user.customer_profile:
-        flash("Please complete your profile details before placing an order.", "warning")
+    profile = current_user.customer_profile
+    if not profile or not profile.home_address:
+        flash("Please complete your delivery profile before ordering.", "warning")
         return redirect(url_for('user.checkout'))
 
     cart = Cart.query.filter_by(user_id=current_user.id).first()
@@ -521,25 +522,26 @@ def place_order():
         flash("Your cart is empty.", "error")
         return redirect(url_for('user.cart'))
 
+    selected_payment_method = request.form.get('payment_method', 'COD')
+
     try:
         now = datetime.now()
         is_rental = any(i.item_type == 'Rental' for i in cart.items)
         prefix = "RNT" if is_rental else "PUR"
-        date_str = now.strftime("%m%d%Y")
-        rand_str = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
-        ref_no = f"{prefix}-{date_str}-{rand_str}"
-
+        ref_no = f"{prefix}-{now.strftime('%m%d%Y')}-{''.join(random.choices(string.ascii_uppercase + string.digits, k=6))}"
 
         new_transaction = Transaction(
             reference_no=ref_no,
-            customer_id=current_user.customer_profile.id,
-            customer_name=f"{current_user.customer_profile.first_name} {current_user.customer_profile.last_name}",
+            customer_id=profile.id,
+            customer_name=f"{profile.first_name} {profile.last_name}",
             transaction_type='Rental' if is_rental else 'Sale',
             total_amount=Decimal("0.00"), 
+            amount_paid=Decimal("0.00"),
+            balance_due=Decimal("0.00"),
             payment_status="Unpaid",
             status="Open",
             fulfillment_type="Delivery",
-            delivery_address=current_user.customer_profile.home_address,
+            delivery_address=profile.home_address,
             delivery_status="Pending"
         )
         
@@ -552,37 +554,36 @@ def place_order():
             product = Product.query.with_for_update().get(item.product_id)
             
             if not product or product.status == 'Archived':
-                raise Exception(f"Item '{item.product.name}' is no longer available.")
+                raise ValueError(f"The item '{item.product.name}' is no longer available.")
 
             if product.stock < item.quantity:
-                raise Exception(f"Insufficient stock for {product.name}. Only {product.stock} left.")
+                raise ValueError(f"Sorry, only {product.stock} units of {product.name} are left.")
 
-            item_total = Decimal(str(item.price_at_addition)) * item.quantity
+            item_price = Decimal(str(item.price_at_addition))
+            item_total = item_price * item.quantity
             total_accumulated += item_total
 
             if item.item_type == 'Sale':
-                purchase = Purchase(
+                db.session.add(Purchase(
                     transaction_id=new_transaction.id,
                     product_id=product.id,
-                    customer_id=current_user.customer_profile.id,
+                    customer_id=profile.id,
                     quantity=item.quantity,
-                    unit_price=item.price_at_addition,
+                    unit_price=item_price,
                     total_price=item_total
-                )
-                db.session.add(purchase)
+                ))
             
             elif item.item_type == 'Rental':
                 end_date = item.rental_start_date + relativedelta(months=item.rental_duration)
                 rental = Rental(
                     transaction_id=new_transaction.id,
                     product_id=product.id,
-                    customer_id=current_user.customer_profile.id,
+                    customer_id=profile.id,
                     start_date=item.rental_start_date,
                     expected_return_date=end_date,
-                    monthly_rate=item.price_at_addition,
+                    monthly_rate=item_price,
                     quantity=item.quantity,
-                    status="Active",
-                    deposit_amount=Decimal("0.00")
+                    status="Active"
                 )
                 db.session.add(rental)
                 db.session.flush()
@@ -592,30 +593,72 @@ def place_order():
             if product.stock <= 0:
                 product.status = "Out of Stock"
 
-            inventory_log = InventoryLog(
+            db.session.add(InventoryLog(
                 product_id=product.id,
-                action="Online Sale" if item.item_type == 'Sale' else "Online Rental",
+                action="Online Order",
                 quantity=-item.quantity,
-                note=f"Web Order Ref: {ref_no}",
+                note=f"Ref: {ref_no}",
                 user_id=current_user.id,
-                user_name=f"{current_user.customer_profile.first_name} {current_user.customer_profile.last_name}"
-            )
-            db.session.add(inventory_log)
+                user_name=new_transaction.customer_name
+            ))
 
-        new_transaction.total_amount = total_accumulated
+        if new_transaction.transaction_type == "Sale":
+            new_transaction.total_amount = total_accumulated
+        
         new_transaction.update_totals()
+
+        new_payment = Payment(
+            transaction_id=new_transaction.id,
+            amount=new_transaction.total_amount,
+            payment_method=selected_payment_method,
+            status="Pending",
+            reference_number=f"PAY-{ref_no}"
+        )
+        db.session.add(new_payment)
 
         for item in cart.items:
             db.session.delete(item)
         
         db.session.commit()
-        flash(f"Order placed successfully! Ref: {ref_no}", "success")
         return redirect(url_for('user.order_success', ref=ref_no))
 
+    except ValueError as ve:
+        db.session.rollback()
+        flash(str(ve), "warning")
+        return redirect(url_for('user.cart'))
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Checkout Error: {str(e)}")
-        flash(f"Checkout failed: {str(e)}", "error")
+        current_app.logger.error(f"CRITICAL CHECKOUT ERROR: {str(e)}") 
+        flash("An internal server error occurred while processing your order.", "error")
         return redirect(url_for('user.checkout'))
     
     
+@user_bp.route('/order_success')
+@login_required
+def order_success():
+    ref_no = request.args.get('ref')
+    if not ref_no:
+        return redirect(url_for('user.homepage'))
+
+    order = Transaction.query.filter_by(
+        reference_no=ref_no, 
+        customer_id=current_user.customer_profile.id
+    ).first()
+
+    if not order:
+        flash("Order not found or access denied.", "error")
+        return redirect(url_for('user.homepage'))
+
+    items = order.purchases if order.transaction_type == 'Sale' else order.rentals
+    
+
+    payment = order.payments[0] if order.payments else None
+    payment_method = payment.payment_method if payment else "N/A"
+
+    return render_template(
+        'user/order_success.html',
+        order=order,
+        items=items,
+        payment_method=payment_method,
+        total_price=order.total_amount
+    )
