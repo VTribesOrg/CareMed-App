@@ -731,7 +731,6 @@
                         {% if product.stock > 0 %}
                             {% if current_user.is_authenticated %}
 
-                                {# RENTAL CONFIGURATION #}
                                 {% if product.transaction_type in ['Rent', 'Both'] %}
                                     <div class="pd-rental-config-section" style="grid-column: span 2; background: #f8fafc; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 10px;">
                                         <h5 style="font-size: 0.9rem; margin-bottom: 10px; color: #1e293b;"><i class="fa-solid fa-calendar-lines-pen"></i> Rental Period</h5>
@@ -769,7 +768,6 @@
                                     </div>
                                 {% endif %}
 
-                                {# SALE / PURCHASE SECTION #}
                                 {% if product.transaction_type in ['Sale', 'Both'] %}
                                     <div class="pd-sale-actions" style="grid-column: span 2; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                                         {% if (product.id, 'Sale') in in_cart_items %}
@@ -785,10 +783,14 @@
                                                 </button>
                                             </form>
                                         {% endif %}
-
-                                        <button class="pd-btn-primary" onclick="handleAction('buy', '{{ product.id }}')">
-                                            <i class="fa-solid fa-bolt"></i> Buy Now
-                                        </button>
+                                        <form action="{{ url_for('user.add_to_cart', product_id=product.id) }}" method="POST" style="display: contents;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <input type="hidden" name="item_type" value="Sale">
+                                            <input type="hidden" name="next_page" value="cart">
+                                            <button type="submit" class="pd-btn-primary">
+                                                <i class="fa-solid fa-bolt"></i> Buy Now
+                                            </button>
+                                        </form>
                                     </div>
                                 {% endif %}
 
@@ -1018,12 +1020,14 @@
                                             </button>
                                         </form>
                                     {% endif %}
-
-                                        <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
-                                        class="btn-action btn-buy-solid">
-                                            <i class="fa-solid fa-bolt"></i> Buy Now
-                                        </a>
-
+                                        <form action="{{ url_for('user.add_to_cart', product_id=product.id) }}" method="POST" style="display: contents;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <input type="hidden" name="item_type" value="Sale">
+                                            <input type="hidden" name="next_page" value="cart">
+                                            <button type="submit" class="btn-action btn-buy-solid">
+                                                <i class="fa-solid fa-bolt"></i> Buy Now
+                                            </button>
+                                        </form>
                                     {% else %}
                                         <a href="{{ url_for('auth.login') }}"
                                         class="btn-action btn-buy-solid">

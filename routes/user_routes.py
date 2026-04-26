@@ -157,6 +157,8 @@ def profile():
         profile_form.last_name.data = customer.last_name
         profile_form.phone.data = customer.contact_number
         profile_form.address.data = customer.home_address
+        profile_form.primary_id_type.data = customer.primary_id_type
+        profile_form.secondary_id_type.data = customer.secondary_id_type
 
         return render_template("user/profile.html", profile_form=profile_form, password_form=password_form)
 
@@ -166,40 +168,68 @@ def profile():
             customer.last_name = profile_form.last_name.data.strip().title()
             customer.contact_number = profile_form.phone.data.strip()
             customer.home_address = profile_form.address.data.title()
+            
+            customer.primary_id_type = profile_form.primary_id_type.data
+            customer.secondary_id_type = profile_form.secondary_id_type.data
 
             remove_photo_signal = request.form.get('remove_photo') == 'true'
-            new_file = profile_form.profile_path.data
+            new_profile_file = profile_form.profile_path.data
 
-            if remove_photo_signal and not new_file:
+            if remove_photo_signal and not new_profile_file:
                 if current_user.profile_path:
                     old_path = os.path.join(current_app.root_path, 'static', current_user.profile_path)
                     if os.path.exists(old_path):
                         os.remove(old_path)
                     current_user.profile_path = None
 
-            if new_file:
+            if new_profile_file:
                 if current_user.profile_path:
                     old_path = os.path.join(current_app.root_path, 'static', current_user.profile_path)
                     if os.path.exists(old_path):
                         os.remove(old_path)
-
-                filename = secure_filename(f"user_{current_user.id}_{new_file.filename}")
+                
+                filename = secure_filename(f"user_{current_user.id}_{new_profile_file.filename}")
                 upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'profiles')
                 os.makedirs(upload_folder, exist_ok=True)
-                
-                new_file.save(os.path.join(upload_folder, filename))
+                new_profile_file.save(os.path.join(upload_folder, filename))
                 current_user.profile_path = f"uploads/profiles/{filename}"
+
+            primary_id_file = profile_form.valid_id_path.data
+            if primary_id_file:
+                if customer.valid_id_path:
+                    old_path = os.path.join(current_app.root_path, 'static', customer.valid_id_path)
+                    if os.path.exists(old_path): os.remove(old_path)
+                
+                filename = secure_filename(f"primary_id_{current_user.id}_{primary_id_file.filename}")
+                upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'ids')
+                os.makedirs(upload_folder, exist_ok=True)
+                primary_id_file.save(os.path.join(upload_folder, filename))
+                customer.valid_id_path = f"uploads/ids/{filename}"
+                customer.id_uploaded_at = datetime.utcnow()
+
+            secondary_id_file = profile_form.secondary_id_path.data
+            if secondary_id_file:
+                if customer.secondary_id_path:
+                    old_path = os.path.join(current_app.root_path, 'static', customer.secondary_id_path)
+                    if os.path.exists(old_path): os.remove(old_path)
+                
+                filename = secure_filename(f"secondary_id_{current_user.id}_{secondary_id_file.filename}")
+                upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'ids')
+                os.makedirs(upload_folder, exist_ok=True)
+                secondary_id_file.save(os.path.join(upload_folder, filename))
+                customer.secondary_id_path = f"uploads/ids/{filename}"
+                customer.id_uploaded_at = datetime.utcnow()
 
             db.session.commit()
             return jsonify(
                 status="success",
-                message="Your profile has been updated successfully!"
+                message="Your profile and identification documents have been updated successfully!"
             )
 
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f"Profile update failed: {e}")
-            return jsonify(status="error", message="Oops! We couldn’t update your profile. Please try again.",)
+            return jsonify(status="error", message="Oops! We couldn’t update your profile. Please try again.")
 
     if request.method == "POST":
         error_messages = []

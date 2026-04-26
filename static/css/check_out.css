@@ -1011,7 +1011,7 @@ img.user-photo-img:after {
 
 .place-order-btn {
     width: 100%;
-    background: #007bff;
+    background:#16a34a;
     color: white;
     border: none;
     padding: 16px;
@@ -1028,7 +1028,7 @@ img.user-photo-img:after {
 }
 
 .place-order-btn:hover { 
-    background: #0056b3;
+    background: #16a34a;
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
 }

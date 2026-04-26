@@ -42,6 +42,25 @@ class User(UserMixin, db.Model):
     def full_name(self):
         return f"{self.first_name} {self.last_name}"
     
+    @property
+    def masked_email(self):
+        if not self.email or '@' not in self.email:
+            return None
+
+        try:
+            name, domain = self.email.split('@', 1)
+
+            if len(name) <= 1:
+                return self.email
+            if len(name) == 2:
+                masked_name = name[0] + '*'
+            else:
+                masked_name = name[0] + ('*' * (len(name) - 2)) + name[-1]
+
+            return f"{masked_name}@{domain}"
+        except Exception:
+            return None
+    
 class SecurityLog(db.Model):
     __tablename__ = "security_logs"
 

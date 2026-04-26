@@ -205,174 +205,174 @@
         </label>
     </nav>
 
-<main class="checkout-main">
-    <div class="checkout-container">
-        <form action="{{ url_for('user.place_order') }}" method="POST" id="checkout-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <main class="checkout-main">
+        <div class="checkout-container">
+            <form action="{{ url_for('user.place_order') }}" method="POST" id="checkout-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-            <div class="checkout-flex-layout">
-                <div class="checkout-details-column">
-                    
-                    <div class="checkout-section-card">
-                        <div class="section-header">
-                            <span class="material-symbols-outlined">location_on</span>
-                            <h3>Delivery Address</h3>
-                        </div>
-
-                        <div class="address-display">
-                            <div class="address-top-row">
-                                <div class="checkout-user-info">
-                                    {% if current_user.customer_profile %}
-                                        <strong id="display-name">{{ current_user.customer_profile.first_name }} {{ current_user.customer_profile.last_name }}</strong>
-                                        <span class="phone-tag" id="display-phone">+63 {{ current_user.customer_profile.contact_number or 'No Contact #' }}</span>
-                                    {% else %}
-                                        <strong class="text-danger">Profile info missing</strong>
-                                    {% endif %}
-                                </div>
-                                <button type="button" id="openAddrModal" class="edit-address-btn">Change</button>
+                <div class="checkout-flex-layout">
+                    <div class="checkout-details-column">
+                        
+                        <div class="checkout-section-card">
+                            <div class="section-header">
+                                <span class="material-symbols-outlined">location_on</span>
+                                <h3>Delivery Address</h3>
                             </div>
-                            
-                            {% if current_user.customer_profile and current_user.customer_profile.home_address %}
-                                <p class="full-address" id="display-address">{{ current_user.customer_profile.home_address }}</p>
-                            {% else %}
-                                <p class="full-address" style="color: #e53e3e;">
-                                    <i class="fa-solid fa-circle-exclamation"></i> No delivery address found.
-                                </p>
-                            {% endif %}
-                        </div>
-                    </div>
 
-                    <div class="checkout-section-card">
-                        <div class="section-header">
-                            <span class="material-symbols-outlined">inventory_2</span>
-                            <h3>Order Review</h3>
-                        </div>
-                        <div class="order-items-compact">
-                            {% for item in items %}
-                            <div class="checkout-item">
-                                <div class="item-img-wrapper">
-                                    <img src="{{ url_for('static', filename=item.product.image) }}" alt="product">
-                                    <span class="item-qty-badge">{{ item.quantity }}</span>
-                                </div>
-                                <div class="item-description">
-                                    <h4>{{ item.product.name }}</h4>
-                                    <div class="item-tags">
-                                        <span class="badge {{ item.item_type|lower }}">{{ item.item_type }}</span>
-                                        {% if item.item_type == 'Rental' %}
-                                            <span class="rental-period-text">{{ item.rental_duration }} Mo. starting {{ item.rental_start_date }}</span>
+                            <div class="address-display">
+                                <div class="address-top-row">
+                                    <div class="checkout-user-info">
+                                        {% if current_user.customer_profile %}
+                                            <strong id="display-name">{{ current_user.customer_profile.first_name }} {{ current_user.customer_profile.last_name }}</strong>
+                                            <span class="phone-tag" id="display-phone">+63 {{ current_user.customer_profile.contact_number or 'No Contact #' }}</span>
+                                        {% else %}
+                                            <strong class="text-danger">Profile info missing</strong>
                                         {% endif %}
                                     </div>
+                                    <button type="button" id="openAddrModal" class="edit-address-btn">Change</button>
                                 </div>
-                                <div class="item-subtotal">
-                                    ₱{{ "{:,.0f}".format(item.price_at_addition * item.quantity) }}
-                                </div>
+                                
+                                {% if current_user.customer_profile and current_user.customer_profile.home_address %}
+                                    <p class="full-address" id="display-address">{{ current_user.customer_profile.home_address }}</p>
+                                {% else %}
+                                    <p class="full-address" style="color: #e53e3e;">
+                                        <i class="fa-solid fa-circle-exclamation"></i> No delivery address found.
+                                    </p>
+                                {% endif %}
                             </div>
-                            {% endfor %}
+                        </div>
+
+                        <div class="checkout-section-card">
+                            <div class="section-header">
+                                <span class="material-symbols-outlined">inventory_2</span>
+                                <h3>Order Review</h3>
+                            </div>
+                            <div class="order-items-compact">
+                                {% for item in items %}
+                                <div class="checkout-item">
+                                    <div class="item-img-wrapper">
+                                        <img src="{{ url_for('static', filename=item.product.image) }}" alt="product">
+                                        <span class="item-qty-badge">{{ item.quantity }}</span>
+                                    </div>
+                                    <div class="item-description">
+                                        <h4>{{ item.product.name }}</h4>
+                                        <div class="item-tags">
+                                            <span class="badge {{ item.item_type|lower }}">{{ item.item_type }}</span>
+                                            {% if item.item_type == 'Rental' %}
+                                                <span class="rental-period-text">{{ item.rental_duration }} Mo. starting {{ item.rental_start_date }}</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="item-subtotal">
+                                        ₱{{ "{:,.0f}".format(item.price_at_addition * item.quantity) }}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="checkout-section-card">
+                            <div class="section-header">
+                                <span class="material-symbols-outlined">payments</span>
+                                <h3>Payment Method</h3>
+                            </div>
+                            <div class="payment-grid">
+                                <label class="payment-card">
+                                    <input type="radio" name="payment_method" value="COD" checked>
+                                    <div class="payment-card-content">
+                                        <i class="fa-solid fa-hand-holding-dollar"></i>
+                                        <span>Cash on Delivery</span>
+                                    </div>
+                                </label>
+                                <label class="payment-card">
+                                    <input type="radio" name="payment_method" value="GCASH">
+                                    <div class="payment-card-content">
+                                        <i class="fa-solid fa-mobile-screen"></i>
+                                        <span>GCash / eWallet</span>
+                                    </div>
+                                </label>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="checkout-section-card">
-                        <div class="section-header">
-                            <span class="material-symbols-outlined">payments</span>
-                            <h3>Payment Method</h3>
-                        </div>
-                        <div class="payment-grid">
-                            <label class="payment-card">
-                                <input type="radio" name="payment_method" value="COD" checked>
-                                <div class="payment-card-content">
-                                    <i class="fa-solid fa-hand-holding-dollar"></i>
-                                    <span>Cash on Delivery</span>
+                    <aside class="checkout-summary-column">
+                        <div class="summary-card-sticky">
+                            <h3>Order Summary</h3>
+                            
+                            <div class="price-breakdown">
+                                <div class="price-row">
+                                    <span>Subtotal</span>
+                                    <span>₱{{ "{:,.0f}".format(total_price) }}</span>
                                 </div>
-                            </label>
-                            <label class="payment-card">
-                                <input type="radio" name="payment_method" value="GCASH">
-                                <div class="payment-card-content">
-                                    <i class="fa-solid fa-mobile-screen"></i>
-                                    <span>GCash / eWallet</span>
+                                <div class="price-row">
+                                    <span>Shipping Fee</span>
+                                    <span class="free-shipping">FREE</span>
                                 </div>
-                            </label>
+                                <div class="price-row">
+                                    <span>Service Fee</span>
+                                    <span>₱0.00</span>
+                                </div>
+                                <div class="price-row total-row">
+                                    <span>Total Amount</span>
+                                    <span class="final-price">₱{{ "{:,.0f}".format(total_price) }}</span>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="place-order-btn">
+                                Place Order 
+                                <i class="fa-solid fa-arrow-right"></i>
+                            </button>
+                            
+                            <div class="security-assurance">
+                                <i class="fa-solid fa-lock"></i>
+                                Secure checkout with CareMed Data Protection
+                            </div>
                         </div>
-                    </div>
+                    </aside>
                 </div>
-
-                <aside class="checkout-summary-column">
-                    <div class="summary-card-sticky">
-                        <h3>Order Summary</h3>
-                        
-                        <div class="price-breakdown">
-                            <div class="price-row">
-                                <span>Subtotal</span>
-                                <span>₱{{ "{:,.0f}".format(total_price) }}</span>
-                            </div>
-                            <div class="price-row">
-                                <span>Shipping Fee</span>
-                                <span class="free-shipping">FREE</span>
-                            </div>
-                            <div class="price-row">
-                                <span>Service Fee</span>
-                                <span>₱0.00</span>
-                            </div>
-                            <div class="price-row total-row">
-                                <span>Total Amount</span>
-                                <span class="final-price">₱{{ "{:,.0f}".format(total_price) }}</span>
-                            </div>
-                        </div>
-
-                        <button type="submit" class="place-order-btn">
-                            Place Order 
-                            <i class="fa-solid fa-arrow-right"></i>
-                        </button>
-                        
-                        <div class="security-assurance">
-                            <i class="fa-solid fa-lock"></i>
-                            Secure checkout with CareMed Data Protection
-                        </div>
-                    </div>
-                </aside>
-            </div>
-        </form>
-    </div>
-</main>
-
-<div id="addressModal" class="addr-modal-overlay">
-    <div class="addr-modal-container">
-        <div class="addr-modal-header">
-            <h3>Update Delivery Details</h3>
-            <button type="button" id="closeAddrModal" class="addr-close-btn">&times;</button>
+            </form>
         </div>
-        <form id="update-address-form" method="POST" action="{{ url_for('user.update_checkout_profile') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            
-            <div class="addr-modal-body">
-                <div class="addr-form-row">
-                    <div class="addr-form-group">
-                        <label>First Name</label>
-                        <input type="text" name="first_name" value="{{ current_user.customer_profile.first_name }}" required>
-                    </div>
-                    <div class="addr-form-group">
-                        <label>Last Name</label>
-                        <input type="text" name="last_name" value="{{ current_user.customer_profile.last_name }}" required>
-                    </div>
-                </div>
+    </main>
 
-                <div class="addr-form-group">
-                    <label>Contact Number (+63)</label>
-                    <input type="text" name="contact_number" value="{{ current_user.customer_profile.contact_number }}" placeholder="9123456789" required>
-                </div>
-
-                <div class="addr-form-group">
-                    <label>Complete Home Address</label>
-                    <textarea name="home_address" rows="3" required>{{ current_user.customer_profile.home_address }}</textarea>
-                </div>
+    <div id="addressModal" class="addr-modal-overlay">
+        <div class="addr-modal-container">
+            <div class="addr-modal-header">
+                <h3>Update Delivery Details</h3>
+                <button type="button" id="closeAddrModal" class="addr-close-btn">&times;</button>
             </div>
+            <form id="update-address-form" method="POST" action="{{ url_for('user.update_checkout_profile') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
+                <div class="addr-modal-body">
+                    <div class="addr-form-row">
+                        <div class="addr-form-group">
+                            <label>First Name</label>
+                            <input type="text" name="first_name" value="{{ current_user.customer_profile.first_name }}" required>
+                        </div>
+                        <div class="addr-form-group">
+                            <label>Last Name</label>
+                            <input type="text" name="last_name" value="{{ current_user.customer_profile.last_name }}" required>
+                        </div>
+                    </div>
 
-            <div class="addr-modal-footer">
-                <button type="button" id="cancelAddrModal" class="addr-btn-cancel">Cancel</button>
-                <button type="submit" class="addr-btn-save">Save Changes</button>
-            </div>
-        </form>
+                    <div class="addr-form-group">
+                        <label>Contact Number (+63)</label>
+                        <input type="text" name="contact_number" value="{{ current_user.customer_profile.contact_number }}" placeholder="9123456789" required>
+                    </div>
+
+                    <div class="addr-form-group">
+                        <label>Complete Home Address</label>
+                        <textarea name="home_address" rows="3" required>{{ current_user.customer_profile.home_address }}</textarea>
+                    </div>
+                </div>
+
+                <div class="addr-modal-footer">
+                    <button type="button" id="cancelAddrModal" class="addr-btn-cancel">Cancel</button>
+                    <button type="submit" class="addr-btn-save">Save Changes</button>
+                </div>
+            </form>
+        </div>
     </div>
-</div>
 
     <footer id="footer">
         <div class="footer-grid">

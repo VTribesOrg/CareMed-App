@@ -1,9 +1,11 @@
 import re
-from flask_wtf.file import FileAllowed
+from flask_wtf.file import FileField, FileAllowed
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, TextAreaField, FileField, SubmitField
+from wtforms import StringField, PasswordField, TextAreaField, FileField, SubmitField, SelectField
 from wtforms.validators import DataRequired, Length, Optional, EqualTo, ValidationError
 from wtforms import BooleanField
+from wtforms import StringField, TextAreaField, SubmitField, BooleanField
+
 
 
 def validate_strong_password(form, field):
@@ -29,15 +31,43 @@ class UpdateProfileForm(FlaskForm):
     submit_profile_flag = BooleanField(default=False)
     
     first_name = StringField("First Name", validators=[DataRequired(), Length(max=50)])
-    
     last_name = StringField("Last Name", validators=[DataRequired(), Length(max=50)])
-    
     phone = StringField("Phone", validators=[Optional(), Length(max=20)])
-    
     address = TextAreaField("Address", validators=[Optional(), Length(max=255)])
     
-    profile_path = FileField('Profile Picture', validators=[FileAllowed(['jpg', 'png', 'jpeg'], 'Images only!')])
+    profile_path = FileField('Profile Picture', validators=[
+        FileAllowed(['jpg', 'png', 'jpeg'], 'Images only!')
+    ])
     
+    primary_id_type = SelectField('Primary ID Type', choices=[
+        ('', 'Select ID Type'),
+        ('National ID', 'National ID'),
+        ('Drivers License', 'Driver\'s License'),
+        ('Passport', 'Passport'),
+        ('UMID', 'UMID'),
+        ('SSS', 'SSS'),
+        ('PRC ID', 'PRC ID')
+    ])
+    
+    secondary_id_type = SelectField('Secondary ID Type', choices=[
+        ('', 'Select ID Type'),
+        ('Voters ID', 'Voter\'s ID'),
+        ('Postal ID', 'Postal ID'),
+        ('PhilHealth', 'PhilHealth'),
+        ('TIN', 'TIN'),
+        ('Barangay ID', 'Barangay ID'),
+        ('Student ID', 'Student ID')
+    ])
+    
+    valid_id_path = FileField('Primary ID Upload', validators=[
+        FileAllowed(['jpg', 'png', 'jpeg', 'pdf'], 'Images or PDFs only!')
+    ])
+    
+    secondary_id_path = FileField('Secondary ID Upload', validators=[
+        FileAllowed(['jpg', 'png', 'jpeg', 'pdf'], 'Images or PDFs only!')
+    ])
+    # ---------------------
+
     submit_profile = SubmitField("Update Profile")
 
 
