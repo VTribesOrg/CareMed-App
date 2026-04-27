@@ -376,7 +376,7 @@ img.user-photo-img:after {
 /*---------------------- START OF USER-AVATAR STYLE -------------------------------*/
 
 .icon-placeholder {
-    color: #1a79b0;
+    color: #71b345;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1281,7 +1281,7 @@ footer {
 
 
 
-/* Unique Scoped Styles for Address Modal */
+/*=================== START OF ADDRESS MODAL ===================*/
 .addr-modal-overlay {
     display: none;
     position: fixed;
@@ -1289,7 +1289,7 @@ footer {
     left: 0;
     width: 100%; 
     height: 100%;
-    background: rgba(15, 23, 42, 0.6); /* Slightly darker for better focus */
+    background: rgba(15, 23, 42, 0.6); 
     z-index: 9999;
     backdrop-filter: blur(4px);
     align-items: center;
@@ -1413,4 +1413,168 @@ footer {
     to { opacity: 1; transform: translateY(0); }
 }
 
+/*=================== END OF ADDRESS MODAL ===================*/
 
+
+/*=================== START OF VALID ID MODAL ===================*/
+
+.upload-modal-overlay {
+    position: fixed;
+    z-index: 10000;
+    left: 0; top: 0;
+    width: 100%; height: 100%;
+    background: rgba(15, 23, 42, 0.6); 
+    backdrop-filter: blur(4px);
+    display: none; 
+    align-items: center;
+    justify-content: center;
+}
+
+.upload-modal-container {
+    background: #ffffff;
+    padding: 32px;
+    border-radius: 20px;
+    width: 90%;
+    max-width: 450px;
+    position: relative;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.upload-modal-close {
+    position: absolute;
+    right: 20px; top: 20px;
+    background: none; border: none;
+    cursor: pointer;
+    font-size: 24px;
+    color: #94a3b8;
+    transition: color 0.2s;
+}
+
+.upload-modal-close:hover { color: #1e293b; }
+
+.upload-modal-header-content {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.upload-icon-box {
+    background: #eff6ff; 
+    color: #3b82f6;      
+    width: 56px; height: 56px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+}
+
+.upload-modal-header-content h3 {
+    margin: 0 0 8px 0;
+    color: #0f172a;
+    font-size: 1.25rem;
+    font-weight: 800;
+}
+
+.upload-modal-header-content p {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.9rem;
+}
+
+
+.upload-form-group {
+    margin-bottom: 16px;
+}
+
+.input-label-text {
+    font-size: 12px;
+    font-weight: 700;
+    color: #475569;
+    display: block;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.upload-select-field {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    background: #f8fafc;
+    font-size: 0.95rem;
+    color: #1e293b;
+    outline: none;
+}
+
+.upload-select-field:focus {
+    border-color: #3b82f6;
+    background-color: #fff;
+}
+
+
+.custom-file-input-wrapper {
+    display: flex !important;
+    align-items: center;
+    width: 100%;
+    padding: 10px 14px;
+    border: 1.5px dashed #cbd5e1;
+    border-radius: 10px;
+    background: #ffffff;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.custom-file-input-wrapper:hover {
+    border-color: #3b82f6;
+    background-color: #f0f9ff;
+}
+
+.hidden-input { display: none; }
+
+.browser-style-btn {
+    background-color: #efefef;
+    color: #000;
+    padding: 5px 12px;
+    border: 1px solid #767676;
+    border-radius: 3px;
+    font-family: Arial, sans-serif;
+    font-size: 13px;
+    margin-right: 12px;
+    white-space: nowrap;
+}
+
+.file-status-text {
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    color: #1e3a5f;
+    font-weight: 400;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.modal-spacer { height: 8px; }
+
+
+.upload-btn-done {
+    width: 100%;
+    margin-top: 24px;
+    padding: 14px;
+    background: #007bff; 
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.upload-btn-done:hover {
+    background: #0056b3;
+    transform: translateY(-1px);
+}
+
+/*=================== END OF VALID ID MODAL ===================*/

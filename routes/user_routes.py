@@ -153,12 +153,12 @@ def profile():
     customer = current_user.customer_profile
 
     if request.method == "GET":
-        profile_form.first_name.data = customer.first_name
-        profile_form.last_name.data = customer.last_name
-        profile_form.phone.data = customer.contact_number
-        profile_form.address.data = customer.home_address
-        profile_form.primary_id_type.data = customer.primary_id_type
-        profile_form.secondary_id_type.data = customer.secondary_id_type
+        profile_form.first_name.data = customer.first_name or None
+        profile_form.last_name.data = customer.last_name or None
+        profile_form.phone.data = customer.contact_number or None
+        profile_form.address.data = customer.home_address or None
+        profile_form.primary_id_type.data = customer.primary_id_type or None
+        profile_form.secondary_id_type.data = customer.secondary_id_type or None
 
         return render_template("user/profile.html", profile_form=profile_form, password_form=password_form)
 
@@ -478,12 +478,10 @@ def checkout():
 
     user_cart = Cart.query.filter_by(user_id=current_user.id).first()
     
-    if not current_user.customer_profile or not current_user.customer_profile.home_address:
-            flash("Please provide a delivery address in your profile before checking out.", "info")
-            return redirect(url_for('user.profile'))
 
     items_to_buy = []
     total_price = Decimal('0.00')
+    has_rental = False
 
     for key in selected_keys:
         try:
@@ -498,6 +496,10 @@ def checkout():
                 items_to_buy.append(cart_item)
                 price = Decimal(str(cart_item.price_at_addition or 0))
                 total_price += price * cart_item.quantity
+                
+                if cart_item.item_type == 'Rental':
+                    has_rental = True
+                    
         except Exception:
             continue
 
@@ -507,7 +509,8 @@ def checkout():
 
     return render_template('user/check_out.html', 
                            items=items_to_buy, 
-                           total_price=total_price)
+                           total_price=total_price,
+                           has_rental=has_rental)
     
 
 @user_bp.route('/checkout/update-profile', methods=['POST'])
@@ -551,6 +554,13 @@ def place_order():
     if not cart or not cart.items:
         flash("Your cart is empty.", "error")
         return redirect(url_for('user.cart'))
+    
+    is_rental_order = any(item.item_type == 'Rental' for item in cart.items)
+    
+    if is_rental_order:
+        if not profile.valid_id_path or not profile.secondary_id_path:
+            flash("Rental orders require two valid IDs. Please upload them in the checkout page.", "error")
+            return redirect(url_for('user.checkout'))
 
     selected_payment_method = request.form.get('payment_method', 'COD')
 
