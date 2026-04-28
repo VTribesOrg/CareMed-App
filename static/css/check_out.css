@@ -711,6 +711,7 @@ img.user-photo-img:after {
     max-width: 1200px;
     margin: 90px auto 60px;
     font-family: 'Inter', -apple-system, sans-serif;
+    font-size: 0.92rem;
 }
 
 .checkout-container {
@@ -718,7 +719,7 @@ img.user-photo-img:after {
     margin: 0 auto;
 }
 
-/* --- Layout --- */
+
 .checkout-flex-layout {
     display: flex;
     gap: 25px;
@@ -735,27 +736,27 @@ img.user-photo-img:after {
 
 .checkout-section-card {
     background: #ffffff;
-    border-radius: 8px;
-    padding: 20px;
     margin-bottom: 15px;
     border: 1px solid #e1e8ed;
     box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    padding: 15px; 
+    border-radius: 6px;
 }
 
 .section-header {
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-bottom: 18px;
     border-bottom: 1px solid #f0f3f5;
-    padding-bottom: 12px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
 }
 
 .section-header h3 {
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-weight: 600;
     margin: 0;
-    color: #1a2b3c;
+    color: #1f2937;
 }
 
 .section-header .material-symbols-outlined {
@@ -783,23 +784,20 @@ img.user-photo-img:after {
 }
 
 .checkout-user-info strong {
-    font-size: 1rem;
-    color: #1a2b3c;
+    font-size: 0.95rem;
+    color: #111827;
 }
 
 .phone-tag {
-    background: #eef2f7;
-    color: #475569;
+    color: #4b5563;
     font-size: 0.85rem;
     padding: 2px 10px;
-    border-radius: 6px;
-    border: 1px solid #cbd5e1;
     font-weight: 600;
 }
 
 .full-address {
-    font-size: 0.95rem;
-    color: #4a5568;
+    font-size: 0.9rem;
+    color: #374151;
     line-height: 1.6;
     margin: 0;
     max-width: 90%;
@@ -842,17 +840,17 @@ img.user-photo-img:after {
     display: grid;
     grid-template-columns: 60px 1fr 100px;
     align-items: center;
-    gap: 15px;
-    padding: 15px 0;
     border-bottom: 1px solid #f1f5f9;
+    padding: 10px 0;
+    gap: 10px;
 }
 
 .checkout-item:last-child { border-bottom: none; }
 
 .item-img-wrapper {
     position: relative;
-    width: 60px;
-    height: 60px;
+    width: 50px;
+    height: 50px;
 }
 
 .item-img-wrapper img {
@@ -882,8 +880,8 @@ img.user-photo-img:after {
 
 .item-description h4 {
     margin: 0 0 6px 0;
-    font-size: 0.95rem;
-    color: #1e293b;
+    font-size: 0.9rem;
+    color: #1f2937;
     font-weight: 600;
 }
 
@@ -907,14 +905,14 @@ img.user-photo-img:after {
 
 .rental-period-text {
     font-size: 0.75rem;
-    color: #64748b;
+    color: #6b7280;
 }
 
 .item-subtotal {
     text-align: right;
     font-weight: 700;
     color: #1e293b;
-    font-size: 1rem;
+    font-size: 0.95rem;
 }
 
 /* --- Payment Method --- */
@@ -966,7 +964,7 @@ img.user-photo-img:after {
     position: sticky;
     top: 110px;
     background: #fff;
-    padding: 25px;
+    padding: 20px;
     border-radius: 12px;
     border: 1px solid #e2e8f0;
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
@@ -975,7 +973,7 @@ img.user-photo-img:after {
 .summary-card-sticky h3 {
     margin-top: 0;
     margin-bottom: 20px;
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     color: #1e293b;
 }
 
@@ -987,8 +985,8 @@ img.user-photo-img:after {
     display: flex;
     justify-content: space-between;
     margin-bottom: 12px;
-    font-size: 0.95rem;
-    color: #64748b;
+    font-size: 0.9rem;
+    color: #000;
 }
 
 .free-shipping {
@@ -1000,13 +998,13 @@ img.user-photo-img:after {
     border-top: 2px dashed #e2e8f0;
     padding-top: 15px;
     margin-top: 15px;
-    color: #0f172a;
+    color: #000;
     font-weight: 800;
 }
 
 .final-price {
-    font-size: 1.6rem;
-    color: #007bff;
+    font-size: 1.4rem;
+    color: #000;
 }
 
 .place-order-btn {
@@ -1025,6 +1023,7 @@ img.user-photo-img:after {
     justify-content: center;
     gap: 10px;
     transition: all 0.3s;
+
 }
 
 .place-order-btn:hover { 
@@ -1049,6 +1048,10 @@ img.user-photo-img:after {
     .payment-grid { grid-template-columns: 1fr; }
     .summary-card-sticky { position: static; margin-top: 20px; }
 }
+
+
+
+
 
 /*================================== END OF MAIN CONTENT ==================================*/
 

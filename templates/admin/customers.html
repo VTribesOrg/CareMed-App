@@ -33,102 +33,100 @@
 
     <div class="main-wrapper">
 
-    <aside class="medical-sidebar">
-        <div class="sidebar-header">
-            <div class="sidebar-brand">
-                <span class="nav-label logo-text">Care<span>Med</span></span>
+        <aside class="medical-sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-brand">
+                    <span class="nav-label logo-text">Care<span>Med</span></span>
+                </div>
+                <label for="sidebar-state" class="nav-toggle-label">
+                    <span class="material-symbols-rounded">menu</span>
+                </label>
             </div>
-            <label for="sidebar-state" class="nav-toggle-label">
-                <span class="material-symbols-rounded">menu</span>
-            </label>
-        </div>
 
-        <div class="sidebar-navigation">
-            <ul class="nav-menu">
-                <li class="nav-item" title="Dashboard">
-                    <a href="{{ url_for('admin.dashboard') }}" class="nav-link">
-                        <span class="material-symbols-rounded">monitoring</span>
-                        <span class="nav-label">Dashboard</span>
-                    </a>
-                </li>
+            <div class="sidebar-navigation">
+                <ul class="nav-menu">
+                    <li class="nav-item" title="Dashboard">
+                        <a href="{{ url_for('admin.dashboard') }}" class="nav-link">
+                            <span class="material-symbols-rounded">monitoring</span>
+                            <span class="nav-label">Dashboard</span>
+                        </a>
+                    </li>
 
-                <li class="nav-item" title="Inventory">
-                    <a href="{{ url_for('admin.products') }}" class="nav-link">
-                        <span class="material-symbols-rounded">inventory_2</span>
-                        <span class="nav-label">Inventory</span>
-                    </a>
-                </li>
+                    <li class="nav-item" title="Inventory">
+                        <a href="{{ url_for('admin.products') }}" class="nav-link">
+                            <span class="material-symbols-rounded">inventory_2</span>
+                            <span class="nav-label">Inventory</span>
+                        </a>
+                    </li>
 
-                <li class="nav-item" title="Refill Requests">
-                    <a href="#" class="nav-link">
-                        <span class="material-symbols-rounded">gas_meter</span>
-                        <span class="nav-label">Refill Requests</span>
-                    </a>
-                </li>
+                    <li class="nav-item" title="Refill Requests">
+                        <a href="#" class="nav-link">
+                            <span class="material-symbols-rounded">gas_meter</span>
+                            <span class="nav-label">Refill Requests</span>
+                        </a>
+                    </li>
 
-                <li class="nav-item" title="Customer Records">
-                    <a href="{{ url_for('admin.customers') }}" class="nav-link active">
-                        <span class="material-symbols-rounded">groups</span>
-                        <span class="nav-label">Customer Records</span>
-                    </a>
-                </li>
+                    <li class="nav-item" title="Customer Records">
+                        <a href="{{ url_for('admin.customers') }}" class="nav-link active">
+                            <span class="material-symbols-rounded">groups</span>
+                            <span class="nav-label">Customer Records</span>
+                        </a>
+                    </li>
 
-                <li class="nav-item" title="Transactions">
-                    <a href="{{ url_for('admin.transactions') }}" class="nav-link">
-                        <span class="material-symbols-rounded">receipt_long</span>
-                        <span class="nav-label">Transactions</span>
-                    </a>
-                </li>
+                    <li class="nav-item" title="Transactions">
+                        <a href="{{ url_for('admin.transactions') }}" class="nav-link">
+                            <span class="material-symbols-rounded">receipt_long</span>
+                            <span class="nav-label">Transactions</span>
+                        </a>
+                    </li>
 
-                <li class="nav-item" title="Reporst & Analytics">
-                    <a href="{{ url_for('admin.reports') }}" class="nav-link">
-                        <span class="material-symbols-rounded">analytics</span>
-                        <span class="nav-label">Reports & Analytics</span>
-                    </a>
-                </li>
-                <li class="nav-item" title="Security Center">
-                    <a href="{{ url_for('admin.security_dashboard') }}" class="nav-link">
-                        <span class="material-symbols-rounded">security</span>
-                        <span class="nav-label">Security Center</span>
-                    </a>
-                </li>
-                <li class="nav-item" title="System Logs">
-                    <a href="{{url_for('admin.system_logs')}}" class="nav-link">
-                        <span class="material-symbols-rounded">list_alt</span>
-                        <span class="nav-label">System Logs</span>
-                    </a>
-                </li>
-            </ul>
+                    <li class="nav-item" title="Reporst & Analytics">
+                        <a href="{{ url_for('admin.reports') }}" class="nav-link">
+                            <span class="material-symbols-rounded">analytics</span>
+                            <span class="nav-label">Reports & Analytics</span>
+                        </a>
+                    </li>
+                    <li class="nav-item" title="Security Center">
+                        <a href="{{ url_for('admin.security_dashboard') }}" class="nav-link">
+                            <span class="material-symbols-rounded">security</span>
+                            <span class="nav-label">Security Center</span>
+                        </a>
+                    </li>
+                    <li class="nav-item" title="System Logs">
+                        <a href="{{url_for('admin.system_logs')}}" class="nav-link">
+                            <span class="material-symbols-rounded">list_alt</span>
+                            <span class="nav-label">System Logs</span>
+                        </a>
+                    </li>
+                </ul>
 
-            <div class="sidebar-footer" title="Settings">
-                <a href="javascript:void(0)" class="nav-link settings-link" id="settings-toggle-btn">
-                    <span class="material-symbols-rounded">settings</span>
-                    <span class="nav-label theme-label">Settings &amp; help</span>
-                </a>
+                <div class="sidebar-footer" title="Settings">
+                    <a href="javascript:void(0)" class="nav-link settings-link" id="settings-toggle-btn">
+                        <span class="material-symbols-rounded">settings</span>
+                        <span class="nav-label theme-label">Settings &amp; help</span>
+                    </a>
 
-                <div id="settings-menu-popup" class="settings-menu-popup hidden">
-                    <ul>
-                        <li class="menu-item menu-theme-toggle">
-                            <span class="material-symbols-rounded theme-icon">light_mode</span>
-                            <span class="theme-text">Theme</span>
-                            <span class="material-symbols-rounded chevron">chevron_right</span>
-                        </li>
-                        <li class="menu-item">
-                            <span class="material-symbols-rounded">feedback</span>
-                            <span>Send feedback</span>
-                        </li>
-                        <li class="menu-item menu-help-sub">
-                            <span class="material-symbols-rounded">help</span>
-                            <span>Help</span>
-                            <span class="material-symbols-rounded chevron">chevron_right</span>
-                        </li>
-                    </ul>
+                    <div id="settings-menu-popup" class="settings-menu-popup hidden">
+                        <ul>
+                            <li class="menu-item menu-theme-toggle">
+                                <span class="material-symbols-rounded theme-icon">light_mode</span>
+                                <span class="theme-text">Theme</span>
+                                <span class="material-symbols-rounded chevron">chevron_right</span>
+                            </li>
+                            <li class="menu-item">
+                                <span class="material-symbols-rounded">feedback</span>
+                                <span>Send feedback</span>
+                            </li>
+                            <li class="menu-item menu-help-sub">
+                                <span class="material-symbols-rounded">help</span>
+                                <span>Help</span>
+                                <span class="material-symbols-rounded chevron">chevron_right</span>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
             </div>
-        </div>
-    </aside>
-
-
+        </aside>
 
         <div class="viewport-container">
             <header class="system-header">
@@ -326,21 +324,11 @@
                                         </td>
 
                                         <td class="col-actions">
-                                            <button class="asset-action-btn logs js-view-profile"
-                                                    data-id="{{ customer.id }}"
-                                                    data-first_name="{{ customer.first_name }}"
-                                                    data-last_name="{{ customer.last_name }}"
-                                                    data-name="{{ customer.first_name }} {{ customer.last_name }}"
-                                                    data-phone="{{ customer.contact_number }}"
-                                                    data-address="{{ customer.home_address }}"
-                                                    data-birthday="{{ customer.birthday.strftime('%Y-%m-%d') if customer.birthday else '' }}"
-                                                    data-gender="{{ customer.gender }}"
-                                                    data-primaryid="{{ url_for('static', filename=customer.valid_id_path) if customer.valid_id_path else '' }}"
-                                                    data-secondaryid="{{ url_for('static', filename=customer.secondary_id_path) if customer.secondary_id_path else '' }}"
-                                                    data-primarytype="{{ customer.primary_id_type or '' }}"
-                                                    data-secondarytype="{{ customer.secondary_id_type or '' }}">
+                                            <a href="{{ url_for('admin.customer_details', id=customer.id) }}" 
+                                                class="asset-action-btn logs" 
+                                                style="text-decoration: none; display: inline-flex; align-items: center; justify-content: center;">
                                                 <span class="material-symbols-rounded">visibility</span>
-                                            </button>
+                                            </a>
 
                                             <button class="asset-action-btn edit" 
                                                 data-id="{{ customer.id }}"
@@ -444,6 +432,7 @@
                 </div>
             </main>
         </div>
+
     </div>
 
     

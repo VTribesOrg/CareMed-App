@@ -543,11 +543,6 @@ def callback():
     if user.role == "Administrator":
         return redirect(url_for("admin.dashboard"))
 
-
-    if not user.customer_profile.contact_number or not user.customer_profile.home_address:
-        flash("Welcome! Please complete your profile details to start renting.", "info")
-        return redirect(url_for("user.profile"))
-
     return redirect(url_for("user.homepage"))
 
 @auth_bp.route("/logout")

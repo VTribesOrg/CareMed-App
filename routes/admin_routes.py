@@ -61,7 +61,6 @@ def dashboard():
 @login_required
 @administrator_required
 def customers():
-
     page = request.args.get('page', 1, type=int)
     limit = request.args.get('limit', 10, type=int)
     search_query = request.args.get('q', '').strip()
@@ -89,6 +88,94 @@ def customers():
         current_limit=limit
     )
 
+
+@admin_bp.route('/get_customer/<int:id>')
+@login_required
+@administrator_required
+def get_customer(id):
+    try:
+        customer = Customer.query.options(
+            db.joinedload(Customer.user)
+        ).get(id)
+
+        if not customer:
+            return jsonify({
+                "status": "error",
+                "message": "Customer record not found."
+            }), 404
+
+
+        profile_url = None
+        if customer.user and customer.user.profile_path:
+            if customer.user.profile_path.startswith(('http://', 'https://')):
+                profile_url = customer.user.profile_path
+            else:
+                profile_url = url_for('static', filename=customer.user.profile_path)
+
+        return jsonify({
+            "status": "success",
+            "data": {
+                "id": customer.id,
+                "first_name": customer.first_name or "N/A",
+                "last_name": customer.last_name or "N/A",
+                "full_name": customer.full_name, 
+                
+                "contact_number": customer.contact_number or "N/A",
+                "home_address": customer.home_address or "N/A",
+                
+                "birthday": customer.birthday.strftime('%Y-%m-%d') if customer.birthday else "N/A",
+                "gender": customer.gender or "N/A",
+                
+                "is_active": customer.is_active,
+                
+                "is_id_verified": customer.is_id_verified,
+                "primary_id_type": customer.primary_id_type or "Not Set",
+                "secondary_id_type": customer.secondary_id_type or "Not Set",
+                
+                "valid_id_path": url_for('static', filename=customer.valid_id_path) if customer.valid_id_path else None,
+                "secondary_id_path": url_for('static', filename=customer.secondary_id_path) if customer.secondary_id_path else None,
+                
+                "id_uploaded_at": customer.id_uploaded_at.strftime('%b %d, %Y %I:%M %p') if customer.id_uploaded_at else "Never",
+                
+                "has_online_account": True if customer.user_id else False,
+                "email": customer.user.email if customer.user else "Walk-in / No Email",
+                "profile_path": profile_url,
+                
+                "created_at": customer.created_at.strftime('%Y-%m-%d %H:%M:%S') if customer.created_at else None
+            }
+        })
+
+    except Exception as e:
+        current_app.logger.error(f"Error fetching customer {id}: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": "An internal server error occurred while retrieving customer data."
+        }), 500
+
+
+# 2. The Detailed View (What you need)
+@admin_bp.route('/customers/<int:id>')
+def customer_details(id):
+    # Fetch customer or fail with 404
+    customer = Customer.query.get_or_404(id)
+    
+    # The template 'customer_details_refined.html' should be in your templates folder
+    return render_template('admin/customer_details.html', customer=customer)
+
+# 3. Action Route: Verify Customer
+@admin_bp.route('/customers/<int:id>/verify', methods=['POST'])
+def verify_customer(id):
+    customer = Customer.query.get_or_404(id)
+    
+    try:
+        customer.is_id_verified = True
+        db.session.commit()
+        flash(f'Identity for {customer.full_name} has been verified.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash('Error updating verification status.', 'danger')
+        
+    return redirect(url_for('admin_bp.customer_details', id=id))
 
 @admin_bp.route('/admin/add-customer', methods=['POST'])
 @login_required
@@ -187,69 +274,6 @@ def add_customer():
 
     return redirect(url_for('admin.customers'))
 
-
-@admin_bp.route('/get_customer/<int:id>')
-@login_required
-@administrator_required
-def get_customer(id):
-    try:
-        customer = Customer.query.options(
-            db.joinedload(Customer.user)
-        ).get(id)
-
-        if not customer:
-            return jsonify({
-                "status": "error",
-                "message": "Customer record not found."
-            }), 404
-
-
-        profile_url = None
-        if customer.user and customer.user.profile_path:
-            if customer.user.profile_path.startswith(('http://', 'https://')):
-                profile_url = customer.user.profile_path
-            else:
-                profile_url = url_for('static', filename=customer.user.profile_path)
-
-        return jsonify({
-            "status": "success",
-            "data": {
-                "id": customer.id,
-                "first_name": customer.first_name or "N/A",
-                "last_name": customer.last_name or "N/A",
-                "full_name": customer.full_name, 
-                
-                "contact_number": customer.contact_number or "N/A",
-                "home_address": customer.home_address or "N/A",
-                
-                "birthday": customer.birthday.strftime('%Y-%m-%d') if customer.birthday else "N/A",
-                "gender": customer.gender or "N/A",
-                
-                "is_active": customer.is_active,
-                
-                "is_id_verified": customer.is_id_verified,
-                "primary_id_type": customer.primary_id_type or "Not Set",
-                "secondary_id_type": customer.secondary_id_type or "Not Set",
-                
-                "valid_id_path": url_for('static', filename=customer.valid_id_path) if customer.valid_id_path else None,
-                "secondary_id_path": url_for('static', filename=customer.secondary_id_path) if customer.secondary_id_path else None,
-                
-                "id_uploaded_at": customer.id_uploaded_at.strftime('%b %d, %Y %I:%M %p') if customer.id_uploaded_at else "Never",
-                
-                "has_online_account": True if customer.user_id else False,
-                "email": customer.user.email if customer.user else "Walk-in / No Email",
-                "profile_path": profile_url,
-                
-                "created_at": customer.created_at.strftime('%Y-%m-%d %H:%M:%S') if customer.created_at else None
-            }
-        })
-
-    except Exception as e:
-        current_app.logger.error(f"Error fetching customer {id}: {str(e)}")
-        return jsonify({
-            "status": "error",
-            "message": "An internal server error occurred while retrieving customer data."
-        }), 500
 
 
 @admin_bp.route('/update-customer', methods=['POST'])

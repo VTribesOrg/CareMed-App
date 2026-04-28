@@ -546,17 +546,22 @@ def update_checkout_profile():
 @login_required
 def place_order():
     profile = current_user.customer_profile
+
     if not profile or not profile.home_address:
         flash("Please complete your delivery profile before ordering.", "warning")
+        return redirect(url_for('user.checkout'))
+
+    if not profile.valid_id_path or not profile.secondary_id_path:
+        flash("You must upload both IDs before placing an order.", "error")
         return redirect(url_for('user.checkout'))
 
     cart = Cart.query.filter_by(user_id=current_user.id).first()
     if not cart or not cart.items:
         flash("Your cart is empty.", "error")
         return redirect(url_for('user.cart'))
-    
+
     is_rental_order = any(item.item_type == 'Rental' for item in cart.items)
-    
+
     if is_rental_order:
         if not profile.valid_id_path or not profile.secondary_id_path:
             flash("Rental orders require two valid IDs. Please upload them in the checkout page.", "error")
@@ -575,7 +580,7 @@ def place_order():
             customer_id=profile.id,
             customer_name=f"{profile.first_name} {profile.last_name}",
             transaction_type='Rental' if is_rental else 'Sale',
-            total_amount=Decimal("0.00"), 
+            total_amount=Decimal("0.00"),
             amount_paid=Decimal("0.00"),
             balance_due=Decimal("0.00"),
             payment_status="Unpaid",
@@ -584,15 +589,15 @@ def place_order():
             delivery_address=profile.home_address,
             delivery_status="Pending"
         )
-        
+
         db.session.add(new_transaction)
-        db.session.flush() 
+        db.session.flush()
 
         total_accumulated = Decimal("0.00")
 
         for item in cart.items:
             product = Product.query.with_for_update().get(item.product_id)
-            
+
             if not product or product.status == 'Archived':
                 raise ValueError(f"The item '{item.product.name}' is no longer available.")
 
@@ -612,7 +617,7 @@ def place_order():
                     unit_price=item_price,
                     total_price=item_total
                 ))
-            
+
             elif item.item_type == 'Rental':
                 end_date = item.rental_start_date + relativedelta(months=item.rental_duration)
                 rental = Rental(
@@ -644,7 +649,7 @@ def place_order():
 
         if new_transaction.transaction_type == "Sale":
             new_transaction.total_amount = total_accumulated
-        
+
         new_transaction.update_totals()
 
         new_payment = Payment(
@@ -658,7 +663,7 @@ def place_order():
 
         for item in cart.items:
             db.session.delete(item)
-        
+
         db.session.commit()
         return redirect(url_for('user.order_success', ref=ref_no))
 
@@ -666,9 +671,10 @@ def place_order():
         db.session.rollback()
         flash(str(ve), "warning")
         return redirect(url_for('user.cart'))
+
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"CRITICAL CHECKOUT ERROR: {str(e)}") 
+        current_app.logger.error(f"CRITICAL CHECKOUT ERROR: {str(e)}")
         flash("An internal server error occurred while processing your order.", "error")
         return redirect(url_for('user.checkout'))
     
@@ -702,3 +708,122 @@ def order_success():
         payment_method=payment_method,
         total_price=order.total_amount
     )
+    
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+@user_bp.route('/upload-ids', methods=['POST'])
+@login_required
+@customer_required
+@limiter.limit("10 per minute")
+def upload_ids():
+    try:
+        if not current_user.customer_profile:
+            current_user.customer_profile = Customer(user_id=current_user.id)
+            db.session.add(current_user.customer_profile)
+            db.session.commit()
+
+        customer = current_user.customer_profile
+
+        primary_type = request.form.get('primary_id_type')
+        secondary_type = request.form.get('secondary_id_type')
+
+        primary_id_file = request.files.get('id_primary')
+        secondary_id_file = request.files.get('id_secondary')
+
+        errors = []
+
+
+        if primary_type and not primary_id_file:
+            errors.append("Primary ID type selected but file is missing.")
+
+        if secondary_type and not secondary_id_file:
+            errors.append("Secondary ID type selected but file is missing.")
+
+        if not primary_type or not secondary_type:
+            errors.append("Both ID types are required.")
+
+        if not primary_id_file or not secondary_id_file:
+            errors.append("Both ID files are required.")
+
+
+        if errors:
+            flash(" | ".join(errors), "error")
+            return redirect(url_for('user.checkout'))
+
+
+        if not allowed_file(primary_id_file.filename) or not allowed_file(secondary_id_file.filename):
+            flash("Only JPG, PNG, JPEG, WEBP files are allowed.", "error")
+            return redirect(url_for('user.checkout'))
+
+
+        primary_id_file.seek(0, os.SEEK_END)
+        primary_size = primary_id_file.tell()
+
+        secondary_id_file.seek(0, os.SEEK_END)
+        secondary_size = secondary_id_file.tell()
+
+        primary_id_file.seek(0)
+        secondary_id_file.seek(0)
+
+        if primary_size > MAX_FILE_SIZE or secondary_size > MAX_FILE_SIZE:
+            flash("Each file must not exceed 5MB.", "error")
+            return redirect(url_for('user.checkout'))
+
+
+        customer.primary_id_type = primary_type
+        customer.secondary_id_type = secondary_type
+
+        upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'ids')
+        os.makedirs(upload_folder, exist_ok=True)
+
+
+        def delete_old(path):
+            if path:
+                full_path = os.path.join(current_app.root_path, 'static', path)
+                if os.path.exists(full_path):
+                    os.remove(full_path)
+
+        delete_old(customer.valid_id_path)
+        delete_old(customer.secondary_id_path)
+
+
+        primary_filename = secure_filename(
+            f"primary_id_{current_user.id}_{primary_id_file.filename}"
+        )
+
+        primary_path = os.path.join(upload_folder, primary_filename)
+        primary_id_file.save(primary_path)
+
+        customer.valid_id_path = f"uploads/ids/{primary_filename}"
+
+
+        secondary_filename = secure_filename(
+            f"secondary_id_{current_user.id}_{secondary_id_file.filename}"
+        )
+
+        secondary_path = os.path.join(upload_folder, secondary_filename)
+        secondary_id_file.save(secondary_path)
+
+        customer.secondary_id_path = f"uploads/ids/{secondary_filename}"
+
+        customer.id_uploaded_at = datetime.utcnow()
+        customer.is_id_verified = False 
+
+        db.session.commit()
+
+        flash("Your IDs have been uploaded successfully!", "success")
+        return redirect(url_for('user.checkout'))
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"[UPLOAD IDS ERROR]: {e}")
+        flash("Upload failed. Please try again.", "error")
+        return redirect(url_for('user.checkout'))
+    
+    

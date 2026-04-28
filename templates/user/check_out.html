@@ -205,181 +205,180 @@
         </label>
     </nav>
 
-<main class="checkout-main">
-    <div class="checkout-container">
-        {# 1. Determine if the cart contains any rental items #}
-        {% set rental_check = namespace(has_rental=false) %}
-        {% for item in items %}
-            {% if item.item_type == 'Rental' %}
-                {% set rental_check.has_rental = true %}
-            {% endif %}
-        {% endfor %}
+    <main class="checkout-main">
+        <div class="checkout-container">
+            {# 1. Determine if the cart contains any rental items #}
+            {% set rental_check = namespace(has_rental=false) %}
+            {% for item in items %}
+                {% if item.item_type == 'Rental' %}
+                    {% set rental_check.has_rental = true %}
+                {% endif %}
+            {% endfor %}
 
-        <form action="{{ url_for('user.place_order') }}" method="POST" id="checkout-form" enctype="multipart/form-data">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <form action="{{ url_for('user.place_order') }}" method="POST" id="checkout-form" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-            <div class="checkout-flex-layout">
-                <div class="checkout-details-column">
-                    
-                    <div class="checkout-section-card">
-                        <div class="section-header">
-                            <span class="material-symbols-outlined">location_on</span>
-                            <h3>Delivery Address</h3>
-                        </div>
-                        <div class="address-display">
-                            <div class="address-top-row">
-                                <div class="checkout-user-info">
-                                    {% if current_user.customer_profile %}
-                                        <strong id="display-name">{{ current_user.customer_profile.first_name }} {{ current_user.customer_profile.last_name }}</strong>
-                                        <span class="phone-tag" id="display-phone">+63 {{ current_user.customer_profile.contact_number or 'No Contact #' }}</span>
-                                    {% else %}
-                                        <strong class="text-danger">Profile info missing</strong>
-                                    {% endif %}
-                                </div>
-                                <button type="button" id="openAddrModal" class="edit-address-btn">Change</button>
-                            </div>
-                            {% if current_user.customer_profile and current_user.customer_profile.home_address %}
-                                <p class="full-address" id="display-address">{{ current_user.customer_profile.home_address }}</p>
-                            {% else %}
-                                <p class="full-address" style="color: #e53e3e;">
-                                    <i class="fa-solid fa-circle-exclamation"></i> No delivery address found.
-                                </p>
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    
-                    {% if has_rental %}
-                    <div class="checkout-section-card">
-                        <div class="section-header">
-                            <span class="material-symbols-outlined">badge</span>
-                            <h3>Rental Requirements</h3>
-                        </div>
+                <div class="checkout-flex-layout">
+                    <div class="checkout-details-column">
                         
-                        <div class="requirement-status-container" style="display: flex; align-items: center; justify-content: space-between; padding: 15px; background: #f8fafb; border-radius: 12px; border: 1px solid #e2e8f0;">
-                            <div class="status-info" style="display: flex; align-items: center; gap: 12px;">
-                                
-                                {# Logic Check: Do both ID paths exist in the database? #}
-                                {% if current_user.customer_profile.valid_id_path and current_user.customer_profile.secondary_id_path %}
-                                    <div class="status-icon" style="color: #10b981; background: #ecfdf5; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                                        <i class="fa-solid fa-circle-check"></i>
-                                    </div>
-                                    <div>
-                                        <h4 style="margin: 0; font-size: 14px; color: #1e293b;">
-                                            IDs Uploaded 
-                                            {% if current_user.customer_profile.is_id_verified %}
-                                                <span style="color: #10b981; font-size: 11px;">(Verified)</span>
-                                            {% else %}
-                                                <span style="color: #64748b; font-size: 11px;">(Pending Verification)</span>
-                                            {% endif %}
-                                        </h4>
-                                        <p style="margin: 0; font-size: 12px; color: #64748b;">Your documents are ready for processing.</p>
-                                    </div>
-                                {% else %}
-                                    <div class="status-icon" style="color: #f59e0b; background: #fffbeb; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                                        <i class="fa-solid fa-clock"></i>
-                                    </div>
-                                    <div>
-                                        <h4 style="margin: 0; font-size: 14px; color: #1e293b;">Identification Pending</h4>
-                                        <p style="margin: 0; font-size: 12px; color: #64748b;">Upload 2 valid IDs to proceed with rental.</p>
-                                    </div>
-                                {% endif %}
+                        <div class="checkout-section-card">
+                            <div class="section-header">
+                                <span class="material-symbols-outlined">location_on</span>
+                                <h3>Delivery Address</h3>
                             </div>
-
-                            <button type="button" id="openUploadModal" class="btn-upload-trigger" 
-                                style="padding: 8px 16px; background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;">
-                                {{ 'Update IDs' if (current_user.customer_profile.valid_id_path and current_user.customer_profile.secondary_id_path) else 'Upload Now' }}
-                            </button>
-                        </div>
-                    </div>
-                    {% endif %}
-
-                    <div class="checkout-section-card">
-                        <div class="section-header">
-                            <span class="material-symbols-outlined">inventory_2</span>
-                            <h3>Order Review</h3>
-                        </div>
-                        <div class="order-items-compact">
-                            {% for item in items %}
-                            <div class="checkout-item">
-                                <div class="item-img-wrapper">
-                                    <img src="{{ url_for('static', filename=item.product.image) }}" alt="product">
-                                    <span class="item-qty-badge">{{ item.quantity }}</span>
-                                </div>
-                                <div class="item-description">
-                                    <h4>{{ item.product.name }}</h4>
-                                    <div class="item-tags">
-                                        <span class="badge {{ item.item_type|lower }}">{{ item.item_type }}</span>
-                                        {% if item.item_type == 'Rental' %}
-                                            <span class="rental-period-text">{{ item.rental_duration }} Mo. starting {{ item.rental_start_date }}</span>
+                            <div class="address-display">
+                                <div class="address-top-row">
+                                    <div class="checkout-user-info">
+                                        {% if current_user.customer_profile %}
+                                            <strong id="display-name">{{ current_user.customer_profile.first_name }} {{ current_user.customer_profile.last_name }}</strong>
+                                            <span class="phone-tag" id="display-phone">+63 {{ current_user.customer_profile.contact_number or 'No Contact #' }}</span>
+                                        {% else %}
+                                            <strong class="text-danger">Profile info missing</strong>
                                         {% endif %}
                                     </div>
+                                    <button type="button" id="openAddrModal" class="edit-address-btn">Change</button>
                                 </div>
-                                <div class="item-subtotal">
-                                    ₱{{ "{:,.0f}".format(item.price_at_addition * item.quantity) }}
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-
-                    <div class="checkout-section-card">
-                        <div class="section-header">
-                            <span class="material-symbols-outlined">payments</span>
-                            <h3>Payment Method</h3>
-                        </div>
-                        <div class="payment-grid">
-                            <label class="payment-card">
-                                <input type="radio" name="payment_method" value="COD" checked>
-                                <div class="payment-card-content">
-                                    <i class="fa-solid fa-hand-holding-dollar"></i>
-                                    <span>Cash on Delivery</span>
-                                </div>
-                            </label>
-                            <label class="payment-card">
-                                <input type="radio" name="payment_method" value="GCASH">
-                                <div class="payment-card-content">
-                                    <i class="fa-solid fa-mobile-screen"></i>
-                                    <span>GCash / eWallet</span>
-                                </div>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-
-                <aside class="checkout-summary-column">
-                    <div class="summary-card-sticky">
-                        <h3>Order Summary</h3>
-                        <div class="price-breakdown">
-                            <div class="price-row">
-                                <span>Subtotal</span>
-                                <span>₱{{ "{:,.0f}".format(total_price) }}</span>
-                            </div>
-                            <div class="price-row">
-                                <span>Shipping Fee</span>
-                                <span class="free-shipping">FREE</span>
-                            </div>
-                            <div class="price-row total-row">
-                                <span>Total Amount</span>
-                                <span class="final-price">₱{{ "{:,.0f}".format(total_price) }}</span>
+                                {% if current_user.customer_profile and current_user.customer_profile.home_address %}
+                                    <p class="full-address" id="display-address">{{ current_user.customer_profile.home_address }}</p>
+                                {% else %}
+                                    <p class="full-address" style="color: #e53e3e;">
+                                        <i class="fa-solid fa-circle-exclamation"></i> No delivery address found.
+                                    </p>
+                                {% endif %}
                             </div>
                         </div>
 
-                        <button type="submit" class="place-order-btn">
-                            Place Order 
-                            <i class="fa-solid fa-arrow-right"></i>
-                        </button>
                         
-                        <div class="security-assurance">
-                            <i class="fa-solid fa-lock"></i>
-                            Secure checkout with CareMed Data Protection
+                        {% if has_rental %}
+                        <div class="checkout-section-card">
+                            <div class="section-header">
+                                <span class="material-symbols-outlined">badge</span>
+                                <h3>Rental Requirements</h3>
+                            </div>
+                            
+                            <div class="requirement-status-container" style="display: flex; align-items: center; justify-content: space-between; padding: 15px; background: #f8fafb; border-radius: 12px; border: 1px solid #e2e8f0;">
+                                <div class="status-info" style="display: flex; align-items: center; gap: 12px;">
+                                    
+                                    {% if current_user.customer_profile.valid_id_path and current_user.customer_profile.secondary_id_path %}
+                                        <div class="status-icon" style="color: #10b981; background: #ecfdf5; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                                            <i class="fa-solid fa-circle-check"></i>
+                                        </div>
+                                        <div>
+                                            <h4 style="margin: 0; font-size: 14px; color: #1e293b;">
+                                                IDs Uploaded 
+                                                {% if current_user.customer_profile.is_id_verified %}
+                                                    <span style="color: #10b981; font-size: 11px;">(Verified)</span>
+                                                {% else %}
+                                                    <span style="color: #64748b; font-size: 11px;">(Pending Verification)</span>
+                                                {% endif %}
+                                            </h4>
+                                            <p style="margin: 0; font-size: 12px; color: #64748b;">Your documents are ready for processing.</p>
+                                        </div>
+                                    {% else %}
+                                        <div class="status-icon" style="color: #f59e0b; background: #fffbeb; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                                            <i class="fa-solid fa-clock"></i>
+                                        </div>
+                                        <div>
+                                            <h4 style="margin: 0; font-size: 14px; color: #1e293b;">Identification Pending</h4>
+                                            <p style="margin: 0; font-size: 12px; color: #64748b;">Upload 2 valid IDs to proceed with rental.</p>
+                                        </div>
+                                    {% endif %}
+                                </div>
+
+                                <button type="button" id="openUploadModal" class="btn-upload-trigger" 
+                                    style="padding: 8px 16px; background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;">
+                                    {{ 'Update IDs' if (current_user.customer_profile.valid_id_path and current_user.customer_profile.secondary_id_path) else 'Upload Now' }}
+                                </button>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <div class="checkout-section-card">
+                            <div class="section-header">
+                                <span class="material-symbols-outlined">inventory_2</span>
+                                <h3>Order Review</h3>
+                            </div>
+                            <div class="order-items-compact">
+                                {% for item in items %}
+                                <div class="checkout-item">
+                                    <div class="item-img-wrapper">
+                                        <img src="{{ url_for('static', filename=item.product.image) }}" alt="product">
+                                        <span class="item-qty-badge">{{ item.quantity }}</span>
+                                    </div>
+                                    <div class="item-description">
+                                        <h4>{{ item.product.name }}</h4>
+                                        <div class="item-tags">
+                                            <span class="badge {{ item.item_type|lower }}">{{ item.item_type }}</span>
+                                            {% if item.item_type == 'Rental' %}
+                                                <span class="rental-period-text">{{ item.rental_duration }} Mo. starting {{ item.rental_start_date }}</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="item-subtotal">
+                                        ₱{{ "{:,.0f}".format(item.price_at_addition * item.quantity) }}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="checkout-section-card">
+                            <div class="section-header">
+                                <span class="material-symbols-outlined">payments</span>
+                                <h3>Payment Method</h3>
+                            </div>
+                            <div class="payment-grid">
+                                <label class="payment-card">
+                                    <input type="radio" name="payment_method" value="COD" checked>
+                                    <div class="payment-card-content">
+                                        <i class="fa-solid fa-hand-holding-dollar"></i>
+                                        <span>Cash on Delivery</span>
+                                    </div>
+                                </label>
+                                <label class="payment-card">
+                                    <input type="radio" name="payment_method" value="GCASH">
+                                    <div class="payment-card-content">
+                                        <i class="fa-solid fa-mobile-screen"></i>
+                                        <span>GCash / eWallet</span>
+                                    </div>
+                                </label>
+                            </div>
                         </div>
                     </div>
-                </aside>
-            </div>
-        </form>
-    </div>
-</main>
+
+                    <aside class="checkout-summary-column">
+                        <div class="summary-card-sticky">
+                            <h3>Order Summary</h3>
+                            <div class="price-breakdown">
+                                <div class="price-row">
+                                    <span>Subtotal</span>
+                                    <span>₱{{ "{:,.0f}".format(total_price) }}</span>
+                                </div>
+                                <div class="price-row">
+                                    <span>Shipping Fee</span>
+                                    <span class="free-shipping">FREE</span>
+                                </div>
+                                <div class="price-row total-row">
+                                    <span>Total Amount</span>
+                                    <span class="final-price">₱{{ "{:,.0f}".format(total_price) }}</span>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="place-order-btn">
+                                Place Order 
+                                <i class="fa-solid fa-arrow-right"></i>
+                            </button>
+                            
+                            <div class="security-assurance">
+                                <i class="fa-solid fa-lock"></i>
+                                Secure checkout with CareMed Data Protection
+                            </div>
+                        </div>
+                    </aside>
+                </div>
+            </form>
+        </div>
+    </main>
 
     <div id="idUploadModal" class="upload-modal-overlay">
         <div class="upload-modal-container">
@@ -395,48 +394,68 @@
                 <p>Please provide two valid forms of identification.</p>
             </div>
             
-            <div class="upload-modal-body">
-                <div class="upload-form-group">
-                    <label class="input-label-text">Primary ID Type</label>
-                    <select name="primary_id_type" form="checkout-form" class="upload-select-field">
-                        <option value="" disabled selected>Select ID Type</option>
-                        <option value="National ID">National ID</option>
-                        <option value="Drivers License">Driver's License</option>
-                        <option value="Passport">Passport</option>
-                        <option value="UMID">UMID</option>
-                        <option value="SSS">SSS</option>
-                    </select>
-                    
-                    <label class="custom-file-input-wrapper">
-                        <input type="file" form="checkout-form" name="id_primary" id="id_primary" accept="image/*" class="hidden-input">
-                        <span class="browser-style-btn">Choose File</span>
-                        <span class="file-status-text" id="file-name-primary">No file chosen</span>
-                    </label>
-                </div>
+            <form action="{{ url_for('user.upload_ids') }}" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-                <div class="modal-spacer"></div>
-
-                <div class="upload-form-group">
-                    <label class="input-label-text">Secondary ID Type</label>
-                    <select name="secondary_id_type" form="checkout-form" class="upload-select-field">
-                        <option value="" disabled selected>Select ID Type</option>
-                        <option value="Voters ID">Voter's ID</option>
-                        <option value="PhilHealth">PhilHealth</option>
-                        <option value="TIN">TIN</option>
-                        <option value="Student ID">Student ID</option>
-                    </select>
+                <div class="upload-modal-body">
                     
-                    <label class="custom-file-input-wrapper">
-                        <input type="file" form="checkout-form" name="id_secondary" id="id_secondary" accept="image/*" class="hidden-input">
-                        <span class="browser-style-btn">Choose File</span>
-                        <span class="file-status-text" id="file-name-secondary">No file chosen</span>
-                    </label>
+                    <!-- PRIMARY ID -->
+                    <div class="upload-form-group">
+                        <label class="input-label-text">Primary ID Type</label>
+                        <select name="primary_id_type" class="upload-select-field" required>
+                            <option value="" disabled selected>Select ID Type</option>
+                            <option value="National ID">National ID</option>
+                            <option value="Drivers License">Driver's License</option>
+                            <option value="Passport">Passport</option>
+                            <option value="UMID">UMID</option>
+                            <option value="SSS">SSS</option>
+                        </select>
+
+                        <label class="custom-file-input-wrapper">
+                            <input type="file" name="id_primary" id="id_primary" accept="image/*" class="hidden-input" required>
+                            <span class="browser-style-btn">Choose File</span>
+                            <span class="file-status-text" id="file-name-primary">No file chosen</span>
+                        </label>
+
+                        <!-- ✅ MESSAGE -->
+                        <small id="primary-warning" style="color:#dc2626; display:none; margin-top:6px;">
+                            Please upload your Primary ID file.
+                        </small>
+                    </div>
+
+                    <div class="modal-spacer"></div>
+
+                    <!-- SECONDARY ID -->
+                    <div class="upload-form-group">
+                        <label class="input-label-text">Secondary ID Type</label>
+                        <select name="secondary_id_type" class="upload-select-field" required>
+                            <option value="" disabled selected>Select ID Type</option>
+                            <option value="Voter's ID">Voter's ID</option>
+                            <option value="PhilHealth">PhilHealth</option>
+                            <option value="TIN">TIN</option>
+                            <option value="Student ID">Student ID</option>
+                        </select>
+
+                        <label class="custom-file-input-wrapper">
+                            <input type="file" name="id_secondary" id="id_secondary" accept="image/*" class="hidden-input" required>
+                            <span class="browser-style-btn">Choose File</span>
+                            <span class="file-status-text" id="file-name-secondary">No file chosen</span>
+                        </label>
+
+                        <!-- ✅ MESSAGE -->
+                        <small id="secondary-warning" style="color:#dc2626; display:none; margin-top:6px;">
+                            Please upload your Secondary ID file.
+                        </small>
+                    </div>
+                    
+
+                    <button type="submit" class="upload-btn-done">
+                        Confirm & Attach IDs
+                    </button>
+
                 </div>
-                
-                <button type="button" id="saveIdUploads" class="upload-btn-done">
-                    Confirm & Attach IDs
-                </button>
-            </div>
+            </form>
+
         </div>
     </div>
 
@@ -515,182 +534,288 @@
     </div>
 
 
-<script nonce="{{ csp_nonce() }}">
-    document.addEventListener('DOMContentLoaded', function() {
-        // --- 1. Dropdown Toggle Logic ---
-        const profileTrigger = document.getElementById("profileTrigger");
-        const profileMenu = document.getElementById("dropdownMenu");
+    <script nonce="{{ csp_nonce() }}">
+        document.addEventListener('DOMContentLoaded', function() {
 
-        if (profileTrigger && profileMenu) {
-            profileTrigger.addEventListener("click", function (e) {
-                e.stopPropagation();
-                profileMenu.classList.toggle("show");
-            });
-        }
+            // --- 1. Dropdown Toggle Logic ---
+            const profileTrigger = document.getElementById("profileTrigger");
+            const profileMenu = document.getElementById("dropdownMenu");
 
-        // --- 2. Intersection Observer for Navigation ---
-        const aboutSection = document.querySelector('#about');
-        const aboutNavLink = document.querySelector('a[href="#about"]');
-        const observerOptions = { root: null, threshold: 0.6 };
+            if (profileTrigger && profileMenu) {
+                profileTrigger.addEventListener("click", function (e) {
+                    e.stopPropagation();
+                    profileMenu.classList.toggle("show");
+                });
+            }
 
-        const navObserver = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (aboutNavLink) {
-                    if (entry.isIntersecting) {
-                        aboutNavLink.classList.add('active-link');
-                    } else {
-                        aboutNavLink.classList.remove('active-link');
+            // --- 2. Intersection Observer for Navigation ---
+            const aboutSection = document.querySelector('#about');
+            const aboutNavLink = document.querySelector('a[href="#about"]');
+            const observerOptions = { root: null, threshold: 0.6 };
+
+            const navObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (aboutNavLink) {
+                        if (entry.isIntersecting) {
+                            aboutNavLink.classList.add('active-link');
+                        } else {
+                            aboutNavLink.classList.remove('active-link');
+                        }
                     }
-                }
+                });
+            }, observerOptions);
+
+            if (aboutSection) navObserver.observe(aboutSection);
+
+            // --- 3. Auth State UI Management ---
+            if (document.body.classList.contains("logged-in")) {
+                document.querySelectorAll(".guest-only").forEach(el => el.style.display = "none");
+            } else {
+                document.querySelectorAll(".auth-only").forEach(el => el.style.display = "none");
+            }
+
+            // --- 4. Profile Image Fallback ---
+            const profileImages = document.querySelectorAll('.user-photo-img');
+            profileImages.forEach(img => {
+                img.onerror = function() {
+                    const container = this.parentElement;
+                    container.innerHTML = '<span class="material-symbols-outlined icon-placeholder">account_circle</span>';
+                    const placeholder = container.querySelector('.icon-placeholder');
+                    placeholder.style.fontSize = container.classList.contains('profile-avatar-large') ? "100px" : "38px";
+                };
             });
-        }, observerOptions);
 
-        if (aboutSection) navObserver.observe(aboutSection);
+            // --- 5. Address Modal Logic ---
+            const addrModal = document.getElementById('addressModal');
+            const openAddrBtn = document.getElementById('openAddrModal');
+            const closeAddrBtn = document.getElementById('closeAddrModal');
+            const cancelAddrBtn = document.getElementById('cancelAddrModal');
 
-        // --- 3. Auth State UI Management ---
-        if (document.body.classList.contains("logged-in")) {
-            document.querySelectorAll(".guest-only").forEach(el => el.style.display = "none");
-        } else {
-            document.querySelectorAll(".auth-only").forEach(el => el.style.display = "none");
-        }
-
-        // --- 4. Profile Image Fallback ---
-        const profileImages = document.querySelectorAll('.user-photo-img');
-        profileImages.forEach(img => {
-            img.onerror = function() {
-                const container = this.parentElement;
-                container.innerHTML = '<span class="material-symbols-outlined icon-placeholder">account_circle</span>';
-                const placeholder = container.querySelector('.icon-placeholder');
-                placeholder.style.fontSize = container.classList.contains('profile-avatar-large') ? "100px" : "38px";
+            const openAddrFunc = () => {
+                if (addrModal) {
+                    addrModal.style.display = 'flex';
+                    document.body.style.overflow = 'hidden';
+                }
             };
-        });
 
-        // --- 5. Address Modal Logic ---
-        const addrModal = document.getElementById('addressModal');
-        const openAddrBtn = document.getElementById('openAddrModal');
-        const closeAddrBtn = document.getElementById('closeAddrModal');
-        const cancelAddrBtn = document.getElementById('cancelAddrModal');
-
-        const openAddrFunc = () => {
-            if (addrModal) {
-                addrModal.style.display = 'flex';
-                document.body.style.overflow = 'hidden';
-            }
-        };
-
-        const closeAddrFunc = () => {
-            if (addrModal) {
-                addrModal.style.display = 'none';
-                document.body.style.overflow = 'auto';
-            }
-        };
-
-        if (openAddrBtn) openAddrBtn.addEventListener('click', openAddrFunc);
-        if (closeAddrBtn) closeAddrBtn.addEventListener('click', closeAddrFunc);
-        if (cancelAddrBtn) cancelAddrBtn.addEventListener('click', closeAddrFunc);
-
-        // --- 6. ID Upload Modal Logic (FIXED NAMESPACE) ---
-        const uploadModal = document.getElementById('idUploadModal'); 
-        const openUploadBtn = document.getElementById('openUploadModal');
-        const closeUploadBtn = document.getElementById('closeIdUploadModal');
-        const saveUploadBtn = document.getElementById('saveIdUploads');
-
-        const openUploadFunc = () => {
-            if (uploadModal) {
-                uploadModal.style.display = 'flex';
-                document.body.style.overflow = 'hidden';
-            }
-        };
-
-        const closeUploadFunc = () => {
-            if (uploadModal) {
-                uploadModal.style.display = 'none';
-                document.body.style.overflow = 'auto';
-            }
-        };
-
-        if (openUploadBtn) openUploadBtn.addEventListener('click', openUploadFunc);
-        if (closeUploadBtn) closeUploadBtn.onclick = closeUploadFunc;
-        if (saveUploadBtn) saveUploadBtn.onclick = closeUploadFunc;
-
-        // --- 7. Global Click Handler (Outside clicks) ---
-        window.addEventListener("click", function (event) {
-            // Close Profile Dropdown
-            if (!event.target.closest(".user-profile-widget") && profileMenu) {
-                profileMenu.classList.remove("show");
-            }
-
-            // Close Address Modal
-            if (event.target === addrModal) {
-                closeAddrFunc();
-            }
-
-            // Close Upload Modal
-            if (event.target === uploadModal) {
-                closeUploadFunc();
-            }
-        });
-
-        const setupFileUpload = (inputId, textId) => {
-        const input = document.getElementById(inputId);
-        const text = document.getElementById(textId);
-
-        input.addEventListener('change', function() {
-                if (this.files && this.files.length > 0) {
-                    text.textContent = this.files[0].name;
-                    text.style.color = "#0d9488";
-                } else {
-                    text.textContent = "No file chosen";
-                    text.style.color = "#1e3a5f";
+            const closeAddrFunc = () => {
+                if (addrModal) {
+                    addrModal.style.display = 'none';
+                    document.body.style.overflow = 'auto';
                 }
-            });
-        };
+            };
 
-        // Initialize for both inputs
-        setupFileUpload('id_primary', 'file-name-primary');
-        setupFileUpload('id_secondary', 'file-name-secondary');
+            if (openAddrBtn) openAddrBtn.addEventListener('click', openAddrFunc);
+            if (closeAddrBtn) closeAddrBtn.addEventListener('click', closeAddrFunc);
+            if (cancelAddrBtn) cancelAddrBtn.addEventListener('click', closeAddrFunc);
 
+            // --- 6. ID Upload Modal Logic ---
+            const uploadModal = document.getElementById('idUploadModal'); 
+            const openUploadBtn = document.getElementById('openUploadModal');
+            const closeUploadBtn = document.getElementById('closeIdUploadModal');
 
-    });
+            // ===== RESET FORM =====
+            const resetIdUploadForm = () => {
+                const primaryType = document.querySelector('[name="primary_id_type"]');
+                const secondaryType = document.querySelector('[name="secondary_id_type"]');
+                const primaryFile = document.getElementById('id_primary');
+                const secondaryFile = document.getElementById('id_secondary');
 
-    document.getElementById('checkout-form').addEventListener('submit', function(e) {
-        const hasRental = {{ 'true' if has_rental else 'false' }};
-        
-        const primaryIdPath = "{{ current_user.customer_profile.valid_id_path or '' }}".trim();
-        const secondaryIdPath = "{{ current_user.customer_profile.secondary_id_path or '' }}".trim();
+                const primaryText = document.getElementById('file-name-primary');
+                const secondaryText = document.getElementById('file-name-secondary');
 
-        if (hasRental) {
-            if (!primaryIdPath || !secondaryIdPath) {
+                const primaryWarn = document.getElementById('primary-warning');
+                const secondaryWarn = document.getElementById('secondary-warning');
+
+                if (primaryType) primaryType.selectedIndex = 0;
+                if (secondaryType) secondaryType.selectedIndex = 0;
+
+                if (primaryFile) primaryFile.value = "";
+                if (secondaryFile) secondaryFile.value = "";
+
+                if (primaryText) primaryText.textContent = "No file chosen";
+                if (secondaryText) secondaryText.textContent = "No file chosen";
+
+                if (primaryWarn) primaryWarn.style.display = "none";
+                if (secondaryWarn) secondaryWarn.style.display = "none";
+            };
+
+            const focusIdForm = () => {
+                setTimeout(() => {
+                    document.querySelector('[name="primary_id_type"]')?.focus();
+                }, 200);
+            };
+
+            const openUploadFunc = () => {
+                if (uploadModal) {
+                    uploadModal.style.display = 'flex';
+                    document.body.style.overflow = 'hidden';
+                    focusIdForm();
+                }
+            };
+
+            const closeUploadFunc = () => {
+                if (uploadModal) {
+                    uploadModal.style.display = 'none';
+                    document.body.style.overflow = 'auto';
+                    resetIdUploadForm();
+                }
+            };
+
+            if (openUploadBtn) openUploadBtn.addEventListener('click', openUploadFunc);
+            if (closeUploadBtn) closeUploadBtn.onclick = closeUploadFunc;
+
+            // --- 7. FILE INPUT DISPLAY ---
+            const setupFileUpload = (inputId, textId) => {
+                const input = document.getElementById(inputId);
+                const text = document.getElementById(textId);
+
+                if (!input || !text) return;
+
+                input.addEventListener('change', function() {
+                    if (this.files && this.files.length > 0) {
+                        text.textContent = this.files[0].name;
+                        text.style.color = "#0d9488";
+                    } else {
+                        text.textContent = "No file chosen";
+                        text.style.color = "#1e3a5f";
+                    }
+                });
+            };
+
+            setupFileUpload('id_primary', 'file-name-primary');
+            setupFileUpload('id_secondary', 'file-name-secondary');
+
+            // --- 8. REAL-TIME VALIDATION (NEW FEATURE) ---
+            const primaryType = document.querySelector('[name="primary_id_type"]');
+            const secondaryType = document.querySelector('[name="secondary_id_type"]');
+            const primaryFile = document.getElementById('id_primary');
+            const secondaryFile = document.getElementById('id_secondary');
+
+            const primaryWarn = document.getElementById('primary-warning');
+            const secondaryWarn = document.getElementById('secondary-warning');
+
+            function validatePrimary() {
+                if (!primaryType || !primaryFile) return;
+
+                if (primaryType.value && primaryFile.files.length === 0) {
+                    primaryWarn.style.display = "block";
+                } else {
+                    primaryWarn.style.display = "none";
+                }
+            }
+
+            function validateSecondary() {
+                if (!secondaryType || !secondaryFile) return;
+
+                if (secondaryType.value && secondaryFile.files.length === 0) {
+                    secondaryWarn.style.display = "block";
+                } else {
+                    secondaryWarn.style.display = "none";
+                }
+            }
+
+            if (primaryType) {
+                primaryType.addEventListener('change', validatePrimary);
+            }
+            if (primaryFile) {
+                primaryFile.addEventListener('change', validatePrimary);
+            }
+
+            if (secondaryType) {
+                secondaryType.addEventListener('change', validateSecondary);
+            }
+            if (secondaryFile) {
+                secondaryFile.addEventListener('change', validateSecondary);
+            }
+
+        });
+
+        document.getElementById('checkout-form').addEventListener('submit', function(e) {
+
+            const hasRental = {{ 'true' if has_rental else 'false' }};
+
+            const primaryType = document.querySelector('[name="primary_id_type"]')?.value;
+            const secondaryType = document.querySelector('[name="secondary_id_type"]')?.value;
+
+            const primaryFile = document.getElementById('id_primary')?.files?.length || 0;
+            const secondaryFile = document.getElementById('id_secondary')?.files?.length || 0;
+
+            let errors = [];
+
+            const primaryIdPath = "{{ current_user.customer_profile.valid_id_path or '' }}".trim();
+            const secondaryIdPath = "{{ current_user.customer_profile.secondary_id_path or '' }}".trim();
+
+            const hasExistingIds = primaryIdPath && secondaryIdPath;
+
+            if (hasRental && !hasExistingIds) {
+                e.preventDefault();
+
+                const modal = document.getElementById('idUploadModal');
+
+                const openModal = () => {
+                    if (modal) {
+                        modal.style.display = 'flex';
+                        document.body.style.overflow = 'hidden';
+                    }
+                };
+
+                // --- SweetAlert flow (preferred) ---
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        title: 'Identity Verification Required',
+                        text: 'You must upload 2 valid IDs before placing a rental order.',
+                        icon: 'warning',
+                        confirmButtonText: 'Proceed to Upload',
+                        allowOutsideClick: false
+                    }).then(() => {
+                        openModal();
+                    });
+
+                } else {
+                    // fallback alert
+                    alert("You must upload 2 valid IDs before placing a rental order.");
+                    openModal();
+                }
+
+                return false;
+            }
+
+            if (primaryType && !primaryFile) {
+                errors.push("Primary ID selected but no file uploaded.");
+            }
+
+            if (secondaryType && !secondaryFile) {
+                errors.push("Secondary ID selected but no file uploaded.");
+            }
+
+            if (!primaryType && primaryFile) {
+                errors.push("Primary file uploaded but ID type not selected.");
+            }
+
+            if (!secondaryType && secondaryFile) {
+                errors.push("Secondary file uploaded but ID type not selected.");
+            }
+
+            if (errors.length > 0) {
                 e.preventDefault();
 
                 if (typeof Swal !== 'undefined') {
                     Swal.fire({
-                        title: 'Missing Requirements',
-                        text: 'Rental orders require two valid IDs. Please upload them to continue.',
                         icon: 'warning',
-                        showCancelButton: true,
-                        confirmButtonText: 'Upload Now',
-                        confirmButtonColor: '#3085d6'
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            // Trigger your existing Modal opening function
-                            if (typeof openUploadModal === "function") {
-                                openUploadModal(); 
-                            } else {
-                                document.getElementById('idUploadModal').style.display = 'flex';
-                            }
-                        }
+                        title: 'Missing ID Information',
+                        html: errors.join('<br>')
                     });
                 } else {
-                    alert("Please upload your required valid IDs before placing a rental order.");
-                    document.getElementById('idUploadModal').style.display = 'flex';
+                    alert(errors.join("\n"));
                 }
-                
+
                 return false;
             }
-        }
-    });
-</script>
+            
+
+        });
+    </script>
    
     
 </body>
