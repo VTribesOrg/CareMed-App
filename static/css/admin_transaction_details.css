@@ -963,38 +963,76 @@ input[type="number"].form-control {
 }
 
 /* --- Customer Profile --- */
+/* Clickable Customer Profile */
+.customer-profile-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    margin-bottom: 1.25rem;
+}
+
 .customer-profile-section {
     display: flex;
     align-items: center;
-    gap: 15px;
-    margin-bottom: 20px;
+    padding: 12px;
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    transition: all 0.2s ease;
 }
 
-.profile-icon-container {
+.customer-profile-link:hover .customer-profile-section {
     background: #f1f5f9;
-    color: #1a4d2e;
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
+    border-color: #cbd5e1;
+    transform: translateY(-1px);
+}
+
+.icon-subtle {
+    margin-left: auto;
+    color: #94a3b8;
+    font-size: 1.1rem;
+}
+
+/* Financial Breakdown Styles */
+.card-divider {
+    border: 0;
+    border-top: 1px solid #e2e8f0;
+    margin: 1.5rem 0;
+}
+
+.transaction-breakdown {
+    margin-top: 1rem;
+    padding: 10px;
+    background: #fcfcfc;
+    border-radius: 6px;
+}
+
+.breakdown-item {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+    color: #64748b;
+}
+
+.total-row {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px dashed #cbd5e1;
+    color: #1e293b;
+    font-size: 1rem;
+}
+
+.payment-detail {
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 8px;
+    font-weight: 500;
 }
 
-.profile-name { font-weight: 700; color: #1e293b; font-size: 1rem; }
-.profile-type { color: #64748b; font-size: 0.8rem; }
-
-.info-column {
+.info-column.address-spacing {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    margin-top: 16px;
-}
-
-.info-value-address {
-    color: #334155;
-    font-size: 0.9rem;
-    line-height: 1.5;
 }
 
 /*================================== END OF SIDEBAR ==================================*/

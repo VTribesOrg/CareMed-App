@@ -153,29 +153,48 @@ def get_customer(id):
         }), 500
 
 
-# 2. The Detailed View (What you need)
 @admin_bp.route('/customers/<int:id>')
 def customer_details(id):
-    # Fetch customer or fail with 404
     customer = Customer.query.get_or_404(id)
-    
-    # The template 'customer_details_refined.html' should be in your templates folder
-    return render_template('admin/customer_details.html', customer=customer)
 
-# 3. Action Route: Verify Customer
+    transactions = (Transaction.query .filter_by(customer_id=id) .order_by(Transaction.created_at.desc()).all())
+
+    return render_template('admin/customer_details.html', customer=customer, transactions=transactions)
+
 @admin_bp.route('/customers/<int:id>/verify', methods=['POST'])
 def verify_customer(id):
     customer = Customer.query.get_or_404(id)
     
+    if customer.is_id_verified:
+        flash(f"Notice: {customer.full_name} is already a verified user.", "info")
+        return redirect(url_for('admin.customer_details', id=id))
+
     try:
         customer.is_id_verified = True
         db.session.commit()
-        flash(f'Identity for {customer.full_name} has been verified.', 'success')
+        flash(f"Identity Verification Complete: {customer.full_name} has been successfully verified.", "success")
     except Exception as e:
         db.session.rollback()
-        flash('Error updating verification status.', 'danger')
+        current_app.logger.error(f"Verification Failed for ID {id}: {str(e)}") 
+        flash("An internal error occurred while processing the verification. Please refresh and try again.", "danger")
         
-    return redirect(url_for('admin_bp.customer_details', id=id))
+    return redirect(url_for('admin.customer_details', id=id))
+
+@admin_bp.route('/customers/<int:id>/unverify', methods=['POST'])
+def unverify_customer(id):
+    customer = Customer.query.get_or_404(id)
+    
+    try:
+        customer.is_id_verified = False
+        db.session.commit()
+        flash(f"Verification Revoked: {customer.full_name}'s identity status has been reset to unverified.", "warning")
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Revoke Error for ID {id}: {str(e)}")
+        flash("Action Failed: System encountered an error while revoking verification. Please try again.", "danger")
+        
+    return redirect(url_for('admin.customer_details', id=id))
+
 
 @admin_bp.route('/admin/add-customer', methods=['POST'])
 @login_required

@@ -212,7 +212,7 @@
                                 <table class="item-list-table">
                                     <thead>
                                         <tr>
-                                            <th>Item Description</th>
+                                            <th>Equipment</th>
                                             <th>Qty</th>
                                             <th>Unit Price/Rate</th>
                                             <th class="text-right">Subtotal</th>
@@ -223,8 +223,7 @@
                                             {% for item in txn.rentals %}
                                             <tr>
                                                 <td>
-                                                    <div class="item-title">{{ item.product.equipment_type }}</div>
-                                                    <small class="item-subtitle">Model: {{ item.product.model_number }}</small>
+                                                    <div class="item-title">{{ item.product.name }}</div>
                                                 </td>
                                                 <td>{{ item.quantity }}</td>
                                                 <td>₱{{ "{:,.2f}".format(item.monthly_rate) }}/mo</td>
@@ -235,8 +234,8 @@
                                             {% for item in txn.purchases %}
                                             <tr>
                                                 <td>
-                                                    <div class="item-title">{{ item.product.equipment_type }}</div>
-                                                    <small class="item-subtitle">{{ item.warranty_or_notes }}</small>
+                                                    <!-- Displaying Product Name directly -->
+                                                    <div class="item-title">{{ item.product.name }}</div>
                                                 </td>
                                                 <td>{{ item.quantity }}</td>
                                                 <td>₱{{ "{:,.2f}".format(item.unit_price) }}</td>
@@ -253,9 +252,11 @@
                         <div class="action-card" style="margin-top: 20px;">
                             
                             <header class="card-header-custom">
-                                <div class="header-icon-label">
-                                    <span class="material-symbols-rounded" style="color: var(--medical-primary);">calendar_month</span>
-                                    <span class="header-label-text">Monthly Billing Schedule</span>
+                                <div class="header-icon-label d-flex align-items-center gap-2" style="display: flex; align-items: center;">
+                                    <span class="material-symbols-rounded" style="color: var(--medical-primary); font-size: 20px; line-height: 1; vertical-align: middle;">
+                                        calendar_month
+                                    </span>
+                                    <span class="header-label-text mb-0">Monthly Billing Schedule</span>
                                 </div>
                             </header>
 
@@ -347,12 +348,27 @@
 
                         {% if txn.transaction_type == 'Rental' and txn.status == 'Open' %}
                         <div class="action-card warning" style="margin-top: 20px;">
-                            <header class="card-header-custom">
-                                <div class="header-icon-label">
-                                    <span class="material-symbols-rounded icon-warning">assignment_return</span>
-                                    <span class="header-label-text">Process Equipment Return</span>
+                            <header class="card-header-custom"
+                                    style="display:flex; align-items:center; justify-content:space-between;">
+
+                                <div class="header-icon-label"
+                                    style="display:flex; align-items:center; gap:8px;">
+
+                                    <span class="material-symbols-rounded icon-warning"
+                                        style="font-size:20px; line-height:1; display:flex; align-items:center;">
+                                        assignment_return
+                                    </span>
+
+                                    <span class="header-label-text"
+                                        style="display:flex; align-items:center;">
+                                        Process Equipment Return
+                                    </span>
                                 </div>
-                                <span class="badge-soft-warning">Item currently with customer</span>
+
+                                <span class="badge-soft-warning"
+                                    style="display:flex; align-items:center;">
+                                    Item currently with customer
+                                </span>
                             </header>
                             
                             <div class="card-body-padding">
@@ -384,56 +400,106 @@
                     </section>
 
                     <aside class="details-sidebar">
-                        
                         <div class="summary-side-card summary-spacing">
                             <h5 class="sidebar-card-title">Payment Summary</h5>
                             
                             <div class="info-row">
                                 <span class="info-label">Total Amount</span>
-                                <span class="info-value">₱{{ "{:,.2f}".format(txn.total_amount) }}</span>
+                                <span class="info-value">₱{{ "{:,.2f}".format(txn.total_amount or 0) }}</span>
                             </div>
 
                             <div class="info-row">
                                 <span class="info-label">Amount Paid</span>
-                                <span class="info-value-success">₱{{ "{:,.2f}".format(txn.amount_paid) }}</span>
+                                <span class="info-value-success">₱{{ "{:,.2f}".format(txn.amount_paid or 0) }}</span>
                             </div>
                             
                             <hr class="summary-divider"> 
                             
                             <div class="info-row highlight-row">
                                 <span class="info-label-dark">Balance Due</span>
-                                <span class="info-value-danger">₱{{ "{:,.2f}".format(txn.balance_due) }}</span>
+                                {% if txn.balance_due > 0 %}
+                                    <span class="info-value-danger">₱{{ "{:,.2f}".format(txn.balance_due) }}</span>
+                                {% else %}
+                                    <span class="info-value-success">₱0.00</span>
+                                {% endif %}
                             </div>
-
                         </div>
 
                         <div class="summary-side-card">
                             <h5 class="sidebar-card-title">Customer Details</h5>
-                            <div class="customer-profile-section">
-                                <div class="profile-icon-container">
-                                    <span class="material-symbols-rounded">person</span>
-                                </div>
-                                <div class="profile-info">
-                                    <div class="profile-name">{{ txn.customer_name or (txn.customer.first_name ~ ' ' ~ txn.customer.last_name) }}</div>
-                                    <small class="profile-type">Registered Customer</small>
-                                </div>
-                            </div>
                             
-                            <div class="info-column">
-                                <span class="info-label">Fulfillment Type</span>
+                            <a href="{{ url_for('admin.customer_details', id=txn.customer_id) }}" class="customer-profile-link">
+                                <div class="customer-profile-section">
+                                    <div class="profile-icon-container">
+                                        <span class="material-symbols-rounded">person</span>
+                                    </div>
+                                    <div class="profile-info">
+                                        <div class="profile-name">
+                                            {{ txn.customer_name or (txn.customer.first_name ~ ' ' ~ txn.customer.last_name if txn.customer else 'Unknown Customer') }}
+                                        </div>
+                                        <small class="profile-type">View Full Profile</small>
+                                    </div>
+                                    <span class="material-symbols-rounded icon-subtle">chevron_right</span>
+                                </div>
+                            </a>
+
+                            <div class="info-column mt-3">
+                                <span class="info-label">Fulfillment Type:</span>
                                 <div class="info-value">
-                                    <span class="badge-soft-primary">{{ txn.fulfillment_type }}</span>
+                                    {% if txn.fulfillment_type|lower == 'delivery' %}
+                                        <span class="badge-soft-primary"><span class="material-symbols-rounded" style="font-size: 14px; align-item: center; vertical-align: middle; line-height: 1;">local_shipping</span> DELIVERY</span>
+                                    {% else %}
+                                        <span class="badge-soft-info"><span class="material-symbols-rounded" style="font-size: 14px; align-item: center; vertical-align: middle; line-height: 1;">store</span> PICKUP</span>
+                                    {% endif %}
                                 </div>
                             </div>
 
                             {% if txn.delivery_address %}
                             <div class="info-column address-spacing">
-                                <span class="info-label">Delivery Address</span>
-                                <span class="info-value-address">{{ txn.delivery_address }}</span>
+                                <span class="info-label d-block">Delivery Address:</span>
+                                <span class="info-value-address text-muted d-block">
+                                    {{ txn.delivery_address }}
+                                </span>
                             </div>
                             {% endif %}
+
+                            <hr class="card-divider">
+
+                            <div class="info-column">
+                                <span class="info-label">Payment Method</span>
+                                <div class="info-value payment-detail">
+                                    <span class="material-symbols-rounded">payments</span>
+                                    <span>{{ txn.payment_method if txn.payment_method else 'Manual/Cash' }}</span>
+                                </div>
+                            </div>
+
+                            <div class="transaction-breakdown">
+                                <div class="breakdown-item">
+                                    <span>Subtotal</span>
+                                    <span>₱{{ "{:,.2f}".format(txn.total_amount or 0) }}</span>
+                                </div>
+                                <div class="breakdown-item">
+                                    <span>Service/Late Fees</span>
+                                    <span>₱{{ "{:,.2f}".format(txn.total_late_fees or 0) }}</span>
+                                </div>
+                                <div class="breakdown-item total-row">
+                                    <span>Total Value</span>
+                                    <span class="text-dark font-bold">₱{{ "{:,.2f}".format((txn.total_amount or 0) + (txn.total_late_fees or 0)) }}</span>
+                                </div>
+                            </div>
+
+                            <hr class="card-divider">
+
+                            <div class="info-column">
+                                <span class="info-label">Transaction Date</span>
+                                <div class="info-value text-muted small">
+                                    <span class="material-symbols-rounded" style="font-size: 14px; vertical-align: middle;">event</span>
+                                    {{ txn.created_at.strftime('%B %d, %Y at %I:%M %p') if txn.created_at else 'Date Not Recorded' }}
+                                </div>
+                            </div>
                         </div>
                     </aside>
+
                 </div>
             </main>
 
@@ -443,7 +509,7 @@
 
 
 
-        <div id="main-toast-container" class="toast-container">
+    <div id="main-toast-container" class="toast-container">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
@@ -483,7 +549,7 @@
 
     {% include 'modals/rent_purch_modal.html' %}
     <script src="{{ url_for('static', filename='js/global.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/admin_transaction_details.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/admin/admin_transaction_details.js') }}"></script>
 </body>
 
 </html>

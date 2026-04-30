@@ -448,10 +448,8 @@ body.ready .viewport-container {
 
 /*----------------------------- END OF TOP HEADER -----------------------------------------*/
 
-/*----------------------------- START OF MAIN CONTENT --------------------------------------- */
-/* ============================================================
-   SECTION: LAYOUT & SCROLL CONTAINER
-   ============================================================ */
+/*=========================================== START OF MAIN CONTENT =========================================== */
+
 .content-area {
     padding: 24px;
     flex-grow: 1;
@@ -711,6 +709,37 @@ body.ready .viewport-container {
     border-radius: 4px;
 }
 
+.tx-link {
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.tx-link:hover {
+    background-color: #f1f5f9; /* Soft slate gray hover */
+}
+
+.tx-link .tx-id {
+    color: #2563eb; /* Professional blue */
+    font-weight: 600;
+}
+
+.tx-link .material-symbols-rounded {
+    font-size: 14px;
+    color: #94a3b8; /* Subtle icon color */
+}
+
+.tx-link:hover .material-symbols-rounded {
+    color: #2563eb;
+}
+
+.clickable-row { cursor: pointer; transition: background 0.1s; }
+.clickable-row:hover { background-color: #f8fafc; }
+
 /* ============================================================
    SECTION 9: ALERTS & APPROVAL
    ============================================================ */
@@ -752,100 +781,214 @@ body.ready .viewport-container {
 }
 
 
+/* ============================================================
+    START OF ID PREVIEW MODAL
+   ============================================================ */
+.idview-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(15, 23, 42, 0.85); 
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999; 
+    padding: 20px;
+}
 
+.idview-container {
+    position: relative;
+    background: #ffffff;
+    padding: 12px; 
+    border-radius: 16px; 
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    width: 100%;
+    max-width: 600px; 
+    aspect-ratio: 1.58 / 1; 
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: visible; 
+}
+
+.idview-img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    border-radius: 8px;
+    object-fit: contain; 
+    background-color: #f1f5f9; 
+}
+
+.idview-close-btn {
+    position: absolute;
+    top: -45px;
+    right: 0;
+    background: transparent;
+    border: none;
+    color: #f8fafc;
+    font-size: 2.5rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: transform 0.2s, color 0.2s;
+    padding: 0;
+    margin: 0;
+}
+
+.idview-close-btn:hover {
+    transform: scale(1.1);
+    color: #ffffff;
+}
+
+@media (max-width: 640px) {
+    .idview-container {
+        max-width: 95vw;
+        aspect-ratio: auto; 
+    }
+    .idview-close-btn {
+        top: -40px;
+        right: 5px;
+    }
+}
+/* ============================================================
+    END OF ID PREVIEW MODAL
+   ============================================================ */
 
 /* =========================================
    FLASH MESSAGES (CareMed UI)
    ========================================= */
+/*================== START OF MESSAGE NOTIFICATION ==================*/
 
-.flash-container {
-    margin: 0 0 20px 0;
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
     display: flex;
     flex-direction: column;
     gap: 12px;
-    width: 100%;
 }
 
-.flash-message {
-    display: flex;
-    align-items: center;
-    padding: 14px 20px;
+.medical-toast {
+    background: #ffffff;
+    min-width: 320px;
+    max-width: 400px;
+    padding: 16px;
     border-radius: 12px;
-    font-size: 0.875rem;
-    font-weight: 600;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 14px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 
+                0 8px 10px -6px rgba(0, 0, 0, 0.05);
     position: relative;
-    border: 1px solid transparent;
-    transition: all 0.3s ease;
-    animation: slideInDown 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+    overflow: hidden;
+    border: 1px solid #f1f5f9;
+    animation: toast-slide-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
 
 
-.flash-message.success {
-    background-color: #f0fdf4; 
-    color: #166534;
-    border-color: #bbf7d0;
-}
-.flash-message.success .material-symbols-rounded {
-    color: #22c55e;
-}
+.medical-toast.success { border-left: 4px solid #10b981; }
+.medical-toast.success .toast-icon { color: #10b981; background: #ecfdf5; }
 
-.flash-message.danger, 
-.flash-message.error {
-    background-color: #fef2f2;
-    color: #991b1b;
-    border-color: #fecaca;
-}
-.flash-message.danger .material-symbols-rounded,
-.flash-message.error .material-symbols-rounded {
-    color: #ef4444;
-}
+.medical-toast.error { border-left: 4px solid #ef4444; }
+.medical-toast.error .toast-icon { color: #ef4444; background: #fef2f2; }
+
+.medical-toast.warning { border-left: 4px solid #f59e0b; }
+.medical-toast.warning .toast-icon { color: #f59e0b; background: #fffbeb; }
+
+.medical-toast.info { border-left: 4px solid #3b82f6; }
+.medical-toast.info .toast-icon { color: #3b82f6; background: #eff6ff; }
 
 
-.flash-message.warning {
-    background-color: #fffbeb;
-    color: #92400e;
-    border-color: #fef3c7;
-}
-
-.flash-message .material-symbols-rounded {
-    margin-right: 12px;
-    font-size: 20px;
+.toast-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
     display: flex;
     align-items: center;
+    justify-content: center;
+    font-size: 24px !important;
 }
 
-.flash-message .message-text {
-    flex: 1;
+
+.toast-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.toast-title {
+    font-weight: 700;
+    font-size: 14px;
+    color: #1e293b;
+    margin-bottom: 2px;
+}
+
+.toast-message {
+    font-size: 13px;
+    color: #64748b;
     line-height: 1.4;
 }
 
 
-.flash-close {
-    background: none;
+.toast-close {
+    background: transparent;
     border: none;
-    font-size: 1.4rem;
     cursor: pointer;
-    color: currentColor;
-    opacity: 0.4;
-    padding: 0 0 0 15px;
+    color: #94a3b8;
+    padding: 5px;
+    border-radius: 6px;
+    transition: background 0.2s;
     display: flex;
     align-items: center;
-    transition: opacity 0.2s ease;
 }
 
-.flash-close:hover {
-    opacity: 1;
+.toast-close:hover {
+    background: #f8fafc;
+    color: #64748b;
 }
 
 
-@keyframes slideInDown {
-    from {
-        opacity: 0;
-        transform: translateY(-15px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+.toast-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    width: 100%;
+    background: rgba(0, 0, 0, 0.03);
 }
+
+.toast-progress::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    background: currentColor; 
+    opacity: 0.4;
+    animation: toast-progress-shrink 5s linear forwards;
+}
+
+.medical-toast.success { color: #10b981; }
+.medical-toast.error { color: #ef4444; }
+.medical-toast.warning { color: #f59e0b; }
+.medical-toast.info { color: #3b82f6; }
+
+/* Animations */
+@keyframes toast-slide-in {
+    from { transform: translateX(110%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes toast-fade-out {
+    from { transform: scale(1); opacity: 1; }
+    to { transform: scale(0.9); opacity: 0; }
+}
+
+@keyframes toast-progress-shrink {
+    from { width: 100%; }
+    to { width: 0%; }
+}
+/*================== END OF MESSAGE NOTIFICATION ==================*/

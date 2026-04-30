@@ -359,10 +359,78 @@
 
             <div class="pm-field-group">
                 <label class="pm-input-label">Upload Receipt (Optional)</label>
-                <div class="pm-input-wrapper">
-                    <span class="material-symbols-rounded pm-input-icon">receipt_long</span>
-                    <input type="file" id="receipt-image" name="receipt_image" 
-                        class="pm-custom-input" accept=".jpg,.jpeg,.png,.webp,.pdf">
+
+                <div class="pm-input-wrapper"
+                    style="display:flex; align-items:center; justify-content:space-between;
+                            gap:12px; padding:10px 12px;
+                            border:1px solid #ddd;
+                            border-radius:10px;
+                            background:#fff;">
+
+                    <!-- Left side -->
+                    <div style="display:flex; align-items:center; gap:10px;">
+
+                        <span class="material-symbols-rounded"
+                            style="font-size:20px; color:#555;">
+                            receipt_long
+                        </span>
+
+                        <label for="receipt-image"
+                            style="cursor:pointer; font-size:14px; color:#333;">
+                            Choose / Replace
+                        </label>
+                    </div>
+
+                    <!-- Status icon -->
+                    <span id="receipt-status"
+                        class="material-symbols-rounded"
+                        style="font-size:20px; color:#aaa;">
+                        cloud_upload
+                    </span>
+
+                    <!-- Hidden input -->
+                    <input type="file" id="receipt-image" name="receipt_image"
+                        accept=".jpg,.jpeg,.png,.webp,.pdf"
+                        style="display:none;">
+                </div>
+
+                <!-- Preview area -->
+                <div id="receipt-preview-wrap"
+                    style="display:none; margin-top:10px; align-items:center; gap:12px;">
+
+                    <!-- Thumbnail -->
+                    <img id="receipt-preview"
+                        style="width:60px; height:60px; object-fit:cover;
+                                border-radius:8px; border:1px solid #ddd;">
+
+                    <!-- File info + actions -->
+                    <div style="flex:1;">
+                        <div id="receipt-filename"
+                            style="font-size:13px; color:#333;">
+                        </div>
+
+                        <div style="margin-top:5px; display:flex; gap:10px;">
+
+                            <button type="button"
+                                    id="replace-file"
+                                    style="font-size:12px; padding:4px 8px;
+                                        border:1px solid #ccc;
+                                        background:#fff;
+                                        border-radius:6px; cursor:pointer;">
+                                Replace
+                            </button>
+
+                            <button type="button"
+                                    id="remove-file"
+                                    style="font-size:12px; padding:4px 8px;
+                                        border:1px solid #ffcccc;
+                                        background:#fff;
+                                        color:#d32f2f;
+                                        border-radius:6px; cursor:pointer;">
+                                Remove
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 

@@ -132,3 +132,56 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 /*=================================== END OF ADD PAYMENT MODAL ===================================*/
+
+
+const input = document.getElementById("receipt-image");
+const previewWrap = document.getElementById("receipt-preview-wrap");
+const previewImg = document.getElementById("receipt-preview");
+const fileName = document.getElementById("receipt-filename");
+const statusIcon = document.getElementById("receipt-status");
+
+const replaceBtn = document.getElementById("replace-file");
+const removeBtn = document.getElementById("remove-file");
+
+function resetUpload() {
+    input.value = "";
+    previewWrap.style.display = "none";
+
+    statusIcon.textContent = "cloud_upload";
+    statusIcon.style.color = "#aaa";
+}
+
+input.addEventListener("change", function () {
+    const file = this.files[0];
+
+    if (!file) return;
+
+    fileName.textContent = file.name;
+
+    statusIcon.textContent = "check_circle";
+    statusIcon.style.color = "#2e7d32";
+
+    previewWrap.style.display = "flex";
+
+    // Image preview only (skip PDF)
+    if (file.type.startsWith("image/")) {
+        const reader = new FileReader();
+        reader.onload = e => previewImg.src = e.target.result;
+        reader.readAsDataURL(file);
+    } else {
+        previewImg.src =
+            "data:image/svg+xml;charset=UTF-8," +
+            encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='60' height='60'>
+                <rect width='100%' height='100%' fill='#f2f2f2'/>
+                <text x='50%' y='50%' text-anchor='middle' dy='.3em' font-size='10'>PDF</text>
+            </svg>`);
+    }
+});
+
+replaceBtn.addEventListener("click", () => {
+    input.click();
+});
+
+removeBtn.addEventListener("click", () => {
+    resetUpload();
+});

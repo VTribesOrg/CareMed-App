@@ -64,7 +64,7 @@ class Transaction(db.Model):
     
     transaction_type = db.Column(db.String(20), nullable=False) 
     
-    total_amount = db.Column(db.Numeric(10, 2), default=0.00)
+    total_amount = db.Column(db.Numeric(10, 2), nullable=False, default=0.00)
     amount_paid = db.Column(db.Numeric(10, 2), default=0.00)
     balance_due = db.Column(db.Numeric(10, 2), default=0.00)
     
@@ -86,6 +86,27 @@ class Transaction(db.Model):
     delivery_address = db.Column(db.Text, nullable=True)
     landmark = db.Column(db.String(255), nullable=True) 
 
+    @property
+    def display_amount(self):
+        return self.total_amount or Decimal("0.00")
+
+    @property
+    def display_date(self):
+        if not self.created_at:
+            return "N/A"
+        return self.created_at.strftime('%b %d, %Y')
+
+    @property
+    def description(self):
+        if self.transaction_type == "Sale":
+            return "Product Purchase"
+        elif self.transaction_type == "Rental":
+            return "Rental Transaction"
+        return "Transaction"
+
+    @property
+    def status_badge(self):
+        return "badge-success" if self.status == "Closed" else "badge-warning"
 
     def update_totals(self):
 
