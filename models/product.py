@@ -68,6 +68,7 @@ class Transaction(db.Model):
     amount_paid = db.Column(db.Numeric(10, 2), default=0.00)
     balance_due = db.Column(db.Numeric(10, 2), default=0.00)
     
+    payment_method = db.Column(db.String(50), nullable=True)
     payment_status = db.Column(db.String(50), default="Unpaid") 
     status = db.Column(db.String(20), default="Open")
     
@@ -80,6 +81,7 @@ class Transaction(db.Model):
     rentals = db.relationship("Rental", back_populates="transaction", cascade="all, delete-orphan")
     
     payments = db.relationship("Payment", back_populates="transaction", cascade="all, delete-orphan")
+    payment_proof = db.relationship("PaymentProof", backref="transaction", uselist=False, cascade="all, delete-orphan")
     
     fulfillment_type = db.Column(db.String(20), default="Pickup") 
     delivery_status = db.Column(db.String(20), default="N/A") 
@@ -178,6 +180,16 @@ class Payment(db.Model):
     transaction = db.relationship("Transaction", back_populates="payments")
     verified_by = db.relationship("User", foreign_keys=[verified_by_id])
     rental_invoice = db.relationship("RentalInvoice", back_populates="payments")
+
+class PaymentProof(db.Model):
+    __tablename__ = "payment_proof"
+    id = db.Column(db.Integer, primary_key=True)
+    transaction_id = db.Column(db.Integer, db.ForeignKey('transaction.id'), nullable=False)
+    payment_id = db.Column(db.Integer, db.ForeignKey('payments.id'), nullable=True)
+    reference_number = db.Column(db.String(100), nullable=False)
+    proof_image = db.Column(db.String(255), nullable=False)
+    status = db.Column(db.String(20), default="Pending") 
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
 
 
 

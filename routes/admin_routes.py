@@ -1147,11 +1147,9 @@ def transactions():
         page=page, per_page=limit, error_out=False
     )
 
-    # Stats logic
     stats = {
         'pending': Transaction.query.filter_by(payment_status='Unpaid').count(),
         'alerts': Transaction.query.filter(Transaction.status == 'Due').count(),
-        # Fixed stats to look for specific product status if applicable
         'empty_tanks': Product.query.filter(Product.status.ilike('%Empty%')).count()
     }
     
@@ -1170,7 +1168,6 @@ def transactions():
         all_equipment=all_equipment,
         **stats
     )
-    
     
     
 @admin_bp.route('/transaction_details/<int:id>') 

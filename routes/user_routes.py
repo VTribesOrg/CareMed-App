@@ -1,4 +1,3 @@
-import os
 from dateutil.relativedelta import relativedelta
 from flask import Blueprint, abort, render_template, request, current_app, jsonify, redirect, url_for, flash, session
 from flask_login import current_user, login_required
@@ -7,11 +6,16 @@ from extensions import db, passhasher, limiter
 from forms.update_profile_form import UpdateProfileForm, ChangePasswordForm
 from functools import wraps
 from models.customer import Customer
-from models.product import Product, Cart, CartItem, Payment, Transaction, Rental, Purchase, InventoryLog
-import random
-import string
+from models.product import Product, Cart, CartItem, Payment, Transaction, Rental, Purchase, InventoryLog, PaymentProof
 from datetime import datetime, date
 from decimal import Decimal, ROUND_HALF_UP
+import os
+import uuid
+from PIL import Image
+import random
+import string
+
+
 
 
 
@@ -542,48 +546,44 @@ def update_checkout_profile():
 
     return redirect(url_for('user.checkout'))
     
+
 @user_bp.route('/place-order', methods=['POST'])
 @login_required
 def place_order():
     profile = current_user.customer_profile
 
     if not profile or not profile.home_address:
-        flash("Please complete your delivery profile before ordering.", "warning")
-        return redirect(url_for('user.checkout'))
-
-    if not profile.valid_id_path or not profile.secondary_id_path:
-        flash("You must upload both IDs before placing an order.", "error")
+        flash("Please provide a delivery address before proceeding.", "info")
         return redirect(url_for('user.checkout'))
 
     cart = Cart.query.filter_by(user_id=current_user.id).first()
     if not cart or not cart.items:
-        flash("Your cart is empty.", "error")
+        flash("Your cart is empty.", "warning")
         return redirect(url_for('user.cart'))
 
     is_rental_order = any(item.item_type == 'Rental' for item in cart.items)
-
     if is_rental_order:
         if not profile.valid_id_path or not profile.secondary_id_path:
-            flash("Rental orders require two valid IDs. Please upload them in the checkout page.", "error")
+            flash("Rental orders require two forms of valid ID for verification.", "error")
             return redirect(url_for('user.checkout'))
 
-    selected_payment_method = request.form.get('payment_method', 'COD')
+    payment_method = request.form.get('payment_method', 'COD')
 
     try:
         now = datetime.now()
-        is_rental = any(i.item_type == 'Rental' for i in cart.items)
-        prefix = "RNT" if is_rental else "PUR"
-        ref_no = f"{prefix}-{now.strftime('%m%d%Y')}-{''.join(random.choices(string.ascii_uppercase + string.digits, k=6))}"
+        prefix = "RNT" if is_rental_order else "PUR"
+        ref_no = f"{prefix}-{now.strftime('%m%d%Y-%H%M%S')}-{''.join(random.choices(string.ascii_uppercase + string.digits, k=4))}"
 
         new_transaction = Transaction(
             reference_no=ref_no,
             customer_id=profile.id,
             customer_name=f"{profile.first_name} {profile.last_name}",
-            transaction_type='Rental' if is_rental else 'Sale',
+            transaction_type='Rental' if is_rental_order else 'Sale',
             total_amount=Decimal("0.00"),
             amount_paid=Decimal("0.00"),
             balance_due=Decimal("0.00"),
-            payment_status="Unpaid",
+            payment_method=payment_method,
+            payment_status="Pending Proof" if payment_method != 'COD' else "Unpaid",
             status="Open",
             fulfillment_type="Delivery",
             delivery_address=profile.home_address,
@@ -594,89 +594,154 @@ def place_order():
         db.session.flush()
 
         total_accumulated = Decimal("0.00")
-
         for item in cart.items:
             product = Product.query.with_for_update().get(item.product_id)
-
+            
             if not product or product.status == 'Archived':
-                raise ValueError(f"The item '{item.product.name}' is no longer available.")
-
+                raise ValueError(f"'{item.product.name}' is no longer available.")
             if product.stock < item.quantity:
-                raise ValueError(f"Sorry, only {product.stock} units of {product.name} are left.")
+                raise ValueError(f"Only {product.stock} units of {product.name} are left.")
 
             item_price = Decimal(str(item.price_at_addition))
             item_total = item_price * item.quantity
             total_accumulated += item_total
 
             if item.item_type == 'Sale':
-                db.session.add(Purchase(
-                    transaction_id=new_transaction.id,
-                    product_id=product.id,
-                    customer_id=profile.id,
-                    quantity=item.quantity,
-                    unit_price=item_price,
-                    total_price=item_total
-                ))
-
-            elif item.item_type == 'Rental':
+                db.session.add(Purchase(transaction_id=new_transaction.id, product_id=product.id, 
+                                        customer_id=profile.id, quantity=item.quantity, 
+                                        unit_price=item_price, total_price=item_total))
+            else:
                 end_date = item.rental_start_date + relativedelta(months=item.rental_duration)
-                rental = Rental(
-                    transaction_id=new_transaction.id,
-                    product_id=product.id,
-                    customer_id=profile.id,
-                    start_date=item.rental_start_date,
-                    expected_return_date=end_date,
-                    monthly_rate=item_price,
-                    quantity=item.quantity,
-                    status="Active"
-                )
+                rental = Rental(transaction_id=new_transaction.id, product_id=product.id, 
+                                customer_id=profile.id, start_date=item.rental_start_date, 
+                                expected_return_date=end_date, monthly_rate=item_price, 
+                                quantity=item.quantity, status="Active")
                 db.session.add(rental)
                 db.session.flush()
                 rental.generate_monthly_invoices()
 
             product.stock -= item.quantity
-            if product.stock <= 0:
-                product.status = "Out of Stock"
+            if product.stock <= 0: product.status = "Out of Stock"
 
-            db.session.add(InventoryLog(
-                product_id=product.id,
-                action="Online Order",
-                quantity=-item.quantity,
-                note=f"Ref: {ref_no}",
-                user_id=current_user.id,
-                user_name=new_transaction.customer_name
-            ))
+            db.session.add(InventoryLog(product_id=product.id, action="Online Order", 
+                                        quantity=-item.quantity, note=f"Ref: {ref_no}", 
+                                        user_id=current_user.id, user_name=new_transaction.customer_name))
 
-        if new_transaction.transaction_type == "Sale":
-            new_transaction.total_amount = total_accumulated
-
+        new_transaction.total_amount = total_accumulated
         new_transaction.update_totals()
-
-        new_payment = Payment(
-            transaction_id=new_transaction.id,
-            amount=new_transaction.total_amount,
-            payment_method=selected_payment_method,
-            status="Pending",
-            reference_number=f"PAY-{ref_no}"
-        )
-        db.session.add(new_payment)
 
         for item in cart.items:
             db.session.delete(item)
 
         db.session.commit()
-        return redirect(url_for('user.order_success', ref=ref_no))
+
+        if payment_method == 'COD':
+            flash(f"Order successful! Your reference is {ref_no}.", "success")
+            return redirect(url_for('user.order_success', ref=ref_no))
+        else:
+            return redirect(url_for('user.payment_upload', txn_id=new_transaction.id))
 
     except ValueError as ve:
         db.session.rollback()
         flash(str(ve), "warning")
         return redirect(url_for('user.cart'))
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"CHECKOUT_ERROR: {str(e)}")
+        flash("Could not process order. Please try again.", "error")
+        return redirect(url_for('user.checkout'))
+
+@user_bp.route('/payment-upload/<int:txn_id>')
+@login_required
+def payment_upload(txn_id):
+    txn = Transaction.query.get_or_404(txn_id)
+    return render_template('user/payment_submission.html', txn=txn)
+
+@user_bp.route('/submit-payment-proof/<int:txn_id>', methods=['POST'])
+@login_required
+def submit_payment_proof(txn_id):
+    txn = Transaction.query.get_or_404(txn_id)
+    profile = current_user.customer_profile
+
+    if not profile or txn.customer_id != profile.id:
+        current_app.logger.warning(f"Unauthorized payment upload attempt by User {current_user.id} on TXN {txn_id}")
+        flash("Authorization failed. Please access the order through your dashboard.", "error")
+        return redirect(url_for('user.index'))
+
+    if txn.payment_status in ["Awaiting Verification", "Paid"]:
+        flash("This payment is already being processed. You'll receive an update shortly!", "info")
+        return redirect(url_for('user.order_success', ref=txn.reference_no))
+
+    proof_file = request.files.get('payment_screenshot')
+    if not proof_file or proof_file.filename == '':
+        flash("Please select a screenshot of your payment confirmation to proceed.", "warning")
+        return redirect(url_for('user.payment_upload', txn_id=txn.id))
+
+    ALLOWED_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.webp'}
+    ext = os.path.splitext(proof_file.filename)[1].lower()
+
+    if ext not in ALLOWED_EXTENSIONS:
+        flash("Invalid file format. Please upload a clear image (JPG, PNG, or WebP).", "error")
+        return redirect(url_for('user.payment_upload', txn_id=txn.id))
+
+    try:
+        unique_id = uuid.uuid4().hex[:12]
+        filename = secure_filename(f"proof_{txn.id}_{unique_id}{ext}")
+
+        upload_path = os.path.join(current_app.static_folder, 'uploads/payments')
+        if not os.path.exists(upload_path):
+            os.makedirs(upload_path, mode=0o755)
+
+        file_full_path = os.path.join(upload_path, filename)
+        proof_file.save(file_full_path)
+
+        try:
+            with Image.open(file_full_path) as img:
+                img.verify() 
+
+            with Image.open(file_full_path) as img:
+                if img.format.lower() not in ['png', 'jpeg', 'webp']:
+                    raise ValueError("Invalid image format")
+
+        except Exception:
+            os.remove(file_full_path)
+            flash("The uploaded file is not a valid or supported image.", "error")
+            return redirect(url_for('user.payment_upload', txn_id=txn.id))
+
+        # --- Database transaction ---
+        new_payment = Payment(
+            transaction_id=txn.id,
+            amount=txn.total_amount,
+            payment_method=txn.payment_method or 'Electronic Transfer',
+            status="Pending",
+            reference_number=f"PENDING-{txn.reference_no}"
+        )
+        db.session.add(new_payment)
+        db.session.flush()
+
+        new_proof = PaymentProof(
+            transaction_id=txn.id,
+            payment_id=new_payment.id,
+            reference_number=f"PENDING-{txn.reference_no}",
+            proof_image=filename
+        )
+        db.session.add(new_proof)
+
+        txn.payment_status = "Awaiting Verification"
+        db.session.commit()
+
+        flash("Payment proof received! Our team will verify your transaction within 1-2 hours.", "success")
+        return redirect(url_for('user.order_success', ref=txn.reference_no))
 
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"CRITICAL CHECKOUT ERROR: {str(e)}")
-        flash("An internal server error occurred while processing your order.", "error")
-        return redirect(url_for('user.checkout'))
+
+        if 'file_full_path' in locals() and os.path.exists(file_full_path):
+            os.remove(file_full_path)
+
+        current_app.logger.error(f"CRITICAL_UPLOAD_ERROR (TXN {txn_id}): {str(e)}")
+        flash("We encountered a technical issue saving your proof. Please try again or contact support.", "error")
+        return redirect(url_for('user.payment_upload', txn_id=txn.id))
     
     
 @user_bp.route('/order_success')
@@ -710,7 +775,7 @@ def order_success():
     )
     
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
-MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+MAX_FILE_SIZE = 5 * 1024 * 1024  
 
 
 def allowed_file(filename):

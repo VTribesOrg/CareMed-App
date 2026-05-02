@@ -249,46 +249,37 @@
                         </div>
 
                         
-                        {% if has_rental %}
+                        {% if rental_check.has_rental %}
                         <div class="checkout-section-card">
                             <div class="section-header">
                                 <span class="material-symbols-outlined">badge</span>
                                 <h3>Rental Requirements</h3>
                             </div>
                             
-                            <div class="requirement-status-container" style="display: flex; align-items: center; justify-content: space-between; padding: 15px; background: #f8fafb; border-radius: 12px; border: 1px solid #e2e8f0;">
-                                <div class="status-info" style="display: flex; align-items: center; gap: 12px;">
-                                    
+                            <div class="requirement-status-container" style="border: 2px solid {{ '#10b981' if current_user.customer_profile.valid_id_path else '#f59e0b' }};">
+                                <div class="status-info">
                                     {% if current_user.customer_profile.valid_id_path and current_user.customer_profile.secondary_id_path %}
-                                        <div class="status-icon" style="color: #10b981; background: #ecfdf5; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                                        <div class="status-icon" style="color: #10b981;">
                                             <i class="fa-solid fa-circle-check"></i>
                                         </div>
                                         <div>
-                                            <h4 style="margin: 0; font-size: 14px; color: #1e293b;">
-                                                IDs Uploaded 
-                                                {% if current_user.customer_profile.is_id_verified %}
-                                                    <span style="color: #10b981; font-size: 11px;">(Verified)</span>
-                                                {% else %}
-                                                    <span style="color: #64748b; font-size: 11px;">(Pending Verification)</span>
-                                                {% endif %}
-                                            </h4>
-                                            <p style="margin: 0; font-size: 12px; color: #64748b;">Your documents are ready for processing.</p>
+                                            <h4 style="margin:0;">IDs on File</h4>
+                                            <p style="margin:0; font-size: 12px;">Verification will proceed after checkout.</p>
                                         </div>
                                     {% else %}
-                                        <div class="status-icon" style="color: #f59e0b; background: #fffbeb; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                                            <i class="fa-solid fa-clock"></i>
+                                        <div class="status-icon" style="color: #f59e0b;">
+                                            <i class="fa-solid fa-triangle-exclamation"></i>
                                         </div>
                                         <div>
-                                            <h4 style="margin: 0; font-size: 14px; color: #1e293b;">Identification Pending</h4>
-                                            <p style="margin: 0; font-size: 12px; color: #64748b;">Upload 2 valid IDs to proceed with rental.</p>
+                                            <h4 style="margin:0;">IDs Required</h4>
+                                            <p style="margin:0; font-size: 12px; color: #e53e3e;">Please upload IDs in your Profile before renting.</p>
                                         </div>
                                     {% endif %}
                                 </div>
 
-                                <button type="button" id="openUploadModal" class="btn-upload-trigger" 
-                                    style="padding: 8px 16px; background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;">
-                                    {{ 'Update IDs' if (current_user.customer_profile.valid_id_path and current_user.customer_profile.secondary_id_path) else 'Upload Now' }}
-                                </button>
+                                <a href="{{ url_for('user.profile') }}" class="btn-upload-trigger">
+                                    {{ 'View IDs' if current_user.customer_profile.valid_id_path else 'Upload IDs Now' }}
+                                </a>
                             </div>
                         </div>
                         {% endif %}
@@ -399,7 +390,6 @@
 
                 <div class="upload-modal-body">
                     
-                    <!-- PRIMARY ID -->
                     <div class="upload-form-group">
                         <label class="input-label-text">Primary ID Type</label>
                         <select name="primary_id_type" class="upload-select-field" required>
@@ -417,7 +407,6 @@
                             <span class="file-status-text" id="file-name-primary">No file chosen</span>
                         </label>
 
-                        <!-- ✅ MESSAGE -->
                         <small id="primary-warning" style="color:#dc2626; display:none; margin-top:6px;">
                             Please upload your Primary ID file.
                         </small>
@@ -425,7 +414,6 @@
 
                     <div class="modal-spacer"></div>
 
-                    <!-- SECONDARY ID -->
                     <div class="upload-form-group">
                         <label class="input-label-text">Secondary ID Type</label>
                         <select name="secondary_id_type" class="upload-select-field" required>
@@ -442,7 +430,6 @@
                             <span class="file-status-text" id="file-name-secondary">No file chosen</span>
                         </label>
 
-                        <!-- ✅ MESSAGE -->
                         <small id="secondary-warning" style="color:#dc2626; display:none; margin-top:6px;">
                             Please upload your Secondary ID file.
                         </small>
@@ -814,6 +801,17 @@
             }
             
 
+        });
+
+        document.querySelectorAll('input[name="payment_method"]').forEach((elem) => {
+            elem.addEventListener("change", function(event) {
+                const btn = document.querySelector('.place-order-btn');
+                if (event.target.value === 'GCASH') {
+                    btn.innerHTML = 'Proceed to Payment <i class="fa-solid fa-arrow-right"></i>';
+                } else {
+                    btn.innerHTML = 'Place Order <i class="fa-solid fa-arrow-right"></i>';
+                }
+            });
         });
     </script>
    

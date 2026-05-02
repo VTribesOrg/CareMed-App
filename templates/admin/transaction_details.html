@@ -400,6 +400,27 @@
                     </section>
 
                     <aside class="details-sidebar">
+                        
+                    {% if txn.payment_proof %}
+                        <div class="summary-side-card" style="border-left: 4px solid #f59e0b; margin-bottom: 20px;">
+                            <h5 class="sidebar-card-title">Verify GCash Payment</h5>
+                            <p><strong>Ref No:</strong> {{ txn.payment_proof.reference_number }}</p>
+                            
+                            <a href="{{ url_for('static', filename='uploads/payments/' ~ txn.payment_proof.proof_image) }}" target="_blank">
+                                <img src="{{ url_for('static', filename='uploads/payments/' ~ txn.payment_proof.proof_image) }}" 
+                                    style="width: 100%; border-radius: 5px; margin-bottom: 10px; cursor: zoom-in;" 
+                                    alt="Payment Proof">
+                            </a>
+
+                            <form action="" method="POST">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn-approve" style="width: 100%; background: #10b981; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                                    Confirm & Mark as Paid
+                                </button>
+                            </form>
+                        </div>
+                        {% endif %}
+
                         <div class="summary-side-card summary-spacing">
                             <h5 class="sidebar-card-title">Payment Summary</h5>
                             

@@ -215,9 +215,28 @@
                     </div>
                     <h1>Order Confirmed!</h1>
                     <p class="order-number">Reference No: <strong>{{ order.reference_no }}</strong></p>
-                    <p style="color: #6c757d; font-size: 0.95rem;">
-                        We've sent a confirmation email to <strong>{{ current_user.email }}</strong>.
-                    </p>
+                    
+                    <div class="verification-notice" style="background: #eef2ff; border: 1px solid #e0e7ff; padding: 12px; border-radius: 8px; margin: 15px auto; max-width: 400px;">
+                        <p style="color: #4338ca; font-size: 0.85rem; margin: 0;">
+                            <i class="fa-solid fa-clock"></i> <strong>Payment Verification in Progress:</strong><br>
+                            Our team is reviewing your receipt. Verification typically takes 1-2 hours.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="status-tracker" style="display: flex; justify-content: space-between; margin: 25px 0; padding: 15px; background: #f8fafc; border-radius: 12px; border: 1px solid #f1f5f9;">
+                    <div class="step" style="flex: 1; text-align: center; color: #28a745; font-weight: 700; font-size: 0.75rem;">
+                        <i class="fa-solid fa-file-circle-check" style="display: block; font-size: 1.2rem; margin-bottom: 5px;"></i>SUBMITTED
+                    </div>
+                    <div class="step" style="flex: 1; text-align: center; color: #71b345; font-weight: 700; font-size: 0.75rem;">
+                        <i class="fa-solid fa-magnifying-glass" style="display: block; font-size: 1.2rem; margin-bottom: 5px;"></i>VERIFYING
+                    </div>
+                    <div class="step" style="flex: 1; text-align: center; color: #cbd5e1; font-size: 0.75rem;">
+                        <i class="fa-solid fa-truck-fast" style="display: block; font-size: 1.2rem; margin-bottom: 5px;"></i>SHIPPING
+                    </div>
+                    <div class="step" style="flex: 1; text-align: center; color: #cbd5e1; font-size: 0.75rem;">
+                        <i class="fa-solid fa-house-medical" style="display: block; font-size: 1.2rem; margin-bottom: 5px;"></i>DELIVERED
+                    </div>
                 </div>
 
                 <div class="success-content-grid">
@@ -304,6 +323,18 @@
                             View Orders <i class="fa-solid fa-chevron-right"></i>
                         </a>
                     {% endif %}
+                </div>
+
+                <div class="support-footer" style="text-align: center; margin-top: 30px; border-top: 1px solid #f1f5f9; padding-top: 20px;">
+                    <p style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 10px;">Having trouble with your payment?</p>
+                    <div style="display: flex; justify-content: center; gap: 20px;">
+                        <a href="tel:+639125856730" style="text-decoration: none; color: #71b345; font-size: 0.85rem; font-weight: 600;">
+                            <i class="fa-solid fa-phone"></i> Call Support
+                        </a>
+                        <a href="mailto:support@caremed.com" style="text-decoration: none; color: #71b345; font-size: 0.85rem; font-weight: 600;">
+                            <i class="fa-solid fa-envelope"></i> Email Us
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>

@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=0.8">
+    <title>CareMed</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='icons/favicon-circle.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/check_out.css') }}">
+    <style>
+        .feature-icon.material-symbols-outlined {
+            font-size: 40px;
+            display: block;
+            margin-bottom: 15px;
+        }
+
+        .nav-links a.active-link {
+                color: #71b345;     
+                font-weight: 700;         
+                border-bottom: 2px solid #71b345; 
+        }
+
+
+        .payment-submission-wrapper {
+            background-color: #f4f7f6;
+            min-height: 100vh;
+            display: flex;
+            align-items: flex-start; 
+            justify-content: center;
+            padding: 6rem 1rem 3rem;  
+            font-family: 'Inter', -apple-system, sans-serif;
+            box-sizing: border-box;
+        }
+
+        .payment-container-layout {
+            width: 100%;
+            max-width: 460px; /* Slimmer profile for better focus */
+        }
+
+        /* Card Styling */
+        .payment-card-container {
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+            overflow: hidden;
+        }
+
+        /* Header Section */
+        .payment-card-header {
+            padding: 1.25rem;
+            text-align: center;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .header-icon {
+            font-size: 1.75rem;
+            color: #1e293b;
+            margin-bottom: 0.25rem;
+        }
+
+        .header-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin: 0;
+        }
+
+        /* Information Panel */
+        .payment-instruction-panel {
+            padding: 1.25rem;
+            background-color: #fafbfc;
+        }
+
+        .order-id-status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .order-id-label {
+            font-size: 0.8rem;
+            color: #64748b;
+            margin: 0;
+        }
+
+        .status-text-highlight {
+            background: #fef3c7;
+            color: #92400e;
+            padding: 2px 10px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+
+        .total-amount-display {
+            text-align: center;
+            margin-bottom: 0.5rem;
+            color: #475569;
+            font-size: 0.9rem;
+        }
+
+        .currency-value {
+            display: block;
+            font-size: 2.25rem;
+            font-weight: 800;
+            color: #1e293b; 
+            letter-spacing: -0.02em;
+        }
+
+        .instruction-divider {
+            border: 0;
+            border-top: 1px dashed #e2e8f0;
+            margin: 1.25rem 0;
+        }
+
+        .method-specific-details {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1rem;
+        }
+
+        .payment-steps ol {
+            padding-left: 1.25rem;
+            margin: 0.5rem 0;
+            color: #475569;
+            font-size: 0.85rem;
+        }
+
+        .payment-steps li {
+            margin-bottom: 0.25rem;
+        }
+
+
+        .account-info-box {
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin: 0.75rem 0;
+        }
+
+        .copyable-number {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 1.1rem;
+            color: #1e293b;
+            letter-spacing: 1px;
+        }
+
+        .copy-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .copy-btn {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s;
+        }
+
+        .copy-btn:hover {
+            background: #1d4ed8;
+        }
+
+        .copy-btn.success {
+            background: #10b981;
+        }
+
+        .copyable-number {
+            font-family: monospace;
+            letter-spacing: 0.5px;
+        }
+
+        .method-hint {
+            font-size: 0.75rem;
+            color: #ef4444; /* Red to grab attention */
+            font-style: italic;
+            margin-top: 0.5rem;
+        }
+
+        .method-label-blue {
+            color: #2563eb;
+            font-weight: 700;
+            font-size: 0.85rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .account-detail-line {
+            margin: 0.25rem 0;
+            font-size: 0.85rem;
+            color: #334155;
+        }
+
+        /* Form Section */
+        .proof-submission-form {
+            padding: 1.5rem;
+        }
+
+        .form-input-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-field-label {
+            display: block;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: #1e293b;
+            margin-bottom: 0.4rem;
+        }
+
+        .form-input-text-field {
+            width: 100%;
+            padding: 0.65rem 0.75rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            box-sizing: border-box;
+        }
+
+        .form-field-hint {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            margin-top: 0.25rem;
+            display: block;
+        }
+
+        /* Compact Dropzone */
+        .file-upload-dropzone {
+            display: block;
+            border: 2px dashed #cbd5e1;
+            border-radius: 8px;
+            padding: 1.25rem 1rem;
+            text-align: center;
+            cursor: pointer;
+            background-color: #ffffff;
+            transition: 0.2s ease-in-out;
+        }
+
+        .file-upload-dropzone:hover {
+            border-color: #2563eb;
+            background-color: #f8fafc;
+        }
+
+        .dropzone-icon {
+            font-size: 1.5rem;
+            color: #94a3b8;
+            margin-bottom: 0.4rem;
+        }
+
+        .file-browse-trigger {
+            color: #2563eb;
+            font-weight: 600;
+            font-size: 0.8rem;
+        }
+
+        .selected-file-name {
+            margin-top: 0.4rem;
+            font-size: 0.75rem;
+            color: #64748b;
+        }
+
+        /* Preview Image Box */
+        .image-preview-box {
+            margin-top: 1rem;
+            padding: 0.5rem;
+            background: #f1f5f9;
+            border-radius: 6px;
+        }
+
+        .preview-image-fluid {
+            width: 100%;
+            max-height: 180px;
+            object-fit: contain;
+            border-radius: 4px;
+        }
+
+        /* Primary Action Button */
+        .payment-submit-btn {
+            width: 100%;
+            background-color: #2563eb;
+            color: white;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .payment-submit-btn:hover {
+            background-color: #1d4ed8;
+        }
+
+        .navigation-cancel-link {
+            text-align: center;
+            margin-top: 1rem;
+        }
+
+        .back-to-shop-link {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            text-decoration: none;
+        }
+
+        .back-to-shop-link:hover {
+            color: #ef4444;
+        }
+
+        .hidden-file-input {
+            display: none;
+        }       
+
+        @media (max-width: 480px) {
+    /* 1. Fix for Order ID and Status overlapping */
+    .order-id-status-bar {
+        flex-direction: column !important;
+        align-items: center !important;
+        gap: 8px;
+        margin-bottom: 1.25rem;
+    }
+
+    /* 2. Scale down the massive currency text */
+    .currency-value {
+        font-size: 1.75rem !important;
+        margin-top: 5px;
+    }
+
+    /* 3. Fix for Copy Button and Account Number overlapping */
+    .copy-container {
+        flex-direction: column !important;
+        text-align: center;
+        gap: 12px;
+        margin-top: 10px;
+    }
+
+    .copy-btn {
+        width: 100%; /* Makes button easier to tap on mobile */
+        justify-content: center;
+        padding: 10px;
+    }
+
+    /* 4. Improve the file upload area for touch */
+    .file-upload-dropzone {
+        padding: 2rem 1rem;
+    }
+
+    .dropzone-icon {
+        font-size: 2rem;
+    }
+
+    /* 5. Adjust general spacing for the form */
+    .payment-instruction-panel, 
+    .proof-submission-form {
+        padding: 1.25rem 1rem;
+    }
+}
+
+/* Extra tight fix for very small phones (like iPhone SE) */
+@media (max-width: 340px) {
+    .header-title {
+        font-size: 1rem;
+    }
+    
+    .currency-value {
+        font-size: 1.5rem !important;
+    }
+}
+
+    </style>
+</head>
+
+<body class="{% if current_user.is_authenticated %}logged-in{% else %}guest{% endif %}">
+
+    <input type="checkbox" id="nav-toggle" style="display: none;">
+
+    <div class="side-drawer">
+        <div class="drawer-header">
+            <a href="{{ url_for('user.homepage')}}" style="text-decoration: none;">
+                <div class="nav-logo">
+                    Care<span>Med</span>
+                </div>
+            </a>
+            <label for="nav-toggle" class="close-drawer">
+                <i class="fa-solid fa-xmark"></i>
+            </label>
+        </div>
+
+        <div class="drawer-links">
+            <div class="mobile-user-info auth-only">
+                <div class="user-avatar mobile-user-avatar" id="mobileAvatarContainer">
+                    {% if current_user.is_authenticated and current_user.profile_path %}
+                        <img src="{{ url_for('static', filename=current_user.profile_path) }}" class="user-photo-img" alt="Profile Picture">
+                    {% else %}
+                        <i class="fa-solid fa-circle-user icon-placeholder"></i>
+                    {% endif %}
+                </div>
+
+                <div class="user-details">
+                    <span class="user-name">
+                        {% if current_user.is_authenticated %}
+                            {% if current_user.customer_profile %}
+                                Hello, {{ current_user.customer_profile.first_name }}
+                            {% else %}
+                                Hello, {{ current_user.email.split('@')[0] }} 
+                            {% endif %}
+                        {% else %}
+                            Welcome, Guest
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+
+            <div class="mobile-user-info guest-only">
+                <div class="user-avatar mobile-user-avatar">
+                    <i class="fa-solid fa-circle-user icon-placeholder"></i>
+                </div>
+                <div class="user-details">
+                    <span class="user-name">Welcome, Guest</span>
+                    <span class="user-role">Sign in to manage rentals</span>
+                </div>
+            </div>
+
+            <a href="{{ url_for('user.products')}}" class="guest-only">
+                <i class="fa-solid fa-hand-holding-medical"></i> Start Renting
+            </a>
+
+            <a href="{{ url_for('user.products')}}" class="active">
+                <i class="fa-solid fa-bag-shopping"></i> Browse Equipment
+            </a>
+
+            <a href="{{ url_for('user.homepage')}}#how">
+                <i class="fa-solid fa-circle-info"></i> How It Works
+            </a>
+
+            <a href="{{ url_for('user.homepage')}}#about">
+                <i class="fa-solid fa-building"></i> About
+            </a>
+
+            <a href="{{ url_for('user.profile')}}" class="auth-only">
+                <i class="fa-solid fa-user"></i> My Profile
+            </a>
+
+            <a href="#" class="auth-only">
+                <i class="fa-solid fa-clock-rotate-left"></i> My Rentals
+            </a>
+
+            <hr class="auth-only" style="border: none; border-top: 1px solid #eee; margin: 10px 0;">
+
+            {% if current_user.is_authenticated %}
+                <a href="{{ url_for('auth.logout') }}" class="logout-link-mobile">
+                    <i class="fa-solid fa-right-from-bracket"></i> Sign Out
+                </a>
+            {% else %}
+                <a href="{{ url_for('auth.login') }}" class="login-link-mobile guest-only">
+                    <i class="fa-solid fa-right-to-bracket"></i> Sign In
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <label for="nav-toggle" class="drawer-overlay"></label>
+
+    <nav>
+        <a href="{{ url_for('user.homepage')}}" class="nav-logo-wrapper">
+            <div class="brand-icon-plus">
+                <div class="box blue top"></div>
+                <div class="box green left"></div>
+                <div class="box green right"></div>
+                <div class="box blue bottom"></div>
+            </div> 
+            <div class="nav-logo">Care<span>Med</span></div>
+        </a>
+
+        <div class="nav-links">
+            <a href="{{ url_for('user.products')}}" class="nav-shop-link hover">
+                <i class="fa-solid fa-bag-shopping"></i> Browse Equipment
+            </a>
+
+            <a href="{{ url_for('user.homepage')}}#how" class="nav-account-btn hover">How It Works</a>
+
+            <a href="{{ url_for('user.homepage')}}#about" class="nav-account-btn hover">About</a>
+
+            <a href="{{ url_for('auth.login')}}" class="nav-account-btn guest-only hover">
+                <i class="fa-solid fa-right-to-bracket"></i> Sign In
+            </a>
+
+            {#  <a href="{{ url_for('user.products')}}" class="nav-cta-btn guest-only">Start Renting</a>  #}
+
+            {% if current_user.is_authenticated %}
+                <a href="{{ url_for('user.cart') }}" class="nav-cart-wrapper" title="View Cart">
+                    <div class="cart-icon-container">
+                        <i class="fa-solid fa-cart-shopping"></i>
+                        
+                        {% set cart_count = current_user.cart.items|length if current_user.cart else 0 %}
+                        
+                        {% if cart_count > 0 %}
+                            <span class="cart-badge" id="cartBadge">{{ cart_count }}</span>
+                        {% endif %}
+                    </div>
+                </a>
+            {% endif %}
+
+
+            <div class="user-profile-widget auth-only" id="profileDropdown">
+                <div class="profile-trigger" id="profileTrigger">
+                    <div class="user-avatar" id="navAvatarContainer">
+                        {% if current_user.is_authenticated and current_user.profile_path %}
+                            <img src="{{ url_for('static', filename=current_user.profile_path) }}" class="user-photo-img" alt="Profile Picture">
+                        {% else %}
+                            <i class="fa-solid fa-circle-user icon-placeholder"></i>
+                        {% endif %}
+                    </div>
+
+                    <div class="user-info">
+                        <span class="user-name">
+                            {% if current_user.is_authenticated %}
+                                Hello, {{ current_user.customer_profile.first_name }}
+                            {% else %}
+                                Guest
+                            {% endif %}
+                        </span>
+                    </div>
+
+                    <i class="fa-solid fa-chevron-down"></i>
+                </div>
+
+                <div class="dropdown-menu" id="dropdownMenu">
+                    {% if current_user.is_authenticated %}
+                        <a href="{{ url_for('user.profile')}}">
+                            <i class="fa-solid fa-user"></i> My Profile
+                        </a>
+                        <a href="#">
+                            <i class="fa-solid fa-clock-rotate-left"></i> My Rentals
+                        </a>
+                        <hr>
+                        <a href="{{ url_for('auth.logout') }}" class="logout-item">
+                            <i class="fa-solid fa-right-from-bracket"></i> Sign Out
+                        </a>
+                    {% else %}
+                        <a href="{{ url_for('auth.login') }}">
+                            <i class="fa-solid fa-right-to-bracket"></i> Sign In / Register
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <label for="nav-toggle" class="hamburger-icon">
+            <i class="fa-solid fa-bars"></i>
+        </label>
+    </nav>
+
+    <main class="payment-submission-wrapper">
+        <div class="payment-container-layout">
+            <div class="payment-card-container">
+                <div class="payment-card-header">
+                    <span class="material-symbols-outlined header-icon">account_balance</span>
+                    <h3 class="header-title">Finalize Your Payment</h3>
+                </div>
+                
+                <div class="payment-instruction-panel">
+                    <div class="order-id-status-bar">
+                        <p class="order-id-label"><strong>Order ID:</strong> #{{ txn.id }}</p>
+                        <p class="order-status-badge">Status: <span class="status-text-highlight">Awaiting Payment</span></p>
+                    </div>
+                    
+                    <p class="total-amount-display">
+                        <strong>Total Amount to Pay:</strong> 
+                        <span class="currency-value">₱{{ "{:,.2f}".format(txn.total_amount) }}</span>
+                    </p>
+                    
+                    <hr class="instruction-divider">
+                    
+                    <div class="method-specific-details">
+                        {% if txn.payment_method == 'GCASH' %}
+                        <p class="method-label-blue">
+                            <i class="fa-solid fa-mobile-screen-button"></i> GCash Transfer Instructions
+                        </p>
+                        
+                        <div class="payment-steps">
+                            <ol>
+                                <li>Open your <strong>GCash App</strong>.</li>
+                                <li>Select <strong>"Send"</strong> > <strong>"Express Send"</strong>.</li>
+                                <li>Enter the details provided below:</li>
+                            </ol>
+                        </div>
+
+                        <div class="account-info-box">
+                            <p class="account-detail-line">Recipient Name: <strong>Admin Name</strong></p>
+                            <div class="account-detail-line copy-container">
+                                <span>GCash Number: <strong id="admin-number" class="copyable-number">09123456789</strong></span>
+                                <!-- Removed onclick, added id -->
+                                <button type="button" class="copy-btn" id="copy-trigger">
+                                    <i class="fa-regular fa-copy"></i> Copy
+                                </button>
+                            </div>
+                        </div>
+
+                        <p class="method-hint">Important: Take a screenshot of your successful transaction receipt and upload it below.</p>
+
+                        {% elif txn.payment_method == 'BANK_TRANSFER' %}
+                            <p class="method-label-blue"><i class="fa-solid fa-building-columns"></i> BDO Bank Instructions</p>
+                            <div class="payment-steps">
+                                <ol>
+                                    <li>Log in to your Bank App.</li>
+                                    <li>Transfer the exact total amount to:</li>
+                                </ol>
+                            </div>
+                            <div class="account-info-box">
+                                <p class="account-detail-line">Account Name: <strong>CareMed Medical</strong></p>
+                                <p class="account-detail-line">Account Number: <strong>001234567890</strong></p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <form action="{{ url_for('user.submit_payment_proof', txn_id=txn.id) }}" 
+                    method="POST" 
+                    enctype="multipart/form-data" 
+                    class="proof-submission-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    
+                    <div class="form-input-group">
+                        <label class="form-field-label">Upload Screenshot of Receipt</label>
+                        <label class="file-upload-dropzone">
+                            <input type="file" 
+                                name="payment_screenshot" 
+                                accept="image/*" 
+                                class="hidden-file-input" 
+                                required 
+                                id="proof_img">
+                            <i class="fa-solid fa-cloud-arrow-up dropzone-icon"></i><br>
+                            <span class="file-browse-trigger">Choose File</span>
+                            <p class="selected-file-name" id="proof-file-name">No file chosen</p>
+                        </label>
+                    </div>
+
+                    <div id="preview-container" class="image-preview-box" style="display: none;">
+                        <p class="preview-label">Receipt Preview:</p>
+                        <img id="image-preview" src="#" alt="Receipt" class="preview-image-fluid">
+                    </div>
+
+                    <button type="submit" class="payment-submit-btn">
+                        <span>Verify & Submit Payment</span>
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+
+                    <div class="navigation-cancel-link">
+                        <a href="{{ url_for('user.products') }}" class="back-to-shop-link">
+                            <i class="fa-solid fa-arrow-left"></i> Cancel and return to shop
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+
+    <footer id="footer">
+        <div class="footer-grid">
+            <div class="footer-col">
+                <div class="footer-logo">Care<span>Med</span></div>
+                <p>Providing the highest standard of medical equipment rentals and sales since 2010.</p>
+            </div>
+            <div class="footer-col">
+                <h4>Quick Links</h4>
+                <ul>
+                    <li>Terms of Service</li>
+                    <li>Rental Policy</li>
+                    <li>Privacy Policy</li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h4>Contact Us</h4>
+                <p><span class="material-symbols-outlined footer-icon-small">call</span> +63 912 585 6730</p>
+                <p><span class="material-symbols-outlined footer-icon-small">mail</span> support@caremed.com</p>
+                <p><span class="material-symbols-outlined footer-icon-small">location_on</span> Oñte de leon, Mandurrao, Iloilo City</p>
+            </div>
+        </div>
+        <div class="copyright">
+            &copy; 2026 CareMed Medical Systems. All Rights Reserved.
+        </div>
+    </footer>
+
+
+    <!-- ===================== NEW: TOAST ===================== -->
+    <div class="toast-notification" id="toast">
+        <i class="fa-solid fa-circle-check"></i>
+        <span id="toastMsg"></span>
+    </div>
+
+
+    <script nonce="{{ csp_nonce() }}">
+        document.addEventListener('DOMContentLoaded', function() {
+
+            // --- 1. Dropdown Toggle Logic ---
+            const profileTrigger = document.getElementById("profileTrigger");
+            const profileMenu = document.getElementById("dropdownMenu");
+
+            if (profileTrigger && profileMenu) {
+                profileTrigger.addEventListener("click", function (e) {
+                    e.stopPropagation();
+                    profileMenu.classList.toggle("show");
+                });
+            }
+
+            // --- 2. Intersection Observer for Navigation ---
+            const aboutSection = document.querySelector('#about');
+            const aboutNavLink = document.querySelector('a[href="#about"]');
+
+            if (aboutSection && aboutNavLink) {
+                const observerOptions = { root: null, threshold: 0.6 };
+
+                const navObserver = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            aboutNavLink.classList.add('active-link');
+                        } else {
+                            aboutNavLink.classList.remove('active-link');
+                        }
+                    });
+                }, observerOptions);
+
+                navObserver.observe(aboutSection);
+            }
+
+            // --- 3. Auth State UI Management ---
+            if (document.body.classList.contains("logged-in")) {
+                document.querySelectorAll(".guest-only").forEach(el => el.style.display = "none");
+            } else {
+                document.querySelectorAll(".auth-only").forEach(el => el.style.display = "none");
+            }
+
+            // --- 4. Profile Image Fallback ---
+            const profileImages = document.querySelectorAll('.user-photo-img');
+            profileImages.forEach(img => {
+                img.onerror = function() {
+                    const container = this.parentElement;
+                    container.innerHTML = '<span class="material-symbols-outlined icon-placeholder">account_circle</span>';
+                    const placeholder = container.querySelector('.icon-placeholder');
+                    placeholder.style.fontSize = container.classList.contains('profile-avatar-large') ? "100px" : "38px";
+                };
+            });
+
+            // --- 5. Payment Proof Handling (CLEANED - no duplicates) ---
+            const fileInput = document.getElementById('proof_img');
+            const fileNameDisplay = document.getElementById('proof-file-name');
+            const previewContainer = document.getElementById('preview-container');
+            const previewImage = document.getElementById('image-preview');
+
+            if (fileInput && fileNameDisplay && previewContainer && previewImage) {
+                fileInput.addEventListener('change', function() {
+                    const file = this.files[0];
+
+                    if (file) {
+                        // Update file name
+                        fileNameDisplay.textContent = file.name;
+                        fileNameDisplay.style.color = "var(--success-green)";
+                        fileNameDisplay.style.fontWeight = "600";
+
+                        // Preview image
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            previewImage.src = e.target.result;
+                            previewContainer.style.display = 'block';
+                        };
+                        reader.readAsDataURL(file);
+
+                    } else {
+                        fileNameDisplay.textContent = "No file chosen";
+                        previewContainer.style.display = 'none';
+                    }
+                });
+            }
+
+            // --- 6. Prevent Double Submission (IMPROVED) ---
+            const paymentForm = document.querySelector('.proof-submission-form');
+
+            if (paymentForm) {
+                let isSubmitting = false;
+
+                paymentForm.addEventListener('submit', function(e) {
+                    if (isSubmitting) {
+                        e.preventDefault(); // stop duplicate submits
+                        return;
+                    }
+
+                    isSubmitting = true;
+
+                    const submitBtn = this.querySelector('.payment-submit-btn');
+                    if (submitBtn) {
+                        submitBtn.disabled = true;
+                        submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+                        submitBtn.style.opacity = "0.7";
+                        submitBtn.style.cursor = "not-allowed";
+                    }
+                });
+            }
+
+            // --- 7. Reference Number Formatter ---
+            const refInput = document.querySelector('.form-input-text-field');
+            if (refInput) {
+                refInput.addEventListener('input', function() {
+                    this.value = this.value.replace(/\D/g, '');
+                });
+            }
+
+            // --- 8. Copy to Clipboard ---
+            const copyBtn = document.getElementById('copy-trigger');
+
+            if (copyBtn) {
+                copyBtn.addEventListener('click', function() {
+                    const numberText = document.getElementById('admin-number')?.innerText;
+
+                    if (!numberText) return;
+
+                    navigator.clipboard.writeText(numberText).then(() => {
+                        const originalContent = this.innerHTML;
+                        this.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
+                        this.classList.add('success');
+
+                        setTimeout(() => {
+                            this.innerHTML = originalContent;
+                            this.classList.remove('success');
+                        }, 2000);
+
+                    }).catch(err => {
+                        console.error('Copy failed:', err);
+                    });
+                });
+            }
+
+        });
+    </script>
+   
+    
+</body>
+
+</html>
