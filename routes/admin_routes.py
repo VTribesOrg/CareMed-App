@@ -61,7 +61,6 @@ def dashboard():
 @login_required
 @administrator_required
 def customers():
-
     page = request.args.get('page', 1, type=int)
     limit = request.args.get('limit', 10, type=int)
     search_query = request.args.get('q', '').strip()
@@ -88,6 +87,113 @@ def customers():
         search_query=search_query,
         current_limit=limit
     )
+
+
+@admin_bp.route('/get_customer/<int:id>')
+@login_required
+@administrator_required
+def get_customer(id):
+    try:
+        customer = Customer.query.options(
+            db.joinedload(Customer.user)
+        ).get(id)
+
+        if not customer:
+            return jsonify({
+                "status": "error",
+                "message": "Customer record not found."
+            }), 404
+
+
+        profile_url = None
+        if customer.user and customer.user.profile_path:
+            if customer.user.profile_path.startswith(('http://', 'https://')):
+                profile_url = customer.user.profile_path
+            else:
+                profile_url = url_for('static', filename=customer.user.profile_path)
+
+        return jsonify({
+            "status": "success",
+            "data": {
+                "id": customer.id,
+                "first_name": customer.first_name or "N/A",
+                "last_name": customer.last_name or "N/A",
+                "full_name": customer.full_name, 
+                
+                "contact_number": customer.contact_number or "N/A",
+                "home_address": customer.home_address or "N/A",
+                
+                "birthday": customer.birthday.strftime('%Y-%m-%d') if customer.birthday else "N/A",
+                "gender": customer.gender or "N/A",
+                
+                "is_active": customer.is_active,
+                
+                "is_id_verified": customer.is_id_verified,
+                "primary_id_type": customer.primary_id_type or "Not Set",
+                "secondary_id_type": customer.secondary_id_type or "Not Set",
+                
+                "valid_id_path": url_for('static', filename=customer.valid_id_path) if customer.valid_id_path else None,
+                "secondary_id_path": url_for('static', filename=customer.secondary_id_path) if customer.secondary_id_path else None,
+                
+                "id_uploaded_at": customer.id_uploaded_at.strftime('%b %d, %Y %I:%M %p') if customer.id_uploaded_at else "Never",
+                
+                "has_online_account": True if customer.user_id else False,
+                "email": customer.user.email if customer.user else "Walk-in / No Email",
+                "profile_path": profile_url,
+                
+                "created_at": customer.created_at.strftime('%Y-%m-%d %H:%M:%S') if customer.created_at else None
+            }
+        })
+
+    except Exception as e:
+        current_app.logger.error(f"Error fetching customer {id}: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": "An internal server error occurred while retrieving customer data."
+        }), 500
+
+
+@admin_bp.route('/customers/<int:id>')
+def customer_details(id):
+    customer = Customer.query.get_or_404(id)
+
+    transactions = (Transaction.query .filter_by(customer_id=id) .order_by(Transaction.created_at.desc()).all())
+
+    return render_template('admin/customer_details.html', customer=customer, transactions=transactions)
+
+@admin_bp.route('/customers/<int:id>/verify', methods=['POST'])
+def verify_customer(id):
+    customer = Customer.query.get_or_404(id)
+    
+    if customer.is_id_verified:
+        flash(f"Notice: {customer.full_name} is already a verified user.", "info")
+        return redirect(url_for('admin.customer_details', id=id))
+
+    try:
+        customer.is_id_verified = True
+        db.session.commit()
+        flash(f"Identity Verification Complete: {customer.full_name} has been successfully verified.", "success")
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Verification Failed for ID {id}: {str(e)}") 
+        flash("An internal error occurred while processing the verification. Please refresh and try again.", "danger")
+        
+    return redirect(url_for('admin.customer_details', id=id))
+
+@admin_bp.route('/customers/<int:id>/unverify', methods=['POST'])
+def unverify_customer(id):
+    customer = Customer.query.get_or_404(id)
+    
+    try:
+        customer.is_id_verified = False
+        db.session.commit()
+        flash(f"Verification Revoked: {customer.full_name}'s identity status has been reset to unverified.", "warning")
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Revoke Error for ID {id}: {str(e)}")
+        flash("Action Failed: System encountered an error while revoking verification. Please try again.", "danger")
+        
+    return redirect(url_for('admin.customer_details', id=id))
 
 
 @admin_bp.route('/admin/add-customer', methods=['POST'])
@@ -187,69 +293,6 @@ def add_customer():
 
     return redirect(url_for('admin.customers'))
 
-
-@admin_bp.route('/get_customer/<int:id>')
-@login_required
-@administrator_required
-def get_customer(id):
-    try:
-        customer = Customer.query.options(
-            db.joinedload(Customer.user)
-        ).get(id)
-
-        if not customer:
-            return jsonify({
-                "status": "error",
-                "message": "Customer record not found."
-            }), 404
-
-
-        profile_url = None
-        if customer.user and customer.user.profile_path:
-            if customer.user.profile_path.startswith(('http://', 'https://')):
-                profile_url = customer.user.profile_path
-            else:
-                profile_url = url_for('static', filename=customer.user.profile_path)
-
-        return jsonify({
-            "status": "success",
-            "data": {
-                "id": customer.id,
-                "first_name": customer.first_name or "N/A",
-                "last_name": customer.last_name or "N/A",
-                "full_name": customer.full_name, 
-                
-                "contact_number": customer.contact_number or "N/A",
-                "home_address": customer.home_address or "N/A",
-                
-                "birthday": customer.birthday.strftime('%Y-%m-%d') if customer.birthday else "N/A",
-                "gender": customer.gender or "N/A",
-                
-                "is_active": customer.is_active,
-                
-                "is_id_verified": customer.is_id_verified,
-                "primary_id_type": customer.primary_id_type or "Not Set",
-                "secondary_id_type": customer.secondary_id_type or "Not Set",
-                
-                "valid_id_path": url_for('static', filename=customer.valid_id_path) if customer.valid_id_path else None,
-                "secondary_id_path": url_for('static', filename=customer.secondary_id_path) if customer.secondary_id_path else None,
-                
-                "id_uploaded_at": customer.id_uploaded_at.strftime('%b %d, %Y %I:%M %p') if customer.id_uploaded_at else "Never",
-                
-                "has_online_account": True if customer.user_id else False,
-                "email": customer.user.email if customer.user else "Walk-in / No Email",
-                "profile_path": profile_url,
-                
-                "created_at": customer.created_at.strftime('%Y-%m-%d %H:%M:%S') if customer.created_at else None
-            }
-        })
-
-    except Exception as e:
-        current_app.logger.error(f"Error fetching customer {id}: {str(e)}")
-        return jsonify({
-            "status": "error",
-            "message": "An internal server error occurred while retrieving customer data."
-        }), 500
 
 
 @admin_bp.route('/update-customer', methods=['POST'])
@@ -366,7 +409,7 @@ def products():
         ))
 
     if equipment_type and equipment_type != 'all':
-        query = query.filter(Product.equipment_type.ilike(equipment_type)) 
+        query = query.filter(Product.equipment_type.ilike(f"%{equipment_type}%"))
 
     pagination = query.order_by(
         Product.equipment_type.asc(),
@@ -537,7 +580,6 @@ def edit_product(product_id):
     new_description = request.form.get("description", "").strip()
     
     raw_tag = request.form.get("asset_tag", "").strip().upper()
-    new_asset_tag = raw_tag if raw_tag != "" else None
     
     new_offer_type = request.form.get("offer_type", "Both").strip().title()
     new_rent_period = request.form.get("rent_period", "Monthly").strip().title()
@@ -573,19 +615,6 @@ def edit_product(product_id):
         if (product.name or "") != new_name:
             changes.append(f"Name: {product.name or 'N/A'} → {new_name}")
             product.name = new_name
-
-        if product.asset_tag != new_asset_tag:
-            if new_asset_tag:
-                existing = Product.query.filter(
-                    Product.asset_tag == new_asset_tag, 
-                    Product.id != product.id
-                ).first()
-                if existing:
-                    flash(f"Asset Tag {new_asset_tag} is already in use.", "error")
-                    return redirect(url_for('admin.products'))
-            
-            changes.append(f"Tag: {product.asset_tag or 'None'} → {new_asset_tag or 'None'}")
-            product.asset_tag = new_asset_tag
 
         if (product.description or "").strip() != new_description:
             changes.append("Description updated")
@@ -1337,13 +1366,39 @@ def process_return(txn_id):
 
     return redirect(url_for('admin.transaction_details', id=txn.id))
 
-@admin_bp.route('/payments')
+from flask import request
+
+@admin_bp.route('/system_logs')
 @limiter.exempt
 @login_required
 @administrator_required
-def payments():
-    return render_template("admin/payments.html")
+def system_logs():
+    page = request.args.get('page', 1, type=int)
+    limit = request.args.get('limit', 10, type=int)
+    search_query = request.args.get('q', '')
+    current_type = request.args.get('type', '')
 
+    query = InventoryLog.query
+
+    if search_query:
+        query = query.filter(InventoryLog.action.ilike(f'%{search_query}%'))
+    if current_type:
+        query = query.filter(InventoryLog.action == current_type)
+
+    pagination = query.order_by(InventoryLog.created_at.desc()).paginate(
+        page=page, 
+        per_page=limit, 
+        error_out=False
+    )
+
+    return render_template(
+        'admin/system_logs.html', 
+        all_logs=pagination.items, 
+        pagination=pagination, 
+        current_limit=limit,
+        search_query=search_query,
+        current_type=current_type
+    )
 
 @admin_bp.route('/profile', methods=['GET', 'POST'])
 @limiter.exempt

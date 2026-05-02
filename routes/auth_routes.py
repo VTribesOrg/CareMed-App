@@ -425,7 +425,7 @@ def google_login():
     session["oauth_state"] = state
     redirect_uri = url_for("auth.callback", _external=True)
 
-    return google.authorize_redirect(redirect_uri, nonce=nonce, state=state)
+    return google.authorize_redirect(redirect_uri, nonce=nonce, state=state, prompt="select_account")
 
 
 @auth_bp.route("/callback")
@@ -472,7 +472,6 @@ def callback():
     
     f_name = user_info.get("given_name", "Google").strip().title()
     l_name = user_info.get("family_name", "User").strip().title()
-    profile_pic = user_info.get("picture")
 
     if not email.endswith("@gmail.com"):
         flash("Only personal Gmail accounts are allowed for this service.", "warning")
@@ -500,7 +499,6 @@ def callback():
                     google_id=google_id,
                     first_name=f_name,
                     last_name=l_name,
-                    profile_path=profile_pic,
                     is_verified=True,
                     email_verified_at=datetime.utcnow(),
                     role="customer",
@@ -517,9 +515,6 @@ def callback():
         if not user.is_verified:
             user.is_verified = True
             user.email_verified_at = datetime.utcnow()
-
-        if profile_pic:
-            user.profile_path = profile_pic
 
         db.session.flush()
 
@@ -548,17 +543,13 @@ def callback():
     if user.role == "Administrator":
         return redirect(url_for("admin.dashboard"))
 
-
-    if not user.customer_profile.contact_number or not user.customer_profile.home_address:
-        flash("Welcome! Please complete your profile details to start renting.", "info")
-        return redirect(url_for("user.profile"))
-
     return redirect(url_for("user.homepage"))
 
 @auth_bp.route("/logout")
 @login_required
 def logout():
     logout_user()
+    session["force_account_select"] = True 
     return redirect(url_for("auth.login"))
 
 
@@ -579,7 +570,6 @@ def send_reset_link():
             return jsonify({"success": False, "message": f"Please wait {wait_time}s before resending."})
 
     if user:
-        # IDS: log password reset request
         log_security_event(
             "Password Reset Requested",
             f"Password reset link requested for: {email}",

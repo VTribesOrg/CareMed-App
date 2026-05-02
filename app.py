@@ -109,6 +109,15 @@ def ratelimit_handler(e):
         back_label=back_label
     ), 429
 
+@app.template_filter('currency')
+def currency(value):
+    from decimal import Decimal
+    try:
+        value = value or Decimal("0.00")
+        return f"₱{value:,.2f}"
+    except Exception:
+        return "₱0.00"
+    
 @app.route('/')
 def root():
     if current_user.is_authenticated:

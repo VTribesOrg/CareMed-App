@@ -10,9 +10,8 @@ body {
 .main-wrapper {
     height: 100vh;
     display: flex;
+    flex-direction: row;
 }
-
-
 
 /* ======================================= START OF SIDEBAR ======================================= */
 .medical-sidebar {
@@ -23,14 +22,15 @@ body {
     z-index: 100;
     border-right: 1px solid #dbe2e1;
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    overflow: hidden;
+    flex-shrink: 0;
 }
 
 .viewport-container {
     flex-grow: 1;
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
-    height: 100vh;
+    width: 100%;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -446,15 +446,11 @@ body.ready .viewport-container {
 /*----------------------------- END OF TOP HEADER -----------------------------------------*/
 
 
+
 /*----------------------------- START OF MAIN CONTENT --------------------------------------- */
 
-
-/* ==========================================================================
-   MAIN CONTENT AREA & TRANSACTION DASHBOARD STYLES
-   ========================================================================== */
-
 .content-area {
-    padding: 24px;
+    padding: 14px 24px 24px 24px;
     flex-grow: 1;
     min-height: calc(96vh - 80px); 
     overflow-y: auto;
@@ -468,9 +464,7 @@ body.ready .viewport-container {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 24px;
     padding-bottom: 16px;
-    border-bottom: 1px solid #e2e8f0;
 }
 
 .header-titles h1 {
@@ -492,7 +486,7 @@ body.ready .viewport-container {
     color: white;
     border: none;
     border-radius: 12px;
-    padding: 10px 24px;
+    padding: 5px 10px;
     display: flex;
     align-items: center;
     gap: 12px;
@@ -517,12 +511,12 @@ body.ready .viewport-container {
 
 .btn-label strong {
     display: block;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     line-height: 1.1;
 }
 
 .btn-label small {
-    font-size: 0.75rem;
+    font-size: 0.70rem;
     opacity: 0.85;
     font-weight: 400;
 }
@@ -584,13 +578,25 @@ body.ready .viewport-container {
     background: #ffffff;
     border-radius: 16px;
     padding: 24px;
+    padding-bottom: 0;
     border: 1px solid #dbe2e1;
     box-shadow: 0 4px 20px rgba(0, 35, 71, 0.05);
     display: flex;
     flex-direction: column;
-    min-height: 729px; 
-    padding-bottom: 0;
+    min-height: 585px;
+    max-height: 85vh;
+    overflow: hidden;
 }
+
+@media (max-width: 768px) {
+    .asset-registry-card {
+        padding: 16px;
+        border-radius: 12px;
+        min-height: auto;  
+        max-height: none;  
+    }
+}
+
 
 .table-header-actions {
     display: flex;
@@ -677,14 +683,28 @@ body.ready .viewport-container {
 
 
 .table-responsive {
-    overflow-x: auto;
-    border-radius: 12px;
-    border: 1px solid #f1f5f9;
     flex-grow: 1;
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    min-height: 350px;
+    max-height: 70vh;
+    margin-bottom: 0;
+    overflow-y: auto;
     overflow-x: auto;
     position: relative;
+    -webkit-overflow-scrolling: touch;
     
 }
+
+@media (max-width: 768px) {
+    .table-responsive {
+        border-radius: 8px;
+        min-height: 200px;
+        max-height: 60vh;
+    }
+}
+
 
 .medical-table {
     width: 100%;
@@ -868,16 +888,17 @@ body.ready .viewport-container {
     color: #94a3b8;
 }
 
+
 /*================================== START OF Pagination ==================================*/
 
 .pagination-footer {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 16px 24px;
+    padding: 10px 16px;
     border-top: 1px solid #e2e8f0;
     background: #ffffff;
-    border-radius: 0 0 16px 16px; 
+    border-radius: 0 0 12px 12px; 
     flex-wrap: wrap;
     gap: 15px;
 }
@@ -890,7 +911,7 @@ body.ready .viewport-container {
 }
 
 .limit-label {
-    font-size: 13px;
+    font-size: 12px;
     color: #64748b;
     font-weight: 500;
 }
@@ -901,7 +922,7 @@ body.ready .viewport-container {
     align-items: center;
 }
 
-.medical-select {
+.medical-select-page {
     appearance: none;
     background: #f8fafc;
     border: 1px solid #cbd5e1;
@@ -911,8 +932,8 @@ body.ready .viewport-container {
     font-weight: 700;
     color: #1e293b;
     cursor: pointer;
-    height: 34px;
-    min-width: 75px;
+    height: 28px;
+    min-width: 60px;
     transition: all 0.2s ease;
 }
 
@@ -923,10 +944,10 @@ body.ready .viewport-container {
 
 
 .pagination-info {
-    font-size: 13px;
+    font-size: 12px;
+    padding: 4px 10px;
     color: #64748b;
     font-weight: 500;
-    padding: 6px 16px;
     background: #f1f5f9;
     border-radius: 20px;
 }
@@ -939,14 +960,14 @@ body.ready .viewport-container {
 }
 
 .pag-btn {
-    min-width: 34px;
-    height: 34px;
+    min-width: 28px;
+    height: 28px;
     display: flex;
     align-items: center;
     justify-content: center;
     border: 1px solid #e2e8f0;
     background: white;
-    border-radius: 8px;
+    border-radius: 6px;
     cursor: pointer;
     color: #475569;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -961,9 +982,9 @@ body.ready .viewport-container {
 }
 
 .page-number {
-    font-size: 13px;
+    font-size: 12px;
     color: #1e293b;
-    margin: 0 10px;
+    margin: 0 6px;
 }
 
 
@@ -971,23 +992,23 @@ body.ready .viewport-container {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-left: 10px;
-    padding-left: 15px;
+    margin-left: 6px;
+    padding-left: 10px;
     border-left: 1px solid #e2e8f0;
 }
 
 .jump-text {
-    font-size: 12px;
+    font-size: 11px;
     color: #64748b;
 }
 
 .jump-input {
-    width: 45px;
-    height: 34px;
+    width: 36px;
+    height: 28px; 
     border: 1px solid #cbd5e1;
     border-radius: 8px;
     text-align: center;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
     outline: none;
     transition: all 0.2s;
@@ -999,14 +1020,14 @@ body.ready .viewport-container {
 }
 
 .jump-btn {
-    height: 34px;
-    padding: 0 12px;
+    height: 28px;
+    padding: 0 8px;
+    font-size: 11px;
     background: #1B4332;
     color: white;
     border: none;
     border-radius: 8px;
     cursor: pointer;
-    font-size: 12px;
     font-weight: 600;
     transition: opacity 0.2s;
 }
@@ -1014,6 +1035,79 @@ body.ready .viewport-container {
 .jump-btn:hover {
     opacity: 0.9;
 }
+
+
+/*================ MOBILE RESPONSIVENESS ================*/
+
+@media (max-width: 768px) {
+    .pagination-info {
+        display: none !important;
+    }
+
+    .pagination-footer {
+        display: flex;
+        flex-direction: row; 
+        flex-wrap: nowrap;  
+        justify-content: space-between;
+        padding: 8px 10px;
+        gap: 5px;         
+    }
+
+    .table-limit-control {
+        gap: 4px;
+    }
+
+    .medical-select-page {
+        min-width: 45px;
+        height: 30px;
+        padding: 0 4px;
+        font-size: 11px;
+    }
+
+    .pagination-controls {
+        gap: 4px;
+        flex: 1;
+        justify-content: flex-end;
+    }
+
+    .pag-btn {
+        min-width: 30px;
+        height: 30px;
+    }
+
+    .page-number {
+        font-size: 11px;
+        margin: 0 2px;
+        white-space: nowrap;
+    }
+
+    .jump-to-wrapper {
+        margin-left: 4px;
+        padding-left: 6px;
+        gap: 4px;
+    }
+
+
+
+    .jump-input {
+        width: 32px;
+        height: 30px;
+        font-size: 11px;
+    }
+
+    .jump-btn {
+        height: 30px;
+        padding: 0 6px;
+        font-size: 10px;
+    }
+}
+
+@media (max-width: 400px) {
+    .page-number strong:last-child {
+        display: none; 
+    }
+}
+
 
 /*================================== END OF Pagination ==================================*/
 

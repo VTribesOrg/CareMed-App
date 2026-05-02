@@ -139,8 +139,22 @@
                 <i class="fa-solid fa-right-to-bracket"></i> Sign In
             </a>
 
-            <a href="{{ url_for('user.products')}}" class="nav-cta-btn guest-only hover">Start Renting</a>
-
+            {#  <a href="{{ url_for('user.products')}}" class="nav-cta-btn guest-only">Start Renting</a>  #}
+            
+            {% if current_user.is_authenticated %}
+                <a href="{{ url_for('user.cart') }}" class="nav-cart-wrapper" title="View Cart">
+                    <div class="cart-icon-container">
+                        <i class="fa-solid fa-cart-shopping"></i>
+                        
+                        {% set cart_count = current_user.cart.items|length if current_user.cart else 0 %}
+                        
+                        {% if cart_count > 0 %}
+                            <span class="cart-badge" id="cartBadge">{{ cart_count }}</span>
+                        {% endif %}
+                    </div>
+                </a>
+            {% endif %}
+            
             <div class="user-profile-widget auth-only" id="profileDropdown">
                 <div class="profile-trigger" id="profileTrigger">
                     <div class="user-avatar" id="navAvatarContainer">
@@ -197,7 +211,7 @@
                     {% if current_user.is_authenticated and current_user.profile_path %}
                         <img src="{{ url_for('static', filename=current_user.profile_path) }}" class="user-photo-img" alt="Profile Picture">
                     {% else %}
-                        <span class="material-symbols-outlined icon-placeholder">account_circle</span>
+                        <i class="fa-solid fa-circle-user icon-placeholder"></i>
                     {% endif %}
                 </div>
                 <h2 style="color: #002347;"> {{ current_user.customer_profile.first_name }}  {{ current_user.customer_profile.last_name }}</h2>
@@ -235,10 +249,12 @@
                         <div class="detail-item">
                             <label>Email Address</label>
                             <p>
-                                {% if current_user.email %}
-                                    {{ current_user.email }}
+                                {% if current_user.masked_email %}
+                                    {{ current_user.masked_email }}
                                 {% else %}
-                                    <span style="color: #94a3b8; font-style: italic; font-weight: normal;">N/A</span>
+                                    <span style="color: #94a3b8; font-style: italic; font-weight: normal;">
+                                        N/A
+                                    </span>
                                 {% endif %}
                             </p>
                         </div>
@@ -246,10 +262,12 @@
                         <div class="detail-item">
                             <label>Phone Number</label>
                             <p>
-                                {% if current_user.customer_profile and current_user.customer_profile.contact_number %}
-                                    {{ current_user.customer_profile.contact_number }}
+                                {% if current_user.customer_profile.masked_phone %}
+                                    {{ current_user.customer_profile.masked_phone }}
                                 {% else %}
-                                    <span style="color: #94a3b8; font-style: italic; font-weight: normal;">N/A</span>
+                                    <span style="color: #94a3b8; font-style: italic; font-weight: normal;">
+                                        N/A
+                                    </span>
                                 {% endif %}
                             </p>
                         </div>
@@ -266,12 +284,29 @@
                         </div>
 
                         <div class="detail-item">
-                            <label>Government ID</label>
+                            <label>Primary Valid ID</label>
                             <p>
                                 {% if current_user.customer_profile and current_user.customer_profile.valid_id_path %}
-                                    Uploaded
+                                    <span style="color: #52B788;">
+                                        <i class="fa-solid fa-circle-check"></i> 
+                                        {{ current_user.customer_profile.primary_id_type or 'Uploaded' }}
+                                    </span>
                                 {% else %}
-                                    <span style="color: #94a3b8; font-style: italic; font-weight: normal;">N/A</span>
+                                    <span style="color: #94a3b8; font-style: italic; font-weight: normal;">Not Uploaded</span>
+                                {% endif %}
+                            </p>
+                        </div>
+
+                        <div class="detail-item">
+                            <label>Secondary Valid ID</label>
+                            <p>
+                                {% if current_user.customer_profile and current_user.customer_profile.secondary_id_path %}
+                                    <span style="color: #52B788;">
+                                        <i class="fa-solid fa-circle-check"></i> 
+                                        {{ current_user.customer_profile.secondary_id_type or 'Uploaded' }}
+                                    </span>
+                                {% else %}
+                                    <span style="color: #94a3b8; font-style: italic; font-weight: normal;">Not Uploaded</span>
                                 {% endif %}
                             </p>
                         </div>
@@ -313,58 +348,103 @@
         </div>
     </section>
 
-    <div class="modal-overlay" id="editModal">
+    <div class="modal-overlay profile-edit-modal" id="editModal">
         <div class="modal-card">
             <div class="modal-header">
-                <h2 style="color: #002347; font-size: 20px;">Update Profile</h2>
-                <span class="material-symbols-outlined close-modal-trigger" style="cursor: pointer; color: #888;">close</span>
+                <h2 class="modal-title">Update Details</h2>
+                <span class="material-symbols-outlined close-modal-trigger">close</span>
             </div>
 
             <form class="modal-form" method="POST" action="{{ url_for('user.profile') }}" enctype="multipart/form-data">
                 {{ profile_form.hidden_tag() }}
 
-                <div class="profile-photo-container">
-                    <div class="photo-preview-wrapper">
-                        <div id="imagePreview">
-                            {% if current_user.is_authenticated and current_user.profile_path %}
-                                <img src="{{ url_for('static', filename=current_user.profile_path) }}" class="user-photo-img" alt="Profile Picture">
-                            {% else %}
-                                <span class="material-symbols-outlined icon-placeholder">account_circle</span>
-                            {% endif %}
+                <div class="modal-body">
+                    <div class="profile-photo-container">
+                        <div class="photo-preview-wrapper">
+                            <div id="imagePreview">
+                                {% if current_user.is_authenticated and current_user.profile_path %}
+                                    <img src="{{ url_for('static', filename=current_user.profile_path) }}" 
+                                        class="user-photo-img-render">
+                                {% else %}
+                                    <i class="fa-solid fa-circle-user icon-placeholder"></i>
+                                {% endif %}
+                            </div>
+
+                            <label for="profile_path" class="upload-photo-label" title="Upload New Photo">
+                                <span class="material-symbols-outlined">photo_camera</span>
+                            </label>
+                            {{ profile_form.profile_path(id="profile_path", accept="image/*", class="hidden-file-input") }}
                         </div>
 
-                        <label for="profile_path" class="upload-photo-label" title="Upload New Photo">
-                            <span class="material-symbols-outlined">photo_camera</span>
-                        </label>
-                        {{ profile_form.profile_path(id="profile_path", accept="image/*", style="display: none;") }}
+                        <button type="button" id="removePhotoBtn" class="btn-remove-photo">
+                            <span class="material-symbols-outlined">delete</span> Remove Photo
+                        </button>
+                        <input type="hidden" name="remove_photo" id="removePhotoInput" value="false">
                     </div>
 
-                    <button type="button" id="removePhotoBtn" class="btn-remove-photo">
-                        <span class="material-symbols-outlined">delete</span> Remove Photo
-                    </button>
-                    <input type="hidden" name="remove_photo" id="removePhotoInput" value="false">
-                </div>
+                    <div class="profile-section-modal">
+                        <h3 class="section-title">
+                            <span class="material-symbols-outlined">person</span> Personal Information
+                        </h3>
 
-                <div class="name-row">
-                    <div class="form-group">
-                        <label for="first_name">First Name</label>
-                        {{ profile_form.first_name(id="first_name", class="form-control") }}
+                        <div class="name-row">
+                            <div class="form-group">
+                                <label for="first_name">First Name</label>
+                                {{ profile_form.first_name(id="first_name", class="form-control") }}
+                            </div>
+                            <div class="form-group">
+                                <label for="last_name">Last Name</label>
+                                {{ profile_form.last_name(id="last_name", class="form-control") }}
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Phone Number</label>
+                            {{ profile_form.phone(class="form-control", placeholder="N/A") }}
+                        </div>
+
+                        <div class="form-group">
+                            <label>Shipping Address</label>
+                            {{ profile_form.address(class="form-control", rows="3", placeholder="N/A") }}
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="last_name">Last Name</label>
-                        {{ profile_form.last_name(id="last_name", class="form-control") }}
+
+                    <div class="id-verification-section">
+                        <h3 class="section-title">
+                            <span class="material-symbols-outlined">badge</span> Identification Documents
+                        </h3>
+                        
+                        <div class="name-row">
+                            <div class="form-group">
+                                <label for="primary_id_type">Primary ID Type</label>
+                                {{ profile_form.primary_id_type(class="form-control select-input") }}
+                            </div>
+                            <div class="form-group">
+                                <label for="secondary_id_type">Secondary ID Type</label>
+                                {{ profile_form.secondary_id_type(class="form-control select-input") }}
+                            </div>
+                        </div>
+
+                        <div class="form-group upload-group">
+                            <label class="upload-label-flex">
+                                Upload Primary ID 
+                                {% if current_user.customer_profile.valid_id_path %}
+                                    <span class="status-badge"><i class="fa-solid fa-check"></i> File Exists</span>
+                                {% endif %}
+                            </label>
+                            {{ profile_form.valid_id_path(class="form-control file-input") }}
+                        </div>
+
+                        <div class="form-group upload-group">
+                            <label class="upload-label-flex">
+                                Upload Secondary ID
+                                {% if current_user.customer_profile.secondary_id_path %}
+                                    <span class="status-badge"><i class="fa-solid fa-check"></i> File Exists</span>
+                                {% endif %}
+                            </label>
+                            {{ profile_form.secondary_id_path(class="form-control file-input") }}
+                        </div>
                     </div>
-                </div>
-
-                <div class="form-group">
-                    <label>Phone Number</label>
-                    {{ profile_form.phone(class="form-control", placeholder="N/A") }}
-                </div>
-
-                <div class="form-group">
-                    <label>Shipping Address</label>
-                    {{ profile_form.address(class="form-control", rows="3", placeholder="N/A") }}
-                </div>
 
                 <div class="modal-footer">
                     <button type="button" class="btn-cancel">Cancel</button>

@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CareMed</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='icons/favicon-circle.png') }}">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_logs.css') }}">
+
+    <style>
+        .medical-sidebar, .viewport-container, .nav-label, .logo-text {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+    </style>
+</head>
+
+<body>
+    
+    <input type="checkbox" id="sidebar-state" hidden>
+    <script nonce="{{ csp_nonce() }}">
+        (function() {
+            const checkbox = document.getElementById('sidebar-state');
+            const savedState = localStorage.getItem('sidebar-collapsed');
+            if (savedState === 'true') {
+                checkbox.checked = false;
+            } else {
+                checkbox.checked = true;
+            }
+            document.body.classList.add('ready');
+        })();
+    </script>
+
+    <div class="main-wrapper">
+
+    <aside class="medical-sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-brand">
+                <span class="nav-label logo-text">Care<span>Med</span></span>
+            </div>
+            <label for="sidebar-state" class="nav-toggle-label">
+                <span class="material-symbols-rounded">menu</span>
+            </label>
+        </div>
+
+        <div class="sidebar-navigation">
+            <ul class="nav-menu">
+                <li class="nav-item" title="Dashboard">
+                    <a href="{{ url_for('admin.dashboard') }}" class="nav-link">
+                        <span class="material-symbols-rounded">monitoring</span>
+                        <span class="nav-label">Dashboard</span>
+                    </a>
+                </li>
+
+                <li class="nav-item" title="Inventory">
+                    <a href="{{ url_for('admin.products') }}" class="nav-link">
+                        <span class="material-symbols-rounded">inventory_2</span>
+                        <span class="nav-label">Inventory</span>
+                    </a>
+                </li>
+
+                <li class="nav-item" title="Refill Requests">
+                    <a href="#" class="nav-link">
+                        <span class="material-symbols-rounded">gas_meter</span>
+                        <span class="nav-label">Refill Requests</span>
+                    </a>
+                </li>
+
+                <li class="nav-item" title="Customer Records">
+                    <a href="{{ url_for('admin.customers') }}" class="nav-link">
+                        <span class="material-symbols-rounded">groups</span>
+                        <span class="nav-label">Customer Records</span>
+                    </a>
+                </li>
+
+                <li class="nav-item" title="Transactions">
+                    <a href="{{ url_for('admin.transactions') }}" class="nav-link">
+                        <span class="material-symbols-rounded">receipt_long</span>
+                        <span class="nav-label">Transactions</span>
+                    </a>
+                </li>
+                
+                <li class="nav-item" title="Reporst & Analytics">
+                    <a href="{{ url_for('admin.reports') }}" class="nav-link">
+                        <span class="material-symbols-rounded">analytics</span>
+                        <span class="nav-label">Reports & Analytics</span>
+                    </a>
+                </li>
+                <li class="nav-item" title="Security Center">
+                    <a href="{{ url_for('admin.security_dashboard') }}" class="nav-link">
+                        <span class="material-symbols-rounded">security</span>
+                        <span class="nav-label">Security Center</span>
+                    </a>
+                </li>
+                <li class="nav-item" title="System Logs">
+                    <a href="{{url_for('admin.system_logs')}}" class="nav-link active">
+                        <span class="material-symbols-rounded">list_alt</span>
+                        <span class="nav-label">System Logs</span>
+                    </a>
+                </li>
+            </ul>
+
+            <div class="sidebar-footer" title="Settings">
+                <a href="javascript:void(0)" class="nav-link settings-link" id="settings-toggle-btn">
+                    <span class="material-symbols-rounded">settings</span>
+                    <span class="nav-label theme-label">Settings &amp; help</span>
+                </a>
+
+                <div id="settings-menu-popup" class="settings-menu-popup hidden">
+                    <ul>
+                        <li class="menu-item menu-theme-toggle">
+                            <span class="material-symbols-rounded theme-icon">light_mode</span>
+                            <span class="theme-text">Theme</span>
+                            <span class="material-symbols-rounded chevron">chevron_right</span>
+                        </li>
+                        <li class="menu-item">
+                            <span class="material-symbols-rounded">feedback</span>
+                            <span>Send feedback</span>
+                        </li>
+                        <li class="menu-item menu-help-sub">
+                            <span class="material-symbols-rounded">help</span>
+                            <span>Help</span>
+                            <span class="material-symbols-rounded chevron">chevron_right</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <div class="viewport-container">
+            
+        <header class="system-header">
+            <h1>System Logs</h1>
+
+            <div class="header-actions">
+                <div class="action-item">
+                    <button class="icon-btn" id="notif-btn">
+                        <span class="material-symbols-rounded">notifications</span>
+                        <span class="notification-badge">3</span>
+                    </button>
+                    <div class="header-dropdown" id="notif-dropdown">
+                        <div class="dropdown-header">Notifications</div>
+                        <a href="#" class="dropdown-item">
+                            <span class="material-symbols-rounded" style="color:#f97316">warning</span>
+                            <div>
+                                <p style="margin:0; font-weight:600">Overdue Return</p>
+                                <small>Oxygen Tank #7721 is late</small>
+                            </div>
+                        </a>
+                        <a href="#" class="dropdown-item">
+                            <span class="material-symbols-rounded" style="color:#00a8cc">inventory</span>
+                            <div>
+                                <p style="margin:0; font-weight:600">Low Stock</p>
+                                <small>Wheelchairs below threshold</small>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="action-item">
+                    <div class="clinical-user" id="profile-btn">
+                        <div class="user-info">
+                            <span class="user-name">{{ current_user.first_name}} {{ current_user.last_name}}</span>
+                            <span class="user-role">{{ current_user.role }}</span>
+                        </div>
+                        <div class="user-avatar" id="avatar-wrapper">
+                            <span class="material-symbols-rounded" id="avatar-icon">person</span>
+                            <img src="" alt="User" id="header-avatar-img" class="hidden">
+                        </div>
+                    </div>
+                    <div class="header-dropdown" id="profile-dropdown">
+                        <div class="dropdown-header">My Account</div>
+                        <a href="{{ url_for('admin.profile') }}" class="dropdown-item">
+                            <span class="material-symbols-rounded">person</span>Profile Settings
+                        </a>
+                        <a href="#" class="dropdown-item">
+                            <span class="material-symbols-rounded">security</span>Activity Log
+                        </a>
+                        <a href="{{ url_for('auth.logout') }}" class="dropdown-item logout">
+                            <span class="material-symbols-rounded">logout</span>Logout
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="content-area">
+            <div class="audit-container">
+                <div class="audit-header">
+                    <div class="header-title-group">
+                        <p class="audit-subtitle">Monitor all equipment movements and administrative actions</p>
+                    </div>
+                </div>
+
+                <div class="audit-trail-card">
+                    <div class="log-table-controls">
+                        <div class="log-search-wrapper">
+                            <span class="material-symbols-rounded search-icon">search</span>
+                            <input type="text" id="log-entry-search" placeholder="Search by asset ID, user, or action..." value="{{ search_query or '' }}">
+                        </div>
+
+                        <div class="log-filter-stack">
+                            <div class="filter-group">
+                                <select id="action-category-filter" class="medical-select">
+                                    <option value="">All Activities</option>
+                                    <option value="Restock" {{ 'selected' if current_type == 'Restock' }}>Restocks</option>
+                                    <option value="Dispensed" {{ 'selected' if current_type == 'Dispensed' }}>Dispensed</option>
+                                    <option value="Adjustment" {{ 'selected' if current_type == 'Adjustment' }}>Adjustments</option>
+                                </select>
+                            </div>
+
+                            {% if search_query or current_type %}
+                            <button type="button" id="reset-log-filters" class="btn-clear">
+                                <span class="material-symbols-rounded">filter_alt_off</span>
+                                <span>Clear Filters</span>
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="medical-table" id="system-audit-table">
+                            <thead>
+                                <tr>
+                                    <th class="col-time">Event Timestamp</th>
+                                    <th class="col-user">Authorized Personnel</th>
+                                    <th class="col-action">Action</th>
+                                    <th class="col-product">Equipment Details</th>
+                                    <th class="col-qty">Change</th>
+                                    <th class="col-notes">Internal Notes</th>
+                                    <th class="col-audit text-end">Audit</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in all_logs %}
+                                <tr class="log-row">
+                                    <td>
+                                        <div class="timestamp-cell">
+                                            <span class="log-date">{{ log.created_at.strftime('%b %d, %Y') }}</span>
+                                            <span class="log-time">{{ log.created_at.strftime('%I:%M %p') }}</span>
+                                        </div>
+                                    </td>
+
+                                    <td>
+                                        <div class="user-cell">
+                                            <div class="user-avatar-mini">
+                                                {{ (log.user_name[0] if log.user_name else 'S') | upper }}
+                                            </div>
+                                            <div class="user-details">
+                                                <span class="user-name-text">{{ log.user_name or 'System Automated' }}</span>
+                                                <span class="user-id-sub">Admin ID: #{{ log.user_id or '000' }}</span>
+                                            </div>
+                                        </div>
+                                    </td>
+
+                                    <td>
+                                        {% set action_type = 'success' if 'Added' in log.action or 'In' in log.action 
+                                                        else 'danger' if 'Removed' in log.action or 'Out' in log.action 
+                                                        else 'info' %}
+                                        <div class="status-indicator status-{{ action_type }}">
+                                            <span class="indicator-dot"></span>
+                                            <span class="status-text">{{ log.action }}</span>
+                                        </div>
+                                    </td>
+
+                                    <td>
+                                        <div class="product-cell">
+                                            <span class="product-name">{{ log.product.name if log.product else "N/A" }}</span>
+                                            <code class="asset-tag">{{ log.product.asset_tag if log.product else '---' }}</code>
+                                        </div>
+                                    </td>
+
+                                    <td>
+                                        <div class="qty-cell {{ 'pos' if 'Added' in log.action else 'neg' if 'Removed' in log.action }}">
+                                            {{ '+' if 'Added' in log.action }}{{ log.quantity or '0' }}
+                                        </div>
+                                    </td>
+
+                                    <td>
+                                        <div class="note-tooltip-wrapper">
+                                            <p class="log-note-text">{{ log.note or '—' }}</p>
+                                        </div>
+                                    </td>
+
+                                    <td class="text-end">
+                                        <button class="btn-icon-outline view-log-trigger" data-log-id="{{ log.id }}">
+                                            <span class="material-symbols-rounded">pageview</span>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="pagination-footer">
+                        <div class="table-limit-control">
+                            <span class="limit-label">Show</span>
+                            <select class="medical-select-page" id="row-limit-select">
+                                <option value="10" {{ 'selected' if current_limit == 10 }}>10</option>
+                                <option value="25" {{ 'selected' if current_limit == 25 }}>25</option>
+                                <option value="50" {{ 'selected' if current_limit == 50 }}>50</option>
+                            </select>
+                            <span class="limit-label">entries</span>
+                        </div>
+
+                        <div class="pagination-info">
+                            Showing <strong>{{ (pagination.page - 1) * pagination.per_page + 1 }}</strong> 
+                            to <strong>{{ [pagination.page * pagination.per_page, pagination.total]|min }}</strong> 
+                            of <strong>{{ pagination.total }}</strong> entries
+                        </div>
+
+                        <div class="pagination-controls">
+                            {% if pagination.has_prev %}
+                            <a href="{{ url_for('admin.system_logs', page=pagination.prev_num, limit=current_limit, q=search_query, type=current_type) }}" class="pag-btn">
+                                <span class="material-symbols-rounded">chevron_left</span>
+                            </a>
+                            {% else %}
+                            <div class="pag-btn disabled"><span class="material-symbols-rounded">chevron_left</span></div>
+                            {% endif %}
+
+                            <span class="page-number">
+                                Page <strong>{{ pagination.page }}</strong> of {{ pagination.pages }}
+                            </span>
+
+                            {% if pagination.has_next %}
+                            <a href="{{ url_for('admin.system_logs', page=pagination.next_num, limit=current_limit, q=search_query, type=current_type) }}" class="pag-btn">
+                                <span class="material-symbols-rounded">chevron_right</span>
+                            </a>
+                            {% else %}
+                            <div class="pag-btn disabled"><span class="material-symbols-rounded">chevron_right</span></div>
+                            {% endif %}
+
+                            <div class="jump-to-wrapper">
+                                <input type="number" id="jump-page-input" class="jump-input" min="1" max="{{ pagination.pages }}" value="{{ pagination.page }}">
+                                <button class="jump-btn" id="jump-page-submit">Go</button>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </main>
+            
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/global.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/admin/admin_logs.js') }}"></script>
+</body>
+</html>

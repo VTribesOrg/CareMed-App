@@ -38,3 +38,28 @@ class Customer(db.Model):
     @property
     def full_name(self):
         return f"{self.first_name} {self.last_name}"
+    
+    @property
+    def masked_phone(self):
+        if not self.contact_number:
+            return None
+
+        try:
+            phone = self.contact_number.strip()
+
+            # Keep only digits for masking logic
+            digits = ''.join(filter(str.isdigit, phone))
+
+            if len(digits) <= 4:
+                return '*' * len(digits)
+
+            # Show first 2 and last 2 digits
+            masked = (
+                digits[:2] +
+                '*' * (len(digits) - 4) +
+                digits[-2:]
+            )
+
+            return masked
+        except Exception:
+            return None

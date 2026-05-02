@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=0.9" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CareMed</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='icons/favicon-circle.png') }}">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap">
@@ -35,102 +35,100 @@
     
     <div class="main-wrapper">
 
-        <aside class="medical-sidebar">
-            <div class="sidebar-header">
-                <div class="sidebar-brand">
-                    <span class="nav-label logo-text">Care<span>Med</span></span>
-                </div>
-                <label for="sidebar-state" class="nav-toggle-label">
-                    <span class="material-symbols-rounded">menu</span>
-                </label>
+    <aside class="medical-sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-brand">
+                <span class="nav-label logo-text">Care<span>Med</span></span>
             </div>
+            <label for="sidebar-state" class="nav-toggle-label">
+                <span class="material-symbols-rounded">menu</span>
+            </label>
+        </div>
 
-            <div class="sidebar-navigation">
-                <ul class="nav-menu">
-                    <li class="nav-item">
-                        <a href="{{ url_for('admin.dashboard') }}" class="nav-link">
-                            <span class="material-symbols-rounded">monitoring</span>
-                            <span class="nav-label">Dashboard</span>
-                        </a>
-                    </li>
-
-                    <li class="nav-item">
-                        <a href="{{ url_for('admin.products') }}" class="nav-link active">
-                            <span class="material-symbols-rounded">inventory_2</span>
-                            <span class="nav-label">Inventory & Tanks</span>
-                        </a>
-                    </li>
-
-                    <li class="nav-item">
-                        <a href="#" class="nav-link">
-                            <span class="material-symbols-rounded">gas_meter</span>
-                            <span class="nav-label">Refill Requests</span>
-                        </a>
-                    </li>
-
-
-                    <li class="nav-item">
-                        <a href="{{ url_for('admin.customers') }}" class="nav-link">
-                            <span class="material-symbols-rounded">groups</span>
-                            <span class="nav-label">Customer Records</span>
-                        </a>
-                    </li>
-
-                    <li class="nav-item">
-                        <a href="{{ url_for('admin.transactions') }}" class="nav-link">
-                            <span class="material-symbols-rounded">receipt_long</span>
-                            <span class="nav-label">Transactions</span>
-                        </a>
-                    </li>
-                    
-                    <li class="nav-item">
-                        <a href="{{ url_for('admin.payments') }}" class="nav-link">
-                            <span class="material-symbols-rounded">account_balance_wallet</span>
-                            <span class="nav-label">Payment Verifications</span>
-                        </a>
-                    </li>
-
-                    <li class="nav-item">
-                        <a href="{{ url_for('admin.reports') }}" class="nav-link">
-                            <span class="material-symbols-rounded">analytics</span>
-                            <span class="nav-label">Reports & Analytics</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{{ url_for('admin.security_dashboard') }}" class="nav-link">
-                            <span class="material-symbols-rounded">security</span>
-                            <span class="nav-label">Security Center</span>
-                        </a>
-                    </li>
-                </ul>
-
-                <div class="sidebar-footer">
-                    <a href="javascript:void(0)" class="nav-link settings-link" id="settings-toggle-btn">
-                        <span class="material-symbols-rounded">settings</span>
-                        <span class="nav-label theme-label">Settings &amp; help</span>
+        <div class="sidebar-navigation">
+            <ul class="nav-menu">
+                <li class="nav-item" title="Dashboard">
+                    <a href="{{ url_for('admin.dashboard') }}" class="nav-link">
+                        <span class="material-symbols-rounded">monitoring</span>
+                        <span class="nav-label">Dashboard</span>
                     </a>
+                </li>
 
-                    <div id="settings-menu-popup" class="settings-menu-popup hidden">
-                        <ul>
-                            <li class="menu-item menu-theme-toggle">
-                                <span class="material-symbols-rounded theme-icon">light_mode</span>
-                                <span class="theme-text">Theme</span>
-                                <span class="material-symbols-rounded chevron">chevron_right</span>
-                            </li>
-                            <li class="menu-item">
-                                <span class="material-symbols-rounded">feedback</span>
-                                <span>Send feedback</span>
-                            </li>
-                            <li class="menu-item menu-help-sub">
-                                <span class="material-symbols-rounded">help</span>
-                                <span>Help</span>
-                                <span class="material-symbols-rounded chevron">chevron_right</span>
-                            </li>
-                        </ul>
-                    </div>
+                <li class="nav-item" title="Inventory">
+                    <a href="{{ url_for('admin.products') }}" class="nav-link active">
+                        <span class="material-symbols-rounded">inventory_2</span>
+                        <span class="nav-label">Inventory</span>
+                    </a>
+                </li>
+
+                <li class="nav-item" title="Refill Requests">
+                    <a href="#" class="nav-link">
+                        <span class="material-symbols-rounded">gas_meter</span>
+                        <span class="nav-label">Refill Requests</span>
+                    </a>
+                </li>
+
+                <li class="nav-item" title="Customer Records">
+                    <a href="{{ url_for('admin.customers') }}" class="nav-link">
+                        <span class="material-symbols-rounded">groups</span>
+                        <span class="nav-label">Customer Records</span>
+                    </a>
+                </li>
+
+                <li class="nav-item" title="Transactions">
+                    <a href="{{ url_for('admin.transactions') }}" class="nav-link">
+                        <span class="material-symbols-rounded">receipt_long</span>
+                        <span class="nav-label">Transactions</span>
+                    </a>
+                </li>
+                
+                <li class="nav-item" title="Reporst & Analytics">
+                    <a href="{{ url_for('admin.reports') }}" class="nav-link">
+                        <span class="material-symbols-rounded">analytics</span>
+                        <span class="nav-label">Reports & Analytics</span>
+                    </a>
+                </li>
+                <li class="nav-item" title="Security Center">
+                    <a href="{{ url_for('admin.security_dashboard') }}" class="nav-link">
+                        <span class="material-symbols-rounded">security</span>
+                        <span class="nav-label">Security Center</span>
+                    </a>
+                </li>
+                <li class="nav-item" title="System Logs">
+                    <a href="{{url_for('admin.system_logs')}}" class="nav-link">
+                        <span class="material-symbols-rounded">list_alt</span>
+                        <span class="nav-label">System Logs</span>
+                    </a>
+                </li>
+            </ul>
+
+            <div class="sidebar-footer" title="Settings">
+                <a href="javascript:void(0)" class="nav-link settings-link" id="settings-toggle-btn">
+                    <span class="material-symbols-rounded">settings</span>
+                    <span class="nav-label theme-label">Settings &amp; help</span>
+                </a>
+
+                <div id="settings-menu-popup" class="settings-menu-popup hidden">
+                    <ul>
+                        <li class="menu-item menu-theme-toggle">
+                            <span class="material-symbols-rounded theme-icon">light_mode</span>
+                            <span class="theme-text">Theme</span>
+                            <span class="material-symbols-rounded chevron">chevron_right</span>
+                        </li>
+                        <li class="menu-item">
+                            <span class="material-symbols-rounded">feedback</span>
+                            <span>Send feedback</span>
+                        </li>
+                        <li class="menu-item menu-help-sub">
+                            <span class="material-symbols-rounded">help</span>
+                            <span>Help</span>
+                            <span class="material-symbols-rounded chevron">chevron_right</span>
+                        </li>
+                    </ul>
                 </div>
             </div>
-        </aside>
+        </div>
+    </aside>
 
         <div class="viewport-container">
 
@@ -209,10 +207,10 @@
                                     <span class="material-symbols-rounded filter-icon">filter_list</span>
                                     <select class="medical-select" id="type-filter">
                                         <option value="all" {{ 'selected' if current_type == 'all' }}>All Equipment</option>
-                                        <option value="Oxygen Concentrator" {{ 'selected' if current_type == 'Oxygen Equipment' }}>Oxygen Equipment</option>
-                                        <option value="Wheelchair" {{ 'selected' if current_type == 'Wheelchairs & Mobility' }}>Wheelchairs & Mobility</option>
+                                        <option value="Oxygen Equipment" {{ 'selected' if current_type == 'Oxygen Equipment' }}>Oxygen Equipment</option>
+                                        <option value="Wheelchairs & Mobility" {{ 'selected' if current_type == 'Wheelchairs & Mobility' }}>Wheelchairs & Mobility</option>
                                         <option value="CPAP/BiPAP" {{ 'selected' if current_type == 'CPAP/BiPAP' }}>CPAP/BiPAP</option>
-                                        <option value="Suction Machine" {{ 'selected' if current_type == 'Medical Devices' }}>Medical Devices</option>
+                                        <option value="Medical Devices" {{ 'selected' if current_type == 'Medical Devices' }}>Medical Devices</option>
                                     </select>
                                 </div>
                             </div>
@@ -478,7 +476,6 @@
                                 <label class="clinical-label">Equipment Type</label>
                                 <div class="input-wrapper">
                                     <input type="text" name="equipment_type" class="clinical-input" list="equipment-types" placeholder="e.g. Hospital Bed" required>
-                                    <span class="material-symbols-rounded input-icon">search_insights</span>
                                     <datalist id="equipment-types">
                                         <option value="Hospital Bed"></option>
                                         <option value="Oxygen Equipment"></option>
@@ -492,7 +489,6 @@
                                 <label class="clinical-label">Product Name</label>
                                 <div class="input-wrapper">
                                     <input type="text" name="name" class="clinical-input" placeholder="e.g. Standard Wheelchair" required>
-                                    <span class="material-symbols-rounded input-icon">inventory</span>
                                 </div>
                             </div>
                         </div>
@@ -502,14 +498,12 @@
                                 <label class="clinical-label">Asset Tag <small style="color: #94a3b8; font-weight: normal;">(Optional)</small></label>
                                 <div class="input-wrapper">
                                     <input type="text" name="asset_tag" class="clinical-input" placeholder="e.g. OXY-001" style="text-transform: uppercase;">
-                                    <span class="material-symbols-rounded input-icon">label</span>
                                 </div>
                             </div>
                             <div class="form-field">
                                 <label class="clinical-label">Initial Stock (Units)</label>
                                 <div class="input-wrapper">
                                     <input type="number" name="stock" class="clinical-input" placeholder="0" min="0" required>
-                                    <span class="material-symbols-rounded input-icon">reorder</span>
                                 </div>
                             </div>
                         </div>
@@ -638,7 +632,6 @@
                             <label class="clinical-label">Equipment Type</label>
                             <div class="input-wrapper">
                                 <input type="text" name="equipment_type" id="edit-type" class="clinical-input" list="equipment-types" placeholder="e.g. Hospital Bed" required>
-                                <span class="material-symbols-rounded input-icon">search_insights</span>
                             </div>
                         </div>
 
@@ -646,7 +639,6 @@
                             <label class="clinical-label">Product Name</label>
                             <div class="input-wrapper">
                                 <input type="text" name="name" id="edit-name" class="clinical-input" placeholder="e.g. Standard K1 Wheelchair" required>
-                                <span class="material-symbols-rounded input-icon">inventory</span>
                             </div>
                         </div>
                     </div>
@@ -891,7 +883,7 @@
     </template>
 
     <script src="{{ url_for('static', filename='js/global.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/admin_product.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/admin/admin_product.js') }}"></script>
 </body>
 
 </html>

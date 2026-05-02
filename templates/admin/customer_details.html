@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CareMed</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='icons/favicon-circle.png') }}">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_customer_details.css') }}">    
+</head>
+    <style>
+        .medical-sidebar, .viewport-container, .nav-label, .logo-text {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+    </style>
+<body>
+    
+    <input type="checkbox" id="sidebar-state" hidden>
+    <script nonce="{{ csp_nonce() }}">
+        (function() {
+            const checkbox = document.getElementById('sidebar-state');
+            const savedState = localStorage.getItem('sidebar-collapsed');
+            if (savedState === 'true') {
+                checkbox.checked = false;
+            } else {
+                checkbox.checked = true;
+            }
+            document.body.classList.add('ready');
+        })();
+    </script>
+
+    <div class="main-wrapper">
+
+        <aside class="medical-sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-brand">
+                    <span class="nav-label logo-text">Care<span>Med</span></span>
+                </div>
+                <label for="sidebar-state" class="nav-toggle-label">
+                    <span class="material-symbols-rounded">menu</span>
+                </label>
+            </div>
+
+            <div class="sidebar-navigation">
+                <ul class="nav-menu">
+                    <li class="nav-item" title="Dashboard">
+                        <a href="{{ url_for('admin.dashboard') }}" class="nav-link">
+                            <span class="material-symbols-rounded">monitoring</span>
+                            <span class="nav-label">Dashboard</span>
+                        </a>
+                    </li>
+
+                    <li class="nav-item" title="Inventory">
+                        <a href="{{ url_for('admin.products') }}" class="nav-link">
+                            <span class="material-symbols-rounded">inventory_2</span>
+                            <span class="nav-label">Inventory</span>
+                        </a>
+                    </li>
+
+                    <li class="nav-item" title="Refill Requests">
+                        <a href="#" class="nav-link">
+                            <span class="material-symbols-rounded">gas_meter</span>
+                            <span class="nav-label">Refill Requests</span>
+                        </a>
+                    </li>
+
+                    <li class="nav-item" title="Customer Records">
+                        <a href="{{ url_for('admin.customers') }}" class="nav-link active">
+                            <span class="material-symbols-rounded">groups</span>
+                            <span class="nav-label">Customer Records</span>
+                        </a>
+                    </li>
+
+                    <li class="nav-item" title="Transactions">
+                        <a href="{{ url_for('admin.transactions') }}" class="nav-link">
+                            <span class="material-symbols-rounded">receipt_long</span>
+                            <span class="nav-label">Transactions</span>
+                        </a>
+                    </li>
+
+                    <li class="nav-item" title="Reporst & Analytics">
+                        <a href="{{ url_for('admin.reports') }}" class="nav-link">
+                            <span class="material-symbols-rounded">analytics</span>
+                            <span class="nav-label">Reports & Analytics</span>
+                        </a>
+                    </li>
+                    <li class="nav-item" title="Security Center">
+                        <a href="{{ url_for('admin.security_dashboard') }}" class="nav-link">
+                            <span class="material-symbols-rounded">security</span>
+                            <span class="nav-label">Security Center</span>
+                        </a>
+                    </li>
+                    <li class="nav-item" title="System Logs">
+                        <a href="{{url_for('admin.system_logs')}}" class="nav-link">
+                            <span class="material-symbols-rounded">list_alt</span>
+                            <span class="nav-label">System Logs</span>
+                        </a>
+                    </li>
+                </ul>
+
+                <div class="sidebar-footer" title="Settings">
+                    <a href="javascript:void(0)" class="nav-link settings-link" id="settings-toggle-btn">
+                        <span class="material-symbols-rounded">settings</span>
+                        <span class="nav-label theme-label">Settings &amp; help</span>
+                    </a>
+
+                    <div id="settings-menu-popup" class="settings-menu-popup hidden">
+                        <ul>
+                            <li class="menu-item menu-theme-toggle">
+                                <span class="material-symbols-rounded theme-icon">light_mode</span>
+                                <span class="theme-text">Theme</span>
+                                <span class="material-symbols-rounded chevron">chevron_right</span>
+                            </li>
+                            <li class="menu-item">
+                                <span class="material-symbols-rounded">feedback</span>
+                                <span>Send feedback</span>
+                            </li>
+                            <li class="menu-item menu-help-sub">
+                                <span class="material-symbols-rounded">help</span>
+                                <span>Help</span>
+                                <span class="material-symbols-rounded chevron">chevron_right</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <div class="viewport-container">
+            <header class="system-header">
+                <h1>Customer Management</h1>
+
+                <div class="header-actions">
+                    <div class="action-item">
+                        <button class="icon-btn" id="notif-btn">
+                            <span class="material-symbols-rounded">notifications</span>
+                            <span class="notification-badge">3</span>
+                        </button>
+                        <div class="header-dropdown" id="notif-dropdown">
+                            <div class="dropdown-header">Notifications</div>
+                            <a href="#" class="dropdown-item">
+                                <span class="material-symbols-rounded" style="color:#f97316">warning</span>
+                                <div>
+                                    <p style="margin:0; font-weight:600">Overdue Return</p>
+                                    <small>Oxygen Tank #7721 is late</small>
+                                </div>
+                            </a>
+                            <a href="#" class="dropdown-item">
+                                <span class="material-symbols-rounded" style="color:#00a8cc">inventory</span>
+                                <div>
+                                    <p style="margin:0; font-weight:600">Low Stock</p>
+                                    <small>Wheelchairs below threshold</small>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="action-item">
+                        <div class="clinical-user" id="profile-btn">
+                            <div class="user-info">
+                                <span class="user-name">{{ current_user.first_name}} {{ current_user.last_name}}</span>
+                                <span class="user-role">{{ current_user.role }}</span>
+                            </div>
+                            <div class="user-avatar" id="avatar-wrapper">
+                                <span class="material-symbols-rounded" id="avatar-icon">person</span>
+
+                                <img src="" alt="User" id="header-avatar-img" class="hidden">
+                            </div>
+                        </div>
+                        <div class="header-dropdown" id="profile-dropdown">
+                            <div class="dropdown-header">My Account</div>
+                            <a href="{{ url_for('admin.profile') }}" class="dropdown-item">
+                                <span class="material-symbols-rounded">person</span>Profile Settings
+                            </a>
+                            <a href="#" class="dropdown-item">
+                                <span class="material-symbols-rounded">security</span>Activity Log
+                            </a>
+                            <a href="{{ url_for('auth.logout') }}" class="dropdown-item logout">
+                                <span class="material-symbols-rounded">logout</span>Logout
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <main class="content-area customer-details-page">
+
+                <section class="cdp-header">
+                    <div class="cdp-title-block">
+                        <div class="cdp-badges">
+                            {% if customer.is_id_verified %}
+                                <span class="badge badge-success">
+                                    <span class="material-symbols-rounded">verified</span> Verified
+                                </span>
+                            {% else %}
+                                <span class="badge badge-warning">
+                                    <span class="material-symbols-rounded">pending_actions</span> Pending Verification
+                                </span>
+                            {% endif %}
+                            
+                            <span class="badge {{ 'badge-outline-success' if customer.is_active else 'badge-outline-danger' }}">
+                                {{ 'Active Account' if customer.is_active else 'Inactive' }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="cdp-actions">
+                        <button class="btn-primary js-open-edit" data-id="{{ customer.id }}">
+                            <span class="material-symbols-rounded">edit</span> Edit Profile
+                        </button>
+                        <a href="{{ url_for('admin.customers') }}" class="btn-secondary">
+                            <span class="material-symbols-rounded">arrow_back</span> Back
+                        </a>
+                    </div>
+                </section>
+
+                <div class="cdp-grid-container">
+                    <section class="cdp-profile-card">
+                        <div class="cdp-avatar-section">
+                            {% if customer.user and customer.user.profile_path %}
+                                <img src="{{ url_for('static', filename=customer.user.profile_path) }}" class="cdp-avatar" alt="Profile">
+                            {% else %}
+                                <div class="cdp-avatar-fallback">
+                                    <span>{{ customer.first_name[0] }}{{ customer.last_name[0] }}</span>
+                                </div>
+                            {% endif %}
+                            
+                            <div class="cdp-basic-info">
+                                <h2>{{ customer.first_name }} {{ customer.last_name }}</h2>
+                                <p class="text-muted">Created at {{ customer.created_at.strftime('%B %Y') if customer.created_at else 'N/A' }}</p>
+                            </div>
+                        </div>
+
+                        <div class="cdp-info-grid">
+                            <div class="info-item">
+                                <label><span class="material-symbols-rounded">mail</span> Email</label>
+                                <span>{{ customer.user.email if customer.user else 'No linked account' }}</span>
+                            </div>
+                            <div class="info-item">
+                                <label><span class="material-symbols-rounded">call</span> Phone</label>
+                                <span>{{ customer.contact_number or 'N/A' }}</span>
+                            </div>
+                            <div class="info-item">
+                                <label><span class="material-symbols-rounded">cake</span> Birthday</label>
+                                <span>{{ customer.birthday.strftime('%B %d, %Y') if customer.birthday else 'N/A' }}</span>
+                            </div>
+                            <div class="info-item">
+                                <label><span class="material-symbols-rounded">location_on</span> Home Address</label>
+                                <span>{{ customer.home_address or 'No address provided' }}</span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="cdp-verification-panel">
+                        <h3>Identity Verification</h3>
+                        <p class="section-desc">Review uploaded documents to verify customer identity.</p>
+
+                        <div class="cdp-doc-list">
+                            <div class="doc-row">
+                                <div class="doc-info">
+                                    <strong>Primary: {{ customer.primary_id_type or 'Not Set' }}</strong>
+                                    <small>Uploaded: {{ customer.id_uploaded_at.strftime('%b %d, %Y') if customer.id_uploaded_at else 'Never' }}</small>
+                                </div>
+                                <div class="doc-actions">
+                                    {% if customer.valid_id_path %}
+                                        <button class="btn-icon js-view-image" data-src="{{ url_for('static', filename=customer.valid_id_path) }}" title="View ID">
+                                            <span class="material-symbols-rounded">visibility</span>
+                                        </button>
+                                    {% else %}
+                                        <span class="text-muted italic">Missing</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="doc-row">
+                                <div class="doc-info">
+                                    <strong>Secondary: {{ customer.secondary_id_type or 'Not Set' }}</strong>
+                                </div>
+                                <div class="doc-actions">
+                                    {% if customer.secondary_id_path %}
+                                        <button class="btn-icon js-view-image" data-src="{{ url_for('static', filename=customer.secondary_id_path) }}" title="View ID">
+                                            <span class="material-symbols-rounded">visibility</span>
+                                        </button>
+                                    {% else %}
+                                        <span class="text-muted italic">Missing</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="cdp-approval-box">
+                            {% if not customer.is_id_verified %}
+                                <div class="alert alert-info">ID requires manual approval.</div>
+                                <form action="{{ url_for('admin.verify_customer', id=customer.id) }}" method="POST">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn-success btn-full">
+                                        Approve Identity
+                                    </button>
+                                </form>
+                            {% else %}
+                                <div class="verified-footer">
+                                    <span class="material-symbols-rounded text-success">check_circle</span>
+                                    <span>Verified by Admin</span>
+
+                                    <form action="{{ url_for('admin.unverify_customer', id=customer.id) }}" 
+                                        method="POST" 
+                                        class="js-revoke-form"
+                                        style="display:inline">
+                                        
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        
+                                        <button type="submit" 
+                                                class="btn-link-danger" 
+                                                style="background:none; border:none; cursor:pointer; color: #b91c1c; font-size: 0.8rem; margin-left: 10px; text-decoration: underline;">
+                                            Revoke
+                                        </button>
+                                    </form>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </section>
+
+                </div>
+
+                <section class="cdp-transaction-section">
+                    <div class="cdp-section-header">
+                        <h3>Transaction History</h3>
+                        <p class="section-desc">A log of all payments and financial activity for this customer.</p>
+                    </div>
+
+                    <div class="cdp-table-container">
+                        <table class="cdp-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Transaction ID</th>
+                                    <th>Description</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                                <tbody>
+                                    {% for transaction in transactions %}
+                                    <tr class="clickable-row" data-href="{{ url_for('admin.transaction_details', id=transaction.id) }}">
+                                        <td>{{ transaction.display_date }}</td>
+
+                                        <td>
+                                            <a href="{{ url_for('admin.transaction_details', id=transaction.id) }}" class="tx-link">
+                                                <code class="tx-id">#{{ transaction.id }}</code>
+                                                <span class="material-symbols-rounded">open_in_new</span>
+                                            </a>
+                                        </td>
+
+                                        <td>{{ transaction.description }}</td>
+
+                                        <td class="font-bold">
+                                            {{ transaction.display_amount | currency }}
+                                        </td>
+
+                                        <td>
+                                            <span class="badge {{ transaction.status_badge }}">
+                                                {{ transaction.status }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="5" class="text-center py-4 text-muted">
+                                            No transactions found for this customer.
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                        </table>
+                    </div>
+                </section>
+
+            </main>
+
+        </div>
+        
+    </div>
+
+    <div id="idViewModal" class="idview-overlay" style="display:none;">
+        <div class="idview-container">
+            <button type="button" class="idview-close-btn" aria-label="Close">&times;</button>
+            <img id="idViewImage" src="" alt="ID Document Preview" class="idview-img">
+        </div>
+    </div>
+
+    <div id="editCustomerModal" class="medical-modal-overlay hidden">
+        <div class="medical-modal-content" style="max-width: 850px; border-radius: 12px; padding: 0; overflow: hidden; background: #fff;">
+            
+            <div class="modal-header-row" style="padding: 16px 24px; border-bottom: 1px solid #f1f5f9; background: #fff;">
+                <h2 class="modal-header" style="margin: 0; font-size: 1.1rem; font-weight: 700; color: #1e293b;">Edit Customer Details</h2>
+                <span class="material-symbols-rounded modal-close" style="cursor: pointer; color: #64748b;">close</span>
+            </div>
+
+            <form id="editCustomerForm" method="POST" action="{{ url_for('admin.update_customer') }}" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="customer_id" id="edit_customer_id">
+
+                <div style="display: flex; gap: 0; align-items: stretch; padding: 0;"> 
+                    
+                    <div style="flex: 0 0 320px; padding: 0 0 24px 24px; background: #fcfdfe;">
+                        <p style="font-size: 0.7rem; color: #3b82f6; text-transform: uppercase; font-weight: 800; letter-spacing: 0.05em; margin: 0 0 15px 0;">
+                            Update Documents
+                        </p>
+
+                        <div class="form-field">
+                            <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; margin-bottom: 4px; display: block;">Primary ID Upload</label>
+                            <div class="upload-container" id="edit-id-dropzone" style="width: 85.6mm; height: 54mm; border: 2px dashed #e2e8f0; border-radius: 10px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; background: #f8fafc; overflow: visible;">
+                                
+                                <div id="edit-id-placeholder-content" style="text-align: center;">
+                                    <span class="material-symbols-rounded" style="font-size: 24px; color: #94a3b8;">badge</span>
+                                    <p style="margin: 2px 0 0; color: #64748b; font-size: 0.65rem;">Click or Drag & Drop</p>
+                                </div>
+                                
+                                <div id="edit-id-preview-text" class="preview-active-box" style="display:none; position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 10px; z-index: 5;">
+                                    <span class="material-symbols-rounded btn-file-reset"
+                                        data-input="edit-id-upload" 
+                                        data-dropzone="edit-id-dropzone" 
+                                        data-preview="edit-id-preview-text"
+                                        style="position: absolute !important; top: -10px !important; right: -10px !important; background: #ef4444 !important; color: white !important; border-radius: 50% !important; width: 26px !important; height: 26px !important; font-size: 18px !important; cursor: pointer !important; display: flex !important; align-items: center !important; justify-content: center !important; z-index: 100 !important; box-shadow: 0 2px 5px rgba(0,0,0,0.2) !important; pointer-events: auto !important;">
+                                        close
+                                    </span>
+                                    <img src="#" alt="Preview" id="edit-id-img-preview" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;">
+                                </div>
+                                
+                                <input type="file" id="edit-id-upload" name="valid_id" hidden accept="image/*">
+                            </div>
+                        </div>
+
+                        <div class="form-field" style="margin-top: 16px;">
+                            <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; margin-bottom: 4px; display: block;">Secondary ID Upload</label>
+                            <div class="upload-container" id="edit-doc-dropzone" style="width: 85.6mm; height: 54mm; border: 2px dashed #e2e8f0; border-radius: 10px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; background: #f8fafc; overflow: visible;">
+                                
+                                <div id="edit-doc-placeholder-content" style="text-align: center;">
+                                    <span class="material-symbols-rounded" style="font-size: 24px; color: #94a3b8;">add_a_photo</span>
+                                    <p style="margin: 2px 0 0; color: #64748b; font-size: 0.65rem;">Click or Drag & Drop</p>
+                                </div>
+
+                                <div id="edit-doc-preview-text" class="preview-active-box" style="display:none; position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 10px; z-index: 5;">
+                                    <span class="material-symbols-rounded btn-file-reset" 
+                                        data-input="edit-doc-upload" 
+                                        data-dropzone="edit-doc-dropzone" 
+                                        data-preview="edit-doc-preview-text"
+                                        style="position: absolute !important; top: -10px !important; right: -10px !important; background: #ef4444 !important; color: white !important; border-radius: 50% !important; width: 26px !important; height: 26px !important; font-size: 18px !important; cursor: pointer !important; display: flex !important; align-items: center !important; justify-content: center !important; z-index: 100 !important; box-shadow: 0 2px 5px rgba(0,0,0,0.2) !important; pointer-events: auto !important;">
+                                        close
+                                    </span>
+                                    <img src="#" alt="Preview" id="edit-doc-img-preview" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;">
+                                </div>
+
+                                <input type="file" id="edit-doc-upload" name="secondary_id" hidden accept="image/*">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="width: 1px; background: #f1f5f9; align-self: stretch;"></div>
+
+                    <div style="flex: 1; padding: 0 24px 24px 24px; display: flex; flex-direction: column; gap: 12px;">
+                        <p style="font-size: 0.7rem; color: #3b82f6; text-transform: uppercase; font-weight: 800; letter-spacing: 0.05em; margin: 0;">
+                            Customer Profile
+                        </p>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                            <div class="form-field">
+                                <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">First Name</label>
+                                <input type="text" name="first_name" id="edit_first_name" class="clinical-input" style="height: 40px;" required>
+                            </div>
+                            <div class="form-field">
+                                <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">Last Name</label>
+                                <input type="text" name="last_name" id="edit_last_name" class="clinical-input" style="height: 40px;" required>
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                            <div class="form-field">
+                                <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">Birthday</label>
+                                <input type="date" name="birthday" id="edit_birthday" class="clinical-input" style="height: 40px;" required>
+                            </div>
+                            <div class="form-field">
+                                <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">Gender</label>
+                                <select name="gender" id="edit_gender" class="clinical-input" style="height: 40px;" required>
+                                    <option value="male">Male</option>
+                                    <option value="female">Female</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-field">
+                            <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">Phone Number</label>
+                            <input type="tel" name="contact_number" id="edit_contact_number" class="clinical-input" style="height: 40px;" required>
+                        </div>
+
+                        <div class="form-field">
+                            <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">Home Address</label>
+                            <textarea name="home_address" id="edit_home_address" class="clinical-input" style="height: 45px; padding-top: 8px; resize: none;" required></textarea>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                            <div class="form-field">
+                                <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">Primary ID Type</label>
+                                <select name="primary_id_type" id="edit_primary_id_type" class="clinical-input" style="height: 40px;" required>
+                                    <option value="National ID">National ID</option>
+                                    <option value="Driver's License">Driver's License</option>
+                                    <option value="Passport">Passport</option>
+                                    <option value="UMID / SSS">UMID / SSS</option>
+                                </select>
+                            </div>
+                            <div class="form-field">
+                                <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">Secondary ID Type</label>
+                                <select id="edit_secondary_id_type" name="secondary_id_type" class="clinical-input" style="height: 40px;" required>
+                                    <option value="PhilHealth">PhilHealth</option>
+                                    <option value="Voter's ID">Voter's ID</option>
+                                    <option value="Postal ID">Postal ID</option>
+                                    <option value="TIN ID">TIN ID</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="border-top: 1px solid #f1f5f9; padding: 16px 24px; display: flex; justify-content: flex-end; gap: 12px; background: #fff;">
+                    <button type="button" class="btn-medical-outline" id="cancelEditBtn">Cancel</button>
+                    <button type="submit" class="btn-medical-primary">Save Changes</button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+
+    <div id="resetModal" class="medical-modal-overlay hidden">
+        <div class="medical-modal-content" style="max-width: 400px;">
+            <div class="modal-header-row">
+                <h2 class="modal-header">Security</h2>
+                <span class="material-symbols-rounded modal-close">close</span>
+            </div>
+            <p>Reset password for <strong id="resetName">User</strong>?</p>
+            <div class="modal-footer-actions">
+                <button type="button" class="btn-medical-outline">Cancel</button><button type="button" class="btn-medical-primary">
+                    ConfirmReset
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="main-toast-container" class="toast-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="medical-toast {{ category or 'info' }}" role="alert">
+                        <div class="toast-progress"></div>
+                        <span class="material-symbols-rounded toast-icon">
+                            {% if category == 'success' %}check_circle
+                            {% elif category == 'error' %}error
+                            {% elif category == 'warning' %}warning
+                            {% else %}info{% endif %}
+                        </span>
+                        <div class="toast-content">
+                            <span class="toast-title">{{ category|capitalize or 'Notice' }}</span>
+                            <span class="toast-message">{{ message|replace('\n', '<br>')|safe }}</span>
+                        </div>
+                        <button class="toast-close">
+                            <span class="material-symbols-rounded">close</span>
+                        </button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <template id="toast-template">
+        <div class="medical-toast" role="alert">
+            <div class="toast-progress"></div> <span class="material-symbols-rounded toast-icon"></span>
+            <div class="toast-content">
+                <span class="toast-title"></span>
+                <span class="toast-message"></span>
+            </div>
+            <button class="toast-close">
+                <span class="material-symbols-rounded">close</span>
+            </button>
+        </div>
+    </template>
+
+    
+    <script src="{{ url_for('static', filename='js/global.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/admin/customer_details.js') }}"></script>
+</body>
+
+</html>

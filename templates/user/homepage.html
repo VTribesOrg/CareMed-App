@@ -139,7 +139,21 @@
                 <i class="fa-solid fa-right-to-bracket"></i> Sign In
             </a>
 
-            <a href="{{ url_for('user.products')}}" class="nav-cta-btn guest-only hover">Start Renting</a>
+            {#  <a href="{{ url_for('user.products')}}" class="nav-cta-btn guest-only">Start Renting</a>  #}
+
+            {% if current_user.is_authenticated %}
+                <a href="{{ url_for('user.cart') }}" class="nav-cart-wrapper" title="View Cart">
+                    <div class="cart-icon-container">
+                        <i class="fa-solid fa-cart-shopping"></i>
+
+                        {% set cart_count = current_user.cart.items|length if current_user.cart else 0 %}
+
+                        {% if cart_count > 0 %}
+                            <span class="cart-badge" id="cartBadge">{{ cart_count }}</span>
+                        {% endif %}
+                    </div>
+                </a>
+            {% endif %}
 
             <div class="user-profile-widget auth-only" id="profileDropdown">
                 <div class="profile-trigger" id="profileTrigger">
@@ -268,7 +282,7 @@
                     </div>
                 </div>
                 <div class="about-image">
-                    <img src="{{ url_for('static', filename='image/630943445_1699934767636577_2518154941454885940_n.jpg') }}"
+                    <img src="{{ url_for('static', filename='image/about-img.png') }}"
                         alt="CareMed Support Staff">
                 </div>
             </div>
@@ -342,34 +356,26 @@
                         </div>
 
                         <div class="product-image-box">
-                            {% if product.image and product.image != 'None' %}
-                                <img src="{{ url_for('static', filename=product.image) }}" alt="{{ product.name }}" class="product-img-element">
-                            {% else %}
-                                <div class="placeholder-icon">
-                                    <i class="fa-solid fa-microscope"></i>
-                                    <span>IMAGE PENDING</span>
-                                </div>
-                            {% endif %}
+                            <a href="{{ url_for('user.product_detail', product_id=product.id) }}" style="text-decoration: none; color: inherit; display: block; height: 100%; width: 100%;">
+                                {% if product.image and product.image != 'None' %}
+                                    <img src="{{ url_for('static', filename=product.image) }}" alt="{{ product.name }}" class="product-img-element">
+                                {% else %}
+                                    <div class="placeholder-icon">
+                                        <i class="fa-solid fa-microscope"></i>
+                                        <span>IMAGE PENDING</span>
+                                    </div>
+                                {% endif %}
+                            </a>
                         </div>
                         
                         <div class="product-text-block">
-                            <h3 class="display-name">{{ product.name }}</h3>
+                            <a href="{{ url_for('user.product_detail', product_id=product.id) }}"style="text-decoration: none;" >
+                                <h3 class="display-name">{{ product.name }}</h3>
+                            </a>
                             <span class="equipment-category">{{ product.equipment_type }}</span>
                         </div>
 
-                        <ul class="product-specs desktop-only-specs">
-                            {% if product.description and product.description != 'None' %}
-                                <li class="product-description-text">
-                                    <i class="fa-solid fa-circle-info"></i> 
-                                    {{ product.description | truncate(65) }}
-                                </li>
-                            {% else %}
-                                <li class="spec-sanitized"><i class="fa-solid fa-circle-check"></i> Sanitized</li>
-                                <li><i class="fa-solid fa-truck-fast"></i> Delivery Available</li>
-                            {% endif %}
-                        </ul>
-
-                        <div class="pricing-container {% if product.transaction_type == 'both' %}has-dual{% else %}has-single{% endif %}">
+                        <div class="pricing-container {% if product.transaction_type == 'Both' %}has-dual{% else %}has-single{% endif %}">
                             {% if product.transaction_type in ['Rent', 'Both'] %}
                             <div class="price-block rent">
                                 <span class="price-label">RENTAL</span>
@@ -395,9 +401,25 @@
                         <div class="action-grid">
                             {% if product.transaction_type in ['Rent', 'Both'] %}
                                 {% if current_user.is_authenticated %}
-                                    <button class="btn-action btn-rent-outline" onclick="handleAction('rent', '{{ product.id }}')">
-                                        <i class="fa-solid fa-calendar-day"></i> Rent Now
-                                    </button>
+                                    {% if product.stock > 0 %}
+
+                                        <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
+                                        class="btn-action btn-rent-outline">
+                                            <i class="fa-solid fa-cart-plus"></i> Add Rental
+                                        </a>
+
+                                        <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
+                                        class="btn-action btn-rent-outline">
+                                            <i class="fa-solid fa-calendar-day"></i> Rent Now
+                                        </a>
+
+                                    {% else %}
+                                        <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
+                                        class="btn-action btn-guest"
+                                        style="background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0;">
+                                            <i class="fa-solid fa-circle-info"></i> View Details
+                                        </a>
+                                    {% endif %}
                                 {% else %}
                                     <a href="{{ url_for('auth.login') }}" class="btn-action btn-guest">
                                         <i class="fa-solid fa-lock"></i> Login to Rent
@@ -406,9 +428,43 @@
                             {% endif %}
 
                             {% if product.transaction_type in ['Sale', 'Both'] %}
-                                <button class="btn-action btn-buy-solid" onclick="handleAction('buy', '{{ product.id }}')">
-                                    <i class="fa-solid fa-cart-plus"></i> Buy
-                                </button>
+                                {% if product.stock > 0 %}
+                                    {% if current_user.is_authenticated %}
+
+                                    {% if (product.id, 'Sale') in in_cart_items %}
+                                        <button class="btn-action" disabled style="background: #f1f5f9; color: #16a34a; border: 1px solid #16a34a; cursor: default;">
+                                            <i class="fa-solid fa-check"></i> In Cart
+                                        </button>
+                                    {% else %}
+                                        <form action="{{ url_for('user.add_to_cart', product_id=product.id) }}" method="POST" style="display: contents;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <input type="hidden" name="item_type" value="Sale">
+                                            <button type="submit"  class="btn-action btn-buy-solid" style="background: #fff; color: #16a34a; border: 1px solid #16a34a;">
+                                                <i class="fa-solid fa-cart-plus"></i> Add to Cart
+                                            </button>
+                                        </form>
+                                    {% endif %}
+
+                                        <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
+                                        class="btn-action btn-buy-solid">
+                                            <i class="fa-solid fa-bolt"></i> Buy Now
+                                        </a>
+
+                                    {% else %}
+                                        <a href="{{ url_for('auth.login') }}"
+                                        class="btn-action btn-buy-solid">
+                                            <i class="fa-solid fa-lock"></i> Login to Buy
+                                        </a>
+                                    {% endif %}
+                                {% else %}
+                                    {% if product.transaction_type == 'Sale' %}
+                                        <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
+                                        class="btn-action btn-guest"
+                                        style="text-decoration: none; background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0;">
+                                            <i class="fa-solid fa-circle-info"></i> View Details
+                                        </a>
+                                    {% endif %}
+                                {% endif %}
                             {% endif %}
                         </div>
                     </div>

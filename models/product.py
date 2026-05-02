@@ -64,7 +64,7 @@ class Transaction(db.Model):
     
     transaction_type = db.Column(db.String(20), nullable=False) 
     
-    total_amount = db.Column(db.Numeric(10, 2), default=0.00)
+    total_amount = db.Column(db.Numeric(10, 2), nullable=False, default=0.00)
     amount_paid = db.Column(db.Numeric(10, 2), default=0.00)
     balance_due = db.Column(db.Numeric(10, 2), default=0.00)
     
@@ -86,6 +86,27 @@ class Transaction(db.Model):
     delivery_address = db.Column(db.Text, nullable=True)
     landmark = db.Column(db.String(255), nullable=True) 
 
+    @property
+    def display_amount(self):
+        return self.total_amount or Decimal("0.00")
+
+    @property
+    def display_date(self):
+        if not self.created_at:
+            return "N/A"
+        return self.created_at.strftime('%b %d, %Y')
+
+    @property
+    def description(self):
+        if self.transaction_type == "Sale":
+            return "Product Purchase"
+        elif self.transaction_type == "Rental":
+            return "Rental Transaction"
+        return "Transaction"
+
+    @property
+    def status_badge(self):
+        return "badge-success" if self.status == "Closed" else "badge-warning"
 
     def update_totals(self):
 
@@ -279,3 +300,30 @@ class Expense(db.Model):
     recorded_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     date_incurred = db.Column(db.Date, default=datetime.utcnow)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    
+class Cart(db.Model):
+    __tablename__ = "cart"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    items = db.relationship("CartItem", back_populates="cart", cascade="all, delete-orphan")
+    user = db.relationship("User", backref=db.backref("cart", uselist=False))
+
+class CartItem(db.Model):
+    __tablename__ = "cart_item"
+    id = db.Column(db.Integer, primary_key=True)
+    cart_id = db.Column(db.Integer, db.ForeignKey("cart.id"), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey("product.id"), nullable=False)
+    
+    quantity = db.Column(db.Integer, default=1)
+    item_type = db.Column(db.String(20), nullable=False) 
+    
+    rental_start_date = db.Column(db.Date, nullable=True)
+    rental_duration = db.Column(db.Integer, nullable=True)
+    price_at_addition = db.Column(db.Numeric(10, 2))
+
+    cart = db.relationship("Cart", back_populates="items")
+    product = db.relationship("Product")

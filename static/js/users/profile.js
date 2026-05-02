@@ -84,18 +84,23 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // --- Reset Profile Modal ---
     const resetProfileModal = () => {
+        const form = document.querySelector(".modal-form");
+
+        if (form) {
+            form.reset(); 
+        }
+
+        // reset hidden fields
         if (profileInput) profileInput.value = "";
         if (removePhotoInput) removePhotoInput.value = "false";
-        const preview = document.getElementById('imagePreview');
-        if (preview && initialImageHTML) preview.innerHTML = initialImageHTML;
 
-        const form = document.querySelector(".modal-form");
-        if (form) {
-            form.querySelectorAll("input, textarea, select").forEach(input => {
-                if (input.type === "file") return;
-                if (input.defaultValue !== undefined) input.value = input.defaultValue;
-            });
+        // reset image preview
+        const preview = document.getElementById('imagePreview');
+        if (preview && initialImageHTML) {
+            preview.innerHTML = initialImageHTML;
         }
+
+        // reset submit state
         if (submitBtn) submitBtn.disabled = true;
     };
 
@@ -111,14 +116,6 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     });
 
-    // Click outside to close modals
-    window.addEventListener("click", (event) => {
-        if (event.target === editModal) closeModal();
-        if (event.target === passModal) closePassModal();
-        if (!event.target.closest('.user-profile-widget')) {
-            dropdownMenu?.classList.remove('show');
-        }
-    });
 
     // --- Dropdown toggle ---
     document.getElementById("profileTrigger")?.addEventListener("click", (e) => {

@@ -139,13 +139,20 @@
                 <i class="fa-solid fa-right-to-bracket"></i> Sign In
             </a>
 
-            <a href="{{ url_for('user.products')}}" class="nav-cta-btn guest-only hover">Start Renting</a>
+            {#  <a href="{{ url_for('user.products')}}" class="nav-cta-btn guest-only">Start Renting</a>  #}
 
             {% if current_user.is_authenticated %}
-                <button class="cart-nav-btn">
-                    <i class="fa-solid fa-cart-shopping"></i> Order Summary
-                    <span class="cart-count-badge" id="cartBadge" style="display: none;">0</span>
-                </button>
+                <a href="{{ url_for('user.cart') }}" class="nav-cart-wrapper" title="View Cart">
+                    <div class="cart-icon-container">
+                        <i class="fa-solid fa-cart-shopping"></i>
+                        
+                        {% set cart_count = current_user.cart.items|length if current_user.cart else 0 %}
+                        
+                        {% if cart_count > 0 %}
+                            <span class="cart-badge" id="cartBadge">{{ cart_count }}</span>
+                        {% endif %}
+                    </div>
+                </a>
             {% endif %}
 
             <div class="user-profile-widget auth-only" id="profileDropdown">
@@ -262,34 +269,26 @@
                     </div>
 
                     <div class="product-image-box">
-                        {% if product.image and product.image != 'None' %}
-                            <img src="{{ url_for('static', filename=product.image) }}" alt="{{ product.name }}" class="product-img-element">
-                        {% else %}
-                            <div class="placeholder-icon">
-                                <i class="fa-solid fa-microscope"></i>
-                                <span>IMAGE PENDING</span>
-                            </div>
-                        {% endif %}
+                        <a href="{{ url_for('user.product_detail', product_id=product.id) }}" style="text-decoration: none; color: inherit; display: block; height: 100%; width: 100%;">
+                            {% if product.image and product.image != 'None' %}
+                                <img src="{{ url_for('static', filename=product.image) }}" alt="{{ product.name }}" class="product-img-element">
+                            {% else %}
+                                <div class="placeholder-icon">
+                                    <i class="fa-solid fa-microscope"></i>
+                                    <span>IMAGE PENDING</span>
+                                </div>
+                            {% endif %}
+                        </a>
                     </div>
                     
                     <div class="product-text-block">
-                        <h3 class="display-name">{{ product.name }}</h3>
+                        <a href="{{ url_for('user.product_detail', product_id=product.id) }}"style="text-decoration: none;" >
+                            <h3 class="display-name">{{ product.name }}</h3>
+                        </a>
                         <span class="equipment-category">{{ product.equipment_type }}</span>
                     </div>
 
-                    <ul class="product-specs desktop-only-specs">
-                        {% if product.description and product.description != 'None' %}
-                            <li class="product-description-text">
-                                <i class="fa-solid fa-circle-info"></i> 
-                                {{ product.description | truncate(65) }}
-                            </li>
-                        {% else %}
-                            <li class="spec-sanitized"><i class="fa-solid fa-circle-check"></i> Sanitized</li>
-                            <li><i class="fa-solid fa-truck-fast"></i> Delivery Available</li>
-                        {% endif %}
-                    </ul>
-
-                    <div class="pricing-container {% if product.transaction_type == 'both' %}has-dual{% else %}has-single{% endif %}">
+                    <div class="pricing-container {% if product.transaction_type == 'Both' %}has-dual{% else %}has-single{% endif %}">
                         {% if product.transaction_type in ['Rent', 'Both'] %}
                         <div class="price-block rent">
                             <span class="price-label">RENTAL</span>
@@ -315,9 +314,32 @@
                     <div class="action-grid">
                         {% if product.transaction_type in ['Rent', 'Both'] %}
                             {% if current_user.is_authenticated %}
-                                <button class="btn-action btn-rent-outline" onclick="handleAction('rent', '{{ product.id }}')">
-                                    <i class="fa-solid fa-calendar-day"></i> Rent Now
-                                </button>
+                                {% if product.stock > 0 %}
+                                    <button type="button" 
+                                            class="btn-action btn-rent-outline open-rental-btn" 
+                                            data-id="{{ product.id }}" 
+                                            data-name="{{ product.name }}" 
+                                            data-period="{{ product.rent_period or 'Month' }}"
+                                            data-details-url="{{ url_for('user.product_detail', product_id=product.id) }}">
+                                        <i class="fa-solid fa-cart-plus"></i> Add Rental
+                                    </button>
+
+                                    <form action="{{ url_for('user.add_to_cart', product_id=product.id) }}" method="POST" style="display: contents;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="hidden" name="item_type" value="Rental">
+                                        <input type="hidden" name="next_page" value="cart">
+                                        <button type="submit" class="btn-action btn-rent-outline">
+                                            <i class="fa-solid fa-calendar-day"></i> Rent Now
+                                        </button>
+                                    </form>
+
+                                {% else %}
+                                    <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
+                                    class="btn-action btn-guest"
+                                    style="background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0;">
+                                        <i class="fa-solid fa-circle-info"></i> View Details
+                                    </a>
+                                {% endif %}
                             {% else %}
                                 <a href="{{ url_for('auth.login') }}" class="btn-action btn-guest">
                                     <i class="fa-solid fa-lock"></i> Login to Rent
@@ -326,9 +348,47 @@
                         {% endif %}
 
                         {% if product.transaction_type in ['Sale', 'Both'] %}
-                            <button class="btn-action btn-buy-solid" onclick="handleAction('buy', '{{ product.id }}')">
-                                <i class="fa-solid fa-cart-plus"></i> Buy
-                            </button>
+                            {% if product.stock > 0 %}
+                                {% if current_user.is_authenticated %}
+
+                                    {% if (product.id, 'Sale') in in_cart_items %}
+                                        <button class="btn-action" disabled style="background: #f1f5f9; color: #16a34a; border: 1px solid #16a34a; cursor: default;">
+                                            <i class="fa-solid fa-check"></i> In Cart
+                                        </button>
+                                    {% else %}
+                                        <form action="{{ url_for('user.add_to_cart', product_id=product.id) }}" method="POST" style="display: contents;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <input type="hidden" name="item_type" value="Sale">
+                                            <button type="submit" class="btn-action btn-buy-solid" style="background: #fff; color: #16a34a; border: 1px solid #16a34a;">
+                                                <i class="fa-solid fa-cart-plus"></i> Add to Cart
+                                            </button>
+                                        </form>
+                                    {% endif %}
+
+                                    <form action="{{ url_for('user.add_to_cart', product_id=product.id) }}" method="POST" style="display: contents;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="hidden" name="item_type" value="Sale">
+                                        <input type="hidden" name="next_page" value="cart">
+                                        <button type="submit" class="btn-action btn-buy-solid">
+                                            <i class="fa-solid fa-bolt"></i> Buy Now
+                                        </button>
+                                    </form>
+
+                                {% else %}
+                                    <a href="{{ url_for('auth.login') }}"
+                                    class="btn-action btn-buy-solid">
+                                        <i class="fa-solid fa-lock"></i> Login to Buy
+                                    </a>
+                                {% endif %}
+                            {% else %}
+                                {% if product.transaction_type == 'Sale' %}
+                                    <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
+                                    class="btn-action btn-guest"
+                                    style="text-decoration: none; background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0;">
+                                        <i class="fa-solid fa-circle-info"></i> View Details
+                                    </a>
+                                {% endif %}
+                            {% endif %}
                         {% endif %}
                     </div>
                 </div>
@@ -339,6 +399,7 @@
                 </div>
             {% endfor %}
         </div>
+
     </main>
 
     <footer id="footer">
@@ -368,69 +429,46 @@
     </footer>
 
 
-    <!-- ===================== NEW: MODAL ===================== -->
-    <div class="modal-overlay" id="modalOverlay" onclick="closeModalOnBg(event)">
-        <div class="modal-box" id="modalBox">
-            <button class="modal-close-btn" onclick="closeModal()">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-
-            <p class="modal-product-title" id="modalName"></p>
-            <p class="modal-product-cat" id="modalCat"></p>
-
-            <div class="modal-option-grid" id="modalOptions"></div>
-
-            <div class="modal-duration-wrap" id="durationWrap">
-                <label><i class="fa-regular fa-calendar" style="margin-right: 6px; color: #1a79b0;"></i> Rental Duration</label>
-                <select id="durationSelect" onchange="updateModalTotal()">
-                    <option value="1">1 Month</option>
-                    <option value="2">2 Months</option>
-                    <option value="3">3 Months</option>
-                    <option value="6">6 Months</option>
-                    <option value="12">12 Months</option>
-                </select>
+    <div id="rentalModal" class="modal-overlay" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-calendar-check"></i> Quick Rental</h3>
+                <button type="button" id="closeModalX" class="close-modal">&times;</button>
             </div>
 
-            <div class="modal-total-row" id="modalTotalRow" style="display: none;">
-                <span id="modalTotalLabel">Total</span>
-                <strong id="modalTotalVal"></strong>
-            </div>
+            <form action="" method="POST" id="quickRentalForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="item_type" value="Rental">
+                
+                <div class="modal-body">
+                    <h4 id="modalProductName">Medical Equipment Name</h4>
+                    
+                    <div class="rental-inputs">
+                        <div class="input-group">
+                            <label for="startDateInput">Start Date</label>
+                            <input type="date" name="start_date" id="startDateInput" required class="modal-field">
+                        </div>
+                        
+                        <div class="input-group">
+                            <label>Duration (<span id="modalRentPeriod">Month</span>)</label>
+                            <input type="number" name="duration" min="1" value="1" class="modal-field">
+                        </div>
+                    </div>
+                </div>
 
-            <button class="modal-add-btn" id="modalAddBtn" onclick="addToCart()" disabled>
-                <i class="fa-solid fa-cart-plus"></i> Add to Order
-            </button>
+                <div class="modal-footer">
+                    <a id="viewDetailsLink" href="#" class="btn-text-only">View Details</a>
+                    <div class="footer-btns">
+                        <button type="button" id="closeModalBtn" class="btn-cancel">Cancel</button>
+                        <button type="submit" class="btn-confirm-rent">
+                            <i class="fa-solid fa-cart-plus"></i> Add to Cart
+                        </button>
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
 
-    <!-- ===================== NEW: CART PANEL ===================== -->
-    <div class="cart-backdrop" id="cartBackdrop" onclick="closeCart()"></div>
-
-    <div class="cart-panel" id="cartPanel">
-        <div class="cart-panel-header">
-            <h2><i class="fa-solid fa-clipboard-list" style="color: #71b345; margin-right: 8px;"></i>Order Summary</h2>
-            <button class="cart-close-btn" onclick="closeCart()">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-        </div>
-
-        <div class="cart-items-list" id="cartItemsList">
-            <div class="cart-empty-state">
-                <i class="fa-regular fa-clipboard"></i>
-                <p>Your order is empty</p>
-            </div>
-        </div>
-
-        <div class="cart-panel-footer" id="cartFooter" style="display: none;">
-            <div class="cart-total-row">
-                <span>Estimated Total</span>
-                <strong id="cartTotal">₱0</strong>
-            </div>
-            <button class="cart-checkout-btn" onclick="handleCheckout()">
-                <i class="fa-solid fa-phone" style="margin-right: 8px;"></i>Inquire / Book Now
-            </button>
-            <p class="cart-note">* Rental prices shown per month. Final total subject to confirmation.</p>
-        </div>
-    </div>
 
     <!-- ===================== NEW: TOAST ===================== -->
     <div class="toast-notification" id="toast">
@@ -438,6 +476,9 @@
         <span id="toastMsg"></span>
     </div>
 
+    <script src="{{ url_for('static', filename='js/users/products.js') }}"></script>
+   
+    
 </body>
 
 </html>
