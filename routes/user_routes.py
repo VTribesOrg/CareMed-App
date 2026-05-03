@@ -14,6 +14,7 @@ import uuid
 from PIL import Image
 import random
 import string
+from sqlalchemy import or_
 
 
 
@@ -63,9 +64,29 @@ def homepage():
 
     return render_template('user/homepage.html', products=featured_products)
 
+from sqlalchemy.orm import joinedload
 
-from flask import request, render_template
-from sqlalchemy import or_
+@user_bp.route('/dashboard')
+@login_required
+def dashboard():
+    profile = current_user.customer_profile
+    if not profile:
+        return redirect(url_for('user.profile'))
+
+    orders = Transaction.query.filter_by(
+        customer_id=profile.id,
+        transaction_type='Sale'
+    ).options(joinedload(Transaction.purchases).joinedload(Purchase.product)
+    ).order_by(Transaction.created_at.desc()).all()
+
+    rentals = Transaction.query.filter_by(
+        customer_id=profile.id,
+        transaction_type='Rental'
+    ).options(joinedload(Transaction.rentals).joinedload(Rental.product)
+    ).order_by(Transaction.created_at.desc()).all()
+
+    return render_template('user/dashboard.html', orders=orders, rentals=rentals)
+
 
 @user_bp.route('/products')
 @admin_redirect

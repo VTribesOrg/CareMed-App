@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='icons/favicon-circle.png') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/user/order_success.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/user/dashboard.css') }}">
     <style>
         .feature-icon.material-symbols-outlined {
             font-size: 40px;
@@ -116,7 +116,7 @@
 
     <label for="nav-toggle" class="drawer-overlay"></label>
 
-    <nav>
+    <nav class="main-nav">
         <a href="{{ url_for('user.homepage')}}" class="nav-logo-wrapper">
             <div class="brand-icon-plus">
                 <div class="box blue top"></div>
@@ -205,136 +205,120 @@
         </label>
     </nav>
 
-    <main class="success-main">
-        <div class="success-container">
-            <div class="success-card">
-                
-                <div class="success-header-section">
-                    <div class="success-icon-wrapper">
-                        <span class="material-symbols-outlined icon-animate">check_circle</span>
+    <main class="dashboard-main">
+        <div class="dashboard-container">
+
+            <header class="dashboard-header">
+                <h1>My Activity</h1>
+                <p>Monitor your recent purchases and manage active equipment rentals.</p>
+            </header>
+
+            <nav class="dashboard-tabs">
+                <button class="tab-btn active" data-target="orders">
+                    <i class="fa-solid fa-bag-shopping"></i> 
+                    <span>Order History</span>
+                </button>
+                <button class="tab-btn" data-target="rentals">
+                    <i class="fa-solid fa-clock-rotate-left"></i> 
+                    <span>My Rentals</span>
+                </button>
+            </nav>
+
+            <div id="orders" class="tab-content active">
+                <div class="content-card">
+                    <div class="card-header">
+                        <h3>Recent Orders</h3>
                     </div>
-                    <h1>Order Confirmed!</h1>
-                    <p class="order-number">Reference No: <strong>{{ order.reference_no }}</strong></p>
                     
-                    <div class="verification-notice" style="background: #eef2ff; border: 1px solid #e0e7ff; padding: 12px; border-radius: 8px; margin: 15px auto; max-width: 400px;">
-                        <p style="color: #4338ca; font-size: 0.85rem; margin: 0;">
-                            <i class="fa-solid fa-clock"></i> <strong>Payment Verification in Progress:</strong><br>
-                            Our team is reviewing your receipt. Verification typically takes 1-2 hours.
-                        </p>
-                    </div>
-                </div>
+                    {% if orders %}
+                        <div class="order-list">
+                            {% for order in orders %}
+                            <div class="order-row">
 
-                <div class="status-tracker" style="display: flex; justify-content: space-between; margin: 25px 0; padding: 15px; background: #f8fafc; border-radius: 12px; border: 1px solid #f1f5f9;">
-                    <div class="step" style="flex: 1; text-align: center; color: #28a745; font-weight: 700; font-size: 0.75rem;">
-                        <i class="fa-solid fa-file-circle-check" style="display: block; font-size: 1.2rem; margin-bottom: 5px;"></i>SUBMITTED
-                    </div>
-                    <div class="step" style="flex: 1; text-align: center; color: #71b345; font-weight: 700; font-size: 0.75rem;">
-                        <i class="fa-solid fa-magnifying-glass" style="display: block; font-size: 1.2rem; margin-bottom: 5px;"></i>VERIFYING
-                    </div>
-                    <div class="step" style="flex: 1; text-align: center; color: #cbd5e1; font-size: 0.75rem;">
-                        <i class="fa-solid fa-truck-fast" style="display: block; font-size: 1.2rem; margin-bottom: 5px;"></i>SHIPPING
-                    </div>
-                    <div class="step" style="flex: 1; text-align: center; color: #cbd5e1; font-size: 0.75rem;">
-                        <i class="fa-solid fa-house-medical" style="display: block; font-size: 1.2rem; margin-bottom: 5px;"></i>DELIVERED
-                    </div>
-                </div>
+                                <div class="item-thumbnail">
+                                    {% if order.purchases and order.purchases[0].product and order.purchases[0].product.image %}
+                                        <img src="{{ url_for('static', filename=order.purchases[0].product.image) }}" alt="Product Image">
+                                    {% else %}
+                                        <div class="img-placeholder"><i class="fa-solid fa-box"></i></div>
+                                    {% endif %}
+                                </div>
 
-                <div class="success-content-grid">
-                    <div class="success-info-section">
-                        <h3><i class="fa-solid fa-receipt"></i> Summary</h3>
-                        <div class="summary-box">
-                            <div class="success-details-row">
-                                <span>Status:</span>
-                                <span style="font-weight: 600; color: #28a745;">{{ order.status }}</span>
-                            </div>
-                            <div class="success-details-row">
-                                <span>Type:</span>
-                                <strong>{{ order.transaction_type }}</strong>
-                            </div>
-                            <div class="success-details-row">
-                                <span>Payment:</span>
-                                <strong>{{ payment_method }}</strong>
-                            </div>
-                            <hr style="border: 0; border-top: 1px solid #eee; margin: 10px 0;">
-                            <div class="success-details-row total-row">
-                                <span>Total:</span>
-                                <span>₱{{ "{:,.2f}".format(total_price) }}</span>
-                            </div>
-                        </div>
-                    </div>
+                                <div class="order-main-info">
+                                    <div class="order-id">Order #{{ order.reference_no }}</div>
+                                    <div class="order-date">{{ order.created_at.strftime('%b %d, %Y') if order.created_at else 'N/A' }}</div>
+                                </div>
 
-                    <div class="success-info-section">
-                        <h3><i class="fa-solid fa-truck"></i> Delivery</h3>
-                        <div class="delivery-box">
-                            <p style="font-weight: 700; margin-bottom: 5px; color: #1a535c;">{{ order.customer_name }}</p>
-                            <p style="font-size: 0.85rem; color: #666; margin-bottom: 10px;">
-                                <i class="fa-solid fa-location-dot"></i> {{ order.delivery_address }}
-                            </p>
-                            
-                            {% if order.transaction_type == 'Rental' %}
-                            <div style="background: #fff4e6; padding: 8px; border-radius: 5px; font-size: 0.8rem; color: #d9480f;">
-                                <i class="fa-solid fa-calendar-check"></i> Monthly rental cycles applied.
-                            </div>
-                            {% else %}
-                            <p style="font-size: 0.8rem; font-style: italic; color: #2c7da0;">
-                                Estimated Delivery: 2-5 Business Days
-                            </p>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
+                                <div class="order-status-group">
+                                    <span class="status-badge {{ order.status|lower }}">{{ order.status }}</span>
+                                    <div class="order-price">₱{{ "{:,.2f}".format(order.total_amount or 0) }}</div>
+                                </div>
 
-                <div class="order-items-table">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Product</th>
-                                <th>Qty</th>
-                                <th style="text-align: right;">Price</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in items %}
-                            <tr>
-                                <td>
-                                    <strong>{{ item.product.name }}</strong><br>
-                                </td>
-                                <td>{{ item.quantity }}</td>
-                                <td style="text-align: right; font-weight: 600;">
-                                    ₱{{ "{:,.2f}".format(item.total_price if order.transaction_type == 'Sale' else item.monthly_rate) }}
-                                </td>
-                            </tr>
+                                <div class="order-actions">
+                                    <a href="#" class="btn-action">Details <i class="fa-solid fa-chevron-right"></i></a>
+                                </div>
+                            </div>
                             {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="success-actions">
-                    <a href="{{ url_for('user.products') }}" class="btn-outline">
-                        <i class="fa-solid fa-chevron-left"></i> Shop More
-                    </a>
-                    
-                    {% if order.transaction_type == 'Rental' %}
-                        <a href="{{ url_for('user.dashboard', tab='rentals') }}" class="btn-primary">
-                            Manage Rentals <i class="fa-solid fa-chevron-right"></i>
-                        </a>
+                        </div>
                     {% else %}
-                        <a href="{{ url_for('user.dashboard', tab='orders') }}" class="btn-primary">
-                            View Orders <i class="fa-solid fa-chevron-right"></i>
-                        </a>
+                        <div class="empty-state">
+                            <i class="fa-solid fa-box-open"></i>
+                            <p>No orders found yet.</p>
+                            <a href="{{ url_for('user.products') }}" class="btn-primary">Start Shopping</a>
+                        </div>
                     {% endif %}
                 </div>
+            </div>
 
-                <div class="support-footer" style="text-align: center; margin-top: 30px; border-top: 1px solid #f1f5f9; padding-top: 20px;">
-                    <p style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 10px;">Having trouble with your payment?</p>
-                    <div style="display: flex; justify-content: center; gap: 20px;">
-                        <a href="tel:+639125856730" style="text-decoration: none; color: #71b345; font-size: 0.85rem; font-weight: 600;">
-                            <i class="fa-solid fa-phone"></i> Call Support
-                        </a>
-                        <a href="mailto:support@caremed.com" style="text-decoration: none; color: #71b345; font-size: 0.85rem; font-weight: 600;">
-                            <i class="fa-solid fa-envelope"></i> Email Us
-                        </a>
+            <div id="rentals" class="tab-content" style="display:none;">
+                <div class="content-card">
+                    <div class="card-header">
+                        <h3>Active Rentals</h3>
                     </div>
+
+                    {% set ns = namespace(has_rentals=false) %}
+                    {% if rentals %}
+                        <div class="rental-grid">
+                            {% for transaction in rentals %}
+                                {% for rental in transaction.rentals %}
+                                    {% set ns.has_rentals = true %}
+                                    <div class="rental-card-modern">
+                                        <!-- Badge floats over the image -->
+                                        <div class="rental-badge-container">
+                                            <span class="status-badge {{ rental.status|lower }}">{{ rental.status }}</span>
+                                        </div>
+                                        
+                                        <div class="rental-image">
+                                            {% if rental.product and rental.product.image %}
+                                                <img src="{{ url_for('static', filename=rental.product.image) }}" alt="{{ rental.product.name }}">
+                                            {% else %}
+                                                <div class="img-placeholder"><i class="fa-solid fa-wheelchair"></i></div>
+                                            {% endif %}
+                                        </div>
+
+                                        <div class="rental-info">
+                                            <h4>{{ rental.product.name if rental.product else 'Medical Equipment' }}</h4>
+                                            
+                                            <div class="rental-dates">
+                                                <div class="date-row">
+                                                    <span>Return by:</span>
+                                                    <strong>{{ rental.expected_return_date.strftime('%d %b %Y') if rental.expected_return_date else 'N/A' }}</strong>
+                                                </div>
+                                                <button class="btn-extend">Extend Rental</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    {% if not ns.has_rentals %}
+                        <div class="empty-state">
+                            <i class="fa-solid fa-hand-holding-medical"></i>
+                            <p>You have no active rentals.</p>
+                            <a href="{{ url_for('user.products') }}" class="btn-primary">Rent Equipment</a>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -374,7 +358,52 @@
         <span id="toastMsg"></span>
     </div>
 
+    <script nonce="{{ csp_nonce() }}">
+        document.addEventListener("DOMContentLoaded", function() {
+            const tabButtons = document.querySelectorAll('.tab-btn');
+            const tabContents = document.querySelectorAll('.tab-content');
 
+            // 1. Function to handle Tab Switching
+            function switchTab(tabName) {
+                // Hide all contents
+                tabContents.forEach(content => {
+                    content.style.display = "none";
+                    content.classList.remove("active");
+                });
+
+                // Deactivate all buttons
+                tabButtons.forEach(btn => btn.classList.remove("active"));
+
+                // Show target content and activate button
+                const targetContent = document.getElementById(tabName);
+                const targetBtn = document.querySelector(`[data-target="${tabName}"]`);
+
+                if (targetContent && targetBtn) {
+                    targetContent.style.display = "block";
+                    targetContent.classList.add("active");
+                    targetBtn.classList.add("active");
+                }
+            }
+
+            // 2. Attach Event Listeners to Buttons (Fixes the "Inline Event Handler" error)
+            tabButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const target = this.getAttribute('data-target');
+                    switchTab(target);
+                });
+            });
+
+            // 3. Handle URL parameters (e.g., ?tab=rentals)
+            const urlParams = new URLSearchParams(window.location.search);
+            const targetTab = urlParams.get('tab');
+
+            if (targetTab === 'rentals') {
+                switchTab('rentals');
+            } else {
+                switchTab('orders'); // Default
+            }
+        });
+    </script>
    
     
 </body>

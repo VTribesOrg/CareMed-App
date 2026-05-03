@@ -178,7 +178,7 @@ body {
         rgba(0, 35, 71, 0.82), 
         rgba(26, 121, 176, 0.72) 
     ),
-    url('../image/main-hero.avif');
+    url('../../image/main-hero.avif');
     background-size: cover;
     background-position: center;
     padding: 60px 80px;

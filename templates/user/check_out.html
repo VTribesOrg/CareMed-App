@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='icons/favicon-circle.png') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/check_out.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/user/check_out.css') }}">
     <style>
         .feature-icon.material-symbols-outlined {
             font-size: 40px;
@@ -79,7 +79,7 @@
                 <i class="fa-solid fa-hand-holding-medical"></i> Start Renting
             </a>
 
-            <a href="{{ url_for('user.products')}}" class="active">
+            <a href="{{ url_for('user.products')}}">
                 <i class="fa-solid fa-bag-shopping"></i> Browse Equipment
             </a>
 
@@ -95,8 +95,9 @@
                 <i class="fa-solid fa-user"></i> My Profile
             </a>
 
-            <a href="#" class="auth-only">
-                <i class="fa-solid fa-clock-rotate-left"></i> My Rentals
+            <!-- Updated: Now points to the Split Dashboard -->
+            <a href="{{ url_for('user.dashboard') }}" class="auth-only">
+                <i class="fa-solid fa-clock-rotate-left"></i> My Activity
             </a>
 
             <hr class="auth-only" style="border: none; border-top: 1px solid #eee; margin: 10px 0;">
@@ -131,9 +132,9 @@
                 <i class="fa-solid fa-bag-shopping"></i> Browse Equipment
             </a>
 
-            <a href="{{ url_for('user.homepage')}}#how" class="nav-account-btn hover">How It Works</a>
+            <a href="#how" class="nav-account-btn hover">How It Works</a>
 
-            <a href="{{ url_for('user.homepage')}}#about" class="nav-account-btn hover">About</a>
+            <a href="#about" class="nav-account-btn hover">About</a>
 
             <a href="{{ url_for('auth.login')}}" class="nav-account-btn guest-only hover">
                 <i class="fa-solid fa-right-to-bracket"></i> Sign In
@@ -145,16 +146,15 @@
                 <a href="{{ url_for('user.cart') }}" class="nav-cart-wrapper" title="View Cart">
                     <div class="cart-icon-container">
                         <i class="fa-solid fa-cart-shopping"></i>
-                        
+
                         {% set cart_count = current_user.cart.items|length if current_user.cart else 0 %}
-                        
+
                         {% if cart_count > 0 %}
                             <span class="cart-badge" id="cartBadge">{{ cart_count }}</span>
                         {% endif %}
                     </div>
                 </a>
             {% endif %}
-
 
             <div class="user-profile-widget auth-only" id="profileDropdown">
                 <div class="profile-trigger" id="profileTrigger">
@@ -181,11 +181,11 @@
 
                 <div class="dropdown-menu" id="dropdownMenu">
                     {% if current_user.is_authenticated %}
-                        <a href="{{ url_for('user.profile')}}">
+                        <a href="{{ url_for('user.profile') }}">
                             <i class="fa-solid fa-user"></i> My Profile
                         </a>
-                        <a href="#">
-                            <i class="fa-solid fa-clock-rotate-left"></i> My Rentals
+                        <a href="{{ url_for('user.dashboard') }}">
+                            <i class="fa-solid fa-clock-rotate-left"></i> My Activity
                         </a>
                         <hr>
                         <a href="{{ url_for('auth.logout') }}" class="logout-item">
@@ -193,7 +193,7 @@
                         </a>
                     {% else %}
                         <a href="{{ url_for('auth.login') }}">
-                            <i class="fa-solid fa-right-to-bracket"></i> Sign In / Register
+                            <i class="fa-solid fa-right-to-bracket"></i> Sign In
                         </a>
                     {% endif %}
                 </div>
@@ -249,37 +249,46 @@
                         </div>
 
                         
-                        {% if rental_check.has_rental %}
+                        {% if has_rental %}
                         <div class="checkout-section-card">
                             <div class="section-header">
                                 <span class="material-symbols-outlined">badge</span>
                                 <h3>Rental Requirements</h3>
                             </div>
                             
-                            <div class="requirement-status-container" style="border: 2px solid {{ '#10b981' if current_user.customer_profile.valid_id_path else '#f59e0b' }};">
-                                <div class="status-info">
+                            <div class="requirement-status-container" style="display: flex; align-items: center; justify-content: space-between; padding: 15px; background: #f8fafb; border-radius: 12px; border: 1px solid #e2e8f0;">
+                                <div class="status-info" style="display: flex; align-items: center; gap: 12px;">
+                                    
                                     {% if current_user.customer_profile.valid_id_path and current_user.customer_profile.secondary_id_path %}
-                                        <div class="status-icon" style="color: #10b981;">
+                                        <div class="status-icon" style="color: #10b981; background: #ecfdf5; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
                                             <i class="fa-solid fa-circle-check"></i>
                                         </div>
                                         <div>
-                                            <h4 style="margin:0;">IDs on File</h4>
-                                            <p style="margin:0; font-size: 12px;">Verification will proceed after checkout.</p>
+                                            <h4 style="margin: 0; font-size: 14px; color: #1e293b;">
+                                                IDs Uploaded 
+                                                {% if current_user.customer_profile.is_id_verified %}
+                                                    <span style="color: #10b981; font-size: 11px;">(Verified)</span>
+                                                {% else %}
+                                                    <span style="color: #64748b; font-size: 11px;">(Pending Verification)</span>
+                                                {% endif %}
+                                            </h4>
+                                            <p style="margin: 0; font-size: 12px; color: #64748b;">Your documents are ready for processing.</p>
                                         </div>
                                     {% else %}
-                                        <div class="status-icon" style="color: #f59e0b;">
-                                            <i class="fa-solid fa-triangle-exclamation"></i>
+                                        <div class="status-icon" style="color: #f59e0b; background: #fffbeb; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                                            <i class="fa-solid fa-clock"></i>
                                         </div>
                                         <div>
-                                            <h4 style="margin:0;">IDs Required</h4>
-                                            <p style="margin:0; font-size: 12px; color: #e53e3e;">Please upload IDs in your Profile before renting.</p>
+                                            <h4 style="margin: 0; font-size: 14px; color: #1e293b;">Identification Pending</h4>
+                                            <p style="margin: 0; font-size: 12px; color: #64748b;">Upload 2 valid IDs to proceed with rental.</p>
                                         </div>
                                     {% endif %}
                                 </div>
 
-                                <a href="{{ url_for('user.profile') }}" class="btn-upload-trigger">
-                                    {{ 'View IDs' if current_user.customer_profile.valid_id_path else 'Upload IDs Now' }}
-                                </a>
+                                <button type="button" id="openUploadModal" class="btn-upload-trigger" 
+                                    style="padding: 8px 16px; background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;">
+                                    {{ 'Update IDs' if (current_user.customer_profile.valid_id_path and current_user.customer_profile.secondary_id_path) else 'Upload Now' }}
+                                </button>
                             </div>
                         </div>
                         {% endif %}

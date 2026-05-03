@@ -30,6 +30,8 @@ class Product(db.Model):
     purchases = db.relationship("Purchase", back_populates="product")
     rentals = db.relationship("Rental", back_populates="product")
     inventory_logs = db.relationship("InventoryLog", back_populates="product", passive_deletes=True)
+    
+
 
 
 class Purchase(db.Model):

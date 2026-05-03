@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='icons/favicon-circle.png') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/homepage.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/user/homepage.css') }}">
     <style>
         .feature-icon.material-symbols-outlined {
             font-size: 40px;
@@ -83,11 +83,11 @@
                 <i class="fa-solid fa-bag-shopping"></i> Browse Equipment
             </a>
 
-            <a href="#how">
+            <a href="{{ url_for('user.homepage')}}#how">
                 <i class="fa-solid fa-circle-info"></i> How It Works
             </a>
 
-            <a href="#about">
+            <a href="{{ url_for('user.homepage')}}#about">
                 <i class="fa-solid fa-building"></i> About
             </a>
 
@@ -95,8 +95,9 @@
                 <i class="fa-solid fa-user"></i> My Profile
             </a>
 
-            <a href="#" class="auth-only">
-                <i class="fa-solid fa-clock-rotate-left"></i> My Rentals
+            <!-- Updated: Now points to the Split Dashboard -->
+            <a href="{{ url_for('user.dashboard') }}" class="auth-only">
+                <i class="fa-solid fa-clock-rotate-left"></i> My Activity
             </a>
 
             <hr class="auth-only" style="border: none; border-top: 1px solid #eee; margin: 10px 0;">
@@ -180,11 +181,11 @@
 
                 <div class="dropdown-menu" id="dropdownMenu">
                     {% if current_user.is_authenticated %}
-                        <a href="{{ url_for('user.profile')}}">
+                        <a href="{{ url_for('user.profile') }}">
                             <i class="fa-solid fa-user"></i> My Profile
                         </a>
-                        <a href="#">
-                            <i class="fa-solid fa-clock-rotate-left"></i> My Rentals
+                        <a href="{{ url_for('user.dashboard') }}">
+                            <i class="fa-solid fa-clock-rotate-left"></i> My Activity
                         </a>
                         <hr>
                         <a href="{{ url_for('auth.logout') }}" class="logout-item">
@@ -247,22 +248,49 @@
     <main class="gallery-container">
 
         <section class="how-it-works" id="how">
-            <h2>How to Rent in 3 Easy Steps</h2>
+            <h2>The CareMed Experience: How It Works</h2>
             <div class="step-container">
+
                 <div class="step">
                     <div class="step-num">1</div>
-                    <h4>Choose Equipment</h4>
-                    <p>Browse our catalog and select the items you need for home care.</p>
+                    <i class="fa-solid fa-magnifying-glass-plus"></i>
+                    <h4>Find Equipment</h4>
+                    <p>Browse our sanitized catalog and choose to <strong>Rent</strong> or <strong>Purchase</strong> the items you need.</p>
                 </div>
+
                 <div class="step">
                     <div class="step-num">2</div>
-                    <h4>Book Online</h4>
-                    <p>Fill out the rental form or call our support for immediate booking.</p>
+                    <i class="fa-solid fa-file-shield"></i>
+                    <h4>Verify Details</h4>
+                    <p>Set your delivery address and upload 2 Valid IDs or medical prescriptions for safety verification.</p>
                 </div>
+
                 <div class="step">
                     <div class="step-num">3</div>
-                    <h4>Fast Delivery</h4>
-                    <p>We deliver and set up the equipment at your home within 24 hours.</p>
+                    <i class="fa-solid fa-credit-card"></i>
+                    <h4>Place Order</h4>
+                    <p>Pay via GCash or Cash on Delivery (COD). We will review your documents to confirm your order.</p>
+                </div>
+
+                <div class="step">
+                    <div class="step-num">4</div>
+                    <i class="fa-solid fa-truck-ramp-box"></i>
+                    <h4>Ready for Delivery</h4>
+                    <p>Once confirmed, we prepare your item and assign it to a dedicated CareMed vehicle.</p>
+                </div>
+
+                <div class="step">
+                    <div class="step-num">5</div>
+                    <i class="fa-solid fa-house-medical-circle-check"></i>
+                    <h4>Doorstep Setup</h4>
+                    <p>Our team delivers your item and provides a professional setup at your home or facility.</p>
+                </div>
+
+                <div class="step">
+                    <div class="step-num">6</div>
+                    <i class="fa-solid fa-calendar-check"></i>
+                    <h4>Track & Manage</h4>
+                    <p>View your order status, extend rental periods, or request a pickup through your dashboard.</p>
                 </div>
             </div>
         </section>

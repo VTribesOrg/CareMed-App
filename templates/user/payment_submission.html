@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='icons/favicon-circle.png') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/check_out.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/user/check_out.css') }}">
     <style>
         .feature-icon.material-symbols-outlined {
             font-size: 40px;
@@ -335,60 +335,60 @@
         }       
 
         @media (max-width: 480px) {
-    /* 1. Fix for Order ID and Status overlapping */
-    .order-id-status-bar {
-        flex-direction: column !important;
-        align-items: center !important;
-        gap: 8px;
-        margin-bottom: 1.25rem;
-    }
+            /* 1. Fix for Order ID and Status overlapping */
+            .order-id-status-bar {
+                flex-direction: column !important;
+                align-items: center !important;
+                gap: 8px;
+                margin-bottom: 1.25rem;
+            }
 
-    /* 2. Scale down the massive currency text */
-    .currency-value {
-        font-size: 1.75rem !important;
-        margin-top: 5px;
-    }
+            /* 2. Scale down the massive currency text */
+            .currency-value {
+                font-size: 1.75rem !important;
+                margin-top: 5px;
+            }
 
-    /* 3. Fix for Copy Button and Account Number overlapping */
-    .copy-container {
-        flex-direction: column !important;
-        text-align: center;
-        gap: 12px;
-        margin-top: 10px;
-    }
+            /* 3. Fix for Copy Button and Account Number overlapping */
+            .copy-container {
+                flex-direction: column !important;
+                text-align: center;
+                gap: 12px;
+                margin-top: 10px;
+            }
 
-    .copy-btn {
-        width: 100%; /* Makes button easier to tap on mobile */
-        justify-content: center;
-        padding: 10px;
-    }
+            .copy-btn {
+                width: 100%; /* Makes button easier to tap on mobile */
+                justify-content: center;
+                padding: 10px;
+            }
 
-    /* 4. Improve the file upload area for touch */
-    .file-upload-dropzone {
-        padding: 2rem 1rem;
-    }
+            /* 4. Improve the file upload area for touch */
+            .file-upload-dropzone {
+                padding: 2rem 1rem;
+            }
 
-    .dropzone-icon {
-        font-size: 2rem;
-    }
+            .dropzone-icon {
+                font-size: 2rem;
+            }
 
-    /* 5. Adjust general spacing for the form */
-    .payment-instruction-panel, 
-    .proof-submission-form {
-        padding: 1.25rem 1rem;
-    }
-}
+            /* 5. Adjust general spacing for the form */
+            .payment-instruction-panel, 
+            .proof-submission-form {
+                padding: 1.25rem 1rem;
+            }
+        }
 
-/* Extra tight fix for very small phones (like iPhone SE) */
-@media (max-width: 340px) {
-    .header-title {
-        font-size: 1rem;
-    }
-    
-    .currency-value {
-        font-size: 1.5rem !important;
-    }
-}
+        /* Extra tight fix for very small phones (like iPhone SE) */
+        @media (max-width: 340px) {
+            .header-title {
+                font-size: 1rem;
+            }
+            
+            .currency-value {
+                font-size: 1.5rem !important;
+            }
+        }
 
     </style>
 </head>
@@ -448,7 +448,7 @@
                 <i class="fa-solid fa-hand-holding-medical"></i> Start Renting
             </a>
 
-            <a href="{{ url_for('user.products')}}" class="active">
+            <a href="{{ url_for('user.products')}}">
                 <i class="fa-solid fa-bag-shopping"></i> Browse Equipment
             </a>
 
@@ -464,8 +464,9 @@
                 <i class="fa-solid fa-user"></i> My Profile
             </a>
 
-            <a href="#" class="auth-only">
-                <i class="fa-solid fa-clock-rotate-left"></i> My Rentals
+            <!-- Updated: Now points to the Split Dashboard -->
+            <a href="{{ url_for('user.dashboard') }}" class="auth-only">
+                <i class="fa-solid fa-clock-rotate-left"></i> My Activity
             </a>
 
             <hr class="auth-only" style="border: none; border-top: 1px solid #eee; margin: 10px 0;">
@@ -500,9 +501,9 @@
                 <i class="fa-solid fa-bag-shopping"></i> Browse Equipment
             </a>
 
-            <a href="{{ url_for('user.homepage')}}#how" class="nav-account-btn hover">How It Works</a>
+            <a href="#how" class="nav-account-btn hover">How It Works</a>
 
-            <a href="{{ url_for('user.homepage')}}#about" class="nav-account-btn hover">About</a>
+            <a href="#about" class="nav-account-btn hover">About</a>
 
             <a href="{{ url_for('auth.login')}}" class="nav-account-btn guest-only hover">
                 <i class="fa-solid fa-right-to-bracket"></i> Sign In
@@ -514,16 +515,15 @@
                 <a href="{{ url_for('user.cart') }}" class="nav-cart-wrapper" title="View Cart">
                     <div class="cart-icon-container">
                         <i class="fa-solid fa-cart-shopping"></i>
-                        
+
                         {% set cart_count = current_user.cart.items|length if current_user.cart else 0 %}
-                        
+
                         {% if cart_count > 0 %}
                             <span class="cart-badge" id="cartBadge">{{ cart_count }}</span>
                         {% endif %}
                     </div>
                 </a>
             {% endif %}
-
 
             <div class="user-profile-widget auth-only" id="profileDropdown">
                 <div class="profile-trigger" id="profileTrigger">
@@ -550,11 +550,11 @@
 
                 <div class="dropdown-menu" id="dropdownMenu">
                     {% if current_user.is_authenticated %}
-                        <a href="{{ url_for('user.profile')}}">
+                        <a href="{{ url_for('user.profile') }}">
                             <i class="fa-solid fa-user"></i> My Profile
                         </a>
-                        <a href="#">
-                            <i class="fa-solid fa-clock-rotate-left"></i> My Rentals
+                        <a href="{{ url_for('user.dashboard') }}">
+                            <i class="fa-solid fa-clock-rotate-left"></i> My Activity
                         </a>
                         <hr>
                         <a href="{{ url_for('auth.logout') }}" class="logout-item">
@@ -562,7 +562,7 @@
                         </a>
                     {% else %}
                         <a href="{{ url_for('auth.login') }}">
-                            <i class="fa-solid fa-right-to-bracket"></i> Sign In / Register
+                            <i class="fa-solid fa-right-to-bracket"></i> Sign In
                         </a>
                     {% endif %}
                 </div>
