@@ -867,7 +867,7 @@ input[type="number"].form-control {
     font-size: 1.2rem;
 }
 
-/* ==================== SCROLLBAR (OPTIONAL MODERN LOOK) ==================== */
+/* ==================== SCROLLBAR ==================== */
 .table-container::-webkit-scrollbar {
     width: 6px;
 }
@@ -1320,6 +1320,147 @@ input[type="number"].form-control {
 
 
 /*=================================== END OF ADD PAYMENT MODAL ===================================*/
+
+
+/*=================== START OF TRACKING SIDEBAR ===================*/
+.tracking-sidebar-card {
+    padding: 14px;
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #eef2f6;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+.tracking-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.tracking-label {
+    font-size: 0.6rem;
+    font-weight: 800;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+}
+
+.status-badge {
+    font-size: 0.65rem;
+    font-weight: 800;
+    padding: 4px 10px;
+    border-radius: 20px;
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid rgba(0,0,0,0.05);
+    text-transform: uppercase;
+}
+
+.status-badge.delivered { 
+    background: #10b981 !important; 
+    color: #ffffff !important; 
+}
+
+.status-badge.canceled { 
+    background: #ef4444 !important; 
+    color: #ffffff !important; 
+}
+
+
+.btn-step {
+    width: 100%;
+    border: none;
+    padding: 10px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.8rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+    color: #fff;
+}
+
+.btn-step:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.btn-step.verify { background: #6366f1; }
+.btn-step.ship { background: #f59e0b; }
+.btn-step.complete { background: #10b981; }
+
+
+.btn-outline-danger {
+    width: 100%;
+    background: #fff;
+    color: #ef4444;
+    border: 1px solid #fecdd3;
+    padding: 8px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.75rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.2s;
+    margin-top: 4px;
+}
+
+.btn-outline-danger:hover {
+    background: #ef4444;
+    color: #fff;
+    border-color: #ef4444;
+}
+
+
+.tracking-state-info {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    border: 2px dashed;
+}
+
+.state-finished { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
+.state-voided { background: #fff1f2; color: #991b1b; border-color: #fecdd3; }
+
+.more-actions-container {
+    margin-top: 6px;
+    border-top: 1px solid #f1f5f9;
+    padding-top: 8px;
+}
+
+.select-override {
+    width: 100%;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    color: #64748b;
+    font-size: 0.7rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    padding: 6px;
+    border-radius: 6px;
+    appearance: none;
+    transition: all 0.2s;
+}
+
+.select-override:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+}
+/*=================== END OF TRACKING SIDEBAR ===================*/
 
 /*================================== END OF MAIN CONTENT==================================*/
 

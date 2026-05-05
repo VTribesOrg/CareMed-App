@@ -1177,7 +1177,40 @@ def transaction_details(id):
     txn = Transaction.query.get_or_404(id)
     
     return render_template('admin/transaction_details.html', txn=txn, current_date=datetime.now().date())
-    
+
+@admin_bp.route('/transaction/<int:txn_id>/update-tracking', methods=['POST'])
+@login_required
+def update_tracking(txn_id):
+    txn = Transaction.query.get_or_404(txn_id)
+    new_status = request.form.get('tracking_status')
+
+    valid_statuses = ['SUBMITTED', 'VERIFIED', 'SHIPPED', 'DELIVERED', 'CANCELLED']
+
+    if new_status in valid_statuses:
+        if txn.tracking_status == 'CANCELLED':
+            flash("Action denied: This transaction has already been canceled.", "warning")
+            return redirect(url_for('admin.transaction_details', id=txn.id))
+
+        txn.tracking_status = new_status
+
+        if new_status == 'CANCELLED':
+            txn.status = 'Cancelled' 
+        elif new_status == 'DELIVERED':
+            txn.delivery_status = 'Delivered'
+            if txn.transaction_type != 'Rental':
+                txn.status = 'Closed'
+
+        try:
+            txn.update_totals()
+            db.session.commit()
+            flash(f"Success: Status updated to '{new_status.title()}'.", "success")
+        except Exception as e:
+            db.session.rollback()
+            flash("System Error: Could not update status.", "danger")
+    else:
+        flash("Update Failed: Invalid status provided.", "danger")
+
+    return redirect(url_for('admin.transaction_details', id=txn.id))
 
 @admin_bp.route('/post-payment', methods=['POST'])
 @login_required

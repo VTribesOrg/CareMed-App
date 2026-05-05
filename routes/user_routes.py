@@ -18,8 +18,6 @@ from sqlalchemy import or_
 
 
 
-
-
 user_bp = Blueprint('user', __name__, url_prefix='/customer')
 
 
@@ -65,7 +63,6 @@ def homepage():
     return render_template('user/homepage.html', products=featured_products)
 
 from sqlalchemy.orm import joinedload
-
 @user_bp.route('/dashboard')
 @login_required
 def dashboard():
@@ -76,17 +73,72 @@ def dashboard():
     orders = Transaction.query.filter_by(
         customer_id=profile.id,
         transaction_type='Sale'
-    ).options(joinedload(Transaction.purchases).joinedload(Purchase.product)
+    ).options(
+        joinedload(Transaction.purchases).joinedload(Purchase.product)
     ).order_by(Transaction.created_at.desc()).all()
 
     rentals = Transaction.query.filter_by(
         customer_id=profile.id,
         transaction_type='Rental'
-    ).options(joinedload(Transaction.rentals).joinedload(Rental.product)
+    ).options(
+        joinedload(Transaction.rentals).joinedload(Rental.product)
     ).order_by(Transaction.created_at.desc()).all()
 
-    return render_template('user/dashboard.html', orders=orders, rentals=rentals)
 
+    all_transactions = sorted(orders + rentals, key=lambda x: x.created_at, reverse=True)
+
+    for trans in all_transactions:
+        if not trans.tracking_stage:
+            trans.tracking_stage = "SUBMITTED"
+
+    return render_template(
+        'user/dashboard.html',
+        orders=orders,
+        rentals=rentals,
+        all_transactions=all_transactions
+    )
+
+@user_bp.route('/cancel-order/<int:order_id>', methods=['POST'])
+@login_required
+def cancel_order(order_id):
+    profile = current_user.customer_profile
+    if not profile:
+        flash("Profile not found.", "danger")
+        return redirect(url_for('user.dashboard'))
+
+    order = Transaction.query.filter_by(
+        id=order_id,
+        customer_id=profile.id,
+        transaction_type='Sale'
+    ).first()
+
+    if not order:
+        flash("Order not found.", "danger")
+        return redirect(url_for('user.dashboard'))
+
+    if order.status and order.status.upper() == "CANCELLED":
+        flash("Order is already cancelled.", "warning")
+        return redirect(url_for('user.dashboard'))
+
+    if order.tracking_status and order.tracking_status.upper() in ['SHIPPING', 'DELIVERED']:
+        flash("You can no longer cancel this order.", "danger")
+        return redirect(url_for('user.dashboard'))
+
+    if order.payment_status and order.payment_status.lower() == "fully paid":
+        flash("Cannot cancel a fully paid order.", "danger")
+        return redirect(url_for('user.dashboard'))
+
+    order.status = "CANCELLED"
+    order.tracking_status = "CANCELLED"
+
+    try:
+        db.session.commit()
+        flash("Order cancelled successfully.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash("Something went wrong while cancelling.", "danger")
+
+    return redirect(url_for('user.dashboard'))
 
 @user_bp.route('/products')
 @admin_redirect

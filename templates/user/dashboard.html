@@ -21,6 +21,21 @@
                 font-weight: 700;         
                 border-bottom: 2px solid #71b345; 
         }
+
+        @keyframes pulse-orange {
+                0% { box-shadow: 0 0 0 0px rgba(249, 115, 22, 0.5); }
+                70% { box-shadow: 0 0 0 10px rgba(249, 115, 22, 0); }
+                100% { box-shadow: 0 0 0 0px rgba(249, 115, 22, 0); }
+            }
+
+            .pulse-active {
+                animation: pulse-orange 2s infinite;
+            }
+
+            /* Transition for smooth color changes */
+            .step-line {
+                transition: background 0.4s ease-in-out;
+            }
     </style>
 </head>
 
@@ -92,12 +107,12 @@
             </a>
 
             <a href="{{ url_for('user.profile')}}" class="auth-only">
-                <i class="fa-solid fa-user"></i> My Profile
+                <i class="fa-solid fa-user"></i> My Account
             </a>
 
             <!-- Updated: Now points to the Split Dashboard -->
             <a href="{{ url_for('user.dashboard') }}" class="auth-only">
-                <i class="fa-solid fa-clock-rotate-left"></i> My Activity
+                <i class="fa-solid fa-clock-rotate-left"></i> My Purchase/Rent
             </a>
 
             <hr class="auth-only" style="border: none; border-top: 1px solid #eee; margin: 10px 0;">
@@ -182,10 +197,10 @@
                 <div class="dropdown-menu" id="dropdownMenu">
                     {% if current_user.is_authenticated %}
                         <a href="{{ url_for('user.profile') }}">
-                            <i class="fa-solid fa-user"></i> My Profile
+                            <i class="fa-solid fa-user"></i> My Account
                         </a>
                         <a href="{{ url_for('user.dashboard') }}">
-                            <i class="fa-solid fa-clock-rotate-left"></i> My Activity
+                            <i class="fa-solid fa-clock-rotate-left"></i> My Purchase/Rental
                         </a>
                         <hr>
                         <a href="{{ url_for('auth.logout') }}" class="logout-item">
@@ -207,63 +222,164 @@
 
     <main class="dashboard-main">
         <div class="dashboard-container">
-
             <header class="dashboard-header">
-                <h1>My Activity</h1>
-                <p>Monitor your recent purchases and manage active equipment rentals.</p>
+                <h1>My Purchase/Rent</h1>
+                <p>Monitor your recent purchases, track shipments, and manage active equipment rentals.</p>
             </header>
 
             <nav class="dashboard-tabs">
-                <button class="tab-btn active" data-target="orders">
-                    <i class="fa-solid fa-bag-shopping"></i> 
-                    <span>Order History</span>
+                <button class="tab-btn active" data-target="tracking">
+                    <i class="fa-solid fa-truck-ramp-box"></i> 
+                    <span>Track Orders</span>
                 </button>
                 <button class="tab-btn" data-target="rentals">
                     <i class="fa-solid fa-clock-rotate-left"></i> 
                     <span>My Rentals</span>
                 </button>
+                <button class="tab-btn" data-target="orders">
+                    <i class="fa-solid fa-bag-shopping"></i> 
+                    <span>Order History</span>
+                </button>
             </nav>
 
-            <div id="orders" class="tab-content active">
+            <div id="tracking" class="tab-content active">
                 <div class="content-card">
                     <div class="card-header">
-                        <h3>Recent Orders</h3>
+                        <h3>Delivery & Rental Progress</h3>
                     </div>
-                    
-                    {% if orders %}
-                        <div class="order-list">
-                            {% for order in orders %}
-                            <div class="order-row">
 
-                                <div class="item-thumbnail">
-                                    {% if order.purchases and order.purchases[0].product and order.purchases[0].product.image %}
-                                        <img src="{{ url_for('static', filename=order.purchases[0].product.image) }}" alt="Product Image">
-                                    {% else %}
-                                        <div class="img-placeholder"><i class="fa-solid fa-box"></i></div>
-                                    {% endif %}
+                    {% if all_transactions %}
+                        {% for order in all_transactions %}
+                            {% set stage_map = {
+                                'SUBMITTED': 'SUBMITTED',
+                                'VERIFIED': 'VERIFYING',
+                                'SHIPPED': 'SHIPPING',
+                                'DELIVERED': 'DELIVERED'
+                            } %}
+
+                            {% set current_display_stage = stage_map.get(order.tracking_stage, 'SUBMITTED') %}
+                            {% set steps = ['SUBMITTED', 'VERIFYING', 'SHIPPING', 'DELIVERED'] %}
+                            
+                            {% set stage_index = steps.index(current_display_stage) if current_display_stage in steps else 0 %}
+
+                            <div class="tracking-card" style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                                
+                                <div class="tracking-header" style="display: flex; gap: 16px; align-items: center; margin-bottom: 25px; border-bottom: 1px solid #f1f5f9; padding-bottom: 20px;">
+                                    <div class="product-img-wrapper" style="width: 64px; height: 64px; border-radius: 8px; overflow: hidden; background: #f8fafc; border: 1px solid #e2e8f0; flex-shrink: 0;">
+                                        {% set first_item = order.purchases[0] if order.purchases else order.rentals[0] if order.rentals else none %}
+                                        {% if first_item and first_item.product and first_item.product.image %}
+                                            <img src="{{ url_for('static', filename=first_item.product.image) }}" style="width: 100%; height: 100%; object-fit: cover;">
+                                        {% else %}
+                                            <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #cbd5e1;"><i class="fa-solid fa-box"></i></div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div style="flex-grow: 1;">
+                                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                            <div>
+                                                <span style="font-weight: 700; color: #1e293b; display: block; font-size: 1.1rem;">Order #{{ order.reference_no }}</span>
+                                                <span style="color: #64748b; font-size: 0.9rem; font-weight: 500;">
+                                                    {% if order.purchases %}
+                                                        {{ order.purchases[0].product.name }}{% if order.purchases|length > 1 %} + {{ order.purchases|length - 1 }} more{% endif %}
+                                                    {% elif order.rentals %}
+                                                        {{ order.rentals[0].product.name }} (Rental){% if order.rentals|length > 1 %} + {{ order.rentals|length - 1 }} more{% endif %}
+                                                    {% else %}
+                                                        Medical Equipment
+                                                    {% endif %}
+                                                </span>
+                                            </div>
+                                            <div style="text-align: right;">
+                                                {% if order.tracking_stage == 'CANCELLED' %}
+                                                    <span style="font-weight: 600; background: #fee2e2; color: #991b1b; padding: 4px 10px; border-radius: 20px; font-size: 0.85rem;">CANCELLED</span>
+                                                {% else %}
+                                                    <span style="display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; margin-bottom: 4px;">
+                                                        {{ 'Subscription Date' if order.rentals else 'Order Date' }}
+                                                    </span>
+                                                    <span style="font-weight: 600; color: #1e293b; background: #f0fdf4; color: #166534; padding: 4px 10px; border-radius: 20px; font-size: 0.85rem;">
+                                                        {{ order.created_at.strftime('%b %d, %Y') }}
+                                                    </span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
 
-                                <div class="order-main-info">
-                                    <div class="order-id">Order #{{ order.reference_no }}</div>
-                                    <div class="order-date">{{ order.created_at.strftime('%b %d, %Y') if order.created_at else 'N/A' }}</div>
+                                {% if order.tracking_stage == 'CANCELLED' %}
+                                    <div style="background: #fff5f5; border: 1px solid #feb2b2; padding: 15px; border-radius: 8px; display: flex; align-items: center; gap: 12px; color: #c53030;">
+                                        <i class="fa-solid fa-circle-exclamation" style="font-size: 1.2rem;"></i>
+                                        <div>
+                                            <strong style="display: block;">This order was cancelled</strong>
+                                            <span style="font-size: 0.85rem;">The order request was stopped. If this was an error, please contact support.</span>
+                                        </div>
+                                    </div>
+                                {% else %}
+                                
+                                <div class="progress-wrapper" style="position: relative; padding: 10px 0;">
+                                    <div class="track-line" style="position: absolute; top: 26px; left: 0; right: 0; height: 2px; background: #e2e8f0; z-index: 1;"></div>
+                                    
+                                    <div class="progress-container" style="display: flex; justify-content: space-between; position: relative; z-index: 2; padding: 0 10px;">
+                                        {% for step in steps %}
+                                            {% set i = loop.index0 %}
+
+                                            {# Logic for highlights #}
+                                            {% set is_completed = i <= stage_index %}
+                                            {% set is_current = i == stage_index and order.tracking_stage != 'DELIVERED' %}
+                                            
+                                            {# Color Assignment #}
+                                            {% set step_color = '#22c55e' if is_completed else '#e2e8f0' %}
+                                            {% if is_current and current_display_stage != 'SUBMITTED' %}
+                                                {% set step_color = '#f97316' %}
+                                            {% endif %}
+
+                                            {# Line Color logic #}
+                                            {% set line_color = '#22c55e' if i < stage_index else '#e2e8f0' %}
+
+                                            <div class="track-step" style="text-align: center; flex: 1; position: relative;">
+                                                {% if not loop.last %}
+                                                    <div class="step-line" style="position: absolute; top: 16px; left: 50%; width: 100%; height: 3px; background: {{ line_color }}; z-index: -1; transition: background 0.4s ease;"></div>
+                                                {% endif %}
+
+                                                <div class="{{ 'pulse-active' if is_current }}" 
+                                                    style="width: 32px; height: 32px; border-radius: 50%; 
+                                                            background: {{ step_color }}; 
+                                                            color: {{ 'white' if is_completed else '#94a3b8' }}; 
+                                                            display: flex; align-items: center; justify-content: center; 
+                                                            margin: 0 auto 10px; border: 3px solid #fff; 
+                                                            box-shadow: 0 0 0 1px {{ step_color }}; 
+                                                            transition: all 0.3s ease; position: relative; z-index: 2;">
+                                                    
+                                                    {% if step == 'SUBMITTED' %}<i class="fa-solid fa-check"></i>
+                                                    {% elif step == 'VERIFYING' %}<i class="fa-solid fa-magnifying-glass"></i>
+                                                    {% elif step == 'SHIPPING' %}<i class="fa-solid fa-truck-fast"></i>
+                                                    {% elif step == 'DELIVERED' %}<i class="fa-solid fa-house-medical"></i>
+                                                    {% endif %}
+                                                </div>
+
+                                                <span style="display: block; font-size: 0.7rem; font-weight: 700; color: {{ '#1e293b' if is_completed else '#94a3b8' }}; text-transform: uppercase;">
+                                                    {{ step }}
+                                                </span>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
                                 </div>
 
-                                <div class="order-status-group">
-                                    <span class="status-badge {{ order.status|lower }}">{{ order.status }}</span>
-                                    <div class="order-price">₱{{ "{:,.2f}".format(order.total_amount or 0) }}</div>
-                                </div>
-
-                                <div class="order-actions">
-                                    <a href="#" class="btn-action">Details <i class="fa-solid fa-chevron-right"></i></a>
-                                </div>
+                                {% if order.tracking_stage in ['SUBMITTED', 'VERIFIED'] %}
+                                    <div style="margin-top: 25px; border-top: 1px solid #f1f5f9; padding-top: 15px; text-align: right;">
+                                        <form action="{{ url_for('user.cancel_order', order_id=order.id) }}" method="POST" onsubmit="return confirm('Are you sure you want to cancel this order?');">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" style="background: none; border: 1px solid #cbd5e1; color: #64748b; padding: 6px 12px; border-radius: 6px; font-size: 0.8rem; cursor: pointer;">
+                                                <i class="fa-solid fa-xmark"></i> Cancel Order
+                                            </button>
+                                        </form>
+                                    </div>
+                                {% endif %}
+                                {% endif %}
                             </div>
-                            {% endfor %}
-                        </div>
+                        {% endfor %}
                     {% else %}
-                        <div class="empty-state">
-                            <i class="fa-solid fa-box-open"></i>
-                            <p>No orders found yet.</p>
-                            <a href="{{ url_for('user.products') }}" class="btn-primary">Start Shopping</a>
+                        <div class="empty-state" style="text-align: center; padding: 40px; color: #64748b;">
+                            <i class="fa-solid fa-location-dot" style="font-size: 2rem; margin-bottom: 10px;"></i>
+                            <p>No active shipments or rentals to track.</p>
                         </div>
                     {% endif %}
                 </div>
@@ -275,52 +391,132 @@
                         <h3>Active Rentals</h3>
                     </div>
 
-                    {% set ns = namespace(has_rentals=false) %}
+                    {% set ns = namespace(has_delivered_rentals=false) %}
+                    
                     {% if rentals %}
                         <div class="rental-grid">
                             {% for transaction in rentals %}
-                                {% for rental in transaction.rentals %}
-                                    {% set ns.has_rentals = true %}
-                                    <div class="rental-card-modern">
-                                        <!-- Badge floats over the image -->
-                                        <div class="rental-badge-container">
-                                            <span class="status-badge {{ rental.status|lower }}">{{ rental.status }}</span>
-                                        </div>
-                                        
-                                        <div class="rental-image">
-                                            {% if rental.product and rental.product.image %}
-                                                <img src="{{ url_for('static', filename=rental.product.image) }}" alt="{{ rental.product.name }}">
-                                            {% else %}
-                                                <div class="img-placeholder"><i class="fa-solid fa-wheelchair"></i></div>
-                                            {% endif %}
-                                        </div>
-
-                                        <div class="rental-info">
-                                            <h4>{{ rental.product.name if rental.product else 'Medical Equipment' }}</h4>
-                                            
-                                            <div class="rental-dates">
-                                                <div class="date-row">
-                                                    <span>Return by:</span>
-                                                    <strong>{{ rental.expected_return_date.strftime('%d %b %Y') if rental.expected_return_date else 'N/A' }}</strong>
+                                {# ONLY SHOW IF THE TRANSACTION IS DELIVERED #}
+                                {% if transaction.tracking_stage == 'DELIVERED' %}
+                                    {% for rental in transaction.rentals %}
+                                        {% set ns.has_delivered_rentals = true %}
+                                        <div class="rental-card-modern">
+                                            <div class="rental-badge-container">
+                                                <span class="status-badge {{ rental.status|lower }}">{{ rental.status }}</span>
+                                            </div>
+                                            <div class="rental-image">
+                                                {% if rental.product and rental.product.image %}
+                                                    <img src="{{ url_for('static', filename=rental.product.image) }}" alt="{{ rental.product.name }}">
+                                                {% else %}
+                                                    <div class="img-placeholder"><i class="fa-solid fa-wheelchair"></i></div>
+                                                {% endif %}
+                                            </div>
+                                            <div class="rental-info">
+                                                <h4>{{ rental.product.name if rental.product else 'Medical Equipment' }}</h4>
+                                                <div class="rental-dates" style="margin-bottom: 15px;">
+                                                    <div class="date-row">
+                                                        <span>Return by:</span>
+                                                        <strong>{{ rental.expected_return_date.strftime('%d %b %Y') if rental.expected_return_date else 'N/A' }}</strong>
+                                                    </div>
                                                 </div>
-                                                <button class="btn-extend">Extend Rental</button>
+                                                <div class="rental-actions-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                                    <button class="btn-extend" style="grid-column: span 2; background: #71b345; color: white; border: none; padding: 10px; border-radius: 6px; font-weight: 700; cursor: pointer;">
+                                                        <i class="fa-solid fa-calendar-plus"></i> Extend Rental
+                                                    </button>
+                                                    <button class="btn-pickup" style="background: #ffffff; border: 1px solid #cbd5e1; color: #475569; padding: 8px; border-radius: 6px; font-size: 0.75rem; cursor: pointer;">
+                                                        <i class="fa-solid fa-truck-pick-up"></i> Request Pickup
+                                                    </button>
+                                                    {% if 'Oxygen' in rental.product.name or 'Tank' in rental.product.name %}
+                                                    <button class="btn-refill" style="background: #eef2ff; border: 1px solid #e0e7ff; color: #4338ca; padding: 8px; border-radius: 6px; font-size: 0.75rem; cursor: pointer;">
+                                                        <i class="fa-solid fa-gas-pump"></i> Refill Tank
+                                                    </button>
+                                                    {% endif %}
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                {% endfor %}
+                                    {% endfor %}
+                                {% endif %}
                             {% endfor %}
                         </div>
                     {% endif %}
 
-                    {% if not ns.has_rentals %}
-                        <div class="empty-state">
-                            <i class="fa-solid fa-hand-holding-medical"></i>
-                            <p>You have no active rentals.</p>
-                            <a href="{{ url_for('user.products') }}" class="btn-primary">Rent Equipment</a>
+                    {# Use the namespace variable to show empty state if no rentals are DELIVERED yet #}
+                    {% if not ns.has_delivered_rentals %}
+                        <div class="empty-state" style="text-align: center; padding: 40px; color: #64748b;">
+                            <i class="fa-solid fa-hand-holding-medical" style="font-size: 2rem; margin-bottom: 10px;"></i>
+                            <p>No active rentals found. Items will appear here once they are delivered.</p>
+                            <a href="{{ url_for('user.products') }}" class="btn-primary" style="display: inline-block; margin-top: 15px; text-decoration: none; background: #2563eb; color: white; padding: 10px 20px; border-radius: 6px;">Rent Equipment</a>
                         </div>
                     {% endif %}
                 </div>
             </div>
+
+            <div id="orders" class="tab-content" style="display:none;">
+                <div class="content-card">
+                    <div class="card-header">
+                        <h3>Order & Rental History</h3>
+                    </div>
+                    
+                    {% if all_transactions %}
+                        <div class="order-list">
+                            {% for order in all_transactions %}
+                            <div class="order-row" style="{{ 'opacity: 0.8;' if order.status|upper == 'CANCELLED' }}">
+                                <div class="item-thumbnail">
+                                    {# Check for image in either purchase or rental #}
+                                    {% set display_item = order.purchases[0] if order.purchases else order.rentals[0] if order.rentals else none %}
+                                    {% if display_item and display_item.product and display_item.product.image %}
+                                        <img src="{{ url_for('static', filename=display_item.product.image) }}" alt="Product Image">
+                                    {% else %}
+                                        <div class="img-placeholder"><i class="fa-solid fa-box"></i></div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="order-main-info">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span class="order-id">#{{ order.reference_no }}</span>
+                                        {# Added a badge to distinguish type #}
+                                        <span style="font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; background: {{ '#e0f2fe' if order.transaction_type == 'Sale' else '#fef3c7' }}; color: {{ '#0369a1' if order.transaction_type == 'Sale' else '#92400e' }}; font-weight: 700; text-transform: uppercase;">
+                                            {{ 'Purchase' if order.transaction_type == 'Sale' else 'Rental' }}
+                                        </span>
+                                    </div>
+                                    
+                                    <div class="order-product-name" style="font-size: 0.9rem; color: #1e293b; font-weight: 500;">
+                                        {% if order.purchases %}
+                                            {{ order.purchases[0].product.name }}{% if order.purchases|length > 1 %} + {{ order.purchases|length - 1 }} more items{% endif %}
+                                        {% elif order.rentals %}
+                                            {{ order.rentals[0].product.name }}{% if order.rentals|length > 1 %} + {{ order.rentals|length - 1 }} more{% endif %}
+                                        {% else %}
+                                            Medical Item
+                                        {% endif %}
+                                    </div>
+                                    <div class="order-date" style="font-size: 0.8rem;">{{ order.created_at.strftime('%b %d, %Y') }}</div>
+                                </div>
+
+                                <div class="order-status-group">
+                                    <span class="status-badge {{ order.status|lower }}" style="{{ 'background: #fee2e2; color: #991b1b;' if order.status|upper == 'CANCELLED' }}">
+                                        {{ order.status }}
+                                    </span>
+                                    <div class="order-price" style="{{ 'text-decoration: line-through; color: #94a3b8;' if order.status|upper == 'CANCELLED' }}">
+                                        ₱{{ "{:,.2f}".format(order.total_amount or 0) }}
+                                    </div>
+                                </div>
+
+                                <div class="order-actions">
+                                    <a href="#" class="btn-action">Details <i class="fa-solid fa-chevron-right"></i></a>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="empty-state">
+                            <i class="fa-solid fa-box-open"></i>
+                            <p>No transactions found yet.</p>
+                            <a href="{{ url_for('user.products') }}" class="btn-primary">Start Shopping</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
         </div>
     </main>
 
@@ -351,8 +547,6 @@
         </div>
     </footer>
 
-
-
     <div class="toast-notification" id="toast">
         <i class="fa-solid fa-circle-check"></i>
         <span id="toastMsg"></span>
@@ -360,6 +554,76 @@
 
     <script nonce="{{ csp_nonce() }}">
         document.addEventListener("DOMContentLoaded", function() {
+                        // Dropdown toggle
+            const trigger = document.getElementById("profileTrigger");
+            const menu = document.getElementById("dropdownMenu");
+
+            if (trigger && menu) {
+                trigger.addEventListener("click", function (e) {
+                    e.stopPropagation();
+                    menu.classList.toggle("show");
+                });
+            }
+
+            // Close dropdown when clicking outside
+            window.addEventListener("click", function (event) {
+                if (!event.target.closest(".user-profile-widget")) {
+                    const dropdowns = document.getElementsByClassName("dropdown-menu");
+                    for (let i = 0; i < dropdowns.length; i++) {
+                        let openDropdown = dropdowns[i];
+                        if (openDropdown.classList.contains("show")) {
+                            openDropdown.classList.remove("show");
+                        }
+                    }
+                }
+            });
+
+            // About section IntersectionObserver
+            const aboutSection = document.querySelector('#about');
+            const aboutNavLink = document.querySelector('a[href="#about"]');
+
+            const observerOptions = {
+                root: null,
+                threshold: 0.6
+            };
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        aboutNavLink.classList.add('active-link');
+                    } else {
+                        aboutNavLink.classList.remove('active-link');
+                    }
+                });
+            }, observerOptions);
+
+            if (aboutSection) {
+                observer.observe(aboutSection);
+            }
+
+            // Show/hide elements based on auth state
+            if (document.body.classList.contains("logged-in")) {
+                document.querySelectorAll(".guest-only").forEach(el => el.style.display = "none");
+            } else {
+                document.querySelectorAll(".auth-only").forEach(el => el.style.display = "none");
+            }
+
+            // Profile image fallback
+            const profileImages = document.querySelectorAll('.user-photo-img');
+
+            profileImages.forEach(img => {
+                img.onerror = function() {
+                    const container = this.parentElement;
+                    container.innerHTML = '<span class="material-symbols-outlined icon-placeholder">account_circle</span>';
+                    const placeholder = container.querySelector('.icon-placeholder');
+                    if (container.classList.contains('profile-avatar-large')) {
+                        placeholder.style.fontSize = "100px";
+                    } else {
+                        placeholder.style.fontSize = "38px";
+                    }
+                };
+            });
+
             const tabButtons = document.querySelectorAll('.tab-btn');
             const tabContents = document.querySelectorAll('.tab-content');
 

@@ -712,7 +712,7 @@ img.user-photo-img:after {
     display: flex;
     align-items: flex-start; 
     justify-content: center;
-    padding: 6rem 1rem 3rem;  
+    padding: 5rem 1rem 3rem;  
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     box-sizing: border-box;
     overflow-x: hidden;

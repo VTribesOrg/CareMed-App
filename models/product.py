@@ -87,6 +87,7 @@ class Transaction(db.Model):
     
     fulfillment_type = db.Column(db.String(20), default="Pickup") 
     delivery_status = db.Column(db.String(20), default="N/A") 
+    tracking_status = db.Column(db.String(20), default="SUBMITTED")
     delivery_address = db.Column(db.Text, nullable=True)
     landmark = db.Column(db.String(255), nullable=True) 
 
@@ -107,6 +108,16 @@ class Transaction(db.Model):
         elif self.transaction_type == "Rental":
             return "Rental Transaction"
         return "Transaction"
+    
+    @property
+    def tracking_stage(self):
+        if self.status and self.status.lower() == "cancelled":
+            return "CANCELLED"
+
+        if self.tracking_status:
+            return self.tracking_status.upper()
+
+        return "SUBMITTED"
 
     @property
     def status_badge(self):

@@ -30,100 +30,100 @@
     
     <div class="main-wrapper">
 
-    <aside class="medical-sidebar">
-        <div class="sidebar-header">
-            <div class="sidebar-brand">
-                <span class="nav-label logo-text">Care<span>Med</span></span>
+        <aside class="medical-sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-brand">
+                    <span class="nav-label logo-text">Care<span>Med</span></span>
+                </div>
+                <label for="sidebar-state" class="nav-toggle-label">
+                    <span class="material-symbols-rounded">menu</span>
+                </label>
             </div>
-            <label for="sidebar-state" class="nav-toggle-label">
-                <span class="material-symbols-rounded">menu</span>
-            </label>
-        </div>
 
-        <div class="sidebar-navigation">
-            <ul class="nav-menu">
-                <li class="nav-item" title="Dashboard">
-                    <a href="{{ url_for('admin.dashboard') }}" class="nav-link">
-                        <span class="material-symbols-rounded">monitoring</span>
-                        <span class="nav-label">Dashboard</span>
-                    </a>
-                </li>
+            <div class="sidebar-navigation">
+                <ul class="nav-menu">
+                    <li class="nav-item" title="Dashboard">
+                        <a href="{{ url_for('admin.dashboard') }}" class="nav-link">
+                            <span class="material-symbols-rounded">monitoring</span>
+                            <span class="nav-label">Dashboard</span>
+                        </a>
+                    </li>
 
-                <li class="nav-item" title="Inventory">
-                    <a href="{{ url_for('admin.products') }}" class="nav-link">
-                        <span class="material-symbols-rounded">inventory_2</span>
-                        <span class="nav-label">Inventory</span>
-                    </a>
-                </li>
+                    <li class="nav-item" title="Inventory">
+                        <a href="{{ url_for('admin.products') }}" class="nav-link">
+                            <span class="material-symbols-rounded">inventory_2</span>
+                            <span class="nav-label">Inventory</span>
+                        </a>
+                    </li>
 
-                <li class="nav-item" title="Refill Requests">
-                    <a href="#" class="nav-link">
-                        <span class="material-symbols-rounded">gas_meter</span>
-                        <span class="nav-label">Refill Requests</span>
-                    </a>
-                </li>
+                    <li class="nav-item" title="Refill Requests">
+                        <a href="#" class="nav-link">
+                            <span class="material-symbols-rounded">gas_meter</span>
+                            <span class="nav-label">Refill Requests</span>
+                        </a>
+                    </li>
 
-                <li class="nav-item" title="Customer Records">
-                    <a href="{{ url_for('admin.customers') }}" class="nav-link">
-                        <span class="material-symbols-rounded">groups</span>
-                        <span class="nav-label">Customer Records</span>
-                    </a>
-                </li>
+                    <li class="nav-item" title="Customer Records">
+                        <a href="{{ url_for('admin.customers') }}" class="nav-link">
+                            <span class="material-symbols-rounded">groups</span>
+                            <span class="nav-label">Customer Records</span>
+                        </a>
+                    </li>
 
-                <li class="nav-item" title="Transactions">
-                    <a href="{{ url_for('admin.transactions') }}" class="nav-link active">
-                        <span class="material-symbols-rounded">receipt_long</span>
-                        <span class="nav-label">Transactions</span>
-                    </a>
-                </li>
+                    <li class="nav-item" title="Transactions">
+                        <a href="{{ url_for('admin.transactions') }}" class="nav-link active">
+                            <span class="material-symbols-rounded">receipt_long</span>
+                            <span class="nav-label">Transactions</span>
+                        </a>
+                    </li>
 
-                <li class="nav-item" title="Reporst & Analytics">
-                    <a href="{{ url_for('admin.reports') }}" class="nav-link">
-                        <span class="material-symbols-rounded">analytics</span>
-                        <span class="nav-label">Reports & Analytics</span>
-                    </a>
-                </li>
-                <li class="nav-item" title="Security Center">
-                    <a href="{{ url_for('admin.security_dashboard') }}" class="nav-link">
-                        <span class="material-symbols-rounded">security</span>
-                        <span class="nav-label">Security Center</span>
-                    </a>
-                </li>
-                <li class="nav-item" title="System Logs">
-                    <a href="{{url_for('admin.system_logs')}}" class="nav-link">
-                        <span class="material-symbols-rounded">list_alt</span>
-                        <span class="nav-label">System Logs</span>
-                    </a>
-                </li>
-            </ul>
+                    <li class="nav-item" title="Reporst & Analytics">
+                        <a href="{{ url_for('admin.reports') }}" class="nav-link">
+                            <span class="material-symbols-rounded">analytics</span>
+                            <span class="nav-label">Reports & Analytics</span>
+                        </a>
+                    </li>
+                    <li class="nav-item" title="Security Center">
+                        <a href="{{ url_for('admin.security_dashboard') }}" class="nav-link">
+                            <span class="material-symbols-rounded">security</span>
+                            <span class="nav-label">Security Center</span>
+                        </a>
+                    </li>
+                    <li class="nav-item" title="System Logs">
+                        <a href="{{url_for('admin.system_logs')}}" class="nav-link">
+                            <span class="material-symbols-rounded">list_alt</span>
+                            <span class="nav-label">System Logs</span>
+                        </a>
+                    </li>
+                </ul>
 
-            <div class="sidebar-footer" title="Settings">
-                <a href="javascript:void(0)" class="nav-link settings-link" id="settings-toggle-btn">
-                    <span class="material-symbols-rounded">settings</span>
-                    <span class="nav-label theme-label">Settings &amp; help</span>
-                </a>
+                <div class="sidebar-footer" title="Settings">
+                    <a href="javascript:void(0)" class="nav-link settings-link" id="settings-toggle-btn">
+                        <span class="material-symbols-rounded">settings</span>
+                        <span class="nav-label theme-label">Settings &amp; help</span>
+                    </a>
 
-                <div id="settings-menu-popup" class="settings-menu-popup hidden">
-                    <ul>
-                        <li class="menu-item menu-theme-toggle">
-                            <span class="material-symbols-rounded theme-icon">light_mode</span>
-                            <span class="theme-text">Theme</span>
-                            <span class="material-symbols-rounded chevron">chevron_right</span>
-                        </li>
-                        <li class="menu-item">
-                            <span class="material-symbols-rounded">feedback</span>
-                            <span>Send feedback</span>
-                        </li>
-                        <li class="menu-item menu-help-sub">
-                            <span class="material-symbols-rounded">help</span>
-                            <span>Help</span>
-                            <span class="material-symbols-rounded chevron">chevron_right</span>
-                        </li>
-                    </ul>
+                    <div id="settings-menu-popup" class="settings-menu-popup hidden">
+                        <ul>
+                            <li class="menu-item menu-theme-toggle">
+                                <span class="material-symbols-rounded theme-icon">light_mode</span>
+                                <span class="theme-text">Theme</span>
+                                <span class="material-symbols-rounded chevron">chevron_right</span>
+                            </li>
+                            <li class="menu-item">
+                                <span class="material-symbols-rounded">feedback</span>
+                                <span>Send feedback</span>
+                            </li>
+                            <li class="menu-item menu-help-sub">
+                                <span class="material-symbols-rounded">help</span>
+                                <span>Help</span>
+                                <span class="material-symbols-rounded chevron">chevron_right</span>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
             </div>
-        </div>
-    </aside>
+        </aside>
 
         <div class="viewport-container">
             <header class="system-header">
@@ -204,10 +204,12 @@
                     <section class="details-main-content">                                          
 
                         <div class="action-card">
+
                             <header class="card-header-custom">
                                 <span class="header-label-text">Purchased / Rented Items</span>
                                 <span class="badge-soft-info">{{ txn.transaction_type }}</span>
                             </header>
+
                             <div class="table-container">
                                 <table class="item-list-table">
                                     <thead>
@@ -216,6 +218,9 @@
                                             <th>Qty</th>
                                             <th>Unit Price/Rate</th>
                                             <th class="text-right">Subtotal</th>
+                                            {% if txn.purchases %}
+                                                <th class="text-end">Action</th> 
+                                            {% endif %}
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -228,24 +233,46 @@
                                                 <td>{{ item.quantity }}</td>
                                                 <td>₱{{ "{:,.2f}".format(item.monthly_rate) }}/mo</td>
                                                 <td class="text-right-bold">₱{{ "{:,.2f}".format(item.monthly_rate) }}</td>
+                                                <!-- No TD here because header is hidden -->
                                             </tr>
                                             {% endfor %}
                                         {% elif txn.purchases %}
                                             {% for item in txn.purchases %}
                                             <tr>
                                                 <td>
-                                                    <!-- Displaying Product Name directly -->
                                                     <div class="item-title">{{ item.product.name }}</div>
                                                 </td>
                                                 <td>{{ item.quantity }}</td>
                                                 <td>₱{{ "{:,.2f}".format(item.unit_price) }}</td>
                                                 <td class="text-right-bold">₱{{ "{:,.2f}".format(item.total_price) }}</td>
+                                                <td class="col-action">
+                                                    <div class="action-wrapper d-flex align-items-center justify-content-end">
+                                                        {% if txn.status != 'Closed' and txn.status != 'Cancelled' %}
+                                                            <button type="button" 
+                                                                    class="btn-action-payment btn-add-payment" 
+                                                                    data-txn-id="{{ txn.id }}" 
+                                                                    data-ref="{{ txn.reference_no }}" 
+                                                                    data-balance="{{ txn.total_amount - txn.amount_paid }}"
+                                                                    data-type="Purchase"
+                                                                    data-invoice-id=""> 
+                                                                <i class="material-symbols-rounded">payments</i>
+                                                                <span>Pay Now</span>
+                                                            </button>
+                                                        {% else %}
+                                                            <div class="settled-pill">
+                                                                <span class="material-symbols-rounded">check_circle</span>
+                                                                <span class="settled-text">Settled</span>
+                                                            </div>
+                                                        {% endif %}
+                                                    </div>
+                                                </td>
                                             </tr>
                                             {% endfor %}
                                         {% endif %}
                                     </tbody>
                                 </table>
                             </div>
+
                         </div>
 
                         {% if txn.transaction_type == 'Rental' %}
@@ -400,6 +427,72 @@
                     </section>
 
                     <aside class="details-sidebar">
+
+                        <div class="tracking-sidebar-card">
+                            <div class="tracking-header">
+                                <span class="tracking-label">Order Progress</span>
+                                <span class="status-badge 
+                                    {% if txn.tracking_status == 'DELIVERED' %}delivered
+                                    {% elif txn.tracking_status == 'CANCELED' %}canceled{% endif %}">
+                                    {{ txn.tracking_status }}
+                                </span>
+                            </div>
+
+                            <form action="{{ url_for('admin.update_tracking', txn_id=txn.id) }}" method="POST">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                
+                                <div style="display: flex; flex-direction: column; gap: 8px;">
+                                    
+                                    {% if txn.tracking_status == 'SUBMITTED' %}
+                                        <input type="hidden" name="tracking_status" value="VERIFIED">
+                                        <button type="submit" class="btn-step verify">
+                                            <span class="material-symbols-rounded" style="font-size: 18px;">verified_user</span>
+                                            Verify Order
+                                        </button>
+                                        <button type="submit" name="tracking_status" value="CANCELED" class="btn-outline-danger" onclick="return confirm('Cancel this order?')">
+                                            <span class="material-symbols-rounded" style="font-size: 16px;">cancel</span>
+                                            Cancel Order
+                                        </button>
+
+                                    {% elif txn.tracking_status == 'VERIFIED' %}
+                                        <input type="hidden" name="tracking_status" value="SHIPPED">
+                                        <button type="submit" class="btn-step ship">
+                                            <span class="material-symbols-rounded" style="font-size: 18px;">local_shipping</span>
+                                            Ship Items
+                                        </button>
+                                        <button type="submit" name="tracking_status" value="CANCELLED" class="btn-outline-danger" onclick="return confirm('Cancel this order?')">
+                                            <span class="material-symbols-rounded" style="font-size: 16px;">cancel</span>
+                                            Cancel Order
+                                        </button>
+
+                                    {% elif txn.tracking_status == 'SHIPPED' %}
+                                        <input type="hidden" name="tracking_status" value="DELIVERED">
+                                        <button type="submit" class="btn-step complete">
+                                            <span class="material-symbols-rounded" style="font-size: 18px;">check_circle</span>
+                                            Complete Delivery
+                                        </button>
+                                        <div class="more-actions-container">
+                                            <select name="tracking_status" class="select-override" onchange="if(confirm('Restart status?')) this.form.submit()">
+                                                <option value="" selected disabled>More Actions...</option>
+                                                <option value="SUBMITTED">Restart Status</option>
+                                                <option value="CANCELED">Force Cancel</option>
+                                            </select>
+                                        </div>
+
+                                    {% elif txn.tracking_status == 'DELIVERED' %}
+                                        <div class="tracking-state-info state-finished">
+                                            <span class="material-symbols-rounded" style="font-size: 20px;">auto_awesome</span> Order Delivered
+                                        </div>
+
+                                    {% elif txn.tracking_status == 'CANCELLED' %}
+                                        <div class="tracking-state-info state-voided">
+                                            <span class="material-symbols-rounded" style="font-size: 20px;">block</span> Order Canceled
+                                        </div>
+                                    {% endif %}
+                                    
+                                </div>
+                            </form>
+                        </div>
                         
                     {% if txn.payment_proof %}
                         <div class="summary-side-card" style="border-left: 4px solid #f59e0b; margin-bottom: 20px;">
@@ -526,6 +619,7 @@
 
 
         </div>
+
     </div>
 
 
