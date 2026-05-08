@@ -7,6 +7,7 @@
     <title>{{ product.name }} - CareMed</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded" rel="stylesheet">
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='icons/favicon-circle.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/user/user_products.css') }}">
 
@@ -887,21 +888,42 @@
             </header>
 
             <div class="category-tabs" id="categoryTabs">
-                <button class="tab-btn active" data-cat="All" onclick="setTab(this)">All Equipment</button>
-                <button class="tab-btn" data-cat="Hospital Beds" onclick="setTab(this)">Beds</button>
-                <button class="tab-btn" data-cat="Oxygen Equipment" onclick="setTab(this)">Oxygen</button>
-                <button class="tab-btn" data-cat="Wheelchairs & Mobility" onclick="setTab(this)">Mobility</button>
-                <button class="tab-btn" data-cat="Medical Devices" onclick="setTab(this)">Devices</button>
+
+                <button class="tab-btn {% if current_category == 'All' %}active{% endif %}"
+                        data-cat="All">
+                    All
+                </button>
+
+                <button class="tab-btn {% if current_category == 'Hospital Bed' %}active{% endif %}"
+                        data-cat="Hospital Bed">
+                    Hospital Bed
+                </button>
+
+                <button class="tab-btn {% if current_category == 'Oxygen Equipment' %}active{% endif %}"
+                        data-cat="Oxygen Equipment">
+                    Oxygen Equipment
+                </button>
+
+                <button class="tab-btn {% if current_category == 'Wheelchairs & Mobility' %}active{% endif %}"
+                        data-cat="Wheelchairs & Mobility">
+                    Wheelchairs & Mobility
+                </button>
+
+                <button class="tab-btn {% if current_category == 'Medical Devices' %}active{% endif %}"
+                        data-cat="Medical Devices">
+                    Medical Devices
+                </button>
+
             </div>
 
             <div class="controls-row">
                 <div class="search-box">
                     <span class="material-symbols-outlined search-icon-ui">search</span>
-                    <input type="text" id="productSearch" placeholder="Search equipment..." oninput="renderProducts()">
+                    <input type="text" id="productSearch" value="{{ request.args.get('search', '') }}" placeholder="Search equipment...">
                 </div>
                 <div class="filter-box">
-                    <select id="sortOrder" onchange="renderProducts()">
-                        <option value="default">Sort: Recommended</option>
+                    <select id="sortOrder">
+                        <option value="default">Sort: Default</option>
                         <option value="price-low">Price: Low to High</option>
                         <option value="price-high">Price: High to Low</option>
                     </select>
@@ -979,16 +1001,24 @@
                             {% if product.transaction_type in ['Rent', 'Both'] %}
                                 {% if current_user.is_authenticated %}
                                     {% if product.stock > 0 %}
-
-                                        <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
-                                        class="btn-action btn-rent-outline">
+                                        <button type="button" 
+                                                class="btn-action btn-rent-outline open-rental-btn" 
+                                                data-id="{{ product.id }}" 
+                                                data-name="{{ product.name }}" 
+                                                data-period="{{ product.rent_period or 'Month' }}"
+                                                data-details-url="{{ url_for('user.product_detail', product_id=product.id) }}"
+                                                data-cart-url="{{ url_for('user.add_to_cart', product_id=product.id) }}">
                                             <i class="fa-solid fa-cart-plus"></i> Add Rental
-                                        </a>
+                                        </button>
 
-                                        <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
-                                        class="btn-action btn-rent-outline">
-                                            <i class="fa-solid fa-calendar-day"></i> Rent Now
-                                        </a>
+                                        <form action="{{ url_for('user.add_to_cart', product_id=product.id) }}" method="POST" style="display: contents;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <input type="hidden" name="item_type" value="Rental">
+                                            <input type="hidden" name="next_page" value="cart">
+                                            <button type="submit" class="btn-action btn-rent-outline">
+                                                <i class="fa-solid fa-calendar-day"></i> Rent Now
+                                            </button>
+                                        </form>
 
                                     {% else %}
                                         <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
@@ -1008,19 +1038,20 @@
                                 {% if product.stock > 0 %}
                                     {% if current_user.is_authenticated %}
 
-                                    {% if (product.id, 'Sale') in in_cart_items %}
-                                        <button class="btn-action" disabled style="background: #f1f5f9; color: #16a34a; border: 1px solid #16a34a; cursor: default;">
-                                            <i class="fa-solid fa-check"></i> In Cart
-                                        </button>
-                                    {% else %}
-                                        <form action="{{ url_for('user.add_to_cart', product_id=product.id) }}" method="POST" style="display: contents;">
-                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                            <input type="hidden" name="item_type" value="Sale">
-                                            <button type="submit"  class="btn-action btn-buy-solid" style="background: #fff; color: #16a34a; border: 1px solid #16a34a;">
-                                                <i class="fa-solid fa-cart-plus"></i> Add to Cart
+                                        {% if (product.id, 'Sale') in in_cart_items %}
+                                            <button class="btn-action" disabled style="background: #f1f5f9; color: #16a34a; border: 1px solid #16a34a; cursor: default;">
+                                                <i class="fa-solid fa-check"></i> In Cart
                                             </button>
-                                        </form>
-                                    {% endif %}
+                                        {% else %}
+                                            <form action="{{ url_for('user.add_to_cart', product_id=product.id) }}" method="POST" style="display: contents;">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <input type="hidden" name="item_type" value="Sale">
+                                                <button type="submit" class="btn-action btn-buy-solid" style="background: #fff; color: #16a34a; border: 1px solid #16a34a;">
+                                                    <i class="fa-solid fa-cart-plus"></i> Add to Cart
+                                                </button>
+                                            </form>
+                                        {% endif %}
+
                                         <form action="{{ url_for('user.add_to_cart', product_id=product.id) }}" method="POST" style="display: contents;">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <input type="hidden" name="item_type" value="Sale">
@@ -1029,6 +1060,7 @@
                                                 <i class="fa-solid fa-bolt"></i> Buy Now
                                             </button>
                                         </form>
+
                                     {% else %}
                                         <a href="{{ url_for('auth.login') }}"
                                         class="btn-action btn-buy-solid">
@@ -1082,6 +1114,88 @@
             &copy; 2026 CareMed Medical Systems. All Rights Reserved.
         </div>
     </footer>
+
+    <div id="rentalModal" class="modal-overlay" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-calendar-check"></i> Quick Rental</h3>
+                <button type="button" id="closeModalX" class="close-modal">&times;</button>
+            </div>
+
+            <form action="" method="POST" id="quickRentalForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="item_type" value="Rental">
+                
+                <div class="modal-body">
+                    <h4 id="modalProductName">Medical Equipment Name</h4>
+                    
+                    <div class="rental-inputs">
+                        <div class="input-group">
+                            <label for="startDateInput">Start Date</label>
+                            <input type="date" name="start_date" id="startDateInput" required class="modal-field">
+                        </div>
+                        
+                        <div class="input-group">
+                            <label>Duration (<span id="modalRentPeriod">Month</span>)</label>
+                            <input type="number" name="duration" min="1" value="1" class="modal-field">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <a id="viewDetailsLink" href="#" class="btn-text-only">View Details</a>
+                    <div class="footer-btns">
+                        <button type="button" id="closeModalBtn" class="btn-cancel">Cancel</button>
+                        <button type="submit" class="btn-confirm-rent">
+                            <i class="fa-solid fa-cart-plus"></i> Add to Cart
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="main-toast-container" class="toast-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="medical-toast {{ category or 'info' }}" role="alert">
+                        <div class="toast-progress"></div>
+                        <span class="material-symbols-rounded toast-icon">
+                            {% if category == 'success' %}check_circle
+                            {% elif category == 'error' %}error
+                            {% elif category == 'warning' %}warning
+                            {% else %}info{% endif %}
+                        </span>
+                        <div class="toast-content">
+                            <span class="toast-title">{{ category|capitalize or 'Notice' }}</span>
+                            <span class="toast-message">{{ message|replace('\n', '<br>')|safe }}</span>
+                        </div>
+                        <button type="button" class="toast-close">
+                            <span class="material-symbols-rounded">X</span>
+                        </button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <template id="toast-template">
+        <div class="medical-toast" role="alert">
+            <div class="toast-progress"></div> <span class="material-symbols-rounded toast-icon"></span>
+            <div class="toast-content">
+                <span class="toast-title"></span>
+                <span class="toast-message"></span>
+            </div>
+            <button type="button" class="toast-close">
+                <span class="material-symbols-rounded">X</span>
+            </button>
+        </div>
+    </template>
+
+    <script nonce="{{ csp_nonce() }}">
+        const PRODUCTS_URL = "{{ url_for('user.products') }}";
+    </script>
 
     <script src="{{ url_for('static', filename='js/users/products.js') }}"></script>
 

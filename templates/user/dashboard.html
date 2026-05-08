@@ -22,20 +22,20 @@
                 border-bottom: 2px solid #71b345; 
         }
 
-        @keyframes pulse-orange {
-                0% { box-shadow: 0 0 0 0px rgba(249, 115, 22, 0.5); }
-                70% { box-shadow: 0 0 0 10px rgba(249, 115, 22, 0); }
-                100% { box-shadow: 0 0 0 0px rgba(249, 115, 22, 0); }
-            }
+        @keyframes orangeGlow {
+            0% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.6); }
+            70% { box-shadow: 0 0 0 10px rgba(249, 115, 22, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); }
+        }
 
-            .pulse-active {
-                animation: pulse-orange 2s infinite;
-            }
+        .step-icon.is-current {
+            animation: orangeGlow 1.6s infinite;
+            box-shadow: 0 0 0 1px #f97316;
+        }
 
-            /* Transition for smooth color changes */
-            .step-line {
-                transition: background 0.4s ease-in-out;
-            }
+        .step-line {
+            transition: background 0.4s ease-in-out;
+        }
     </style>
 </head>
 
@@ -250,18 +250,6 @@
 
                     {% if all_transactions %}
                         {% for order in all_transactions %}
-                            {% set stage_map = {
-                                'SUBMITTED': 'SUBMITTED',
-                                'VERIFIED': 'VERIFYING',
-                                'SHIPPED': 'SHIPPING',
-                                'DELIVERED': 'DELIVERED'
-                            } %}
-
-                            {% set current_display_stage = stage_map.get(order.tracking_stage, 'SUBMITTED') %}
-                            {% set steps = ['SUBMITTED', 'VERIFYING', 'SHIPPING', 'DELIVERED'] %}
-                            
-                            {% set stage_index = steps.index(current_display_stage) if current_display_stage in steps else 0 %}
-
                             <div class="tracking-card" style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
                                 
                                 <div class="tracking-header" style="display: flex; gap: 16px; align-items: center; margin-bottom: 25px; border-bottom: 1px solid #f1f5f9; padding-bottom: 20px;">
@@ -313,66 +301,113 @@
                                         </div>
                                     </div>
                                 {% else %}
-                                
-                                <div class="progress-wrapper" style="position: relative; padding: 10px 0;">
-                                    <div class="track-line" style="position: absolute; top: 26px; left: 0; right: 0; height: 2px; background: #e2e8f0; z-index: 1;"></div>
                                     
-                                    <div class="progress-container" style="display: flex; justify-content: space-between; position: relative; z-index: 2; padding: 0 10px;">
-                                        {% for step in steps %}
+                                    {# ==========================================
+                                    CORE TRACKING LOGIC 
+                                    ========================================== #}
+                                    {% set state = order.tracking_stage %}
+                                    {% set steps_list = ['SUBMITTED', 'VERIFYING', 'SHIPPING', 'DELIVERED'] %}
+
+                                    {# Assign numeric index to current state #}
+                                    {% set current_index = 0 %}
+                                    {% if state == 'VERIFIED' %}{% set current_index = 1 %}
+                                    {% elif state == 'SHIPPED' %}{% set current_index = 2 %}
+                                    {% elif state == 'DELIVERED' %}{% set current_index = 3 %}
+                                    {% endif %}
+
+                                    <div class="progress-container" style="display: flex; justify-content: space-between; position: relative; z-index: 3; padding: 0 10px; margin-top: 20px;">
+
+                                        {% for step_name in steps_list %}
                                             {% set i = loop.index0 %}
 
-                                            {# Logic for highlights #}
-                                            {% set is_completed = i <= stage_index %}
-                                            {% set is_current = i == stage_index and order.tracking_stage != 'DELIVERED' %}
-                                            
-                                            {# Color Assignment #}
-                                            {% set step_color = '#22c55e' if is_completed else '#e2e8f0' %}
-                                            {% if is_current and current_display_stage != 'SUBMITTED' %}
-                                                {% set step_color = '#f97316' %}
+                                            {# Define defaults #}
+                                            {% set is_green = false %}
+                                            {% set is_orange = false %}
+                                            {% set is_pulse = false %}
+                                            {% set line_color = '#e2e8f0' %}
+
+                                            {# Logic for Icons #}
+                                            {% if i <= current_index %}
+                                                {# Current and finished icons are green #}
+                                                {% set is_green = true %}
+                                            {% elif i == current_index + 1 %}
+                                                {# The very next icon is orange + pulse #}
+                                                {% set is_orange = true %}
+                                                {% set is_pulse = true %}
                                             {% endif %}
 
-                                            {# Line Color logic #}
-                                            {% set line_color = '#22c55e' if i < stage_index else '#e2e8f0' %}
+                                            {# Logic for Lines #}
+                                            {% if i < current_index %}
+                                                {# Lines between completed steps are green #}
+                                                {% set line_color = '#22c55e' %} 
+                                            {% elif i == current_index %}
+                                                {% if state == 'DELIVERED' %}
+                                                    {% set line_color = '#22c55e' %}
+                                                {% else %}
+                                                    {# The line to the right of the current step is orange #}
+                                                    {% set line_color = '#f97316' %} 
+                                                {% endif %}
+                                            {% endif %}
+
+                                            {# Delivered state override: no pulse #}
+                                            {% if state == 'DELIVERED' %}
+                                                {% set is_pulse = false %}
+                                            {% endif %}
+
+                                            {# Determine the CSS background color #}
+                                            {% set step_bg = '#e2e8f0' %}
+                                            {% if is_green %}{% set step_bg = '#22c55e' %}
+                                            {% elif is_orange %}{% set step_bg = '#f97316' %}
+                                            {% endif %}
 
                                             <div class="track-step" style="text-align: center; flex: 1; position: relative;">
+
+                                                {# THE LINE ELEMENT #}
                                                 {% if not loop.last %}
-                                                    <div class="step-line" style="position: absolute; top: 16px; left: 50%; width: 100%; height: 3px; background: {{ line_color }}; z-index: -1; transition: background 0.4s ease;"></div>
+                                                    <div class="step-line"
+                                                        style="position: absolute; top: 16px; left: 50%; width: 100%; height: 3px;
+                                                                background: {{ line_color }};
+                                                                z-index: -1; transition: background 0.4s ease;">
+                                                    </div>
                                                 {% endif %}
 
-                                                <div class="{{ 'pulse-active' if is_current }}" 
-                                                    style="width: 32px; height: 32px; border-radius: 50%; 
-                                                            background: {{ step_color }}; 
-                                                            color: {{ 'white' if is_completed else '#94a3b8' }}; 
-                                                            display: flex; align-items: center; justify-content: center; 
-                                                            margin: 0 auto 10px; border: 3px solid #fff; 
-                                                            box-shadow: 0 0 0 1px {{ step_color }}; 
-                                                            transition: all 0.3s ease; position: relative; z-index: 2;">
-                                                    
-                                                    {% if step == 'SUBMITTED' %}<i class="fa-solid fa-check"></i>
-                                                    {% elif step == 'VERIFYING' %}<i class="fa-solid fa-magnifying-glass"></i>
-                                                    {% elif step == 'SHIPPING' %}<i class="fa-solid fa-truck-fast"></i>
-                                                    {% elif step == 'DELIVERED' %}<i class="fa-solid fa-house-medical"></i>
+                                                {# THE ICON ELEMENT #}
+                                                <div class="step-icon {% if is_pulse %}is-current{% endif %}"
+                                                    style="width: 32px; height: 32px; border-radius: 50%;
+                                                            background: {{ step_bg }};
+                                                            color: white;
+                                                            display: flex; align-items: center; justify-content: center;
+                                                            margin: 0 auto 10px; border: 3px solid #fff;
+                                                            box-shadow: 0 0 0 1px {{ step_bg }};
+                                                            transition: all 0.4s ease; position: relative; z-index: 2;">
+
+                                                    {% if step_name == 'SUBMITTED' %}<i class="fa-solid fa-check"></i>
+                                                    {% elif step_name == 'VERIFYING' %}<i class="fa-solid fa-magnifying-glass"></i>
+                                                    {% elif step_name == 'SHIPPING' %}<i class="fa-solid fa-truck-fast"></i>
+                                                    {% elif step_name == 'DELIVERED' %}<i class="fa-solid fa-house-medical"></i>
                                                     {% endif %}
                                                 </div>
 
-                                                <span style="display: block; font-size: 0.7rem; font-weight: 700; color: {{ '#1e293b' if is_completed else '#94a3b8' }}; text-transform: uppercase;">
-                                                    {{ step }}
+                                                {# STEP LABEL #}
+                                                <span style="display: block; font-size: 0.7rem; font-weight: 700;
+                                                            color: {{ '#1e293b' if is_green else '#94a3b8' }};
+                                                            text-transform: uppercase;">
+                                                    {{ step_name }}
                                                 </span>
                                             </div>
                                         {% endfor %}
                                     </div>
-                                </div>
 
-                                {% if order.tracking_stage in ['SUBMITTED', 'VERIFIED'] %}
-                                    <div style="margin-top: 25px; border-top: 1px solid #f1f5f9; padding-top: 15px; text-align: right;">
-                                        <form action="{{ url_for('user.cancel_order', order_id=order.id) }}" method="POST" onsubmit="return confirm('Are you sure you want to cancel this order?');">
-                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                            <button type="submit" style="background: none; border: 1px solid #cbd5e1; color: #64748b; padding: 6px 12px; border-radius: 6px; font-size: 0.8rem; cursor: pointer;">
-                                                <i class="fa-solid fa-xmark"></i> Cancel Order
-                                            </button>
-                                        </form>
-                                    </div>
-                                {% endif %}
+                                    {% if order.tracking_stage in ['SUBMITTED', 'VERIFIED'] %}
+                                        <div style="margin-top: 25px; border-top: 1px solid #f1f5f9; padding-top: 15px; text-align: right;">
+                                            <form action="{{ url_for('user.cancel_order', order_id=order.id) }}" method="POST" onsubmit="return confirm('Are you sure you want to cancel this order?');">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <button type="submit" style="background: none; border: 1px solid #cbd5e1; color: #64748b; padding: 6px 12px; border-radius: 6px; font-size: 0.8rem; cursor: pointer;">
+                                                    <i class="fa-solid fa-xmark"></i> Cancel Order
+                                                </button>
+                                            </form>
+                                        </div>
+                                    {% endif %}
                                 {% endif %}
                             </div>
                         {% endfor %}
@@ -384,6 +419,8 @@
                     {% endif %}
                 </div>
             </div>
+
+
 
             <div id="rentals" class="tab-content" style="display:none;">
                 <div class="content-card">
@@ -445,7 +482,7 @@
                         <div class="empty-state" style="text-align: center; padding: 40px; color: #64748b;">
                             <i class="fa-solid fa-hand-holding-medical" style="font-size: 2rem; margin-bottom: 10px;"></i>
                             <p>No active rentals found. Items will appear here once they are delivered.</p>
-                            <a href="{{ url_for('user.products') }}" class="btn-primary" style="display: inline-block; margin-top: 15px; text-decoration: none; background: #2563eb; color: white; padding: 10px 20px; border-radius: 6px;">Rent Equipment</a>
+                            <a href="{{ url_for('user.products') }}" class="btn-primary" style="display: inline-block; margin-top: 15px; text-decoration: none; background: #71b345; color: white; padding: 10px 20px; border-radius: 6px;">Rent Equipment</a>
                         </div>
                     {% endif %}
                 </div>
