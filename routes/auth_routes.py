@@ -36,6 +36,17 @@ BOT_PATTERNS = [
     'scrapy', 'bot', 'crawler', 'spider'
 ]
 
+def is_strong_password(password):
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters"
+    if not re.search(r'[A-Z]', password):
+        return False, "Password must contain at least one uppercase letter"
+    if not re.search(r'[0-9]', password):
+        return False, "Password must contain at least one number"
+    if not re.search(r'[!@#$%^&*(),.?\":{}|<>]', password):
+        return False, "Password must contain at least one special character"
+    return True, "OK"
+
 def check_bot_user_agent():
     user_agent = request.headers.get('User-Agent', '').strip()
 
@@ -226,13 +237,43 @@ def login():
             if user.failed_login_attempts >= 5:
                 user.account_locked_until = now + timedelta(minutes=15)
                 user.lock_reason = "Too many failed login attempts"
+                db.session.commit()
+
+                # Send lockout notification
+                try:
+                    lock_msg = Message(
+                        subject="CareMed — Account Temporarily Locked",
+                        sender=current_app.config.get('MAIL_DEFAULT_SENDER'),
+                        recipients=[user.email]
+                    )
+
+                    lock_msg.body = f"""
+                            Hello {user.first_name},
+
+                            Your CareMed account has been temporarily locked
+                            due to 5 consecutive failed login attempts.
+
+                            It will be automatically unlocked after 15 minutes.
+
+                            Time      : {datetime.utcnow().strftime('%B %d, %Y %I:%M %p')} UTC
+                            IP Address: {request.remote_addr}
+
+                            If this was not you, reset your password immediately.
+                        """
+
+                    mail.send(lock_msg)
+
+                except Exception:
+                    pass
+
                 log_security_event(
                     "Account Lockout",
-                    f"Account locked after {user.failed_login_attempts} failed attempts: {email}",
+                    f"Account locked after 5 failed attempts: {user.email}",
                     user=user,
                     is_suspicious=True,
                     severity='Critical'
                 )
+
             else:
                 log_security_event(
                     "Failed Login",
@@ -242,7 +283,8 @@ def login():
                     severity='Medium' if user.failed_login_attempts >= 3 else 'Low'
                 )
 
-            db.session.commit()
+                db.session.commit()
+
             flash("Wrong email or password", "password-error")
             return redirect(url_for("auth.login"))
 
@@ -272,6 +314,28 @@ def login():
 
         login_user(user, remember=form.remember_me.data if hasattr(form, 'remember_me') else True)
         session.permanent = True
+        
+        # Send login notification email
+        try:
+            login_msg = Message(
+                subject="CareMed — New Login Detected",
+                sender=current_app.config.get('MAIL_DEFAULT_SENDER'),
+                recipients=[user.email]
+            )
+            login_msg.body = f"""
+        Hello {user.first_name},
+
+        A new login was detected on your CareMed account.
+
+        Time      : {datetime.utcnow().strftime('%B %d, %Y %I:%M %p')} UTC
+        IP Address: {request.remote_addr}
+        Device    : {request.headers.get('User-Agent', 'Unknown')[:100]}
+
+        If this was not you, please reset your password immediately.
+            """
+            mail.send(login_msg)
+        except Exception:
+            pass  
 
         if user.role == "Administrator":
             return redirect(url_for("admin.dashboard"))
@@ -282,6 +346,7 @@ def login():
 
 
 @auth_bp.route("/register", methods=["GET", "POST"])
+@limiter.limit("5 per minute; 20 per hour")
 def register():
     form = RegisterForm()
 
@@ -292,6 +357,11 @@ def register():
         phone = form.phone.data.strip()
         address = form.address.data.strip().title()
         password = form.password.data
+        strong, msg = is_strong_password(password)
+        
+        if not strong:
+            flash(msg, "error")
+            return render_template("authentication/registration.html", form=form)
         
         # IDS: log registration attempt
         log_security_event(
