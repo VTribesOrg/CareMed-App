@@ -25,11 +25,26 @@ def administrator_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if current_user.role.strip() != 'Administrator':
+            # IDS: log unauthorized admin access
+            try:
+                log = SecurityLog(
+                    ip_address=request.remote_addr,
+                    event_type="Unauthorized Admin Access",
+                    description=f"Non-admin user tried to access: {request.path}",
+                    user_id=current_user.id if current_user.is_authenticated else None,
+                    user_email=current_user.email if current_user.is_authenticated else None,
+                    user_agent=request.headers.get('User-Agent', 'Unknown')[:255],
+                    severity='High',
+                    is_suspicious=True
+                )
+                db.session.add(log)
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
             flash("Unauthorized access.", "error")
             return redirect(url_for('user.homepage'))
         return f(*args, **kwargs)
     return decorated_function
-
 
 
 @admin_bp.route('/dashboard')
