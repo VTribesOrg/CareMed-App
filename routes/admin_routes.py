@@ -49,6 +49,7 @@ def administrator_required(f):
 
 @admin_bp.route('/dashboard')
 @login_required
+@administrator_required
 def dashboard():
     total_sales = db.session.query(func.sum(Transaction.amount_paid)).filter_by(transaction_type='Sale').scalar() or 0
     total_rentals = db.session.query(func.sum(Payment.amount)).join(Transaction).filter(
@@ -169,6 +170,8 @@ def get_customer(id):
 
 
 @admin_bp.route('/customers/<int:id>')
+@login_required
+@administrator_required
 def customer_details(id):
     customer = Customer.query.get_or_404(id)
 
@@ -177,6 +180,8 @@ def customer_details(id):
     return render_template('admin/customer_details.html', customer=customer, transactions=transactions)
 
 @admin_bp.route('/customers/<int:id>/verify', methods=['POST'])
+@login_required
+@administrator_required
 def verify_customer(id):
     customer = Customer.query.get_or_404(id)
     
@@ -196,6 +201,8 @@ def verify_customer(id):
     return redirect(url_for('admin.customer_details', id=id))
 
 @admin_bp.route('/customers/<int:id>/unverify', methods=['POST'])
+@login_required
+@administrator_required
 def unverify_customer(id):
     customer = Customer.query.get_or_404(id)
     
