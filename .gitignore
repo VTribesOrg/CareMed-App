@@ -17,3 +17,5 @@ ENV/
 *.msi
 *.exe
 *.zip
+backups/
+*.sql

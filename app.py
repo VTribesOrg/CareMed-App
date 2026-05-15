@@ -7,6 +7,8 @@ from models.customer import Customer
 from models.product import Product, Purchase, Rental, InventoryLog
 from flask_talisman import Talisman
 from models.users import SecurityLog, BlockedIP
+from apscheduler.schedulers.background import BackgroundScheduler
+import atexit
 
 app = Flask(__name__)
 
@@ -135,6 +137,22 @@ app.register_blueprint(auth_bp)
 
 from routes.admin_routes import admin_bp
 app.register_blueprint(admin_bp)
+
+# ── Auto Backup Scheduler ──────────────────────
+from utils.backup import auto_backup
+if not app.debug or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(
+        func=auto_backup,
+        trigger='cron',
+        hour=0,
+        minute=0,
+        id='daily_backup',
+        replace_existing=True
+    )
+    scheduler.start()
+    atexit.register(lambda: scheduler.shutdown())
+    print("[Backup] Scheduler started — auto backup runs every midnight")
 
 
 if __name__ == "__main__":

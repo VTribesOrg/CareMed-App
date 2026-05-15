@@ -18,6 +18,8 @@ from sqlalchemy.orm import joinedload, selectinload
 import os
 import uuid
 import random, string
+from utils.backup import create_backup, get_all_backups
+from flask import send_file
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -1643,3 +1645,92 @@ def clear_security_logs():
         db.session.rollback()
         flash(f"Error clearing logs: {str(e)}", "error")
     return redirect(url_for('admin.security_dashboard'))
+
+# ── Backup Management ──────────────────────────
+@admin_bp.route('/backup')
+@login_required
+@administrator_required
+def backup_page():
+    backups = get_all_backups()
+    total_size = sum(b['size_kb'] for b in backups)
+    return render_template('admin/backup.html', backups=backups, total_size=round(total_size, 2))
+
+
+@admin_bp.route('/backup/create', methods=['POST'])
+@login_required
+@administrator_required
+def create_manual_backup():
+    success, result = create_backup(triggered_by='admin')
+
+    try:
+        log = SecurityLog(
+            ip_address=request.remote_addr,
+            event_type="Manual Backup Created" if success else "Backup Failed",
+            description=f"Admin triggered manual backup. Result: {result}",
+            user_id=current_user.id,
+            user_email=current_user.email,
+            user_agent=request.headers.get('User-Agent', 'Unknown')[:255],
+            severity='Low',
+            is_suspicious=False
+        )
+        db.session.add(log)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+    if success:
+        flash(f"Backup created successfully: {result}", "success")
+    else:
+        flash(f"Backup failed: {result}", "error")
+
+    return redirect(url_for('admin.backup_page'))
+
+
+@admin_bp.route('/backup/download/<filename>')
+@login_required
+@administrator_required
+def download_backup(filename):
+    # Prevent path traversal attack
+    if '..' in filename or '/' in filename or '\\' in filename:
+        flash("Invalid filename.", "error")
+        return redirect(url_for('admin.backup_page'))
+
+    filepath = os.path.join('backups', filename)
+    if not os.path.exists(filepath):
+        flash("Backup file not found.", "error")
+        return redirect(url_for('admin.backup_page'))
+
+    try:
+        log = SecurityLog(
+            ip_address=request.remote_addr,
+            event_type="Backup Downloaded",
+            description=f"Admin downloaded backup: {filename}",
+            user_id=current_user.id,
+            user_email=current_user.email,
+            severity='Low',
+            is_suspicious=False
+        )
+        db.session.add(log)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+    return send_file(filepath, as_attachment=True, download_name=filename, mimetype='application/sql')
+
+
+@admin_bp.route('/backup/delete/<filename>', methods=['POST'])
+@login_required
+@administrator_required
+def delete_backup(filename):
+    if '..' in filename or '/' in filename or '\\' in filename:
+        flash("Invalid filename.", "error")
+        return redirect(url_for('admin.backup_page'))
+
+    filepath = os.path.join('backups', filename)
+    if os.path.exists(filepath):
+        os.remove(filepath)
+        flash(f"Backup deleted successfully.", "success")
+    else:
+        flash("Backup file not found.", "error")
+
+    return redirect(url_for('admin.backup_page'))
