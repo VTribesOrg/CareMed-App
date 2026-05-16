@@ -193,17 +193,36 @@ def login():
 
         user = User.query.filter_by(email=email).first()
 
+        # -- Unknown email
         if not user:
             passhasher.hash("dummy_password")
+
+            # Count recent failed attempts from this IP
+            cutoff = datetime.utcnow() - timedelta(minutes=10)
+            recent_attempts = SecurityLog.query.filter(
+                SecurityLog.ip_address == request.remote_addr,
+                SecurityLog.event_type == "Failed Login",
+                SecurityLog.created_at >= cutoff
+            ).count()
+
+            # Only mark suspicious after 3rd attempt
             log_security_event(
                 "Failed Login",
                 f"Login attempt for unknown email: {email}",
-                is_suspicious=True,
-                severity='High'
+                is_suspicious=recent_attempts >= 3,
+                severity='High' if recent_attempts >= 3 else 'Low'
             )
             flash("Wrong email or password", "password-error")
             return redirect(url_for("auth.login"))
 
+        # -- Auto-clear expired lock
+        if user.account_locked_until and user.account_locked_until <= now:
+            user.account_locked_until = None
+            user.failed_login_attempts = 0
+            user.lock_reason = None
+            db.session.commit()
+
+        # -- Account still locked
         if user.account_locked_until and user.account_locked_until > now:
             log_security_event(
                 "Locked Account Access Attempt",
@@ -215,11 +234,13 @@ def login():
             flash("Your account is temporarily locked. Please try again later.", "password-error")
             return redirect(url_for("auth.login"))
 
+        # -- Email not verified
         if not user.is_verified:
             flash("Please verify your email before logging in.", "email-error")
             session['login_email'] = email
             return redirect(url_for("auth.login"))
 
+        # -- Verify password
         try:
             is_valid = passhasher.verify(user.password_hash, password)
         except VerifyMismatchError:
@@ -230,7 +251,7 @@ def login():
             flash("An unexpected error occurred. Please try again.", "password-error")
             return redirect(url_for("auth.login"))
 
-        # ── Wrong password
+        # -- Wrong password
         if not is_valid:
             user.failed_login_attempts += 1
 
@@ -246,23 +267,20 @@ def login():
                         sender=current_app.config.get('MAIL_DEFAULT_SENDER'),
                         recipients=[user.email]
                     )
-
                     lock_msg.body = f"""
-                            Hello {user.first_name},
+Hello {user.first_name},
 
-                            Your CareMed account has been temporarily locked
-                            due to 5 consecutive failed login attempts.
+Your CareMed account has been temporarily locked
+due to 5 consecutive failed login attempts.
 
-                            It will be automatically unlocked after 15 minutes.
+It will be automatically unlocked after 15 minutes.
 
-                            Time      : {datetime.utcnow().strftime('%B %d, %Y %I:%M %p')} UTC
-                            IP Address: {request.remote_addr}
+Time      : {datetime.utcnow().strftime('%B %d, %Y %I:%M %p')} UTC
+IP Address: {request.remote_addr}
 
-                            If this was not you, reset your password immediately.
-                        """
-
+If this was not you, reset your password immediately.
+                    """
                     mail.send(lock_msg)
-
                 except Exception:
                     pass
 
@@ -282,13 +300,12 @@ def login():
                     is_suspicious=(user.failed_login_attempts >= 3),
                     severity='Medium' if user.failed_login_attempts >= 3 else 'Low'
                 )
-
                 db.session.commit()
 
             flash("Wrong email or password", "password-error")
             return redirect(url_for("auth.login"))
 
-        # ── Successful login
+        # -- Successful login
         prev_failures = user.failed_login_attempts
 
         user.failed_login_attempts = 0
@@ -314,7 +331,7 @@ def login():
 
         login_user(user, remember=form.remember_me.data if hasattr(form, 'remember_me') else True)
         session.permanent = True
-        
+
         # Send login notification email
         try:
             login_msg = Message(
@@ -323,19 +340,19 @@ def login():
                 recipients=[user.email]
             )
             login_msg.body = f"""
-        Hello {user.first_name},
+                Hello {user.first_name},
 
-        A new login was detected on your CareMed account.
+                A new login was detected on your CareMed account.
 
-        Time      : {datetime.utcnow().strftime('%B %d, %Y %I:%M %p')} UTC
-        IP Address: {request.remote_addr}
-        Device    : {request.headers.get('User-Agent', 'Unknown')[:100]}
+                Time      : {datetime.utcnow().strftime('%B %d, %Y %I:%M %p')} UTC
+                IP Address: {request.remote_addr}
+                Device    : {request.headers.get('User-Agent', 'Unknown')[:100]}
 
-        If this was not you, please reset your password immediately.
+                If this was not you, please reset your password immediately.
             """
             mail.send(login_msg)
         except Exception:
-            pass  
+            pass
 
         if user.role == "Administrator":
             return redirect(url_for("admin.dashboard"))
@@ -343,7 +360,6 @@ def login():
         return redirect(url_for("user.homepage"))
 
     return render_template("authentication/login.html", form=form, email_value=email_value)
-
 
 @auth_bp.route("/register", methods=["GET", "POST"])
 @limiter.limit("5 per minute; 20 per hour")
