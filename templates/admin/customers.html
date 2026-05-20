@@ -1,809 +1,550 @@
-<!DOCTYPE html>
-<html lang="en">
+{% extends "admin/nav_base.html" %}
 
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CareMed</title>
-    <link rel="icon" type="image/png" href="{{ url_for('static', filename='icons/favicon-circle.png') }}">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin/admin_customer.css') }}">    
-</head>
-    <style>
-        .medical-sidebar, .viewport-container, .nav-label, .logo-text {
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-    </style>
-<body>
-    
-    <input type="checkbox" id="sidebar-state" hidden>
-    <script nonce="{{ csp_nonce() }}">
-        (function() {
-            const checkbox = document.getElementById('sidebar-state');
-            const savedState = localStorage.getItem('sidebar-collapsed');
-            if (savedState === 'true') {
-                checkbox.checked = false;
-            } else {
-                checkbox.checked = true;
-            }
-            document.body.classList.add('ready');
-        })();
-    </script>
+{% block title %}Customer Management{% endblock %}
+{% block page_title %}Customer Management{% endblock %}
 
-    <div class="main-wrapper">
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/admin_customer.css') }}">
+<style>
+    .medical-sidebar, .viewport-container, .nav-label, .logo-text {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+</style>
+{% endblock %}
 
-        <aside class="medical-sidebar">
-            <div class="sidebar-header">
-                <div class="sidebar-brand">
-                    <div class="brand-icon-plus">
-                        <div class="box blue top"></div>
-                        <div class="box green left"></div>
-                        <div class="box green right"></div>
-                        <div class="box blue bottom"></div>
-                    </div>
+{% block content %}
 
-                    <div class="nav-label logo-text">
-                        Care<span>Med</span>
-                    </div>
-                </div>
-
-                <label for="sidebar-state" class="nav-toggle-label">
-                    <span class="material-symbols-rounded">menu</span>
-                </label>
-            </div>
-
-            <div class="sidebar-navigation">
-                <ul class="nav-menu">
-                    <li class="nav-item" title="Dashboard">
-                        <a href="{{ url_for('admin.dashboard') }}" class="nav-link">
-                            <span class="material-symbols-rounded">monitoring</span>
-                            <span class="nav-label">Dashboard</span>
-                        </a>
-                    </li>
-
-                    <li class="nav-item" title="Inventory">
-                        <a href="{{ url_for('admin.products') }}" class="nav-link">
-                            <span class="material-symbols-rounded">inventory_2</span>
-                            <span class="nav-label">Inventory</span>
-                        </a>
-                    </li>
-
-                    <li class="nav-item" title="Refill Requests">
-                        <a href="#" class="nav-link">
-                            <span class="material-symbols-rounded">gas_meter</span>
-                            <span class="nav-label">Refill Requests</span>
-                        </a>
-                    </li>
-
-                    <li class="nav-item" title="Customer Records">
-                        <a href="{{ url_for('admin.customers') }}" class="nav-link active">
-                            <span class="material-symbols-rounded">groups</span>
-                            <span class="nav-label">Customer Records</span>
-                        </a>
-                    </li>
-
-                    <li class="nav-item" title="Transactions">
-                        <a href="{{ url_for('admin.transactions') }}" class="nav-link">
-                            <span class="material-symbols-rounded">receipt_long</span>
-                            <span class="nav-label">Transactions</span>
-                        </a>
-                    </li>
-
-                    <li class="nav-item" title="Reporst & Analytics">
-                        <a href="{{ url_for('admin.reports') }}" class="nav-link">
-                            <span class="material-symbols-rounded">analytics</span>
-                            <span class="nav-label">Reports & Analytics</span>
-                        </a>
-                    </li>
-                    <li class="nav-item" title="Security Center">
-                        <a href="{{ url_for('admin.security_dashboard') }}" class="nav-link">
-                            <span class="material-symbols-rounded">security</span>
-                            <span class="nav-label">Security Center</span>
-                        </a>
-                    </li>
-                    <li class="nav-item" title="System Logs">
-                        <a href="{{url_for('admin.system_logs')}}" class="nav-link">
-                            <span class="material-symbols-rounded">list_alt</span>
-                            <span class="nav-label">System Logs</span>
-                        </a>
-                    </li>
-                </ul>
-
-                <div class="sidebar-footer" title="Settings">
-                    <a href="javascript:void(0)" class="nav-link settings-link" id="settings-toggle-btn">
-                        <span class="material-symbols-rounded">settings</span>
-                        <span class="nav-label theme-label">Settings &amp; help</span>
-                    </a>
-
-                    <div id="settings-menu-popup" class="settings-menu-popup hidden">
-                        <ul>
-                            <li class="menu-item menu-theme-toggle">
-                                <span class="material-symbols-rounded theme-icon">light_mode</span>
-                                <span class="theme-text">Theme</span>
-                                <span class="material-symbols-rounded chevron">chevron_right</span>
-                            </li>
-                            <li class="menu-item">
-                                <span class="material-symbols-rounded">feedback</span>
-                                <span>Send feedback</span>
-                            </li>
-                            <li class="menu-item menu-help-sub">
-                                <span class="material-symbols-rounded">help</span>
-                                <span>Help</span>
-                                <span class="material-symbols-rounded chevron">chevron_right</span>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </aside>
-
-        <div class="viewport-container">
-            <header class="system-header">
-                <h1>Customer Management</h1>
-
-                <div class="header-actions">
-                    <div class="action-item">
-                        <button class="icon-btn" id="notif-btn">
-                            <span class="material-symbols-rounded">notifications</span>
-                            <span class="notification-badge">3</span>
-                        </button>
-                        <div class="header-dropdown" id="notif-dropdown">
-                            <div class="dropdown-header">Notifications</div>
-                            <a href="#" class="dropdown-item">
-                                <span class="material-symbols-rounded" style="color:#f97316">warning</span>
-                                <div>
-                                    <p style="margin:0; font-weight:600">Overdue Return</p>
-                                    <small>Oxygen Tank #7721 is late</small>
-                                </div>
-                            </a>
-                            <a href="#" class="dropdown-item">
-                                <span class="material-symbols-rounded" style="color:#00a8cc">inventory</span>
-                                <div>
-                                    <p style="margin:0; font-weight:600">Low Stock</p>
-                                    <small>Wheelchairs below threshold</small>
-                                </div>
-                            </a>
-                        </div>
-                    </div>
-
-                    <div class="action-item">
-                        <div class="clinical-user" id="profile-btn">
-                            <div class="user-info">
-                                <span class="user-name">{{ current_user.first_name}} {{ current_user.last_name}}</span>
-                                <span class="user-role">{{ current_user.role }}</span>
-                            </div>
-                            <div class="user-avatar" id="avatar-wrapper">
-                                <span class="material-symbols-rounded" id="avatar-icon">person</span>
-
-                                <img src="" alt="User" id="header-avatar-img" class="hidden">
-                            </div>
-                        </div>
-                        <div class="header-dropdown" id="profile-dropdown">
-                            <div class="dropdown-header">My Account</div>
-                            <a href="{{ url_for('admin.profile') }}" class="dropdown-item">
-                                <span class="material-symbols-rounded">person</span>Profile Settings
-                            </a>
-                            <a href="#" class="dropdown-item">
-                                <span class="material-symbols-rounded">security</span>Activity Log
-                            </a>
-                            <a href="{{ url_for('auth.logout') }}" class="dropdown-item logout">
-                                <span class="material-symbols-rounded">logout</span>Logout
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </header>
-
-            <main class="content-area">
-
-
-                    {% with messages = get_flashed_messages(with_categories=true) %}
-                    {% if messages %}
-                        <div class="flash-container">
-                        {% for category, message in messages %}
-                            <div class="flash-message {{ category }}">
-                            <span class="material-symbols-rounded">
-                                {{ 'check_circle' if category == 'success' else 'error' if category == 'danger' else 'info' }}
-                            </span>
-                            <span class="message-text">{{ message }}</span>
-                            <button class="flash-close" onclick="this.parentElement.style.display='none';">&times;</button>
-                            </div>
-                        {% endfor %}
-                        </div>
-                    {% endif %}
-                    {% endwith %}
-                
-                <div class="asset-registry-card">
-                    <div class="registry-controls">
-                        <button class="register-asset-btn" data-action="open-register">
-                            <span class="material-symbols-rounded">person_add</span><span>Register Customer</span>
-                        </button>
-                        <div class="filter-search-container">
-                            <div class="search-wrapper">
-                                <span class="material-symbols-rounded search-icon">search</span>
-                                <input type="text" id="table-search" value="{{ search_query }}" class="asset-search-input"
-                                    placeholder="Search Patients...">
-                            </div>
-                        </div>
-                    </div>
-
-                    <section class="table-scroll-container">
-                        <table class="medical-data-table">
-                            <thead>
-                                <tr>
-                                    <th>Customer Name</th>
-                                    <th>Address</th>
-                                    <th>Phone No.</th>
-                                    <th>Valid IDs</th> 
-                                    <th>Created By</th> 
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="customerTableBody">
-                                {% if customers %}
-                                    {% for customer in customers %}
-                                    <tr>
-                                        <td>
-                                            <div class="customer-identity">
-                                                {% if customer.user and customer.user.profile_path %}
-                                                    <div class="avatar-circle">
-                                                        <img src="{{ url_for('static', filename=customer.user.profile_path) }}" 
-                                                            alt="{{ customer.full_name }}" />
-                                                    </div>
-                                                {% else %}
-                                                    <div class="avatar-circle">
-                                                        <span class="material-symbols-rounded">person</span>
-                                                    </div>
-                                                {% endif %}
-                                                <strong>{{ customer.first_name }} {{ customer.last_name }}</strong>
-                                            </div>
-                                        </td>
-
-                                        <td>
-                                            {% if customer.home_address %}
-                                                <strong>{{ customer.home_address }}</strong>
-                                            {% else %}
-                                                <span style="color: #94a3b8; font-style: italic; font-weight: normal;">N/A</span>
-                                            {% endif %}
-                                        </td>
-                                        
-                                        <td>
-                                            {% if customer.contact_number %}
-                                                {{ customer.contact_number }}
-                                            {% else %}
-                                                <span style="color: #94a3b8; font-style: italic;">N/A</span>
-                                            {% endif %}
-                                        </td>
-
-                                        <td>
-                                            {% if customer.valid_id_path %}
-                                                <span class="status-pill id-uploaded">
-                                                    <span class="material-symbols-rounded">verified</span>
-                                                    Uploaded
-                                                </span>
-                                            {% else %}
-                                                <span class="status-pill id-missing">
-                                                    <span class="material-symbols-rounded">error</span>
-                                                    Missing ID
-                                                </span>
-                                            {% endif %}
-                                        </td>
-
-                                        <td style="vertical-align: middle;">
-                                            <div style="display: flex; align-items: center; min-height: 40px;">
-                                                {% if customer.created_by_id == current_user.id %}
-
-                                                    <span class="status-pill" 
-                                                        title="Manually added by you"
-                                                        style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; cursor: default;">
-                                                        <span class="material-symbols-rounded" style="font-size: 18px;">person_add</span>
-                                                        Added by You
-                                                    </span>
-
-                                                {% elif customer.creator %}
-
-                                                    {% set creator = customer.creator %}
-                                                    <div class="status-pill" 
-                                                        title="Added by Admin: {{ creator.email }}" 
-                                                        style="background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 6px; cursor: help; transition: all 0.2s ease;">
-                                                        <span class="material-symbols-rounded" style="font-size: 18px; color: #64748b;">shield_person</span>
-                                                        <span style="font-weight: 300; font-size: 0.75rem;">
-                                                            {% if creator.first_name %} {{ creator.first_name or '' }}{% else %}{{ creator.email.split('@')[0] }}{% endif %}
-                                                        </span>
-                                                    </div>
-
-                                                {% elif customer.created_by_id %}
-
-                                                    <span class="status-pill" style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 6px; font-size: 0.85rem;">
-                                                        <span class="material-symbols-rounded" style="font-size: 18px;">shield_person</span>
-                                                        Admin #{{ customer.created_by_id }}
-                                                    </span>
-
-                                                {% else %}
-
-                                                    <span class="status-pill" 
-                                                        title="Registered via User Account: {{ customer.user.email if customer.user else 'No Account Linked' }}"
-                                                        style="background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; cursor: help;">
-                                                        <span class="material-symbols-rounded" style="font-size: 18px;">app_registration</span>
-                                                        Self-Registered
-                                                    </span>
-
-                                                {% endif %}
-                                            </div>
-                                        </td>
-
-                                        <td class="col-actions">
-                                            <a href="{{ url_for('admin.customer_details', id=customer.id) }}" 
-                                                class="asset-action-btn logs" 
-                                                style="text-decoration: none; display: inline-flex; align-items: center; justify-content: center;">
-                                                <span class="material-symbols-rounded">visibility</span>
-                                            </a>
-
-                                            <button class="asset-action-btn edit" 
-                                                data-id="{{ customer.id }}"
-                                                data-first_name="{{ customer.first_name }}"
-                                                data-last_name="{{ customer.last_name }}"
-                                                data-name="{{ customer.first_name }} {{ customer.last_name }}"
-                                                data-phone="{{ customer.contact_number }}"
-                                                data-address="{{ customer.home_address }}"
-                                                data-birthday="{{ customer.birthday.strftime('%Y-%m-%d') if customer.birthday else '' }}"
-                                                data-gender="{{ customer.gender }}"
-                                                data-primarytype="{{ customer.primary_id_type or '' }}"
-                                                data-secondarytype="{{ customer.secondary_id_type or '' }}"
-                                                data-idimg="{{ url_for('static', filename=customer.valid_id_path) if customer.valid_id_path else '' }}"
-                                                data-secondary_idimg="{{ url_for('static', filename=customer.secondary_id_path) if customer.secondary_id_path else '' }}">
-                                                <span class="material-symbols-rounded">edit</span>
-                                            </button>
-
-                                            {% if customer.is_self_registered %}
-                                                <button class="asset-action-btn security" data-registered="true">
-                                                    <span class="material-symbols-rounded">lock_reset</span>
-                                                </button>
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                {% else %}
-                                    <tr>
-                                        <td colspan="6" class="empty-state-container">
-                                            <div class="empty-state-wrapper">
-                                                <div>No customers found</div>
-                                                <small>New users will appear here after registration.</small>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                {% endif %}
-                            </tbody>
-                        </table>
-                    </section>
-
-                    <div class="pagination-footer">
-                        <div class="table-limit-control">
-                            <span class="limit-label">Show</span>
-                            <select class="medical-select" id="row-limit-select">
-                                <option value="10" {{ 'selected' if current_limit == 10 }}>10</option>
-                                <option value="25" {{ 'selected' if current_limit == 25 }}>25</option>
-                                <option value="50" {{ 'selected' if current_limit == 50 }}>50</option>
-                            </select>
-                            <span class="limit-label">entries</span>
-                        </div>
-
-                        <div class="pagination-info">
-                            Showing 
-                            <strong>{{ (pagination.page - 1) * pagination.per_page + 1 }}</strong> 
-                            to 
-                            <strong>{{ [pagination.page * pagination.per_page, pagination.total]|min }}</strong> 
-                            of 
-                            <strong>{{ pagination.total }}</strong> entries
-                        </div>
-
-                        <div class="pagination-controls">
-
-                            {% if pagination.has_prev %}
-                            <a href="{{ url_for('admin.customers', page=pagination.prev_num, limit=current_limit, q=search_query) }}" class="pag-btn">
-                                <span class="material-symbols-rounded">chevron_left</span>
-                            </a>
-                            {% else %}
-                            <div class="pag-btn disabled" style="opacity: 0.4;">
-                                <span class="material-symbols-rounded">chevron_left</span>
-                            </div>
-                            {% endif %}
-
-                            <span class="page-number">
-                                Page <strong>{{ pagination.page }}</strong> of {{ pagination.pages }}
-                            </span>
-
-                            {% if pagination.has_next %}
-                            <a href="{{ url_for('admin.customers', page=pagination.next_num, limit=current_limit, q=search_query) }}" class="pag-btn">
-                                <span class="material-symbols-rounded">chevron_right</span>
-                            </a>
-                            {% else %}
-                            <div class="pag-btn disabled" style="opacity: 0.4;">
-                                <span class="material-symbols-rounded">chevron_right</span>
-                            </div>
-                            {% endif %}
-
-                            <div class="jump-to-wrapper">
-                                <span class="jump-text">Go to</span>
-                                <input type="number"
-                                    id="jump-page-input"
-                                    class="jump-input"
-                                    min="1"
-                                    max="{{ pagination.pages }}"
-                                    value="{{ pagination.page }}">
-                                <button class="jump-btn">Go</button>
-                            </div>
-
-                        </div>
-                    </div>
-
-
-                </div>
-            </main>
-        </div>
-
-    </div>
-
-    
-    <div id="registerModal" class="medical-modal-overlay hidden">
-        <div class="medical-modal-content" style="max-width: 850px; border-radius: 12px; padding: 0; overflow: hidden; background: #fff;">
-            
-            <div class="modal-header-row" style="padding: 16px 24px; border-bottom: 1px solid #f1f5f9; background: #fff;">
-                <h2 class="modal-header" style="margin: 0; font-size: 1.1rem; font-weight: 700; color: #1e293b;">Register New Customer</h2>
-                <span class="material-symbols-rounded modal-close" style="cursor: pointer; color: #64748b;">close</span>
-            </div>
-
-            <form id="customerForm" method="POST" action="{{ url_for('admin.add_customer') }}" enctype="multipart/form-data">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                <div style="display: flex; gap: 0; align-items: stretch; padding: 0;"> 
-                    
-                    <div style="flex: 0 0 320px; padding: 0 0 24px 24px; background: #fcfdfe;">
-                        <p style="font-size: 0.7rem; color: #3b82f6; text-transform: uppercase; font-weight: 800; letter-spacing: 0.05em; margin: 0 0 15px 0;">
-                            Identity Documents
-                        </p>
-
-                        <div class="form-field">
-                            <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; margin-bottom: 4px; display: block;">Primary ID Upload</label>
-                            <div class="upload-container" id="id-dropzone" style="width: 85.6mm; height: 54mm; border: 2px dashed #e2e8f0; border-radius: 10px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; background: #f8fafc;">
-                                <div id="id-placeholder-content" style="text-align: center;">
-                                    <span class="material-symbols-rounded" style="font-size: 24px; color: #94a3b8;">badge</span>
-                                    <p style="margin: 2px 0 0; color: #64748b; font-size: 0.65rem;">Click or Drag & Drop</p>
-                                </div>
-                                <div id="id-preview-text" class="preview-active-box" style="display:none; position: absolute; inset: 0; z-index: 5;">
-                                    <span class="material-symbols-rounded btn-file-reset" data-input="id-upload" data-dropzone="id-dropzone" data-preview="id-preview-text" style="position: absolute; top: -10px; right: -10px; background: #ef4444; color: white; border-radius: 50%; width: 24px; height: 24px; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">close</span>
-                                    <img src="#" alt="Preview" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;">
-                                </div>
-                                <input type="file" id="id-upload" name="valid_id" hidden accept="image/*">
-                            </div>
-                        </div>
-
-                        <div class="form-field" style="margin-top: 16px;">
-                            <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; margin-bottom: 4px; display: block;">Secondary ID Upload</label>
-                            <div class="upload-container" id="doc-dropzone" style="width: 85.6mm; height: 54mm; border: 2px dashed #e2e8f0; border-radius: 10px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; background: #f8fafc;">
-                                <div id="doc-placeholder-content" style="text-align: center;">
-                                    <span class="material-symbols-rounded" style="font-size: 24px; color: #94a3b8;">add_a_photo</span>
-                                    <p style="margin: 2px 0 0; color: #64748b; font-size: 0.65rem;">Click or Drag & Drop</p>
-                                </div>
-                                <div id="doc-preview-text" class="preview-active-box" style="display:none; position: absolute; inset: 0; z-index: 5;">
-                                    <span class="material-symbols-rounded btn-file-reset" data-input="doc-upload" data-dropzone="doc-dropzone" data-preview="doc-preview-text" style="position: absolute; top: -10px; right: -10px; background: #ef4444; color: white; border-radius: 50%; width: 24px; height: 24px; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">close</span>
-                                    <img src="#" alt="Preview" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;">
-                                </div>
-                                <input type="file" id="doc-upload" name="secondary_id" hidden accept="image/*">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div style="width: 1px; background: #f1f5f9; align-self: stretch;"></div>
-
-                    <div style="flex: 1; padding: 0 24px 24px 24px; display: flex; flex-direction: column; gap: 12px;">
-                        <p style="font-size: 0.7rem; color: #3b82f6; text-transform: uppercase; font-weight: 800; letter-spacing: 0.05em; margin: 0;">
-                            Personal Information
-                        </p>
-
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                            <div class="form-field">
-                                <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">First Name</label>
-                                <input type="text" name="first_name" class="clinical-input" placeholder="e.g. John" style="height: 40px;" required>
-                            </div>
-                            <div class="form-field">
-                                <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">Last Name</label>
-                                <input type="text" name="last_name" class="clinical-input" placeholder="e.g. Doe" style="height: 40px;" required>
-                            </div>
-                        </div>
-
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                            <div class="form-field">
-                                <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">Birthday</label>
-                                <input type="date" name="birthday" class="clinical-input" style="height: 40px;" required>
-                            </div>
-                            <div class="form-field">
-                                <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">Gender</label>
-                                <select name="gender" class="clinical-input" style="height: 40px;" required>
-                                    <option value="" disabled selected>Select</option>
-                                    <option value="male">Male</option>
-                                    <option value="female">Female</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="form-field">
-                            <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">Phone Number</label>
-                            <input type="tel" name="contact_number" class="clinical-input" placeholder="09XX XXX XXXX" style="height: 40px;" required>
-                        </div>
-
-                        <div class="form-field">
-                            <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">Home Address</label>
-                            <textarea name="home_address" class="clinical-input" style="height: 45px; padding-top: 8px; resize: none;" placeholder="St., Brgy, City, Province" required></textarea>
-                        </div>
-
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                            <div class="form-field">
-                                <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">Primary ID Type</label>
-                                <select name="primary_id_type" class="clinical-input" style="height: 40px;" required>
-                                    <option value="" disabled selected>Select Type</option>
-                                    <option value="National ID">National ID</option>
-                                    <option value="Driver's License">Driver's License</option>
-                                    <option value="Passport">Passport</option>
-                                    <option value="UMID / SSS">UMID / SSS</option>
-                                </select>
-                            </div>
-                            <div class="form-field">
-                                <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">Secondary ID Type</label>
-                                <select name="secondary_id_type" class="clinical-input" style="height: 40px;" required>
-                                    <option value="" disabled selected>Select Type</option>
-                                    <option value="PhilHealth">PhilHealth</option>
-                                    <option value="Voter's ID">Voter's ID</option>
-                                    <option value="Postal ID">Postal ID</option>
-                                    <option value="TIN ID">TIN ID</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div style="border-top: 1px solid #f1f5f9; padding: 16px 24px; display: flex; justify-content: flex-end; gap: 12px; background: #fff;">
-                    <button type="button" class="btn-medical-outline">Cancel</button>
-                    <button type="submit" class="btn-medical-primary">Register Customer</button>
-                </div>
-
-            </form>
-        </div>
-    </div>
-
-    <div id="profileModal" class="medical-modal-overlay hidden">
-        <div class="medical-modal-content" style="max-width: 550px; position: relative; padding: 24px; border-radius: 12px; background: #fff;">
-            
-            <span class="material-symbols-rounded modal-close" 
-                style="position: absolute; top: 15px; right: 15px; cursor: pointer; color: #64748b; font-size: 20px;">
-                close
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+    <div class="flash-container">
+    {% for category, message in messages %}
+        <div class="flash-message {{ category }}">
+            <span class="material-symbols-rounded">
+                {{ 'check_circle' if category == 'success' else 'error' if category == 'danger' else 'info' }}
             </span>
+            <span class="message-text">{{ message }}</span>
+            <button class="flash-close" onclick="this.parentElement.style.display='none';">&times;</button>
+        </div>
+    {% endfor %}
+    </div>
+{% endif %}
+{% endwith %}
 
-            <div class="section-divider" style="margin-bottom: 20px; display: flex; align-items: center; gap: 8px; color: #1e293b; font-weight: 700; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px;">
-                <span class="material-symbols-rounded" style="color: #3b82f6;">contact_page</span>
-                Customer Information
-            </div>
-
-            <div style="display: flex; gap: 32px; align-items: start;">
-                <div class="info-block" style="flex: 0 0 auto;">
-                    <label style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; display: block; margin-bottom: 8px; font-weight: 700; letter-spacing: 0.025em;">
-                        Primary ID: <span id="modalPrimaryIDType" style="font-weight: 500; text-transform: none; color: #475569;">N/A</span>
-                    </label>
-                    <div id="modalPrimaryIDPreview" style="border: 1px solid #e2e8f0; border-radius: 10px; height: 43.5mm; width: 68mm; display: flex; align-items: center; justify-content: center; background: #f8fafc; overflow: hidden; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
-                        <img id="modalPrimaryIDImg" src="" alt="Primary ID" style="width: 100%; height: 100%; object-fit: cover; display: none;">
-                        <span id="modalPrimaryIDFallback" style="font-size: 0.8rem; color: #94a3b8; display: flex; flex-direction: column; align-items: center; gap: 4px;">
-                            <span class="material-symbols-rounded" style="font-size: 24px;">badge</span>
-                            No ID Uploaded
-                        </span>
-                    </div>
-
-                    <label style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; display: block; margin: 12px 0 8px 0; font-weight: 700; letter-spacing: 0.025em;">
-                        Secondary ID: <span id="modalSecondaryIDType" style="font-weight: 500; text-transform: none; color: #475569;">N/A</span>
-                    </label>
-                    <div id="modalSecondaryIDPreview" style="border: 1px solid #e2e8f0; border-radius: 10px; height: 43.5mm; width: 68mm; display: flex; align-items: center; justify-content: center; background: #f8fafc; overflow: hidden; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
-                        <img id="modalSecondaryIDImg" src="" alt="Secondary ID" style="width: 100%; height: 100%; object-fit: cover; display: none;">
-                        <span id="modalSecondaryIDFallback" style="font-size: 0.8rem; color: #94a3b8; display: flex; flex-direction: column; align-items: center; gap: 4px;">
-                            <span class="material-symbols-rounded" style="font-size: 24px;">badge</span>
-                            No ID Uploaded
-                        </span>
-                    </div>
-                </div>
-
-                <div style="flex: 1; display: grid; grid-template-columns: 1fr; gap: 20px; margin-top:17px">
-                    <div class="info-block">
-                        <label style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; font-weight: 700;">Fullname</label>
-                        <p id="modalName" class="modal-value" style="margin: 4px 0 0 0; font-size: 1.1rem; font-weight: 600; color: #334155;"></p>
-                    </div>
-
-                    <div class="info-block">
-                        <label style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; font-weight: 700;">Birthday</label>
-                        <p id="modalBirthday" class="modal-value" style="margin: 4px 0 0 0; font-size: 1.1rem; font-weight: 600; color: #334155;"></p>
-                    </div>
-
-                    <div class="info-block">
-                        <label style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; font-weight: 700;">Gender</label>
-                        <p id="modalGender" class="modal-value" style="margin: 4px 0 0 0; font-size: 1.1rem; font-weight: 600; color: #334155;"></p>
-                    </div>
-
-                    <div class="info-block">
-                        <label style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; font-weight: 700;">Phone Number</label>
-                        <p id="modalPhone" class="modal-value" style="margin: 4px 0 0 0; font-size: 1.1rem; font-weight: 600; color: #334155;"></p>
-                    </div>
-
-                    <div class="info-block">
-                        <label style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; font-weight: 700;">Address</label>
-                        <p id="modalAddress" class="modal-value" style="margin: 4px 0 0 0; font-size: 1.1rem; font-weight: 600; color: #334155; line-height: 1.6;"></p>
-                    </div>
-                </div>
-            </div>
-
-            <div style="margin-top: 24px; display: flex; justify-content: flex-end; gap: 12px;">
-                <button type="button" class="btn-medical-outline">Close View</button>
+<div class="asset-registry-card">
+    <div class="registry-controls">
+        <button class="register-asset-btn" data-action="open-register">
+            <span class="material-symbols-rounded">person_add</span><span>Register Customer</span>
+        </button>
+        <div class="filter-search-container">
+            <div class="search-wrapper">
+                <span class="material-symbols-rounded search-icon">search</span>
+                <input type="text" id="table-search" value="{{ search_query }}" class="asset-search-input"
+                    placeholder="Search Patients...">
             </div>
         </div>
     </div>
 
-    <div id="editCustomerModal" class="medical-modal-overlay hidden">
-        <div class="medical-modal-content" style="max-width: 850px; border-radius: 12px; padding: 0; overflow: hidden; background: #fff;">
-            
-            <div class="modal-header-row" style="padding: 16px 24px; border-bottom: 1px solid #f1f5f9; background: #fff;">
-                <h2 class="modal-header" style="margin: 0; font-size: 1.1rem; font-weight: 700; color: #1e293b;">Edit Customer Details</h2>
-                <span class="material-symbols-rounded modal-close" style="cursor: pointer; color: #64748b;">close</span>
-            </div>
+    <section class="table-scroll-container">
+        <table class="medical-data-table">
+            <thead>
+                <tr>
+                    <th>Customer Name</th>
+                    <th>Address</th>
+                    <th>Phone No.</th>
+                    <th>Valid IDs</th>
+                    <th>Created By</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="customerTableBody">
+                {% if customers %}
+                    {% for customer in customers %}
+                    <tr>
+                        <td>
+                            <div class="customer-identity">
+                                {% if customer.user and customer.user.profile_path %}
+                                    <div class="avatar-circle">
+                                        <img src="{{ url_for('static', filename=customer.user.profile_path) }}" alt="{{ customer.full_name }}" />
+                                    </div>
+                                {% else %}
+                                    <div class="avatar-circle">
+                                        <span class="material-symbols-rounded">person</span>
+                                    </div>
+                                {% endif %}
+                                <strong>{{ customer.first_name }} {{ customer.last_name }}</strong>
+                            </div>
+                        </td>
 
-            <form id="editCustomerForm" method="POST" action="{{ url_for('admin.update_customer') }}" enctype="multipart/form-data">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="customer_id" id="edit_customer_id">
+                        <td>
+                            {% if customer.home_address %}
+                                <strong>{{ customer.home_address }}</strong>
+                            {% else %}
+                                <span style="color:#94a3b8; font-style:italic; font-weight:normal;">N/A</span>
+                            {% endif %}
+                        </td>
 
-                <div style="display: flex; gap: 0; align-items: stretch; padding: 0;"> 
-                    
-                    <div style="flex: 0 0 320px; padding: 0 0 24px 24px; background: #fcfdfe;">
-                        <p style="font-size: 0.7rem; color: #3b82f6; text-transform: uppercase; font-weight: 800; letter-spacing: 0.05em; margin: 0 0 15px 0;">
-                            Update Documents
-                        </p>
+                        <td>
+                            {% if customer.contact_number %}
+                                {{ customer.contact_number }}
+                            {% else %}
+                                <span style="color:#94a3b8; font-style:italic;">N/A</span>
+                            {% endif %}
+                        </td>
 
-                        <div class="form-field">
-                            <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; margin-bottom: 4px; display: block;">Primary ID Upload</label>
-                            <div class="upload-container" id="edit-id-dropzone" style="width: 85.6mm; height: 54mm; border: 2px dashed #e2e8f0; border-radius: 10px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; background: #f8fafc; overflow: visible;">
-                                
-                                <div id="edit-id-placeholder-content" style="text-align: center;">
-                                    <span class="material-symbols-rounded" style="font-size: 24px; color: #94a3b8;">badge</span>
-                                    <p style="margin: 2px 0 0; color: #64748b; font-size: 0.65rem;">Click or Drag & Drop</p>
-                                </div>
-                                
-                                <div id="edit-id-preview-text" class="preview-active-box" style="display:none; position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 10px; z-index: 5;">
-                                    <span class="material-symbols-rounded btn-file-reset"
-                                        data-input="edit-id-upload" 
-                                        data-dropzone="edit-id-dropzone" 
-                                        data-preview="edit-id-preview-text"
-                                        style="position: absolute !important; top: -10px !important; right: -10px !important; background: #ef4444 !important; color: white !important; border-radius: 50% !important; width: 26px !important; height: 26px !important; font-size: 18px !important; cursor: pointer !important; display: flex !important; align-items: center !important; justify-content: center !important; z-index: 100 !important; box-shadow: 0 2px 5px rgba(0,0,0,0.2) !important; pointer-events: auto !important;">
-                                        close
+                        <td>
+                            {% if customer.valid_id_path %}
+                                <span class="status-pill id-uploaded">
+                                    <span class="material-symbols-rounded">verified</span> Uploaded
+                                </span>
+                            {% else %}
+                                <span class="status-pill id-missing">
+                                    <span class="material-symbols-rounded">error</span> Missing ID
+                                </span>
+                            {% endif %}
+                        </td>
+
+                        <td style="vertical-align:middle;">
+                            <div style="display:flex; align-items:center; min-height:40px;">
+                                {% if customer.created_by_id == current_user.id %}
+                                    <span class="status-pill" title="Manually added by you"
+                                        style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:6px; font-size:0.85rem; font-weight:500; cursor:default;">
+                                        <span class="material-symbols-rounded" style="font-size:18px;">person_add</span>
+                                        Added by You
                                     </span>
-                                    <img src="#" alt="Preview" id="edit-id-img-preview" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;">
-                                </div>
-                                
-                                <input type="file" id="edit-id-upload" name="valid_id" hidden accept="image/*">
-                            </div>
-                        </div>
-
-                        <div class="form-field" style="margin-top: 16px;">
-                            <label style="font-size: 0.75rem; color: #64748b; font-weight: 600; margin-bottom: 4px; display: block;">Secondary ID Upload</label>
-                            <div class="upload-container" id="edit-doc-dropzone" style="width: 85.6mm; height: 54mm; border: 2px dashed #e2e8f0; border-radius: 10px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; background: #f8fafc; overflow: visible;">
-                                
-                                <div id="edit-doc-placeholder-content" style="text-align: center;">
-                                    <span class="material-symbols-rounded" style="font-size: 24px; color: #94a3b8;">add_a_photo</span>
-                                    <p style="margin: 2px 0 0; color: #64748b; font-size: 0.65rem;">Click or Drag & Drop</p>
-                                </div>
-
-                                <div id="edit-doc-preview-text" class="preview-active-box" style="display:none; position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 10px; z-index: 5;">
-                                    <span class="material-symbols-rounded btn-file-reset" 
-                                        data-input="edit-doc-upload" 
-                                        data-dropzone="edit-doc-dropzone" 
-                                        data-preview="edit-doc-preview-text"
-                                        style="position: absolute !important; top: -10px !important; right: -10px !important; background: #ef4444 !important; color: white !important; border-radius: 50% !important; width: 26px !important; height: 26px !important; font-size: 18px !important; cursor: pointer !important; display: flex !important; align-items: center !important; justify-content: center !important; z-index: 100 !important; box-shadow: 0 2px 5px rgba(0,0,0,0.2) !important; pointer-events: auto !important;">
-                                        close
+                                {% elif customer.creator %}
+                                    {% set creator = customer.creator %}
+                                    <div class="status-pill" title="Added by Admin: {{ creator.email }}"
+                                        style="background:#f8fafc; color:#475569; border:1px solid #e2e8f0; display:inline-flex; align-items:center; gap:8px; padding:6px 12px; border-radius:6px; cursor:help; transition:all 0.2s ease;">
+                                        <span class="material-symbols-rounded" style="font-size:18px; color:#64748b;">shield_person</span>
+                                        <span style="font-weight:300; font-size:0.75rem;">
+                                            {% if creator.first_name %}{{ creator.first_name }}{% else %}{{ creator.email.split('@')[0] }}{% endif %}
+                                        </span>
+                                    </div>
+                                {% elif customer.created_by_id %}
+                                    <span class="status-pill"
+                                        style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:6px; font-size:0.85rem;">
+                                        <span class="material-symbols-rounded" style="font-size:18px;">shield_person</span>
+                                        Admin #{{ customer.created_by_id }}
                                     </span>
-                                    <img src="#" alt="Preview" id="edit-doc-img-preview" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;">
-                                </div>
-
-                                <input type="file" id="edit-doc-upload" name="secondary_id" hidden accept="image/*">
+                                {% else %}
+                                    <span class="status-pill" title="Registered via User Account: {{ customer.user.email if customer.user else 'No Account Linked' }}"
+                                        style="background:#f0fdf4; color:#166534; border:1px solid #bbf7d0; display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:6px; font-size:0.85rem; font-weight:500; cursor:help;">
+                                        <span class="material-symbols-rounded" style="font-size:18px;">app_registration</span>
+                                        Self-Registered
+                                    </span>
+                                {% endif %}
                             </div>
+                        </td>
+
+                        <td class="col-actions">
+                            <a href="{{ url_for('admin.customer_details', id=customer.id) }}"
+                               class="asset-action-btn logs"
+                               style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center;">
+                                <span class="material-symbols-rounded">visibility</span>
+                            </a>
+                            <button class="asset-action-btn edit"
+                                data-id="{{ customer.id }}"
+                                data-first_name="{{ customer.first_name }}"
+                                data-last_name="{{ customer.last_name }}"
+                                data-name="{{ customer.first_name }} {{ customer.last_name }}"
+                                data-phone="{{ customer.contact_number }}"
+                                data-address="{{ customer.home_address }}"
+                                data-birthday="{{ customer.birthday.strftime('%Y-%m-%d') if customer.birthday else '' }}"
+                                data-gender="{{ customer.gender }}"
+                                data-primarytype="{{ customer.primary_id_type or '' }}"
+                                data-secondarytype="{{ customer.secondary_id_type or '' }}"
+                                data-idimg="{{ url_for('static', filename=customer.valid_id_path) if customer.valid_id_path else '' }}"
+                                data-secondary_idimg="{{ url_for('static', filename=customer.secondary_id_path) if customer.secondary_id_path else '' }}">
+                                <span class="material-symbols-rounded">edit</span>
+                            </button>
+                            {% if customer.is_self_registered %}
+                                <button class="asset-action-btn security" data-registered="true">
+                                    <span class="material-symbols-rounded">lock_reset</span>
+                                </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="6" class="empty-state-container">
+                            <div class="empty-state-wrapper">
+                                <div>No customers found</div>
+                                <small>New users will appear here after registration.</small>
+                            </div>
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </section>
+
+    <div class="pagination-footer">
+        <div class="table-limit-control">
+            <span class="limit-label">Show</span>
+            <select class="medical-select" id="row-limit-select">
+                <option value="10" {{ 'selected' if current_limit == 10 }}>10</option>
+                <option value="25" {{ 'selected' if current_limit == 25 }}>25</option>
+                <option value="50" {{ 'selected' if current_limit == 50 }}>50</option>
+            </select>
+            <span class="limit-label">entries</span>
+        </div>
+
+        <div class="pagination-info">
+            Showing
+            <strong>{{ (pagination.page - 1) * pagination.per_page + 1 }}</strong> to
+            <strong>{{ [pagination.page * pagination.per_page, pagination.total]|min }}</strong> of
+            <strong>{{ pagination.total }}</strong> entries
+        </div>
+
+        <div class="pagination-controls">
+            {% if pagination.has_prev %}
+            <a href="{{ url_for('admin.customers', page=pagination.prev_num, limit=current_limit, q=search_query) }}" class="pag-btn">
+                <span class="material-symbols-rounded">chevron_left</span>
+            </a>
+            {% else %}
+            <div class="pag-btn disabled" style="opacity:0.4;">
+                <span class="material-symbols-rounded">chevron_left</span>
+            </div>
+            {% endif %}
+
+            <span class="page-number">Page <strong>{{ pagination.page }}</strong> of {{ pagination.pages }}</span>
+
+            {% if pagination.has_next %}
+            <a href="{{ url_for('admin.customers', page=pagination.next_num, limit=current_limit, q=search_query) }}" class="pag-btn">
+                <span class="material-symbols-rounded">chevron_right</span>
+            </a>
+            {% else %}
+            <div class="pag-btn disabled" style="opacity:0.4;">
+                <span class="material-symbols-rounded">chevron_right</span>
+            </div>
+            {% endif %}
+
+            <div class="jump-to-wrapper">
+                <span class="jump-text">Go to</span>
+                <input type="number" id="jump-page-input" class="jump-input"
+                       min="1" max="{{ pagination.pages }}" value="{{ pagination.page }}">
+                <button class="jump-btn">Go</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Register Customer Modal -->
+<div id="registerModal" class="medical-modal-overlay hidden">
+    <div class="medical-modal-content" style="max-width:850px; border-radius:12px; padding:0; overflow:hidden; background:#fff;">
+        <div class="modal-header-row" style="padding:16px 24px; border-bottom:1px solid #f1f5f9; background:#fff;">
+            <h2 class="modal-header" style="margin:0; font-size:1.1rem; font-weight:700; color:#1e293b;">Register New Customer</h2>
+            <span class="material-symbols-rounded modal-close" style="cursor:pointer; color:#64748b;">close</span>
+        </div>
+
+        <form id="customerForm" method="POST" action="{{ url_for('admin.add_customer') }}" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div style="display:flex; gap:0; align-items:stretch; padding:0;">
+                <!-- Documents -->
+                <div style="flex:0 0 320px; padding:0 0 24px 24px; background:#fcfdfe;">
+                    <p style="font-size:0.7rem; color:#3b82f6; text-transform:uppercase; font-weight:800; letter-spacing:0.05em; margin:0 0 15px 0;">Identity Documents</p>
+
+                    <div class="form-field">
+                        <label style="font-size:0.75rem; color:#64748b; font-weight:600; margin-bottom:4px; display:block;">Primary ID Upload</label>
+                        <div class="upload-container" id="id-dropzone" style="width:85.6mm; height:54mm; border:2px dashed #e2e8f0; border-radius:10px; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; background:#f8fafc;">
+                            <div id="id-placeholder-content" style="text-align:center;">
+                                <span class="material-symbols-rounded" style="font-size:24px; color:#94a3b8;">badge</span>
+                                <p style="margin:2px 0 0; color:#64748b; font-size:0.65rem;">Click or Drag & Drop</p>
+                            </div>
+                            <div id="id-preview-text" class="preview-active-box" style="display:none; position:absolute; inset:0; z-index:5;">
+                                <span class="material-symbols-rounded btn-file-reset" data-input="id-upload" data-dropzone="id-dropzone" data-preview="id-preview-text" style="position:absolute; top:-10px; right:-10px; background:#ef4444; color:white; border-radius:50%; width:24px; height:24px; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; z-index:10; box-shadow:0 2px 4px rgba(0,0,0,0.1);">close</span>
+                                <img src="#" alt="Preview" style="width:100%; height:100%; object-fit:cover; border-radius:10px;">
+                            </div>
+                            <input type="file" id="id-upload" name="valid_id" hidden accept="image/*">
                         </div>
                     </div>
 
-                    <div style="width: 1px; background: #f1f5f9; align-self: stretch;"></div>
-
-                    <div style="flex: 1; padding: 0 24px 24px 24px; display: flex; flex-direction: column; gap: 12px;">
-                        <p style="font-size: 0.7rem; color: #3b82f6; text-transform: uppercase; font-weight: 800; letter-spacing: 0.05em; margin: 0;">
-                            Customer Profile
-                        </p>
-
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                            <div class="form-field">
-                                <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">First Name</label>
-                                <input type="text" name="first_name" id="edit_first_name" class="clinical-input" style="height: 40px;" required>
+                    <div class="form-field" style="margin-top:16px;">
+                        <label style="font-size:0.75rem; color:#64748b; font-weight:600; margin-bottom:4px; display:block;">Secondary ID Upload</label>
+                        <div class="upload-container" id="doc-dropzone" style="width:85.6mm; height:54mm; border:2px dashed #e2e8f0; border-radius:10px; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; background:#f8fafc;">
+                            <div id="doc-placeholder-content" style="text-align:center;">
+                                <span class="material-symbols-rounded" style="font-size:24px; color:#94a3b8;">add_a_photo</span>
+                                <p style="margin:2px 0 0; color:#64748b; font-size:0.65rem;">Click or Drag & Drop</p>
                             </div>
-                            <div class="form-field">
-                                <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">Last Name</label>
-                                <input type="text" name="last_name" id="edit_last_name" class="clinical-input" style="height: 40px;" required>
+                            <div id="doc-preview-text" class="preview-active-box" style="display:none; position:absolute; inset:0; z-index:5;">
+                                <span class="material-symbols-rounded btn-file-reset" data-input="doc-upload" data-dropzone="doc-dropzone" data-preview="doc-preview-text" style="position:absolute; top:-10px; right:-10px; background:#ef4444; color:white; border-radius:50%; width:24px; height:24px; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; z-index:10; box-shadow:0 2px 4px rgba(0,0,0,0.1);">close</span>
+                                <img src="#" alt="Preview" style="width:100%; height:100%; object-fit:cover; border-radius:10px;">
                             </div>
-                        </div>
-
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                            <div class="form-field">
-                                <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">Birthday</label>
-                                <input type="date" name="birthday" id="edit_birthday" class="clinical-input" style="height: 40px;" required>
-                            </div>
-                            <div class="form-field">
-                                <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">Gender</label>
-                                <select name="gender" id="edit_gender" class="clinical-input" style="height: 40px;" required>
-                                    <option value="male">Male</option>
-                                    <option value="female">Female</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="form-field">
-                            <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">Phone Number</label>
-                            <input type="tel" name="contact_number" id="edit_contact_number" class="clinical-input" style="height: 40px;" required>
-                        </div>
-
-                        <div class="form-field">
-                            <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">Home Address</label>
-                            <textarea name="home_address" id="edit_home_address" class="clinical-input" style="height: 45px; padding-top: 8px; resize: none;" required></textarea>
-                        </div>
-
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                            <div class="form-field">
-                                <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">Primary ID Type</label>
-                                <select name="primary_id_type" id="edit_primary_id_type" class="clinical-input" style="height: 40px;" required>
-                                    <option value="National ID">National ID</option>
-                                    <option value="Driver's License">Driver's License</option>
-                                    <option value="Passport">Passport</option>
-                                    <option value="UMID / SSS">UMID / SSS</option>
-                                </select>
-                            </div>
-                            <div class="form-field">
-                                <label style="font-size: 0.75rem; margin-bottom: 2px; display: block;">Secondary ID Type</label>
-                                <select id="edit_secondary_id_type" name="secondary_id_type" class="clinical-input" style="height: 40px;" required>
-                                    <option value="PhilHealth">PhilHealth</option>
-                                    <option value="Voter's ID">Voter's ID</option>
-                                    <option value="Postal ID">Postal ID</option>
-                                    <option value="TIN ID">TIN ID</option>
-                                </select>
-                            </div>
+                            <input type="file" id="doc-upload" name="secondary_id" hidden accept="image/*">
                         </div>
                     </div>
                 </div>
 
-                <div style="border-top: 1px solid #f1f5f9; padding: 16px 24px; display: flex; justify-content: flex-end; gap: 12px; background: #fff;">
-                    <button type="button" class="btn-medical-outline" id="cancelEditBtn">Cancel</button>
-                    <button type="submit" class="btn-medical-primary">Save Changes</button>
+                <div style="width:1px; background:#f1f5f9; align-self:stretch;"></div>
+
+                <!-- Personal Info -->
+                <div style="flex:1; padding:0 24px 24px 24px; display:flex; flex-direction:column; gap:12px;">
+                    <p style="font-size:0.7rem; color:#3b82f6; text-transform:uppercase; font-weight:800; letter-spacing:0.05em; margin:0;">Personal Information</p>
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                        <div class="form-field">
+                            <label style="font-size:0.75rem; margin-bottom:2px; display:block;">First Name</label>
+                            <input type="text" name="first_name" class="clinical-input" placeholder="e.g. John" style="height:40px;" required>
+                        </div>
+                        <div class="form-field">
+                            <label style="font-size:0.75rem; margin-bottom:2px; display:block;">Last Name</label>
+                            <input type="text" name="last_name" class="clinical-input" placeholder="e.g. Doe" style="height:40px;" required>
+                        </div>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                        <div class="form-field">
+                            <label style="font-size:0.75rem; margin-bottom:2px; display:block;">Birthday</label>
+                            <input type="date" name="birthday" class="clinical-input" style="height:40px;" required>
+                        </div>
+                        <div class="form-field">
+                            <label style="font-size:0.75rem; margin-bottom:2px; display:block;">Gender</label>
+                            <select name="gender" class="clinical-input" style="height:40px;" required>
+                                <option value="" disabled selected>Select</option>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-field">
+                        <label style="font-size:0.75rem; margin-bottom:2px; display:block;">Phone Number</label>
+                        <input type="tel" name="contact_number" class="clinical-input" placeholder="09XX XXX XXXX" style="height:40px;" required>
+                    </div>
+
+                    <div class="form-field">
+                        <label style="font-size:0.75rem; margin-bottom:2px; display:block;">Home Address</label>
+                        <textarea name="home_address" class="clinical-input" style="height:45px; padding-top:8px; resize:none;" placeholder="St., Brgy, City, Province" required></textarea>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                        <div class="form-field">
+                            <label style="font-size:0.75rem; margin-bottom:2px; display:block;">Primary ID Type</label>
+                            <select name="primary_id_type" class="clinical-input" style="height:40px;" required>
+                                <option value="" disabled selected>Select Type</option>
+                                <option value="National ID">National ID</option>
+                                <option value="Driver's License">Driver's License</option>
+                                <option value="Passport">Passport</option>
+                                <option value="UMID / SSS">UMID / SSS</option>
+                            </select>
+                        </div>
+                        <div class="form-field">
+                            <label style="font-size:0.75rem; margin-bottom:2px; display:block;">Secondary ID Type</label>
+                            <select name="secondary_id_type" class="clinical-input" style="height:40px;" required>
+                                <option value="" disabled selected>Select Type</option>
+                                <option value="PhilHealth">PhilHealth</option>
+                                <option value="Voter's ID">Voter's ID</option>
+                                <option value="Postal ID">Postal ID</option>
+                                <option value="TIN ID">TIN ID</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="border-top:1px solid #f1f5f9; padding:16px 24px; display:flex; justify-content:flex-end; gap:12px; background:#fff;">
+                <button type="button" class="btn-medical-outline">Cancel</button>
+                <button type="submit" class="btn-medical-primary">Register Customer</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Profile View Modal -->
+<div id="profileModal" class="medical-modal-overlay hidden">
+    <div class="medical-modal-content" style="max-width:550px; position:relative; padding:24px; border-radius:12px; background:#fff;">
+        <span class="material-symbols-rounded modal-close" style="position:absolute; top:15px; right:15px; cursor:pointer; color:#64748b; font-size:20px;">close</span>
+        <div class="section-divider" style="margin-bottom:20px; display:flex; align-items:center; gap:8px; color:#1e293b; font-weight:700; border-bottom:1px solid #f1f5f9; padding-bottom:10px;">
+            <span class="material-symbols-rounded" style="color:#3b82f6;">contact_page</span>
+            Customer Information
+        </div>
+        <div style="display:flex; gap:32px; align-items:start;">
+            <div class="info-block" style="flex:0 0 auto;">
+                <label style="font-size:0.75rem; color:#94a3b8; text-transform:uppercase; display:block; margin-bottom:8px; font-weight:700; letter-spacing:0.025em;">
+                    Primary ID: <span id="modalPrimaryIDType" style="font-weight:500; text-transform:none; color:#475569;">N/A</span>
+                </label>
+                <div id="modalPrimaryIDPreview" style="border:1px solid #e2e8f0; border-radius:10px; height:43.5mm; width:68mm; display:flex; align-items:center; justify-content:center; background:#f8fafc; overflow:hidden;">
+                    <img id="modalPrimaryIDImg" src="" alt="Primary ID" style="width:100%; height:100%; object-fit:cover; display:none;">
+                    <span id="modalPrimaryIDFallback" style="font-size:0.8rem; color:#94a3b8; display:flex; flex-direction:column; align-items:center; gap:4px;">
+                        <span class="material-symbols-rounded" style="font-size:24px;">badge</span>No ID Uploaded
+                    </span>
+                </div>
+                <label style="font-size:0.75rem; color:#94a3b8; text-transform:uppercase; display:block; margin:12px 0 8px 0; font-weight:700; letter-spacing:0.025em;">
+                    Secondary ID: <span id="modalSecondaryIDType" style="font-weight:500; text-transform:none; color:#475569;">N/A</span>
+                </label>
+                <div id="modalSecondaryIDPreview" style="border:1px solid #e2e8f0; border-radius:10px; height:43.5mm; width:68mm; display:flex; align-items:center; justify-content:center; background:#f8fafc; overflow:hidden;">
+                    <img id="modalSecondaryIDImg" src="" alt="Secondary ID" style="width:100%; height:100%; object-fit:cover; display:none;">
+                    <span id="modalSecondaryIDFallback" style="font-size:0.8rem; color:#94a3b8; display:flex; flex-direction:column; align-items:center; gap:4px;">
+                        <span class="material-symbols-rounded" style="font-size:24px;">badge</span>No ID Uploaded
+                    </span>
+                </div>
+            </div>
+            <div style="flex:1; display:grid; grid-template-columns:1fr; gap:20px; margin-top:17px;">
+                <div class="info-block">
+                    <label style="font-size:0.85rem; color:#94a3b8; text-transform:uppercase; font-weight:700;">Fullname</label>
+                    <p id="modalName" class="modal-value" style="margin:4px 0 0 0; font-size:1.1rem; font-weight:600; color:#334155;"></p>
+                </div>
+                <div class="info-block">
+                    <label style="font-size:0.85rem; color:#94a3b8; text-transform:uppercase; font-weight:700;">Birthday</label>
+                    <p id="modalBirthday" class="modal-value" style="margin:4px 0 0 0; font-size:1.1rem; font-weight:600; color:#334155;"></p>
+                </div>
+                <div class="info-block">
+                    <label style="font-size:0.85rem; color:#94a3b8; text-transform:uppercase; font-weight:700;">Gender</label>
+                    <p id="modalGender" class="modal-value" style="margin:4px 0 0 0; font-size:1.1rem; font-weight:600; color:#334155;"></p>
+                </div>
+                <div class="info-block">
+                    <label style="font-size:0.85rem; color:#94a3b8; text-transform:uppercase; font-weight:700;">Phone Number</label>
+                    <p id="modalPhone" class="modal-value" style="margin:4px 0 0 0; font-size:1.1rem; font-weight:600; color:#334155;"></p>
+                </div>
+                <div class="info-block">
+                    <label style="font-size:0.85rem; color:#94a3b8; text-transform:uppercase; font-weight:700;">Address</label>
+                    <p id="modalAddress" class="modal-value" style="margin:4px 0 0 0; font-size:1.1rem; font-weight:600; color:#334155; line-height:1.6;"></p>
+                </div>
+            </div>
+        </div>
+        <div style="margin-top:24px; display:flex; justify-content:flex-end; gap:12px;">
+            <button type="button" class="btn-medical-outline">Close View</button>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Customer Modal -->
+<div id="editCustomerModal" class="medical-modal-overlay hidden">
+    <div class="medical-modal-content" style="max-width:850px; border-radius:12px; padding:0; overflow:hidden; background:#fff;">
+        <div class="modal-header-row" style="padding:16px 24px; border-bottom:1px solid #f1f5f9; background:#fff;">
+            <h2 class="modal-header" style="margin:0; font-size:1.1rem; font-weight:700; color:#1e293b;">Edit Customer Details</h2>
+            <span class="material-symbols-rounded modal-close" style="cursor:pointer; color:#64748b;">close</span>
+        </div>
+
+        <form id="editCustomerForm" method="POST" action="{{ url_for('admin.update_customer') }}" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="customer_id" id="edit_customer_id">
+
+            <div style="display:flex; gap:0; align-items:stretch; padding:0;">
+                <div style="flex:0 0 320px; padding:0 0 24px 24px; background:#fcfdfe;">
+                    <p style="font-size:0.7rem; color:#3b82f6; text-transform:uppercase; font-weight:800; letter-spacing:0.05em; margin:0 0 15px 0;">Update Documents</p>
+
+                    <div class="form-field">
+                        <label style="font-size:0.75rem; color:#64748b; font-weight:600; margin-bottom:4px; display:block;">Primary ID Upload</label>
+                        <div class="upload-container" id="edit-id-dropzone" style="width:85.6mm; height:54mm; border:2px dashed #e2e8f0; border-radius:10px; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; background:#f8fafc; overflow:visible;">
+                            <div id="edit-id-placeholder-content" style="text-align:center;">
+                                <span class="material-symbols-rounded" style="font-size:24px; color:#94a3b8;">badge</span>
+                                <p style="margin:2px 0 0; color:#64748b; font-size:0.65rem;">Click or Drag & Drop</p>
+                            </div>
+                            <div id="edit-id-preview-text" class="preview-active-box" style="display:none; position:absolute; inset:0; width:100%; height:100%; border-radius:10px; z-index:5;">
+                                <span class="material-symbols-rounded btn-file-reset" data-input="edit-id-upload" data-dropzone="edit-id-dropzone" data-preview="edit-id-preview-text" style="position:absolute !important; top:-10px !important; right:-10px !important; background:#ef4444 !important; color:white !important; border-radius:50% !important; width:26px !important; height:26px !important; font-size:18px !important; cursor:pointer !important; display:flex !important; align-items:center !important; justify-content:center !important; z-index:100 !important; box-shadow:0 2px 5px rgba(0,0,0,0.2) !important; pointer-events:auto !important;">close</span>
+                                <img src="#" alt="Preview" id="edit-id-img-preview" style="width:100%; height:100%; object-fit:cover; border-radius:10px;">
+                            </div>
+                            <input type="file" id="edit-id-upload" name="valid_id" hidden accept="image/*">
+                        </div>
+                    </div>
+
+                    <div class="form-field" style="margin-top:16px;">
+                        <label style="font-size:0.75rem; color:#64748b; font-weight:600; margin-bottom:4px; display:block;">Secondary ID Upload</label>
+                        <div class="upload-container" id="edit-doc-dropzone" style="width:85.6mm; height:54mm; border:2px dashed #e2e8f0; border-radius:10px; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; background:#f8fafc; overflow:visible;">
+                            <div id="edit-doc-placeholder-content" style="text-align:center;">
+                                <span class="material-symbols-rounded" style="font-size:24px; color:#94a3b8;">add_a_photo</span>
+                                <p style="margin:2px 0 0; color:#64748b; font-size:0.65rem;">Click or Drag & Drop</p>
+                            </div>
+                            <div id="edit-doc-preview-text" class="preview-active-box" style="display:none; position:absolute; inset:0; width:100%; height:100%; border-radius:10px; z-index:5;">
+                                <span class="material-symbols-rounded btn-file-reset" data-input="edit-doc-upload" data-dropzone="edit-doc-dropzone" data-preview="edit-doc-preview-text" style="position:absolute !important; top:-10px !important; right:-10px !important; background:#ef4444 !important; color:white !important; border-radius:50% !important; width:26px !important; height:26px !important; font-size:18px !important; cursor:pointer !important; display:flex !important; align-items:center !important; justify-content:center !important; z-index:100 !important; box-shadow:0 2px 5px rgba(0,0,0,0.2) !important; pointer-events:auto !important;">close</span>
+                                <img src="#" alt="Preview" id="edit-doc-img-preview" style="width:100%; height:100%; object-fit:cover; border-radius:10px;">
+                            </div>
+                            <input type="file" id="edit-doc-upload" name="secondary_id" hidden accept="image/*">
+                        </div>
+                    </div>
                 </div>
 
-            </form>
+                <div style="width:1px; background:#f1f5f9; align-self:stretch;"></div>
+
+                <div style="flex:1; padding:0 24px 24px 24px; display:flex; flex-direction:column; gap:12px;">
+                    <p style="font-size:0.7rem; color:#3b82f6; text-transform:uppercase; font-weight:800; letter-spacing:0.05em; margin:0;">Customer Profile</p>
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                        <div class="form-field">
+                            <label style="font-size:0.75rem; margin-bottom:2px; display:block;">First Name</label>
+                            <input type="text" name="first_name" id="edit_first_name" class="clinical-input" style="height:40px;" required>
+                        </div>
+                        <div class="form-field">
+                            <label style="font-size:0.75rem; margin-bottom:2px; display:block;">Last Name</label>
+                            <input type="text" name="last_name" id="edit_last_name" class="clinical-input" style="height:40px;" required>
+                        </div>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                        <div class="form-field">
+                            <label style="font-size:0.75rem; margin-bottom:2px; display:block;">Birthday</label>
+                            <input type="date" name="birthday" id="edit_birthday" class="clinical-input" style="height:40px;" required>
+                        </div>
+                        <div class="form-field">
+                            <label style="font-size:0.75rem; margin-bottom:2px; display:block;">Gender</label>
+                            <select name="gender" id="edit_gender" class="clinical-input" style="height:40px;" required>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-field">
+                        <label style="font-size:0.75rem; margin-bottom:2px; display:block;">Phone Number</label>
+                        <input type="tel" name="contact_number" id="edit_contact_number" class="clinical-input" style="height:40px;" required>
+                    </div>
+
+                    <div class="form-field">
+                        <label style="font-size:0.75rem; margin-bottom:2px; display:block;">Home Address</label>
+                        <textarea name="home_address" id="edit_home_address" class="clinical-input" style="height:45px; padding-top:8px; resize:none;" required></textarea>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                        <div class="form-field">
+                            <label style="font-size:0.75rem; margin-bottom:2px; display:block;">Primary ID Type</label>
+                            <select name="primary_id_type" id="edit_primary_id_type" class="clinical-input" style="height:40px;" required>
+                                <option value="National ID">National ID</option>
+                                <option value="Driver's License">Driver's License</option>
+                                <option value="Passport">Passport</option>
+                                <option value="UMID / SSS">UMID / SSS</option>
+                            </select>
+                        </div>
+                        <div class="form-field">
+                            <label style="font-size:0.75rem; margin-bottom:2px; display:block;">Secondary ID Type</label>
+                            <select id="edit_secondary_id_type" name="secondary_id_type" class="clinical-input" style="height:40px;" required>
+                                <option value="PhilHealth">PhilHealth</option>
+                                <option value="Voter's ID">Voter's ID</option>
+                                <option value="Postal ID">Postal ID</option>
+                                <option value="TIN ID">TIN ID</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="border-top:1px solid #f1f5f9; padding:16px 24px; display:flex; justify-content:flex-end; gap:12px; background:#fff;">
+                <button type="button" class="btn-medical-outline" id="cancelEditBtn">Cancel</button>
+                <button type="submit" class="btn-medical-primary">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Reset Password Modal -->
+<div id="resetModal" class="medical-modal-overlay hidden">
+    <div class="medical-modal-content" style="max-width:400px;">
+        <div class="modal-header-row">
+            <h2 class="modal-header">Security</h2>
+            <span class="material-symbols-rounded modal-close">close</span>
+        </div>
+        <p>Reset password for <strong id="resetName">User</strong>?</p>
+        <div class="modal-footer-actions">
+            <button type="button" class="btn-medical-outline">Cancel</button>
+            <button type="button" class="btn-medical-primary">Confirm Reset</button>
         </div>
     </div>
+</div>
 
+{% endblock %}
 
-    <div id="resetModal" class="medical-modal-overlay hidden">
-        <div class="medical-modal-content" style="max-width: 400px;">
-            <div class="modal-header-row">
-                <h2 class="modal-header">Security</h2>
-                <span class="material-symbols-rounded modal-close">close</span>
-            </div>
-            <p>Reset password for <strong id="resetName">User</strong>?</p>
-            <div class="modal-footer-actions">
-                <button type="button" class="btn-medical-outline">Cancel</button><button type="button" class="btn-medical-primary">
-                    ConfirmReset
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <script src="{{ url_for('static', filename='js/global.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/admin/admin_customer.js') }}"></script>
-</body>
-
-</html>
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/admin/admin_customer.js') }}"></script>
+{% endblock %}

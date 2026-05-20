@@ -1,548 +1,351 @@
-<!DOCTYPE html>
-<html lang="en">
+{% extends "admin/nav_base.html" %}
 
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CareMed</title>
-    <link rel="icon" type="image/png" href="{{ url_for('static', filename='icons/favicon-circle.png') }}">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin/admin_transaction.css') }}">
+{% block title %}Transaction{% endblock %}
+{% block page_title %}Transaction{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/admin_transaction.css') }}">
+<style>
+    .content-placeholder {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 60vh;
+        text-align: center;
+    }
 
-    <style>
-        .content-placeholder {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 60vh;
-            text-align: center;
-        }
+    .placeholder-box {
+        padding: 40px;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
 
-        .placeholder-box {
-            padding: 40px;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-        }
+    .placeholder-icon {
+        font-size: 48px;
+        color: #52B788;
+    }
+</style>
+{% endblock %}
 
-        .placeholder-icon {
-            font-size: 48px;
-            color: #52B788;
-        }
-        
-        .medical-sidebar, .viewport-container, .nav-label, .logo-text {
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-    </style>
-</head>
-
-<body>
-    
-    <input type="checkbox" id="sidebar-state" hidden>
-    <script nonce="{{ csp_nonce() }}">
-        (function() {
-            const checkbox = document.getElementById('sidebar-state');
-            const savedState = localStorage.getItem('sidebar-collapsed');
-            if (savedState === 'true') {
-                checkbox.checked = false;
-            } else {
-                checkbox.checked = true;
-            }
-            document.body.classList.add('ready');
-        })();
-    </script>
-    
-    <div class="main-wrapper">
-
-        <aside class="medical-sidebar">
-            <div class="sidebar-header">
-                <div class="sidebar-brand">
-                    <div class="brand-icon-plus">
-                        <div class="box blue top"></div>
-                        <div class="box green left"></div>
-                        <div class="box green right"></div>
-                        <div class="box blue bottom"></div>
+{# Override flash block — this page uses toast-style flash messages #}
+{% block flash %}
+<div id="main-toast-container" class="toast-container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="medical-toast {{ category or 'info' }}" role="alert">
+                    <div class="toast-progress"></div>
+                    <span class="material-symbols-rounded toast-icon">
+                        {% if category == 'success' %}check_circle
+                        {% elif category == 'error' %}error
+                        {% elif category == 'warning' %}warning
+                        {% else %}info{% endif %}
+                    </span>
+                    <div class="toast-content">
+                        <span class="toast-title">{{ category|capitalize or 'Notice' }}</span>
+                        <span class="toast-message">{{ message|replace('\n', '<br>')|safe }}</span>
                     </div>
-
-                    <div class="nav-label logo-text">
-                        Care<span>Med</span>
-                    </div>
-                </div>
-
-                <label for="sidebar-state" class="nav-toggle-label">
-                    <span class="material-symbols-rounded">menu</span>
-                </label>
-            </div>
-
-            <div class="sidebar-navigation">
-                <ul class="nav-menu">
-                    <li class="nav-item" title="Dashboard">
-                        <a href="{{ url_for('admin.dashboard') }}" class="nav-link">
-                            <span class="material-symbols-rounded">monitoring</span>
-                            <span class="nav-label">Dashboard</span>
-                        </a>
-                    </li>
-
-                    <li class="nav-item" title="Inventory">
-                        <a href="{{ url_for('admin.products') }}" class="nav-link">
-                            <span class="material-symbols-rounded">inventory_2</span>
-                            <span class="nav-label">Inventory</span>
-                        </a>
-                    </li>
-
-                    <li class="nav-item" title="Refill Requests">
-                        <a href="#" class="nav-link">
-                            <span class="material-symbols-rounded">gas_meter</span>
-                            <span class="nav-label">Refill Requests</span>
-                        </a>
-                    </li>
-
-                    <li class="nav-item" title="Customer Records">
-                        <a href="{{ url_for('admin.customers') }}" class="nav-link">
-                            <span class="material-symbols-rounded">groups</span>
-                            <span class="nav-label">Customer Records</span>
-                        </a>
-                    </li>
-
-                    <li class="nav-item" title="Transactions">
-                        <a href="{{ url_for('admin.transactions') }}" class="nav-link active">
-                            <span class="material-symbols-rounded">receipt_long</span>
-                            <span class="nav-label">Transactions</span>
-                        </a>
-                    </li>
-                    
-                    <li class="nav-item" title="Reporst & Analytics">
-                        <a href="{{ url_for('admin.reports') }}" class="nav-link">
-                            <span class="material-symbols-rounded">analytics</span>
-                            <span class="nav-label">Reports & Analytics</span>
-                        </a>
-                    </li>
-                    <li class="nav-item" title="Security Center">
-                        <a href="{{ url_for('admin.security_dashboard') }}" class="nav-link">
-                            <span class="material-symbols-rounded">security</span>
-                            <span class="nav-label">Security Center</span>
-                        </a>
-                    </li>
-                    <li class="nav-item" title="System Logs">
-                        <a href="{{url_for('admin.system_logs')}}" class="nav-link">
-                            <span class="material-symbols-rounded">list_alt</span>
-                            <span class="nav-label">System Logs</span>
-                        </a>
-                    </li>
-                </ul>
-
-                <div class="sidebar-footer" title="Settings">
-                    <a href="javascript:void(0)" class="nav-link settings-link" id="settings-toggle-btn">
-                        <span class="material-symbols-rounded">settings</span>
-                        <span class="nav-label theme-label">Settings &amp; help</span>
-                    </a>
-
-                    <div id="settings-menu-popup" class="settings-menu-popup hidden">
-                        <ul>
-                            <li class="menu-item menu-theme-toggle">
-                                <span class="material-symbols-rounded theme-icon">light_mode</span>
-                                <span class="theme-text">Theme</span>
-                                <span class="material-symbols-rounded chevron">chevron_right</span>
-                            </li>
-                            <li class="menu-item">
-                                <span class="material-symbols-rounded">feedback</span>
-                                <span>Send feedback</span>
-                            </li>
-                            <li class="menu-item menu-help-sub">
-                                <span class="material-symbols-rounded">help</span>
-                                <span>Help</span>
-                                <span class="material-symbols-rounded chevron">chevron_right</span>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </aside>
-
-        <div class="viewport-container">
-            <header class="system-header">
-                <h1>Transaction</h1>
-                <div class="header-actions">
-                    <div class="action-item">
-                        <button class="icon-btn" id="notif-btn">
-                            <span class="material-symbols-rounded">notifications</span>
-                            <span class="notification-badge">3</span>
-                        </button>
-                        <div class="header-dropdown" id="notif-dropdown">
-                            <div class="dropdown-header">Notifications</div>
-                            <a href="#" class="dropdown-item">
-                                <span class="material-symbols-rounded" style="color:#f97316">warning</span>
-                                <div>
-                                    <p style="margin:0; font-weight:600">Overdue Return</p>
-                                    <small>Oxygen Tank #7721 is late</small>
-                                </div>
-                            </a>
-                            <a href="#" class="dropdown-item">
-                                <span class="material-symbols-rounded" style="color:#00a8cc">inventory</span>
-                                <div>
-                                    <p style="margin:0; font-weight:600">Low Stock</p>
-                                    <small>Wheelchairs below threshold</small>
-                                </div>
-                            </a>
-                        </div>
-                    </div>
-
-                    <div class="action-item">
-                        <div class="clinical-user" id="profile-btn">
-                            <div class="user-info">
-                                <span class="user-name">{{ current_user.first_name}} {{ current_user.last_name}}</span>
-                                <span class="user-role">{{ current_user.role }}</span>
-                            </div>
-                            <div class="user-avatar" id="avatar-wrapper">
-                                <span class="material-symbols-rounded" id="avatar-icon">person</span>
-
-                                <img src="" alt="User" id="header-avatar-img" class="hidden">
-                            </div>
-                        </div>
-                        <div class="header-dropdown" id="profile-dropdown">
-                            <div class="dropdown-header">My Account</div>
-                            <a href="{{ url_for('admin.profile') }}" class="dropdown-item">
-                                <span class="material-symbols-rounded">person</span>Profile Settings
-                            </a>
-                            <a href="#" class="dropdown-item">
-                                <span class="material-symbols-rounded">security</span>Activity Log
-                            </a>
-                            <a href="{{ url_for('auth.logout') }}" class="dropdown-item logout">
-                                <span class="material-symbols-rounded">logout</span>Logout
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </header>
-
-            <main class="content-area">
-                <div class="page-header">
-                    <div class="header-titles">
-                        <p>Keep track of medical equipment transactions, rentals, sales, and service activity logs.</p>
-                    </div>
-                    
-                    <button class="primary-action-btn" id="open-txn-selection">
-                        <span class="material-symbols-rounded">add_circle</span>
-                        <div class="btn-label">
-                            <strong>New Transaction</strong>
-                            <small>Rental or Purchase</small>
-                        </div>
+                    <button class="toast-close" onclick="this.parentElement.remove()">
+                        <span class="material-symbols-rounded">close</span>
                     </button>
                 </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+</div>
 
-                <div class="asset-registry-card">
-                    <div class="table-header-actions">
-                        <div class="search-box">
-                            <span class="material-symbols-rounded">search</span>
-                            <input type="text" id="table-search" placeholder="Search reference or customer..." value="{{ search_query }}">
-                        </div>
-
-                        <div class="filter-group">
-                            <select id="type-filter" class="medical-select">
-                                <option value="">All Types</option>
-                                <option value="Rental" {{ 'selected' if current_type == 'Rental' }}>Rental</option>
-                                <option value="Sale" {{ 'selected' if current_type == 'Sale' }}>Sale</option>
-                            </select>
-
-                            <select id="fulfillment-filter" class="medical-select">
-                                <option value="">All Fulfillment</option>
-                                <option value="Pickup" {{ 'selected' if current_fulfillment == 'Pickup' }}>Pickup</option>
-                                <option value="Delivery" {{ 'selected' if current_fulfillment == 'Delivery' }}>Delivery</option>
-                            </select>
-
-                            {% if search_query or current_type or current_fulfillment %}
-                            <button type="button" id="clear-filters-btn" class="clear-filter-btn">
-                                <span class="material-symbols-rounded">filter_alt_off</span>
-                                Clear
-                            </button>
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <div class="table-responsive">
-
-                        <table class="medical-table">
-                            <thead>
-                                <tr>
-                                    <th>Ref No.</th>
-                                    <th>Customer Name</th>
-                                    <th>Type</th>
-                                    <th>Item</th>
-                                    <th>Fulfillment</th>
-                                    <th>Total</th>
-                                    <th>Paid</th> 
-                                    <th>Balance Due</th>
-                                    <th>Status</th>
-                                    <th>Date</th>
-                                    <th class="text-end">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for txn in transactions %}
-                                <tr>
-                                    <td class="ref-cell">
-                                        <div class="ref-copy-wrapper">
-                                            <input type="text" class="ref-id-input" value="{{ txn.reference_no }}" readonly title="Click to select">
-                                            <div class="btn-copy-hint" onclick="navigator.clipboard.writeText('{{ txn.reference_no }}')"> 
-                                                <i class="material-symbols-rounded">content_copy</i>
-                                            </div>
-                                        </div>
-                                    </td>
-
-                                    <td>
-                                        <span class="fw-bold text-dark">{{ txn.customer_name or (txn.customer.first_name ~ ' ' ~ txn.customer.last_name) }}</span>
-                                    </td>
-
-                                    <td>
-                                        <span class="badge {{ 'badge-soft-info' if txn.transaction_type == 'Rental' else 'badge-soft-primary' }}">
-                                            {{ txn.transaction_type }}
-                                        </span>
-                                    </td>
-
-                                    <td>
-                                        <small class="fw-medium text-dark text-truncate d-block" style="max-width: 120px;">
-                                            {% if txn.rentals %}
-                                                {{ txn.rentals[0].product.equipment_type }}
-                                                {% if txn.rentals|length > 1 %}<span class="text-primary">+{{ txn.rentals|length - 1 }}</span>{% endif %}
-                                            {% elif txn.purchases %}
-                                                {{ txn.purchases[0].product.equipment_type }}
-                                                {% if txn.purchases|length > 1 %}<span class="text-primary">+{{ txn.purchases|length - 1 }}</span>{% endif %}
-                                            {% else %}
-                                                <span class="text-muted">—</span>
-                                            {% endif %}
-                                        </small>
-                                    </td>
-
-                                    <td>
-                                        <div class="d-flex align-items-center">
-                                            <small>{{ txn.fulfillment_type }}</small>
-                                        </div>
-                                    </td>
-
-                                    <td class="fw-bold text-dark">
-                                        ₱{{ "{:,.2f}".format(txn.total_amount) }}
-                                    </td>
-
-                                    <td class="text-success fw-medium">
-                                        ₱{{ "{:,.2f}".format(txn.amount_paid) }}
-                                    </td>
-
-                                    <td>
-                                        {% if txn.balance_due > 0 %}
-                                            <span class="text-danger fw-bold">₱{{ "{:,.2f}".format(txn.balance_due) }}</span>
-                                        {% else %}
-                                            <div class="d-flex flex-column">
-                                                <span class="badge badge-soft-success w-fit">Fully Paid</span>
-                                            </div>
-                                        {% endif %}
-                                    </td>
-
-                                    <td class="status-cell">
-                                        {% if txn.status == 'Open' and txn.payment_status == 'Fully Paid' %}
-                                            {% if txn.transaction_type == 'Rental' %}
-                                                <div class="status-pill status-awaiting-return" title="Payment complete, item with customer">
-                                                    <span class="material-symbols-rounded">assignment_return</span>
-                                                    <span class="status-text">Awaiting Return</span>
-                                                </div>
-                                            {% else %}
-                                                <div class="status-pill status-awaiting-pickup" title="Payment complete, item ready for customer">
-                                                    <span class="material-symbols-rounded">package_2</span>
-                                                    <span class="status-text">Awaiting Pickup</span>
-                                                </div>
-                                            {% endif %}
-                                        {% else %}
-                                            <div class="status-pill status-{{ txn.status|lower }}" data-status="{{ txn.status }}">
-                                                <span class="dot"></span>
-                                                <span class="status-text">{{ txn.status }}</span>
-                                            </div>
-                                        {% endif %}
-                                    </td>
-
-                                    <td>
-                                        <div class="date-stack">
-                                            <span class="fw-medium">{{ txn.created_at.strftime('%B %d, %Y') }}</span>
-                                        </div>
-                                    </td>
-
-                                    <td class="text-end">
-                                        <div class="action-row-container d-flex justify-content-end gap-1">
-                                            <button type="button" 
-                                                class="btn-action btn-add-payment {{ 'disabled opacity-50' if txn.balance_due <= 0 }}" 
-                                                title="Add Payment"
-                                                data-txn-id="{{ txn.id }}" 
-                                                data-ref="{{ txn.reference_no }}" 
-                                                data-balance="{{ txn.balance_due }}"
-                                                data-type="{{ txn.transaction_type }}"
-                                                data-monthly-rate="{% if txn.rentals %}{{ txn.rentals[0].monthly_rate }}{% else %}0{% endif %}"
-                                                data-unpaid-count="{% if txn.rentals %}{{ txn.rentals[0].invoices|selectattr('status', 'ne', 'Paid')|list|length }}{% else %}0{% endif %}"
-                                                {% if txn.balance_due <= 0 %}disabled{% endif %}>
-                                                <i class="material-symbols-rounded">add_card</i>
-                                            </button>
-
-                                            <a href="{{ url_for('admin.transaction_details', id=txn.id) }}" class="btn-action" title="View/Return Details">
-                                                <i class="material-symbols-rounded">visibility</i>
-                                            </a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% else %}
-                                <tr>
-                                    <td colspan="12" style="height: 400px; text-align: center; vertical-align: middle; border: none;">
-                                        <div class="d-flex flex-column align-items-center justify-content-center h-100 w-100">
-                                            <div class="empty-state-content" style="margin: auto;">
-                                                <i class="material-symbols-rounded text-light" style="font-size: 80px; opacity: 0.4; display: block; margin: 0 auto;">receipt_long</i>
-                                                <p class="text-muted fw-bold mt-3 mb-1">No transactions found</p>
-                                                <p class="text-muted small">Try adjusting your search or filters.</p>
-                                            </div>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-
-                    </div>
-                    
-                    <div class="pagination-footer">
-                        <div class="table-limit-control">
-                            <span class="limit-label">Show</span>
-                            <select class="medical-select" id="row-limit-select">
-                                <option value="10" {{ 'selected' if current_limit == 10 }}>10</option>
-                                <option value="25" {{ 'selected' if current_limit == 25 }}>25</option>
-                                <option value="50" {{ 'selected' if current_limit == 50 }}>50</option>
-                            </select>
-                            <span class="limit-label">entries</span>
-                        </div>
-
-                        <div class="pagination-info">
-                            Showing <strong>{{ (pagination.page - 1) * pagination.per_page + 1 }}</strong> to 
-                            <strong>{{ [pagination.page * pagination.per_page, pagination.total]|min }}</strong> 
-                            of <strong>{{ pagination.total }}</strong> transactions
-                        </div>
-
-                        <div class="pagination-controls">
-                            {% if pagination.has_prev %}
-                            <a href="{{ url_for('admin.transactions', page=pagination.prev_num, limit=current_limit, q=search_query, type=current_type, fulfillment=current_fulfillment) }}" class="pag-btn">
-                                <span class="material-symbols-rounded">chevron_left</span>
-                            </a>
-                            {% else %}
-                            <div class="pag-btn disabled" style="opacity: 0.4;"><span class="material-symbols-rounded">chevron_left</span></div>
-                            {% endif %}
-
-                            <span class="page-number">Page <strong>{{ pagination.page }}</strong> of {{ pagination.pages }}</span>
-
-                            {% if pagination.has_next %}
-                            <a href="{{ url_for('admin.transactions', page=pagination.next_num, limit=current_limit, q=search_query, type=current_type, fulfillment=current_fulfillment) }}" class="pag-btn">
-                                <span class="material-symbols-rounded">chevron_right</span>
-                            </a>
-                            {% else %}
-                            <div class="pag-btn disabled" style="opacity: 0.4;"><span class="material-symbols-rounded">chevron_right</span></div>
-                            {% endif %}
-
-                            <div class="jump-to-wrapper">
-                                <span class="jump-text">Go to</span>
-                                <input type="number" id="jump-page-input" class="jump-input" min="1" max="{{ pagination.pages }}" value="{{ pagination.page }}">
-                                <button class="jump-btn" onclick="jumpToPage()">Go</button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                </div>
-            </main>
-
+<template id="toast-template">
+    <div class="medical-toast" role="alert">
+        <div class="toast-progress"></div>
+        <span class="material-symbols-rounded toast-icon"></span>
+        <div class="toast-content">
+            <span class="toast-title"></span>
+            <span class="toast-message"></span>
         </div>
-        
+        <button class="toast-close" onclick="this.parentElement.remove()">
+            <span class="material-symbols-rounded">close</span>
+        </button>
+    </div>
+</template>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="header-titles">
+        <p>Keep track of medical equipment transactions, rentals, sales, and service activity logs.</p>
     </div>
 
-    <div id="txnSelectionModal" class="medical-modal-overlay hidden">
-        <div class="medical-modal-content" style="max-width: 500px;">
-            <div class="modal-header-tnx-row">
-                <h2 class="modal-header">New Transaction</h2>
-            </div>
-
-            <button class="modal-close-btn" id="close-selection-modal">
-                <span class="material-symbols-rounded">close</span>
-            </button>   
-
-            <div class="modal-body" style="padding: 20px 0;">
-                <div class="form-field">
-                    <label style="font-weight: 700; color: #1e293b; margin-bottom: 8px; display: block;">1. Select Equipment</label>
-                    <div class="select-wrapper" style="position: relative;">
-                        <select id="global-equipment-select" class="medical-select" style="width: 100%; padding-left: 44px;">
-                            <option value="" disabled selected>Search equipment...</option>
-                            {% for item in all_equipment %}
-                                <option value="{{ item.id }}" 
-                                        data-name="{{ item.equipment_type }} {{ item.name }}" 
-                                        data-stock="{{ item.stock }}"
-                                        data-price="{{ item.sale_price }}"
-                                        data-rent="{{ item.rent_price }}">
-                                     {{ item.name }} — (Qty: {{ item.stock }}) — {{ item.transaction_type }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                        <span class="material-symbols-rounded" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #64748b;">inventory_2</span>
-                    </div>
-                </div>
-
-                <label style="display: block; margin-top: 24px; font-size: 0.85rem; font-weight: 700; color: #64748b; text-transform: uppercase;">2. Choose Transaction Type</label>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px;">
-                    <button type="button" class="type-choice-btn rental" data-flow="Rental">
-                        <span class="material-symbols-rounded">calendar_today</span>
-                        <strong>Rental</strong>
-                    </button>
-                    <button type="button" class="type-choice-btn purchase" data-flow="Sale">
-                        <span class="material-symbols-rounded">shopping_cart</span>
-                        <strong>Purchase</strong>
-                    </button>
-                </div>
-            </div>
+    <button class="primary-action-btn" id="open-txn-selection">
+        <span class="material-symbols-rounded">add_circle</span>
+        <div class="btn-label">
+            <strong>New Transaction</strong>
+            <small>Rental or Purchase</small>
         </div>
-    </div>
-    
-    
+    </button>
+</div>
 
-    <div id="main-toast-container" class="toast-container">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="medical-toast {{ category or 'info' }}" role="alert">
-                        <div class="toast-progress"></div>
-                        <span class="material-symbols-rounded toast-icon">
-                            {% if category == 'success' %}check_circle
-                            {% elif category == 'error' %}error
-                            {% elif category == 'warning' %}warning
-                            {% else %}info{% endif %}
-                        </span>
-                        <div class="toast-content">
-                            <span class="toast-title">{{ category|capitalize or 'Notice' }}</span>
-                            <span class="toast-message">{{ message|replace('\n', '<br>')|safe }}</span>
-                        </div>
-                        <button class="toast-close" onclick="this.parentElement.remove()">
-                            <span class="material-symbols-rounded">close</span>
-                        </button>
-                    </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-    </div>
+<div class="asset-registry-card">
+    <div class="table-header-actions">
+        <div class="search-box">
+            <span class="material-symbols-rounded">search</span>
+            <input type="text" id="table-search" placeholder="Search reference or customer..." value="{{ search_query }}">
+        </div>
 
-    <template id="toast-template">
-        <div class="medical-toast" role="alert">
-            <div class="toast-progress"></div> <span class="material-symbols-rounded toast-icon"></span>
-            <div class="toast-content">
-                <span class="toast-title"></span>
-                <span class="toast-message"></span>
-            </div>
-            <button class="toast-close" onclick="this.parentElement.remove()">
-                <span class="material-symbols-rounded">close</span>
+        <div class="filter-group">
+            <select id="type-filter" class="medical-select">
+                <option value="">All Types</option>
+                <option value="Rental" {{ 'selected' if current_type == 'Rental' }}>Rental</option>
+                <option value="Sale" {{ 'selected' if current_type == 'Sale' }}>Sale</option>
+            </select>
+
+            <select id="fulfillment-filter" class="medical-select">
+                <option value="">All Fulfillment</option>
+                <option value="Pickup" {{ 'selected' if current_fulfillment == 'Pickup' }}>Pickup</option>
+                <option value="Delivery" {{ 'selected' if current_fulfillment == 'Delivery' }}>Delivery</option>
+            </select>
+
+            {% if search_query or current_type or current_fulfillment %}
+            <button type="button" id="clear-filters-btn" class="clear-filter-btn">
+                <span class="material-symbols-rounded">filter_alt_off</span>
+                Clear
             </button>
+            {% endif %}
         </div>
-    </template>
+    </div>
 
-    {% include 'modals/rent_purch_modal.html' %}
-    <script src="{{ url_for('static', filename='js/global.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/admin/admin_transaction.js') }}"></script>
-</body>
+    <div class="table-responsive">
+        <table class="medical-table">
+            <thead>
+                <tr>
+                    <th>Ref No.</th>
+                    <th>Customer Name</th>
+                    <th>Type</th>
+                    <th>Item</th>
+                    <th>Fulfillment</th>
+                    <th>Total</th>
+                    <th>Paid</th>
+                    <th>Balance Due</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for txn in transactions %}
+                <tr>
+                    <td class="ref-cell">
+                        <div class="ref-copy-wrapper">
+                            <input type="text" class="ref-id-input" value="{{ txn.reference_no }}" readonly title="Click to select">
+                            <div class="btn-copy-hint" onclick="navigator.clipboard.writeText('{{ txn.reference_no }}')">
+                                <i class="material-symbols-rounded">content_copy</i>
+                            </div>
+                        </div>
+                    </td>
 
-</html>
+                    <td>
+                        <span class="fw-bold text-dark">{{ txn.customer_name or (txn.customer.first_name ~ ' ' ~ txn.customer.last_name) }}</span>
+                    </td>
+
+                    <td>
+                        <span class="badge {{ 'badge-soft-info' if txn.transaction_type == 'Rental' else 'badge-soft-primary' }}">
+                            {{ txn.transaction_type }}
+                        </span>
+                    </td>
+
+                    <td>
+                        <small class="fw-medium text-dark text-truncate d-block" style="max-width: 120px;">
+                            {% if txn.rentals %}
+                                {{ txn.rentals[0].product.equipment_type }}
+                                {% if txn.rentals|length > 1 %}<span class="text-primary">+{{ txn.rentals|length - 1 }}</span>{% endif %}
+                            {% elif txn.purchases %}
+                                {{ txn.purchases[0].product.equipment_type }}
+                                {% if txn.purchases|length > 1 %}<span class="text-primary">+{{ txn.purchases|length - 1 }}</span>{% endif %}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </small>
+                    </td>
+
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <small>{{ txn.fulfillment_type }}</small>
+                        </div>
+                    </td>
+
+                    <td class="fw-bold text-dark">₱{{ "{:,.2f}".format(txn.total_amount) }}</td>
+
+                    <td class="text-success fw-medium">₱{{ "{:,.2f}".format(txn.amount_paid) }}</td>
+
+                    <td>
+                        {% if txn.balance_due > 0 %}
+                            <span class="text-danger fw-bold">₱{{ "{:,.2f}".format(txn.balance_due) }}</span>
+                        {% else %}
+                            <div class="d-flex flex-column">
+                                <span class="badge badge-soft-success w-fit">Fully Paid</span>
+                            </div>
+                        {% endif %}
+                    </td>
+
+                    <td class="status-cell">
+                        {% if txn.status == 'Open' and txn.payment_status == 'Fully Paid' %}
+                            {% if txn.transaction_type == 'Rental' %}
+                                <div class="status-pill status-awaiting-return" title="Payment complete, item with customer">
+                                    <span class="material-symbols-rounded">assignment_return</span>
+                                    <span class="status-text">Awaiting Return</span>
+                                </div>
+                            {% else %}
+                                <div class="status-pill status-awaiting-pickup" title="Payment complete, item ready for customer">
+                                    <span class="material-symbols-rounded">package_2</span>
+                                    <span class="status-text">Awaiting Pickup</span>
+                                </div>
+                            {% endif %}
+                        {% else %}
+                            <div class="status-pill status-{{ txn.status|lower }}" data-status="{{ txn.status }}">
+                                <span class="dot"></span>
+                                <span class="status-text">{{ txn.status }}</span>
+                            </div>
+                        {% endif %}
+                    </td>
+
+                    <td>
+                        <div class="date-stack">
+                            <span class="fw-medium">{{ txn.created_at.strftime('%B %d, %Y') }}</span>
+                        </div>
+                    </td>
+
+                    <td class="text-end">
+                        <div class="action-row-container d-flex justify-content-end gap-1">
+                            <button type="button"
+                                class="btn-action btn-add-payment {{ 'disabled opacity-50' if txn.balance_due <= 0 }}"
+                                title="Add Payment"
+                                data-txn-id="{{ txn.id }}"
+                                data-ref="{{ txn.reference_no }}"
+                                data-balance="{{ txn.balance_due }}"
+                                data-type="{{ txn.transaction_type }}"
+                                data-monthly-rate="{% if txn.rentals %}{{ txn.rentals[0].monthly_rate }}{% else %}0{% endif %}"
+                                data-unpaid-count="{% if txn.rentals %}{{ txn.rentals[0].invoices|selectattr('status', 'ne', 'Paid')|list|length }}{% else %}0{% endif %}"
+                                {% if txn.balance_due <= 0 %}disabled{% endif %}>
+                                <i class="material-symbols-rounded">add_card</i>
+                            </button>
+
+                            <a href="{{ url_for('admin.transaction_details', id=txn.id) }}" class="btn-action" title="View/Return Details">
+                                <i class="material-symbols-rounded">visibility</i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="12" style="height: 400px; text-align: center; vertical-align: middle; border: none;">
+                        <div class="d-flex flex-column align-items-center justify-content-center h-100 w-100">
+                            <div class="empty-state-content" style="margin: auto;">
+                                <i class="material-symbols-rounded text-light" style="font-size: 80px; opacity: 0.4; display: block; margin: 0 auto;">receipt_long</i>
+                                <p class="text-muted fw-bold mt-3 mb-1">No transactions found</p>
+                                <p class="text-muted small">Try adjusting your search or filters.</p>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="pagination-footer">
+        <div class="table-limit-control">
+            <span class="limit-label">Show</span>
+            <select class="medical-select" id="row-limit-select">
+                <option value="10" {{ 'selected' if current_limit == 10 }}>10</option>
+                <option value="25" {{ 'selected' if current_limit == 25 }}>25</option>
+                <option value="50" {{ 'selected' if current_limit == 50 }}>50</option>
+            </select>
+            <span class="limit-label">entries</span>
+        </div>
+
+        <div class="pagination-info">
+            Showing <strong>{{ (pagination.page - 1) * pagination.per_page + 1 }}</strong> to
+            <strong>{{ [pagination.page * pagination.per_page, pagination.total]|min }}</strong>
+            of <strong>{{ pagination.total }}</strong> transactions
+        </div>
+
+        <div class="pagination-controls">
+            {% if pagination.has_prev %}
+            <a href="{{ url_for('admin.transactions', page=pagination.prev_num, limit=current_limit, q=search_query, type=current_type, fulfillment=current_fulfillment) }}" class="pag-btn">
+                <span class="material-symbols-rounded">chevron_left</span>
+            </a>
+            {% else %}
+            <div class="pag-btn disabled" style="opacity: 0.4;"><span class="material-symbols-rounded">chevron_left</span></div>
+            {% endif %}
+
+            <span class="page-number">Page <strong>{{ pagination.page }}</strong> of {{ pagination.pages }}</span>
+
+            {% if pagination.has_next %}
+            <a href="{{ url_for('admin.transactions', page=pagination.next_num, limit=current_limit, q=search_query, type=current_type, fulfillment=current_fulfillment) }}" class="pag-btn">
+                <span class="material-symbols-rounded">chevron_right</span>
+            </a>
+            {% else %}
+            <div class="pag-btn disabled" style="opacity: 0.4;"><span class="material-symbols-rounded">chevron_right</span></div>
+            {% endif %}
+
+            <div class="jump-to-wrapper">
+                <span class="jump-text">Go to</span>
+                <input type="number" id="jump-page-input" class="jump-input" min="1" max="{{ pagination.pages }}" value="{{ pagination.page }}">
+                <button class="jump-btn" onclick="jumpToPage()">Go</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- New Transaction Selection Modal -->
+<div id="txnSelectionModal" class="medical-modal-overlay hidden">
+    <div class="medical-modal-content" style="max-width: 500px;">
+        <div class="modal-header-tnx-row">
+            <h2 class="modal-header">New Transaction</h2>
+        </div>
+
+        <button class="modal-close-btn" id="close-selection-modal">
+            <span class="material-symbols-rounded">close</span>
+        </button>
+
+        <div class="modal-body" style="padding: 20px 0;">
+            <div class="form-field">
+                <label style="font-weight: 700; color: #1e293b; margin-bottom: 8px; display: block;">1. Select Equipment</label>
+                <div class="select-wrapper" style="position: relative;">
+                    <select id="global-equipment-select" class="medical-select" style="width: 100%; padding-left: 44px;">
+                        <option value="" disabled selected>Search equipment...</option>
+                        {% for item in all_equipment %}
+                            <option value="{{ item.id }}"
+                                    data-name="{{ item.equipment_type }} {{ item.name }}"
+                                    data-stock="{{ item.stock }}"
+                                    data-price="{{ item.sale_price }}"
+                                    data-rent="{{ item.rent_price }}">
+                                {{ item.name }} — (Qty: {{ item.stock }}) — {{ item.transaction_type }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <span class="material-symbols-rounded" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #64748b;">inventory_2</span>
+                </div>
+            </div>
+
+            <label style="display: block; margin-top: 24px; font-size: 0.85rem; font-weight: 700; color: #64748b; text-transform: uppercase;">2. Choose Transaction Type</label>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px;">
+                <button type="button" class="type-choice-btn rental" data-flow="Rental">
+                    <span class="material-symbols-rounded">calendar_today</span>
+                    <strong>Rental</strong>
+                </button>
+                <button type="button" class="type-choice-btn purchase" data-flow="Sale">
+                    <span class="material-symbols-rounded">shopping_cart</span>
+                    <strong>Purchase</strong>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% include 'modals/rent_purch_modal.html' %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/admin/admin_transaction.js') }}"></script>
+{% endblock %}

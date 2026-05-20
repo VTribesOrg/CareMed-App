@@ -128,7 +128,6 @@ def root():
         return redirect(url_for('user.products'))
     return redirect(url_for('user.homepage'))
 
-
 from routes.user_routes import user_bp
 app.register_blueprint(user_bp)
 

@@ -1,680 +1,454 @@
-<!DOCTYPE html>
-<html lang="en">
+{% extends "admin/nav_base.html" %}
 
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CareMed | Transaction Details</title>
-    <link rel="icon" type="image/png" href="{{ url_for('static', filename='icons/favicon-circle.png') }}">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin/admin_transaction_details.css') }}">
+{% block title %}Transaction Details{% endblock %}
+{% block page_title %}Transaction{% endblock %}
 
-</head>
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/admin_transaction_details.css') }}">
+{% endblock %}
 
-<body>
-    
-    <input type="checkbox" id="sidebar-state" hidden>
-    <script nonce="{{ csp_nonce() }}">
-        (function() {
-            const checkbox = document.getElementById('sidebar-state');
-            const savedState = localStorage.getItem('sidebar-collapsed');
-            if (savedState === 'true') {
-                checkbox.checked = false;
-            } else {
-                checkbox.checked = true;
-            }
-            document.body.classList.add('ready');
-        })();
-    </script>
-    
-    <div class="main-wrapper">
-
-        <aside class="medical-sidebar">
-            <div class="sidebar-header">
-                <div class="sidebar-brand">
-                    <div class="brand-icon-plus">
-                        <div class="box blue top"></div>
-                        <div class="box green left"></div>
-                        <div class="box green right"></div>
-                        <div class="box blue bottom"></div>
+{# Override flash block — this page uses toast-style flash messages instead of the base flash bars #}
+{% block flash %}
+<div id="main-toast-container" class="toast-container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="medical-toast {{ category or 'info' }}" role="alert">
+                    <div class="toast-progress"></div>
+                    <span class="material-symbols-rounded toast-icon">
+                        {% if category == 'success' %}check_circle
+                        {% elif category == 'error' %}error
+                        {% elif category == 'warning' %}warning
+                        {% else %}info{% endif %}
+                    </span>
+                    <div class="toast-content">
+                        <span class="toast-title">{{ category|capitalize or 'Notice' }}</span>
+                        <span class="toast-message">{{ message|replace('\n', '<br>')|safe }}</span>
                     </div>
-
-                    <div class="nav-label logo-text">
-                        Care<span>Med</span>
-                    </div>
+                    <button class="toast-close" onclick="this.parentElement.remove()">
+                        <span class="material-symbols-rounded">close</span>
+                    </button>
                 </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+</div>
 
-                <label for="sidebar-state" class="nav-toggle-label">
-                    <span class="material-symbols-rounded">menu</span>
-                </label>
+<template id="toast-template">
+    <div class="medical-toast" role="alert">
+        <div class="toast-progress"></div>
+        <span class="material-symbols-rounded toast-icon"></span>
+        <div class="toast-content">
+            <span class="toast-title"></span>
+            <span class="toast-message"></span>
+        </div>
+        <button class="toast-close" onclick="this.parentElement.remove()">
+            <span class="material-symbols-rounded">close</span>
+        </button>
+    </div>
+</template>
+{% endblock %}
+
+{% block content %}
+<header class="content-header">
+    <div class="header-title-group">
+        <a href="{{ url_for('admin.transactions') }}" class="btn-icon-plain">
+            <span class="material-symbols-rounded">arrow_back</span>
+        </a>
+        <div class="header-text">
+            <h1 class="main-title">Transaction Detail</h1>
+            <small class="reference-subtext">Ref: {{ txn.reference_no }}</small>
+        </div>
+    </div>
+
+    <button class="btn-print" id="trigger-print">
+        <span class="material-symbols-rounded">print</span> Print Invoice
+    </button>
+</header>
+
+<div class="details-grid">
+
+    <section class="details-main-content">
+
+        <div class="action-card">
+            <header class="card-header-custom">
+                <span class="header-label-text">Purchased / Rented Items</span>
+                <span class="badge-soft-info">{{ txn.transaction_type }}</span>
+            </header>
+
+            <div class="table-container">
+                <table class="item-list-table">
+                    <thead>
+                        <tr>
+                            <th>Equipment</th>
+                            <th>Qty</th>
+                            <th>Unit Price/Rate</th>
+                            <th class="text-right">Subtotal</th>
+                            {% if txn.purchases %}
+                                <th class="text-end">Action</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if txn.rentals %}
+                            {% for item in txn.rentals %}
+                            <tr>
+                                <td><div class="item-title">{{ item.product.name }}</div></td>
+                                <td>{{ item.quantity }}</td>
+                                <td>₱{{ "{:,.2f}".format(item.monthly_rate) }}/mo</td>
+                                <td class="text-right-bold">₱{{ "{:,.2f}".format(item.monthly_rate) }}</td>
+                            </tr>
+                            {% endfor %}
+                        {% elif txn.purchases %}
+                            {% for item in txn.purchases %}
+                            <tr>
+                                <td><div class="item-title">{{ item.product.name }}</div></td>
+                                <td>{{ item.quantity }}</td>
+                                <td>₱{{ "{:,.2f}".format(item.unit_price) }}</td>
+                                <td class="text-right-bold">₱{{ "{:,.2f}".format(item.total_price) }}</td>
+                                <td class="col-action">
+                                    <div class="action-wrapper d-flex align-items-center justify-content-end">
+                                        {% if txn.status != 'Closed' and txn.status != 'Cancelled' %}
+                                            <button type="button"
+                                                    class="btn-action-payment btn-add-payment"
+                                                    data-txn-id="{{ txn.id }}"
+                                                    data-ref="{{ txn.reference_no }}"
+                                                    data-balance="{{ txn.total_amount - txn.amount_paid }}"
+                                                    data-type="Purchase"
+                                                    data-invoice-id="">
+                                                <i class="material-symbols-rounded">payments</i>
+                                                <span>Pay Now</span>
+                                            </button>
+                                        {% else %}
+                                            <div class="settled-pill">
+                                                <span class="material-symbols-rounded">check_circle</span>
+                                                <span class="settled-text">Settled</span>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% endif %}
+                    </tbody>
+                </table>
             </div>
+        </div>
 
-            <div class="sidebar-navigation">
-                <ul class="nav-menu">
-                    <li class="nav-item" title="Dashboard">
-                        <a href="{{ url_for('admin.dashboard') }}" class="nav-link">
-                            <span class="material-symbols-rounded">monitoring</span>
-                            <span class="nav-label">Dashboard</span>
-                        </a>
-                    </li>
-
-                    <li class="nav-item" title="Inventory">
-                        <a href="{{ url_for('admin.products') }}" class="nav-link">
-                            <span class="material-symbols-rounded">inventory_2</span>
-                            <span class="nav-label">Inventory</span>
-                        </a>
-                    </li>
-
-                    <li class="nav-item" title="Refill Requests">
-                        <a href="#" class="nav-link">
-                            <span class="material-symbols-rounded">gas_meter</span>
-                            <span class="nav-label">Refill Requests</span>
-                        </a>
-                    </li>
-
-                    <li class="nav-item" title="Customer Records">
-                        <a href="{{ url_for('admin.customers') }}" class="nav-link">
-                            <span class="material-symbols-rounded">groups</span>
-                            <span class="nav-label">Customer Records</span>
-                        </a>
-                    </li>
-
-                    <li class="nav-item" title="Transactions">
-                        <a href="{{ url_for('admin.transactions') }}" class="nav-link active">
-                            <span class="material-symbols-rounded">receipt_long</span>
-                            <span class="nav-label">Transactions</span>
-                        </a>
-                    </li>
-
-                    <li class="nav-item" title="Reporst & Analytics">
-                        <a href="{{ url_for('admin.reports') }}" class="nav-link">
-                            <span class="material-symbols-rounded">analytics</span>
-                            <span class="nav-label">Reports & Analytics</span>
-                        </a>
-                    </li>
-                    <li class="nav-item" title="Security Center">
-                        <a href="{{ url_for('admin.security_dashboard') }}" class="nav-link">
-                            <span class="material-symbols-rounded">security</span>
-                            <span class="nav-label">Security Center</span>
-                        </a>
-                    </li>
-                    <li class="nav-item" title="System Logs">
-                        <a href="{{url_for('admin.system_logs')}}" class="nav-link">
-                            <span class="material-symbols-rounded">list_alt</span>
-                            <span class="nav-label">System Logs</span>
-                        </a>
-                    </li>
-                </ul>
-
-                <div class="sidebar-footer" title="Settings">
-                    <a href="javascript:void(0)" class="nav-link settings-link" id="settings-toggle-btn">
-                        <span class="material-symbols-rounded">settings</span>
-                        <span class="nav-label theme-label">Settings &amp; help</span>
-                    </a>
-
-                    <div id="settings-menu-popup" class="settings-menu-popup hidden">
-                        <ul>
-                            <li class="menu-item menu-theme-toggle">
-                                <span class="material-symbols-rounded theme-icon">light_mode</span>
-                                <span class="theme-text">Theme</span>
-                                <span class="material-symbols-rounded chevron">chevron_right</span>
-                            </li>
-                            <li class="menu-item">
-                                <span class="material-symbols-rounded">feedback</span>
-                                <span>Send feedback</span>
-                            </li>
-                            <li class="menu-item menu-help-sub">
-                                <span class="material-symbols-rounded">help</span>
-                                <span>Help</span>
-                                <span class="material-symbols-rounded chevron">chevron_right</span>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </aside>
-
-        <div class="viewport-container">
-            <header class="system-header">
-                <h1>Transaction</h1>
-
-                <div class="header-actions">
-                    <div class="action-item">
-                        <button class="icon-btn" id="notif-btn">
-                            <span class="material-symbols-rounded">notifications</span>
-                            <span class="notification-badge">3</span>
-                        </button>
-                        <div class="header-dropdown" id="notif-dropdown">
-                            <div class="dropdown-header">Notifications</div>
-                            <a href="#" class="dropdown-item">
-                                <span class="material-symbols-rounded" style="color:#f97316">warning</span>
-                                <div>
-                                    <p style="margin:0; font-weight:600">Overdue Return</p>
-                                    <small>Oxygen Tank #7721 is late</small>
-                                </div>
-                            </a>
-                            <a href="#" class="dropdown-item">
-                                <span class="material-symbols-rounded" style="color:#00a8cc">inventory</span>
-                                <div>
-                                    <p style="margin:0; font-weight:600">Low Stock</p>
-                                    <small>Wheelchairs below threshold</small>
-                                </div>
-                            </a>
-                        </div>
-                    </div>
-
-                    <div class="action-item">
-                        <div class="clinical-user" id="profile-btn">
-                            <div class="user-info">
-                                <span class="user-name">{{ current_user.first_name}} {{ current_user.last_name}}</span>
-                                <span class="user-role">{{ current_user.role }}</span>
-                            </div>
-                            <div class="user-avatar" id="avatar-wrapper">
-                                <span class="material-symbols-rounded" id="avatar-icon">person</span>
-                                <img src="" alt="User" id="header-avatar-img" class="hidden">
-                            </div>
-                        </div>
-                        <div class="header-dropdown" id="profile-dropdown">
-                            <div class="dropdown-header">My Account</div>
-                            <a href="{{ url_for('admin.profile') }}" class="dropdown-item">
-                                <span class="material-symbols-rounded">person</span>Profile Settings
-                            </a>
-                            <a href="#" class="dropdown-item">
-                                <span class="material-symbols-rounded">security</span>Activity Log
-                            </a>
-                            <a href="{{ url_for('auth.logout') }}" class="dropdown-item logout">
-                                <span class="material-symbols-rounded">logout</span>Logout
-                            </a>
-                        </div>
-                    </div>
+        {% if txn.transaction_type == 'Rental' %}
+        <div class="action-card" style="margin-top: 20px;">
+            <header class="card-header-custom">
+                <div class="header-icon-label d-flex align-items-center gap-2" style="display: flex; align-items: center;">
+                    <span class="material-symbols-rounded" style="color: var(--medical-primary); font-size: 20px; line-height: 1; vertical-align: middle;">
+                        calendar_month
+                    </span>
+                    <span class="header-label-text mb-0">Monthly Billing Schedule</span>
                 </div>
             </header>
 
-
-            <main class="content-area">
-                <header class="content-header">
-                    <div class="header-title-group">
-                        <a href="{{ url_for('admin.transactions') }}" class="btn-icon-plain">
-                            <span class="material-symbols-rounded">arrow_back</span>
-                        </a>
-                        <div class="header-text">
-                            <h1 class="main-title">Transaction Detail</h1>
-                            <small class="reference-subtext">Ref: {{ txn.reference_no }}</small>
-                        </div>
-                    </div>
-
-                    <button class="btn-print" id="trigger-print">
-                        <span class="material-symbols-rounded">print</span> Print Invoice
-                    </button>
-                </header>
-
-                <div class="details-grid">
-                    
-                    <section class="details-main-content">                                          
-
-                        <div class="action-card">
-
-                            <header class="card-header-custom">
-                                <span class="header-label-text">Purchased / Rented Items</span>
-                                <span class="badge-soft-info">{{ txn.transaction_type }}</span>
-                            </header>
-
-                            <div class="table-container">
-                                <table class="item-list-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Equipment</th>
-                                            <th>Qty</th>
-                                            <th>Unit Price/Rate</th>
-                                            <th class="text-right">Subtotal</th>
-                                            {% if txn.purchases %}
-                                                <th class="text-end">Action</th> 
-                                            {% endif %}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% if txn.rentals %}
-                                            {% for item in txn.rentals %}
-                                            <tr>
-                                                <td>
-                                                    <div class="item-title">{{ item.product.name }}</div>
-                                                </td>
-                                                <td>{{ item.quantity }}</td>
-                                                <td>₱{{ "{:,.2f}".format(item.monthly_rate) }}/mo</td>
-                                                <td class="text-right-bold">₱{{ "{:,.2f}".format(item.monthly_rate) }}</td>
-                                                <!-- No TD here because header is hidden -->
-                                            </tr>
-                                            {% endfor %}
-                                        {% elif txn.purchases %}
-                                            {% for item in txn.purchases %}
-                                            <tr>
-                                                <td>
-                                                    <div class="item-title">{{ item.product.name }}</div>
-                                                </td>
-                                                <td>{{ item.quantity }}</td>
-                                                <td>₱{{ "{:,.2f}".format(item.unit_price) }}</td>
-                                                <td class="text-right-bold">₱{{ "{:,.2f}".format(item.total_price) }}</td>
-                                                <td class="col-action">
-                                                    <div class="action-wrapper d-flex align-items-center justify-content-end">
-                                                        {% if txn.status != 'Closed' and txn.status != 'Cancelled' %}
-                                                            <button type="button" 
-                                                                    class="btn-action-payment btn-add-payment" 
-                                                                    data-txn-id="{{ txn.id }}" 
-                                                                    data-ref="{{ txn.reference_no }}" 
-                                                                    data-balance="{{ txn.total_amount - txn.amount_paid }}"
-                                                                    data-type="Purchase"
-                                                                    data-invoice-id=""> 
-                                                                <i class="material-symbols-rounded">payments</i>
-                                                                <span>Pay Now</span>
-                                                            </button>
-                                                        {% else %}
-                                                            <div class="settled-pill">
-                                                                <span class="material-symbols-rounded">check_circle</span>
-                                                                <span class="settled-text">Settled</span>
-                                                            </div>
-                                                        {% endif %}
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            {% endfor %}
-                                        {% endif %}
-                                    </tbody>
-                                </table>
-                            </div>
-
-                        </div>
-
-                        {% if txn.transaction_type == 'Rental' %}
-                        <div class="action-card" style="margin-top: 20px;">
-                            
-                            <header class="card-header-custom">
-                                <div class="header-icon-label d-flex align-items-center gap-2" style="display: flex; align-items: center;">
-                                    <span class="material-symbols-rounded" style="color: var(--medical-primary); font-size: 20px; line-height: 1; vertical-align: middle;">
-                                        calendar_month
-                                    </span>
-                                    <span class="header-label-text mb-0">Monthly Billing Schedule</span>
-                                </div>
-                            </header>
-
-                            <div class="table-container">
-                                <table class="item-list-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Due Date</th>
-                                            <th>Amount Due</th>
-                                            <th>Progress (Paid/Total)</th>
-                                            <th>Balance</th>
-                                            <th>Status</th>
-                                            <th class="text-end">Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for rental in txn.rentals %}
-                                            {% for invoice in rental.invoices %}
-                                            <tr>
-                                                <td>
-                                                    <div class="item-title">
-                                                        Due: {{ invoice.service_period_start.strftime('%B %d, %Y') }}
-                                                    </div>
-                                                </td>
-
-                                                <td class="col-amount">
-                                                    ₱{{ "{:,.2f}".format(invoice.amount_due + (invoice.late_fee or 0)) }}
-                                                </td>
-
-                                                <td class="text-muted" style="font-size: 0.85rem;">
-                                                    <span class="fw-bold">₱{{ "{:,.2f}".format(invoice.total_invoice_value) }}</span>/ 
-                                                    <small>₱{{ "{:,.2f}".format(invoice.amount_paid) }}</small>
-                                                </td>
-
-                                                <td class="fw-bold">
-                                                    {% if invoice.remaining_balance > 0 %}
-                                                        <span class="text-danger">₱{{ "{:,.2f}".format(invoice.remaining_balance) }}</span>
-                                                    {% else %}
-                                                        <span class="text-success">₱0.00</span>
-                                                    {% endif %}
-                                                </td>
-
-                                                <td class="col-status">
-                                                    {% if invoice.status == 'Paid' %}
-                                                        <span class="badge-soft-success">Paid</span>
-                                                    {% elif invoice.status == 'Partially Paid' %}
-                                                        <span class="badge-soft-warning">Partial</span>
-                                                    {% else %}
-                                                        {% if invoice.service_period_start < current_date %}
-                                                            <span class="badge-soft-danger">Overdue</span>
-                                                        {% else %}
-                                                            <span class="badge-soft-danger">Unpaid</span>
-                                                        {% endif %}
-                                                    {% endif %}
-                                                </td>
-
-                                                <td class="col-action">
-                                                    <div class="action-wrapper d-flex align-items-center">
-                                                        {% if invoice.status != 'Paid' %}
-                                                            <button type="button" 
-                                                                    class="btn-action-payment btn-add-payment" 
-                                                                    data-txn-id="{{ txn.id }}" 
-                                                                    data-ref="{{ txn.reference_no }}" 
-                                                                    data-balance="{{ invoice.remaining_balance }}"
-                                                                    data-type="Rental"
-                                                                    data-monthly-rate="{{ rental.monthly_rate }}"
-                                                                    data-unpaid-count="{{ rental.invoices|selectattr('status', 'ne', 'Paid')|list|length }}"
-                                                                    data-invoice-id="{{ invoice.id }}"> 
-                                                                <i class="material-symbols-rounded">payments</i>
-                                                                <span>Pay Now</span>
-                                                            </button>
-                                                        {% else %}
-                                                            <div class="settled-pill">
-                                                                <span class="material-symbols-rounded">check_circle</span>
-                                                                <span class="settled-text">Settled</span>
-                                                            </div>
-                                                        {% endif %}
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            {% endfor %}
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-
-                        </div>
-                        {% endif %}
-
-                        {% if txn.transaction_type == 'Rental' and txn.status == 'Open' %}
-                        <div class="action-card warning" style="margin-top: 20px;">
-                            <header class="card-header-custom"
-                                    style="display:flex; align-items:center; justify-content:space-between;">
-
-                                <div class="header-icon-label"
-                                    style="display:flex; align-items:center; gap:8px;">
-
-                                    <span class="material-symbols-rounded icon-warning"
-                                        style="font-size:20px; line-height:1; display:flex; align-items:center;">
-                                        assignment_return
-                                    </span>
-
-                                    <span class="header-label-text"
-                                        style="display:flex; align-items:center;">
-                                        Process Equipment Return
-                                    </span>
-                                </div>
-
-                                <span class="badge-soft-warning"
-                                    style="display:flex; align-items:center;">
-                                    Item currently with customer
-                                </span>
-                            </header>
-                            
-                            <div class="card-body-padding">
-                                <form action="{{ url_for('admin.process_return', txn_id=txn.id) }}" method="POST" class="form-grid">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                                    <div class="form-group-notes">
-                                        <label class="form-label-header">Return Condition</label>
-                                        <textarea name="return_notes" class="form-control" rows="2" placeholder="Describe any wear or damage..."></textarea>
+            <div class="table-container">
+                <table class="item-list-table">
+                    <thead>
+                        <tr>
+                            <th>Due Date</th>
+                            <th>Amount Due</th>
+                            <th>Progress (Paid/Total)</th>
+                            <th>Balance</th>
+                            <th>Status</th>
+                            <th class="text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for rental in txn.rentals %}
+                            {% for invoice in rental.invoices %}
+                            <tr>
+                                <td>
+                                    <div class="item-title">
+                                        Due: {{ invoice.service_period_start.strftime('%B %d, %Y') }}
                                     </div>
-                                    
-                                    <div class="form-group-fee">
-                                        <label class="form-label-header">Late Fees (₱)</label>
-                                        <input type="number" name="late_fees" class="form-control" value="0.00" step="0.01">
-                                    </div>
-                                    
-                                    <div class="form-group-submit">
-                                        <label class="form-label-header" style="visibility: hidden;">Action</label>
-                                        <button type="submit" class="btn-warning-action">
-                                            <span class="material-symbols-rounded">check_circle</span>
-                                            Complete Return
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                        {% endif %}
-
-                    </section>
-
-                    <aside class="details-sidebar">
-
-                        <div class="tracking-sidebar-card">
-                            <div class="tracking-header">
-                                <span class="tracking-label">Order Progress</span>
-                                <span class="status-badge 
-                                    {% if txn.tracking_status == 'DELIVERED' %}delivered
-                                    {% elif txn.tracking_status == 'CANCELED' %}canceled{% endif %}">
-                                    {{ txn.tracking_status }}
-                                </span>
-                            </div>
-
-                            <form action="{{ url_for('admin.update_tracking', txn_id=txn.id) }}" method="POST">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                
-                                <div style="display: flex; flex-direction: column; gap: 8px;">
-                                    
-                                    {% if txn.tracking_status == 'SUBMITTED' %}
-                                        <input type="hidden" name="tracking_status" value="VERIFIED">
-                                        <button type="submit" class="btn-step verify">
-                                            <span class="material-symbols-rounded" style="font-size: 18px;">verified_user</span>
-                                            Verify Order
-                                        </button>
-                                        <button type="submit" name="tracking_status" value="CANCELED" class="btn-outline-danger" onclick="return confirm('Cancel this order?')">
-                                            <span class="material-symbols-rounded" style="font-size: 16px;">cancel</span>
-                                            Cancel Order
-                                        </button>
-
-                                    {% elif txn.tracking_status == 'VERIFIED' %}
-                                        <input type="hidden" name="tracking_status" value="SHIPPED">
-                                        <button type="submit" class="btn-step ship">
-                                            <span class="material-symbols-rounded" style="font-size: 18px;">local_shipping</span>
-                                            Ship Items
-                                        </button>
-                                        <button type="submit" name="tracking_status" value="CANCELLED" class="btn-outline-danger" onclick="return confirm('Cancel this order?')">
-                                            <span class="material-symbols-rounded" style="font-size: 16px;">cancel</span>
-                                            Cancel Order
-                                        </button>
-
-                                    {% elif txn.tracking_status == 'SHIPPED' %}
-                                        <input type="hidden" name="tracking_status" value="DELIVERED">
-                                        <button type="submit" class="btn-step complete">
-                                            <span class="material-symbols-rounded" style="font-size: 18px;">check_circle</span>
-                                            Complete Delivery
-                                        </button>
-                                        <div class="more-actions-container">
-                                            <select name="tracking_status" class="select-override" onchange="if(confirm('Restart status?')) this.form.submit()">
-                                                <option value="" selected disabled>More Actions...</option>
-                                                <option value="SUBMITTED">Restart Status</option>
-                                                <option value="CANCELED">Force Cancel</option>
-                                            </select>
-                                        </div>
-
-                                    {% elif txn.tracking_status == 'DELIVERED' %}
-                                        <div class="tracking-state-info state-finished">
-                                            <span class="material-symbols-rounded" style="font-size: 20px;">auto_awesome</span> Order Delivered
-                                        </div>
-
-                                    {% elif txn.tracking_status == 'CANCELLED' %}
-                                        <div class="tracking-state-info state-voided">
-                                            <span class="material-symbols-rounded" style="font-size: 20px;">block</span> Order Canceled
-                                        </div>
-                                    {% endif %}
-                                    
-                                </div>
-                            </form>
-                        </div>
-                        
-                    {% if txn.payment_proof %}
-                        <div class="summary-side-card" style="border-left: 4px solid #f59e0b; margin-bottom: 20px;">
-                            <h5 class="sidebar-card-title">Verify GCash Payment</h5>
-                            <p><strong>Ref No:</strong> {{ txn.payment_proof.reference_number }}</p>
-                            
-                            <a href="{{ url_for('static', filename='uploads/payments/' ~ txn.payment_proof.proof_image) }}" target="_blank">
-                                <img src="{{ url_for('static', filename='uploads/payments/' ~ txn.payment_proof.proof_image) }}" 
-                                    style="width: 100%; border-radius: 5px; margin-bottom: 10px; cursor: zoom-in;" 
-                                    alt="Payment Proof">
-                            </a>
-
-                            <form action="" method="POST">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" class="btn-approve" style="width: 100%; background: #10b981; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: 600;">
-                                    Confirm & Mark as Paid
-                                </button>
-                            </form>
-                        </div>
-                        {% endif %}
-
-                        <div class="summary-side-card summary-spacing">
-                            <h5 class="sidebar-card-title">Payment Summary</h5>
-                            
-                            <div class="info-row">
-                                <span class="info-label">Total Amount</span>
-                                <span class="info-value">₱{{ "{:,.2f}".format(txn.total_amount or 0) }}</span>
-                            </div>
-
-                            <div class="info-row">
-                                <span class="info-label">Amount Paid</span>
-                                <span class="info-value-success">₱{{ "{:,.2f}".format(txn.amount_paid or 0) }}</span>
-                            </div>
-                            
-                            <hr class="summary-divider"> 
-                            
-                            <div class="info-row highlight-row">
-                                <span class="info-label-dark">Balance Due</span>
-                                {% if txn.balance_due > 0 %}
-                                    <span class="info-value-danger">₱{{ "{:,.2f}".format(txn.balance_due) }}</span>
-                                {% else %}
-                                    <span class="info-value-success">₱0.00</span>
-                                {% endif %}
-                            </div>
-                        </div>
-
-                        <div class="summary-side-card">
-                            <h5 class="sidebar-card-title">Customer Details</h5>
-                            
-                            <a href="{{ url_for('admin.customer_details', id=txn.customer_id) }}" class="customer-profile-link">
-                                <div class="customer-profile-section">
-                                    <div class="profile-icon-container">
-                                        <span class="material-symbols-rounded">person</span>
-                                    </div>
-                                    <div class="profile-info">
-                                        <div class="profile-name">
-                                            {{ txn.customer_name or (txn.customer.first_name ~ ' ' ~ txn.customer.last_name if txn.customer else 'Unknown Customer') }}
-                                        </div>
-                                        <small class="profile-type">View Full Profile</small>
-                                    </div>
-                                    <span class="material-symbols-rounded icon-subtle">chevron_right</span>
-                                </div>
-                            </a>
-
-                            <div class="info-column mt-3">
-                                <span class="info-label">Fulfillment Type:</span>
-                                <div class="info-value">
-                                    {% if txn.fulfillment_type|lower == 'delivery' %}
-                                        <span class="badge-soft-primary"><span class="material-symbols-rounded" style="font-size: 14px; align-item: center; vertical-align: middle; line-height: 1;">local_shipping</span> DELIVERY</span>
+                                </td>
+                                <td class="col-amount">
+                                    ₱{{ "{:,.2f}".format(invoice.amount_due + (invoice.late_fee or 0)) }}
+                                </td>
+                                <td class="text-muted" style="font-size: 0.85rem;">
+                                    <span class="fw-bold">₱{{ "{:,.2f}".format(invoice.total_invoice_value) }}</span>/
+                                    <small>₱{{ "{:,.2f}".format(invoice.amount_paid) }}</small>
+                                </td>
+                                <td class="fw-bold">
+                                    {% if invoice.remaining_balance > 0 %}
+                                        <span class="text-danger">₱{{ "{:,.2f}".format(invoice.remaining_balance) }}</span>
                                     {% else %}
-                                        <span class="badge-soft-info"><span class="material-symbols-rounded" style="font-size: 14px; align-item: center; vertical-align: middle; line-height: 1;">store</span> PICKUP</span>
+                                        <span class="text-success">₱0.00</span>
                                     {% endif %}
-                                </div>
-                            </div>
-
-                            {% if txn.delivery_address %}
-                            <div class="info-column address-spacing">
-                                <span class="info-label d-block">Delivery Address:</span>
-                                <span class="info-value-address text-muted d-block">
-                                    {{ txn.delivery_address }}
-                                </span>
-                            </div>
-                            {% endif %}
-
-                            <hr class="card-divider">
-
-                            <div class="info-column">
-                                <span class="info-label">Payment Method</span>
-                                <div class="info-value payment-detail">
-                                    <span class="material-symbols-rounded">payments</span>
-                                    <span>{{ txn.payment_method if txn.payment_method else 'Manual/Cash' }}</span>
-                                </div>
-                            </div>
-
-                            <div class="transaction-breakdown">
-                                <div class="breakdown-item">
-                                    <span>Subtotal</span>
-                                    <span>₱{{ "{:,.2f}".format(txn.total_amount or 0) }}</span>
-                                </div>
-                                <div class="breakdown-item">
-                                    <span>Service/Late Fees</span>
-                                    <span>₱{{ "{:,.2f}".format(txn.total_late_fees or 0) }}</span>
-                                </div>
-                                <div class="breakdown-item total-row">
-                                    <span>Total Value</span>
-                                    <span class="text-dark font-bold">₱{{ "{:,.2f}".format((txn.total_amount or 0) + (txn.total_late_fees or 0)) }}</span>
-                                </div>
-                            </div>
-
-                            <hr class="card-divider">
-
-                            <div class="info-column">
-                                <span class="info-label">Transaction Date</span>
-                                <div class="info-value text-muted small">
-                                    <span class="material-symbols-rounded" style="font-size: 14px; vertical-align: middle;">event</span>
-                                    {{ txn.created_at.strftime('%B %d, %Y at %I:%M %p') if txn.created_at else 'Date Not Recorded' }}
-                                </div>
-                            </div>
-                        </div>
-                    </aside>
-
-                </div>
-            </main>
-
-
+                                </td>
+                                <td class="col-status">
+                                    {% if invoice.status == 'Paid' %}
+                                        <span class="badge-soft-success">Paid</span>
+                                    {% elif invoice.status == 'Partially Paid' %}
+                                        <span class="badge-soft-warning">Partial</span>
+                                    {% else %}
+                                        {% if invoice.service_period_start < current_date %}
+                                            <span class="badge-soft-danger">Overdue</span>
+                                        {% else %}
+                                            <span class="badge-soft-danger">Unpaid</span>
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+                                <td class="col-action">
+                                    <div class="action-wrapper d-flex align-items-center">
+                                        {% if invoice.status != 'Paid' %}
+                                            <button type="button"
+                                                    class="btn-action-payment btn-add-payment"
+                                                    data-txn-id="{{ txn.id }}"
+                                                    data-ref="{{ txn.reference_no }}"
+                                                    data-balance="{{ invoice.remaining_balance }}"
+                                                    data-type="Rental"
+                                                    data-monthly-rate="{{ rental.monthly_rate }}"
+                                                    data-unpaid-count="{{ rental.invoices|selectattr('status', 'ne', 'Paid')|list|length }}"
+                                                    data-invoice-id="{{ invoice.id }}">
+                                                <i class="material-symbols-rounded">payments</i>
+                                                <span>Pay Now</span>
+                                            </button>
+                                        {% else %}
+                                            <div class="settled-pill">
+                                                <span class="material-symbols-rounded">check_circle</span>
+                                                <span class="settled-text">Settled</span>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
+        {% endif %}
 
-    </div>
+        {% if txn.transaction_type == 'Rental' and txn.status == 'Open' %}
+        <div class="action-card warning" style="margin-top: 20px;">
+            <header class="card-header-custom" style="display:flex; align-items:center; justify-content:space-between;">
+                <div class="header-icon-label" style="display:flex; align-items:center; gap:8px;">
+                    <span class="material-symbols-rounded icon-warning" style="font-size:20px; line-height:1; display:flex; align-items:center;">
+                        assignment_return
+                    </span>
+                    <span class="header-label-text" style="display:flex; align-items:center;">
+                        Process Equipment Return
+                    </span>
+                </div>
+                <span class="badge-soft-warning" style="display:flex; align-items:center;">
+                    Item currently with customer
+                </span>
+            </header>
 
-
-
-    <div id="main-toast-container" class="toast-container">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="medical-toast {{ category or 'info' }}" role="alert">
-                        <div class="toast-progress"></div>
-                        <span class="material-symbols-rounded toast-icon">
-                            {% if category == 'success' %}check_circle
-                            {% elif category == 'error' %}error
-                            {% elif category == 'warning' %}warning
-                            {% else %}info{% endif %}
-                        </span>
-                        <div class="toast-content">
-                            <span class="toast-title">{{ category|capitalize or 'Notice' }}</span>
-                            <span class="toast-message">{{ message|replace('\n', '<br>')|safe }}</span>
-                        </div>
-                        <button class="toast-close" onclick="this.parentElement.remove()">
-                            <span class="material-symbols-rounded">close</span>
+            <div class="card-body-padding">
+                <form action="{{ url_for('admin.process_return', txn_id=txn.id) }}" method="POST" class="form-grid">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="form-group-notes">
+                        <label class="form-label-header">Return Condition</label>
+                        <textarea name="return_notes" class="form-control" rows="2" placeholder="Describe any wear or damage..."></textarea>
+                    </div>
+                    <div class="form-group-fee">
+                        <label class="form-label-header">Late Fees (₱)</label>
+                        <input type="number" name="late_fees" class="form-control" value="0.00" step="0.01">
+                    </div>
+                    <div class="form-group-submit">
+                        <label class="form-label-header" style="visibility: hidden;">Action</label>
+                        <button type="submit" class="btn-warning-action">
+                            <span class="material-symbols-rounded">check_circle</span>
+                            Complete Return
                         </button>
                     </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-    </div>
-
-    <template id="toast-template">
-        <div class="medical-toast" role="alert">
-            <div class="toast-progress"></div> <span class="material-symbols-rounded toast-icon"></span>
-            <div class="toast-content">
-                <span class="toast-title"></span>
-                <span class="toast-message"></span>
+                </form>
             </div>
-            <button class="toast-close" onclick="this.parentElement.remove()">
-                <span class="material-symbols-rounded">close</span>
-            </button>
         </div>
-    </template>
+        {% endif %}
 
-    {% include 'modals/rent_purch_modal.html' %}
-    <script src="{{ url_for('static', filename='js/global.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/admin/admin_transaction_details.js') }}"></script>
-</body>
+    </section>
 
-</html>
+    <aside class="details-sidebar">
+
+        <div class="tracking-sidebar-card">
+            <div class="tracking-header">
+                <span class="tracking-label">Order Progress</span>
+                <span class="status-badge
+                    {% if txn.tracking_status == 'DELIVERED' %}delivered
+                    {% elif txn.tracking_status == 'CANCELED' %}canceled{% endif %}">
+                    {{ txn.tracking_status }}
+                </span>
+            </div>
+
+            <form action="{{ url_for('admin.update_tracking', txn_id=txn.id) }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    {% if txn.tracking_status == 'SUBMITTED' %}
+                        <input type="hidden" name="tracking_status" value="VERIFIED">
+                        <button type="submit" class="btn-step verify">
+                            <span class="material-symbols-rounded" style="font-size: 18px;">verified_user</span>
+                            Verify Order
+                        </button>
+                        <button type="submit" name="tracking_status" value="CANCELED" class="btn-outline-danger" onclick="return confirm('Cancel this order?')">
+                            <span class="material-symbols-rounded" style="font-size: 16px;">cancel</span>
+                            Cancel Order
+                        </button>
+
+                    {% elif txn.tracking_status == 'VERIFIED' %}
+                        <input type="hidden" name="tracking_status" value="SHIPPED">
+                        <button type="submit" class="btn-step ship">
+                            <span class="material-symbols-rounded" style="font-size: 18px;">local_shipping</span>
+                            Ship Items
+                        </button>
+                        <button type="submit" name="tracking_status" value="CANCELLED" class="btn-outline-danger" onclick="return confirm('Cancel this order?')">
+                            <span class="material-symbols-rounded" style="font-size: 16px;">cancel</span>
+                            Cancel Order
+                        </button>
+
+                    {% elif txn.tracking_status == 'SHIPPED' %}
+                        <input type="hidden" name="tracking_status" value="DELIVERED">
+                        <button type="submit" class="btn-step complete">
+                            <span class="material-symbols-rounded" style="font-size: 18px;">check_circle</span>
+                            Complete Delivery
+                        </button>
+                        <div class="more-actions-container">
+                            <select name="tracking_status" class="select-override" onchange="if(confirm('Restart status?')) this.form.submit()">
+                                <option value="" selected disabled>More Actions...</option>
+                                <option value="SUBMITTED">Restart Status</option>
+                                <option value="CANCELED">Force Cancel</option>
+                            </select>
+                        </div>
+
+                    {% elif txn.tracking_status == 'DELIVERED' %}
+                        <div class="tracking-state-info state-finished">
+                            <span class="material-symbols-rounded" style="font-size: 20px;">auto_awesome</span> Order Delivered
+                        </div>
+
+                    {% elif txn.tracking_status == 'CANCELLED' %}
+                        <div class="tracking-state-info state-voided">
+                            <span class="material-symbols-rounded" style="font-size: 20px;">block</span> Order Canceled
+                        </div>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+
+        {% if txn.payment_proof %}
+        <div class="summary-side-card" style="border-left: 4px solid #f59e0b; margin-bottom: 20px;">
+            <h5 class="sidebar-card-title">Verify GCash Payment</h5>
+            <p><strong>Ref No:</strong> {{ txn.payment_proof.reference_number }}</p>
+            <a href="{{ url_for('static', filename='uploads/payments/' ~ txn.payment_proof.proof_image) }}" target="_blank">
+                <img src="{{ url_for('static', filename='uploads/payments/' ~ txn.payment_proof.proof_image) }}"
+                    style="width: 100%; border-radius: 5px; margin-bottom: 10px; cursor: zoom-in;"
+                    alt="Payment Proof">
+            </a>
+            <form action="" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn-approve" style="width: 100%; background: #10b981; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                    Confirm &amp; Mark as Paid
+                </button>
+            </form>
+        </div>
+        {% endif %}
+
+        <div class="summary-side-card summary-spacing">
+            <h5 class="sidebar-card-title">Payment Summary</h5>
+            <div class="info-row">
+                <span class="info-label">Total Amount</span>
+                <span class="info-value">₱{{ "{:,.2f}".format(txn.total_amount or 0) }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Amount Paid</span>
+                <span class="info-value-success">₱{{ "{:,.2f}".format(txn.amount_paid or 0) }}</span>
+            </div>
+            <hr class="summary-divider">
+            <div class="info-row highlight-row">
+                <span class="info-label-dark">Balance Due</span>
+                {% if txn.balance_due > 0 %}
+                    <span class="info-value-danger">₱{{ "{:,.2f}".format(txn.balance_due) }}</span>
+                {% else %}
+                    <span class="info-value-success">₱0.00</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="summary-side-card">
+            <h5 class="sidebar-card-title">Customer Details</h5>
+            <a href="{{ url_for('admin.customer_details', id=txn.customer_id) }}" class="customer-profile-link">
+                <div class="customer-profile-section">
+                    <div class="profile-icon-container">
+                        <span class="material-symbols-rounded">person</span>
+                    </div>
+                    <div class="profile-info">
+                        <div class="profile-name">
+                            {{ txn.customer_name or (txn.customer.first_name ~ ' ' ~ txn.customer.last_name if txn.customer else 'Unknown Customer') }}
+                        </div>
+                        <small class="profile-type">View Full Profile</small>
+                    </div>
+                    <span class="material-symbols-rounded icon-subtle">chevron_right</span>
+                </div>
+            </a>
+
+            <div class="info-column mt-3">
+                <span class="info-label">Fulfillment Type:</span>
+                <div class="info-value">
+                    {% if txn.fulfillment_type|lower == 'delivery' %}
+                        <span class="badge-soft-primary"><span class="material-symbols-rounded" style="font-size: 14px; align-item: center; vertical-align: middle; line-height: 1;">local_shipping</span> DELIVERY</span>
+                    {% else %}
+                        <span class="badge-soft-info"><span class="material-symbols-rounded" style="font-size: 14px; align-item: center; vertical-align: middle; line-height: 1;">store</span> PICKUP</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if txn.delivery_address %}
+            <div class="info-column address-spacing">
+                <span class="info-label d-block">Delivery Address:</span>
+                <span class="info-value-address text-muted d-block">{{ txn.delivery_address }}</span>
+            </div>
+            {% endif %}
+
+            <hr class="card-divider">
+
+            <div class="info-column">
+                <span class="info-label">Payment Method</span>
+                <div class="info-value payment-detail">
+                    <span class="material-symbols-rounded">payments</span>
+                    <span>{{ txn.payment_method if txn.payment_method else 'Manual/Cash' }}</span>
+                </div>
+            </div>
+
+            <div class="transaction-breakdown">
+                <div class="breakdown-item">
+                    <span>Subtotal</span>
+                    <span>₱{{ "{:,.2f}".format(txn.total_amount or 0) }}</span>
+                </div>
+                <div class="breakdown-item">
+                    <span>Service/Late Fees</span>
+                    <span>₱{{ "{:,.2f}".format(txn.total_late_fees or 0) }}</span>
+                </div>
+                <div class="breakdown-item total-row">
+                    <span>Total Value</span>
+                    <span class="text-dark font-bold">₱{{ "{:,.2f}".format((txn.total_amount or 0) + (txn.total_late_fees or 0)) }}</span>
+                </div>
+            </div>
+
+            <hr class="card-divider">
+
+            <div class="info-column">
+                <span class="info-label">Transaction Date</span>
+                <div class="info-value text-muted small">
+                    <span class="material-symbols-rounded" style="font-size: 14px; vertical-align: middle;">event</span>
+                    {{ txn.created_at.strftime('%B %d, %Y at %I:%M %p') if txn.created_at else 'Date Not Recorded' }}
+                </div>
+            </div>
+        </div>
+
+    </aside>
+
+</div>
+
+{% include 'modals/rent_purch_modal.html' %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/admin/admin_transaction_details.js') }}"></script>
+{% endblock %}

@@ -1,398 +1,240 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CareMed</title>
-    <link rel="icon" type="image/png" href="{{ url_for('static', filename='icons/favicon-circle.png') }}">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin/admin_report.css') }}">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-    <style>
-        .medical-sidebar, .viewport-container, .nav-label, .logo-text {
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .report-toolbar { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:20px; }
-        .tab-group { display:flex; background:#fff; border:1px solid #dbe2e1; border-radius:10px; padding:4px; gap:2px; }
-        .tab-btn { padding:8px 16px; border:none; background:transparent; border-radius:7px; font-family:'Plus Jakarta Sans',sans-serif; font-size:.82rem; font-weight:600; color:#64748b; cursor:pointer; transition:all .2s; white-space:nowrap; }
-        .tab-btn.active { background:#52B788; color:#fff; }
-        .tab-btn:hover:not(.active) { background:#f1f5f9; color:#002347; }
-        .toolbar-right { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-        .date-select { padding:8px 12px; border:1px solid #dbe2e1; border-radius:8px; font-family:'Plus Jakarta Sans',sans-serif; font-size:.82rem; font-weight:600; color:#002347; background:#fff; cursor:pointer; outline:none; }
-        .export-btn { display:flex; align-items:center; gap:6px; padding:8px 16px; border-radius:8px; border:1px solid #dbe2e1; background:#fff; font-family:'Plus Jakarta Sans',sans-serif; font-size:.82rem; font-weight:700; color:#002347; cursor:pointer; transition:all .2s; }
-        .export-btn:hover { background:#f1f5f9; }
-        .export-btn .material-symbols-rounded { font-size:18px; }
-        .print-btn { display:flex; align-items:center; gap:6px; padding:8px 16px; border-radius:8px; border:none; background:#52B788; font-family:'Plus Jakarta Sans',sans-serif; font-size:.82rem; font-weight:700; color:#fff; cursor:pointer; transition:all .2s; }
-        .print-btn:hover { background:#3d9e71; }
-        .print-btn .material-symbols-rounded { font-size:18px; }
-        .report-panel { display:none; flex-direction:column; gap:20px; }
-        .report-panel.active { display:flex; }
-        .stat-icon.green  { background:#f0fdf4; color:#52B788; }
-        .stat-icon.blue   { background:#e0f2fe; color:#0284c7; }
-        .stat-icon.amber  { background:#fffbeb; color:#d97706; }
-        .stat-icon.red    { background:#fef2f2; color:#ef4444; }
-        .stat-icon.purple { background:#f5f3ff; color:#7c3aed; }
-        .stat-value { font-size:1.4rem; font-weight:800; color:#002347; line-height:1; }
-        .stat-label { font-size:.78rem; color:#64748b; font-weight:600; margin-top:3px; }
-        .stat-delta { font-size:.75rem; font-weight:700; margin-top:4px; }
-        .stat-delta.up   { color:#52B788; }
-        .stat-delta.down { color:#ef4444; }
-        .charts-row { display:grid; grid-template-columns:2fr 1fr; gap:16px; }
-        .charts-row.equal { grid-template-columns:1fr 1fr; }
-        .card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
-        .card-title { font-size:.95rem; font-weight:800; color:#002347; }
-        .card-sub   { font-size:.78rem; color:#64748b; font-weight:600; margin-top:2px; }
-        .chart-h-280 { height:280px; }
-        .chart-h-240 { height:240px; }
-        .chart-legend { display:flex; flex-wrap:wrap; gap:12px; margin-top:10px; }
-        .legend-item  { display:flex; align-items:center; gap:5px; font-size:.75rem; font-weight:600; color:#64748b; }
-        .legend-dot   { width:10px; height:10px; border-radius:3px; flex-shrink:0; }
-        .tag-success { background:#f0fdf4; color:#16a34a; }
-        .tag-warning { background:#fffbeb; color:#d97706; }
-        .tag-danger  { background:#fef2f2; color:#dc2626; }
-        .tag-info    { background:#e0f2fe; color:#0284c7; }
-        .custom-table tr:hover td { background:#f8fafc; }
-        .top-list { display:flex; flex-direction:column; gap:10px; margin-top:8px; }
-        .top-list-item { display:flex; align-items:center; gap:10px; }
-        .top-list-bar-wrap { flex:1; background:#f1f5f9; border-radius:4px; height:6px; }
-        .top-list-bar { height:6px; border-radius:4px; background:#52B788; }
-        .top-list-label { font-size:.8rem; font-weight:600; color:#334155; min-width:120px; }
-        .top-list-value { font-size:.8rem; font-weight:700; color:#002347; min-width:64px; text-align:right; }
-        .alert-row { display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:8px; background:#fef2f2; border:1px solid #fecaca; margin-bottom:8px; }
-        .alert-row .material-symbols-rounded { color:#ef4444; font-size:20px; flex-shrink:0; }
-        .alert-row .alert-text { font-size:.82rem; font-weight:600; color:#7f1d1d; }
-        .alert-row.amber { background:#fffbeb; border-color:#fde68a; }
-        .alert-row.amber .material-symbols-rounded { color:#d97706; }
-        .alert-row.amber .alert-text { color:#78350f; }
-        @media print { .report-toolbar,.medical-sidebar,.system-header{display:none!important} .content-area{padding:0} }
-    </style>
-</head>
-<body>
+{% extends "admin/nav_base.html" %}
 
-    <input type="checkbox" id="sidebar-state" hidden>
-    <script nonce="{{ csp_nonce() }}">
-        (function() {
-            const checkbox = document.getElementById('sidebar-state');
-            const savedState = localStorage.getItem('sidebar-collapsed');
-            if (savedState === 'true') { checkbox.checked = false; } else { checkbox.checked = true; }
-            document.body.classList.add('ready');
-        })();
-    </script>
+{% block title %}Reports & Analytics{% endblock %}
+{% block page_title %}Reports &amp; Analytics{% endblock %}
 
-    <div class="main-wrapper">
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/admin_report.css') }}">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+    .report-toolbar { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:20px; }
+    .tab-group { display:flex; background:#fff; border:1px solid #dbe2e1; border-radius:10px; padding:4px; gap:2px; }
+    .tab-btn { padding:8px 16px; border:none; background:transparent; border-radius:7px; font-family:'Plus Jakarta Sans',sans-serif; font-size:.82rem; font-weight:600; color:#64748b; cursor:pointer; transition:all .2s; white-space:nowrap; }
+    .tab-btn.active { background:#52B788; color:#fff; }
+    .tab-btn:hover:not(.active) { background:#f1f5f9; color:#002347; }
+    .toolbar-right { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .date-select { padding:8px 12px; border:1px solid #dbe2e1; border-radius:8px; font-family:'Plus Jakarta Sans',sans-serif; font-size:.82rem; font-weight:600; color:#002347; background:#fff; cursor:pointer; outline:none; }
+    .export-btn { display:flex; align-items:center; gap:6px; padding:8px 16px; border-radius:8px; border:1px solid #dbe2e1; background:#fff; font-family:'Plus Jakarta Sans',sans-serif; font-size:.82rem; font-weight:700; color:#002347; cursor:pointer; transition:all .2s; }
+    .export-btn:hover { background:#f1f5f9; }
+    .export-btn .material-symbols-rounded { font-size:18px; }
+    .print-btn { display:flex; align-items:center; gap:6px; padding:8px 16px; border-radius:8px; border:none; background:#52B788; font-family:'Plus Jakarta Sans',sans-serif; font-size:.82rem; font-weight:700; color:#fff; cursor:pointer; transition:all .2s; }
+    .print-btn:hover { background:#3d9e71; }
+    .print-btn .material-symbols-rounded { font-size:18px; }
+    .report-panel { display:none; flex-direction:column; gap:20px; }
+    .report-panel.active { display:flex; }
+    .stat-icon.green  { background:#f0fdf4; color:#52B788; }
+    .stat-icon.blue   { background:#e0f2fe; color:#0284c7; }
+    .stat-icon.amber  { background:#fffbeb; color:#d97706; }
+    .stat-icon.red    { background:#fef2f2; color:#ef4444; }
+    .stat-icon.purple { background:#f5f3ff; color:#7c3aed; }
+    .stat-value { font-size:1.4rem; font-weight:800; color:#002347; line-height:1; }
+    .stat-label { font-size:.78rem; color:#64748b; font-weight:600; margin-top:3px; }
+    .stat-delta { font-size:.75rem; font-weight:700; margin-top:4px; }
+    .stat-delta.up   { color:#52B788; }
+    .stat-delta.down { color:#ef4444; }
+    .charts-row { display:grid; grid-template-columns:2fr 1fr; gap:16px; }
+    .charts-row.equal { grid-template-columns:1fr 1fr; }
+    .card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+    .card-title { font-size:.95rem; font-weight:800; color:#002347; }
+    .card-sub   { font-size:.78rem; color:#64748b; font-weight:600; margin-top:2px; }
+    .chart-h-280 { height:280px; }
+    .chart-h-240 { height:240px; }
+    .chart-legend { display:flex; flex-wrap:wrap; gap:12px; margin-top:10px; }
+    .legend-item  { display:flex; align-items:center; gap:5px; font-size:.75rem; font-weight:600; color:#64748b; }
+    .legend-dot   { width:10px; height:10px; border-radius:3px; flex-shrink:0; }
+    .tag-success { background:#f0fdf4; color:#16a34a; }
+    .tag-warning { background:#fffbeb; color:#d97706; }
+    .tag-danger  { background:#fef2f2; color:#dc2626; }
+    .tag-info    { background:#e0f2fe; color:#0284c7; }
+    .custom-table tr:hover td { background:#f8fafc; }
+    .top-list { display:flex; flex-direction:column; gap:10px; margin-top:8px; }
+    .top-list-item { display:flex; align-items:center; gap:10px; }
+    .top-list-bar-wrap { flex:1; background:#f1f5f9; border-radius:4px; height:6px; }
+    .top-list-bar { height:6px; border-radius:4px; background:#52B788; }
+    .top-list-label { font-size:.8rem; font-weight:600; color:#334155; min-width:120px; }
+    .top-list-value { font-size:.8rem; font-weight:700; color:#002347; min-width:64px; text-align:right; }
+    .alert-row { display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:8px; background:#fef2f2; border:1px solid #fecaca; margin-bottom:8px; }
+    .alert-row .material-symbols-rounded { color:#ef4444; font-size:20px; flex-shrink:0; }
+    .alert-row .alert-text { font-size:.82rem; font-weight:600; color:#7f1d1d; }
+    .alert-row.amber { background:#fffbeb; border-color:#fde68a; }
+    .alert-row.amber .material-symbols-rounded { color:#d97706; }
+    .alert-row.amber .alert-text { color:#78350f; }
+    @media print { .report-toolbar,.medical-sidebar,.system-header{display:none!important} .content-area{padding:0} }
+</style>
+{% endblock %}
 
-        <!-- ══════════ SIDEBAR — UNTOUCHED FROM ORIGINAL ══════════ -->
-    <aside class="medical-sidebar">
-        <div class="sidebar-header">
-            <div class="sidebar-brand">
-                <div class="brand-icon-plus">
-                    <div class="box blue top"></div>
-                    <div class="box green left"></div>
-                    <div class="box green right"></div>
-                    <div class="box blue bottom"></div>
-                </div>
+{% block content %}
 
-                <div class="nav-label logo-text">
-                    Care<span>Med</span>
-                </div>
-            </div>
+<!-- TOOLBAR -->
+<div class="report-toolbar">
+    <div class="tab-group">
+        <button class="tab-btn active" data-tab="sales">Sales</button>
+        <button class="tab-btn" data-tab="rentals">Rentals</button>
+        <button class="tab-btn" data-tab="inventory">Inventory</button>
+        <button class="tab-btn" data-tab="customers">Customers</button>
+        <button class="tab-btn" data-tab="financial">Financial</button>
+    </div>
+    <div class="toolbar-right">
+        <select class="date-select">
+            <option value="7">Last 7 days</option>
+            <option value="30" selected>Last 30 days</option>
+            <option value="90">Last 3 months</option>
+            <option value="365">This year</option>
+        </select>
+        <button class="export-btn" onclick="exportCSV()">
+            <span class="material-symbols-rounded">download</span> Export CSV
+        </button>
+        <button class="print-btn" onclick="window.print()">
+            <span class="material-symbols-rounded">print</span> Print
+        </button>
+    </div>
+</div>
 
-            <label for="sidebar-state" class="nav-toggle-label">
-                <span class="material-symbols-rounded">menu</span>
-            </label>
-        </div>
+<!-- SALES -->
+<div class="report-panel active" id="panel-sales">
+    <div class="stats-grid">
+        <div class="stat-card"><div class="stat-icon green"><span class="material-symbols-rounded">payments</span></div><div><div class="stat-value">&#8369;428,500</div><div class="stat-label">Total Sales Revenue</div><div class="stat-delta up">&#9650; 12% vs last month</div></div></div>
+        <div class="stat-card"><div class="stat-icon blue"><span class="material-symbols-rounded">receipt_long</span></div><div><div class="stat-value">1,204</div><div class="stat-label">Total Transactions</div><div class="stat-delta up">&#9650; 8% vs last month</div></div></div>
+        <div class="stat-card"><div class="stat-icon amber"><span class="material-symbols-rounded">trending_up</span></div><div><div class="stat-value">&#8369;356</div><div class="stat-label">Avg. Transaction Value</div><div class="stat-delta up">&#9650; 3% vs last month</div></div></div>
+        <div class="stat-card"><div class="stat-icon red"><span class="material-symbols-rounded">cancel</span></div><div><div class="stat-value">24</div><div class="stat-label">Cancelled Orders</div><div class="stat-delta down">&#9660; 5% vs last month</div></div></div>
+    </div>
+    <div class="charts-row">
+        <div class="report-card"><div class="card-header"><div><div class="card-title">Revenue over time</div><div class="card-sub">Monthly sales trend</div></div></div><div class="chart-wrapper chart-h-280"><canvas id="chart-revenue"></canvas></div></div>
+        <div class="report-card"><div class="card-header"><div><div class="card-title">Sales by category</div><div class="card-sub">Product breakdown</div></div></div><div class="chart-wrapper chart-h-280"><canvas id="chart-category"></canvas></div><div class="chart-legend" id="legend-category"></div></div>
+    </div>
+    <div class="report-table-card">
+        <div class="card-header"><div><div class="card-title">Top selling items</div><div class="card-sub">By revenue this period</div></div></div>
+        <table class="custom-table"><thead><tr><th>#</th><th>Product</th><th>Category</th><th>Units Sold</th><th>Revenue</th><th>Status</th></tr></thead><tbody>
+            <tr><td>1</td><td>Oxygen Tank (10L)</td><td>Respiratory</td><td>312</td><td>&#8369;156,000</td><td><span class="status-tag tag-success">Active</span></td></tr>
+            <tr><td>2</td><td>Wheelchair Standard</td><td>Mobility</td><td>88</td><td>&#8369;88,000</td><td><span class="status-tag tag-success">Active</span></td></tr>
+            <tr><td>3</td><td>Pulse Oximeter</td><td>Monitoring</td><td>204</td><td>&#8369;61,200</td><td><span class="status-tag tag-success">Active</span></td></tr>
+            <tr><td>4</td><td>Crutches (Pair)</td><td>Mobility</td><td>150</td><td>&#8369;45,000</td><td><span class="status-tag tag-warning">Low stock</span></td></tr>
+            <tr><td>5</td><td>Nebulizer Machine</td><td>Respiratory</td><td>62</td><td>&#8369;37,200</td><td><span class="status-tag tag-success">Active</span></td></tr>
+        </tbody></table>
+    </div>
+</div>
 
-        <div class="sidebar-navigation">
-            <ul class="nav-menu">
-                <li class="nav-item" title="Dashboard">
-                    <a href="{{ url_for('admin.dashboard') }}" class="nav-link">
-                        <span class="material-symbols-rounded">monitoring</span>
-                        <span class="nav-label">Dashboard</span>
-                    </a>
-                </li>
+<!-- RENTALS -->
+<div class="report-panel" id="panel-rentals">
+    <div class="stats-grid">
+        <div class="stat-card"><div class="stat-icon blue"><span class="material-symbols-rounded">event_repeat</span></div><div><div class="stat-value">48</div><div class="stat-label">Active Rentals</div><div class="stat-delta up">&#9650; 5% this week</div></div></div>
+        <div class="stat-card"><div class="stat-icon green"><span class="material-symbols-rounded">payments</span></div><div><div class="stat-value">&#8369;182,300</div><div class="stat-label">Rental Revenue</div><div class="stat-delta up">&#9650; 5% vs last month</div></div></div>
+        <div class="stat-card"><div class="stat-icon red"><span class="material-symbols-rounded">schedule</span></div><div><div class="stat-value">6</div><div class="stat-label">Overdue Returns</div><div class="stat-delta down">&#9650; 2 this week</div></div></div>
+        <div class="stat-card"><div class="stat-icon amber"><span class="material-symbols-rounded">calendar_month</span></div><div><div class="stat-value">14.3 days</div><div class="stat-label">Avg. Rental Duration</div><div class="stat-delta up">&#9650; 1 day vs prior</div></div></div>
+    </div>
+    <div class="charts-row equal">
+        <div class="report-card"><div class="card-header"><div><div class="card-title">Rental volume per month</div><div class="card-sub">Units rented out</div></div></div><div class="chart-wrapper chart-h-240"><canvas id="chart-rental-volume"></canvas></div></div>
+        <div class="report-card"><div class="card-header"><div><div class="card-title">Rental status breakdown</div><div class="card-sub">Current snapshot</div></div></div><div class="chart-wrapper chart-h-240"><canvas id="chart-rental-status"></canvas></div><div class="chart-legend" id="legend-rental-status"></div></div>
+    </div>
+    <div class="report-table-card">
+        <div class="card-header"><div><div class="card-title">Overdue rentals</div><div class="card-sub">Requires immediate action</div></div></div>
+        <table class="custom-table"><thead><tr><th>Rental #</th><th>Customer</th><th>Item</th><th>Due Date</th><th>Days Late</th><th>Deposit</th><th>Status</th></tr></thead><tbody>
+            <tr><td>#882</td><td>Maria Santos</td><td>Oxygen Tank #7721</td><td>Mar 20, 2025</td><td>9 days</td><td>&#8369;2,000</td><td><span class="status-tag tag-danger">Overdue</span></td></tr>
+            <tr><td>#876</td><td>Jose Reyes</td><td>Wheelchair Deluxe</td><td>Mar 22, 2025</td><td>7 days</td><td>&#8369;3,500</td><td><span class="status-tag tag-danger">Overdue</span></td></tr>
+            <tr><td>#891</td><td>Ana Cruz</td><td>Hospital Bed</td><td>Mar 25, 2025</td><td>4 days</td><td>&#8369;5,000</td><td><span class="status-tag tag-warning">At risk</span></td></tr>
+        </tbody></table>
+    </div>
+</div>
 
-                <li class="nav-item" title="Inventory">
-                    <a href="{{ url_for('admin.products') }}" class="nav-link">
-                        <span class="material-symbols-rounded">inventory_2</span>
-                        <span class="nav-label">Inventory</span>
-                    </a>
-                </li>
-
-                <li class="nav-item" title="Refill Requests">
-                    <a href="#" class="nav-link">
-                        <span class="material-symbols-rounded">gas_meter</span>
-                        <span class="nav-label">Refill Requests</span>
-                    </a>
-                </li>
-
-                <li class="nav-item" title="Customer Records">
-                    <a href="{{ url_for('admin.customers') }}" class="nav-link">
-                        <span class="material-symbols-rounded">groups</span>
-                        <span class="nav-label">Customer Records</span>
-                    </a>
-                </li>
-
-                <li class="nav-item" title="Transactions">
-                    <a href="{{ url_for('admin.transactions') }}" class="nav-link">
-                        <span class="material-symbols-rounded">receipt_long</span>
-                        <span class="nav-label">Transactions</span>
-                    </a>
-                </li>
-
-                <li class="nav-item" title="Reporst & Analytics">
-                    <a href="{{ url_for('admin.reports') }}" class="nav-link active">
-                        <span class="material-symbols-rounded">analytics</span>
-                        <span class="nav-label">Reports & Analytics</span>
-                    </a>
-                </li>
-                <li class="nav-item" title="Security Center">
-                    <a href="{{ url_for('admin.security_dashboard') }}" class="nav-link">
-                        <span class="material-symbols-rounded">security</span>
-                        <span class="nav-label">Security Center</span>
-                    </a>
-                </li>
-                <li class="nav-item" title="System Logs">
-                    <a href="{{url_for('admin.system_logs')}}" class="nav-link">
-                        <span class="material-symbols-rounded">list_alt</span>
-                        <span class="nav-label">System Logs</span>
-                    </a>
-                </li>
-            </ul>
-
-            <div class="sidebar-footer" title="Settings">
-                <a href="javascript:void(0)" class="nav-link settings-link" id="settings-toggle-btn">
-                    <span class="material-symbols-rounded">settings</span>
-                    <span class="nav-label theme-label">Settings &amp; help</span>
-                </a>
-
-                <div id="settings-menu-popup" class="settings-menu-popup hidden">
-                    <ul>
-                        <li class="menu-item menu-theme-toggle">
-                            <span class="material-symbols-rounded theme-icon">light_mode</span>
-                            <span class="theme-text">Theme</span>
-                            <span class="material-symbols-rounded chevron">chevron_right</span>
-                        </li>
-                        <li class="menu-item">
-                            <span class="material-symbols-rounded">feedback</span>
-                            <span>Send feedback</span>
-                        </li>
-                        <li class="menu-item menu-help-sub">
-                            <span class="material-symbols-rounded">help</span>
-                            <span>Help</span>
-                            <span class="material-symbols-rounded chevron">chevron_right</span>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </aside>
-        <!-- ══════════ END SIDEBAR ══════════ -->
-
-        <div class="viewport-container">
-            <header class="system-header">
-                <h1>Report &amp; Analytics</h1>
-                <div class="header-actions">
-                    <div class="action-item">
-                        <button class="icon-btn" id="notif-btn">
-                            <span class="material-symbols-rounded">notifications</span>
-                            <span class="notification-badge">3</span>
-                        </button>
-                        <div class="header-dropdown" id="notif-dropdown">
-                            <div class="dropdown-header">Notifications</div>
-                            <a href="#" class="dropdown-item"><span class="material-symbols-rounded" style="color:#f97316">warning</span><div><p style="margin:0;font-weight:600">Overdue Return</p><small>Oxygen Tank #7721 is late</small></div></a>
-                            <a href="#" class="dropdown-item"><span class="material-symbols-rounded" style="color:#00a8cc">inventory</span><div><p style="margin:0;font-weight:600">Low Stock</p><small>Wheelchairs below threshold</small></div></a>
-                        </div>
-                    </div>
-                    <div class="action-item">
-                        <div class="clinical-user" id="profile-btn">
-                            <div class="user-info">
-                                <span class="user-name">{{ current_user.first_name}} {{ current_user.last_name}}</span>
-                                <span class="user-role">{{ current_user.role }}</span>
-                            </div>
-                            <div class="user-avatar" id="avatar-wrapper">
-                                <span class="material-symbols-rounded" id="avatar-icon">person</span>
-                                <img src="" alt="User" id="header-avatar-img" class="hidden">
-                            </div>
-                        </div>
-                        <div class="header-dropdown" id="profile-dropdown">
-                            <div class="dropdown-header">My Account</div>
-                            <a href="{{ url_for('admin.profile') }}" class="dropdown-item"><span class="material-symbols-rounded">person</span>Profile Settings</a>
-                            <a href="#" class="dropdown-item"><span class="material-symbols-rounded">security</span>Activity Log</a>
-                            <a href="{{ url_for('auth.logout') }}" class="dropdown-item logout"><span class="material-symbols-rounded">logout</span>Logout</a>
-                        </div>
-                    </div>
-                </div>
-            </header>
-
-            <main class="content-area">
-
-                <!-- TOOLBAR -->
-                <div class="report-toolbar">
-                    <div class="tab-group">
-                        <button class="tab-btn active" data-tab="sales">Sales</button>
-                        <button class="tab-btn" data-tab="rentals">Rentals</button>
-                        <button class="tab-btn" data-tab="inventory">Inventory</button>
-                        <button class="tab-btn" data-tab="customers">Customers</button>
-                        <button class="tab-btn" data-tab="financial">Financial</button>
-                    </div>
-                    <div class="toolbar-right">
-                        <select class="date-select"><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 3 months</option><option value="365">This year</option></select>
-                        <button class="export-btn" onclick="exportCSV()"><span class="material-symbols-rounded">download</span> Export CSV</button>
-                        <button class="print-btn" onclick="window.print()"><span class="material-symbols-rounded">print</span> Print</button>
-                    </div>
-                </div>
-
-                <!-- SALES -->
-                <div class="report-panel active" id="panel-sales">
-                    <div class="stats-grid">
-                        <div class="stat-card"><div class="stat-icon green"><span class="material-symbols-rounded">payments</span></div><div><div class="stat-value">&#8369;428,500</div><div class="stat-label">Total Sales Revenue</div><div class="stat-delta up">&#9650; 12% vs last month</div></div></div>
-                        <div class="stat-card"><div class="stat-icon blue"><span class="material-symbols-rounded">receipt_long</span></div><div><div class="stat-value">1,204</div><div class="stat-label">Total Transactions</div><div class="stat-delta up">&#9650; 8% vs last month</div></div></div>
-                        <div class="stat-card"><div class="stat-icon amber"><span class="material-symbols-rounded">trending_up</span></div><div><div class="stat-value">&#8369;356</div><div class="stat-label">Avg. Transaction Value</div><div class="stat-delta up">&#9650; 3% vs last month</div></div></div>
-                        <div class="stat-card"><div class="stat-icon red"><span class="material-symbols-rounded">cancel</span></div><div><div class="stat-value">24</div><div class="stat-label">Cancelled Orders</div><div class="stat-delta down">&#9660; 5% vs last month</div></div></div>
-                    </div>
-                    <div class="charts-row">
-                        <div class="report-card"><div class="card-header"><div><div class="card-title">Revenue over time</div><div class="card-sub">Monthly sales trend</div></div></div><div class="chart-wrapper chart-h-280"><canvas id="chart-revenue"></canvas></div></div>
-                        <div class="report-card"><div class="card-header"><div><div class="card-title">Sales by category</div><div class="card-sub">Product breakdown</div></div></div><div class="chart-wrapper chart-h-280"><canvas id="chart-category"></canvas></div><div class="chart-legend" id="legend-category"></div></div>
-                    </div>
-                    <div class="report-table-card">
-                        <div class="card-header"><div><div class="card-title">Top selling items</div><div class="card-sub">By revenue this period</div></div></div>
-                        <table class="custom-table"><thead><tr><th>#</th><th>Product</th><th>Category</th><th>Units Sold</th><th>Revenue</th><th>Status</th></tr></thead><tbody>
-                            <tr><td>1</td><td>Oxygen Tank (10L)</td><td>Respiratory</td><td>312</td><td>&#8369;156,000</td><td><span class="status-tag tag-success">Active</span></td></tr>
-                            <tr><td>2</td><td>Wheelchair Standard</td><td>Mobility</td><td>88</td><td>&#8369;88,000</td><td><span class="status-tag tag-success">Active</span></td></tr>
-                            <tr><td>3</td><td>Pulse Oximeter</td><td>Monitoring</td><td>204</td><td>&#8369;61,200</td><td><span class="status-tag tag-success">Active</span></td></tr>
-                            <tr><td>4</td><td>Crutches (Pair)</td><td>Mobility</td><td>150</td><td>&#8369;45,000</td><td><span class="status-tag tag-warning">Low stock</span></td></tr>
-                            <tr><td>5</td><td>Nebulizer Machine</td><td>Respiratory</td><td>62</td><td>&#8369;37,200</td><td><span class="status-tag tag-success">Active</span></td></tr>
-                        </tbody></table>
-                    </div>
-                </div>
-
-                <!-- RENTALS -->
-                <div class="report-panel" id="panel-rentals">
-                    <div class="stats-grid">
-                        <div class="stat-card"><div class="stat-icon blue"><span class="material-symbols-rounded">event_repeat</span></div><div><div class="stat-value">48</div><div class="stat-label">Active Rentals</div><div class="stat-delta up">&#9650; 5% this week</div></div></div>
-                        <div class="stat-card"><div class="stat-icon green"><span class="material-symbols-rounded">payments</span></div><div><div class="stat-value">&#8369;182,300</div><div class="stat-label">Rental Revenue</div><div class="stat-delta up">&#9650; 5% vs last month</div></div></div>
-                        <div class="stat-card"><div class="stat-icon red"><span class="material-symbols-rounded">schedule</span></div><div><div class="stat-value">6</div><div class="stat-label">Overdue Returns</div><div class="stat-delta down">&#9650; 2 this week</div></div></div>
-                        <div class="stat-card"><div class="stat-icon amber"><span class="material-symbols-rounded">calendar_month</span></div><div><div class="stat-value">14.3 days</div><div class="stat-label">Avg. Rental Duration</div><div class="stat-delta up">&#9650; 1 day vs prior</div></div></div>
-                    </div>
-                    <div class="charts-row equal">
-                        <div class="report-card"><div class="card-header"><div><div class="card-title">Rental volume per month</div><div class="card-sub">Units rented out</div></div></div><div class="chart-wrapper chart-h-240"><canvas id="chart-rental-volume"></canvas></div></div>
-                        <div class="report-card"><div class="card-header"><div><div class="card-title">Rental status breakdown</div><div class="card-sub">Current snapshot</div></div></div><div class="chart-wrapper chart-h-240"><canvas id="chart-rental-status"></canvas></div><div class="chart-legend" id="legend-rental-status"></div></div>
-                    </div>
-                    <div class="report-table-card">
-                        <div class="card-header"><div><div class="card-title">Overdue rentals</div><div class="card-sub">Requires immediate action</div></div></div>
-                        <table class="custom-table"><thead><tr><th>Rental #</th><th>Customer</th><th>Item</th><th>Due Date</th><th>Days Late</th><th>Deposit</th><th>Status</th></tr></thead><tbody>
-                            <tr><td>#882</td><td>Maria Santos</td><td>Oxygen Tank #7721</td><td>Mar 20, 2025</td><td>9 days</td><td>&#8369;2,000</td><td><span class="status-tag tag-danger">Overdue</span></td></tr>
-                            <tr><td>#876</td><td>Jose Reyes</td><td>Wheelchair Deluxe</td><td>Mar 22, 2025</td><td>7 days</td><td>&#8369;3,500</td><td><span class="status-tag tag-danger">Overdue</span></td></tr>
-                            <tr><td>#891</td><td>Ana Cruz</td><td>Hospital Bed</td><td>Mar 25, 2025</td><td>4 days</td><td>&#8369;5,000</td><td><span class="status-tag tag-warning">At risk</span></td></tr>
-                        </tbody></table>
-                    </div>
-                </div>
-
-                <!-- INVENTORY -->
-                <div class="report-panel" id="panel-inventory">
-                    <div class="stats-grid">
-                        <div class="stat-card"><div class="stat-icon blue"><span class="material-symbols-rounded">inventory_2</span></div><div><div class="stat-value">1,204</div><div class="stat-label">Total Inventory Items</div><div class="stat-delta up">&#9650; 3% this month</div></div></div>
-                        <div class="stat-card"><div class="stat-icon red"><span class="material-symbols-rounded">warning</span></div><div><div class="stat-value">12</div><div class="stat-label">Low Stock Items</div><div class="stat-delta down">&#9650; 4 from last week</div></div></div>
-                        <div class="stat-card"><div class="stat-icon amber"><span class="material-symbols-rounded">remove_shopping_cart</span></div><div><div class="stat-value">7</div><div class="stat-label">Out of Stock</div><div class="stat-delta down">&#9650; 2 this week</div></div></div>
-                        <div class="stat-card"><div class="stat-icon green"><span class="material-symbols-rounded">recycling</span></div><div><div class="stat-value">94%</div><div class="stat-label">Stock Health Rate</div><div class="stat-delta up">&#9660; 2% vs last month</div></div></div>
-                    </div>
-                    <div class="charts-row">
-                        <div class="report-card"><div class="card-header"><div><div class="card-title">Stock levels by category</div><div class="card-sub">Current available units</div></div></div><div class="chart-wrapper chart-h-280"><canvas id="chart-stock"></canvas></div></div>
-                        <div class="report-card"><div class="card-header"><div><div class="card-title">Low stock alerts</div><div class="card-sub">Items needing reorder</div></div></div>
-                            <div class="alert-row"><span class="material-symbols-rounded">warning</span><span class="alert-text">Wheelchairs — only 3 units left</span></div>
-                            <div class="alert-row"><span class="material-symbols-rounded">warning</span><span class="alert-text">Crutches (Pair) — only 5 units left</span></div>
-                            <div class="alert-row amber"><span class="material-symbols-rounded">info</span><span class="alert-text">Nebulizer Masks — 8 units (threshold: 10)</span></div>
-                            <div class="alert-row amber"><span class="material-symbols-rounded">info</span><span class="alert-text">Oxygen Regulators — 9 units (threshold: 15)</span></div>
-                            <div class="alert-row amber"><span class="material-symbols-rounded">info</span><span class="alert-text">Hospital Beds — 4 units available</span></div>
-                        </div>
-                    </div>
-                    <div class="report-table-card">
-                        <div class="card-header"><div><div class="card-title">Most used items</div><div class="card-sub">By usage frequency this period</div></div></div>
-                        <div class="top-list">
-                            <div class="top-list-item"><span class="top-list-label">Oxygen Tank (10L)</span><div class="top-list-bar-wrap"><div class="top-list-bar" style="width:92%"></div></div><span class="top-list-value">312 uses</span></div>
-                            <div class="top-list-item"><span class="top-list-label">Pulse Oximeter</span><div class="top-list-bar-wrap"><div class="top-list-bar" style="width:65%;background:#00a8cc"></div></div><span class="top-list-value">204 uses</span></div>
-                            <div class="top-list-item"><span class="top-list-label">Wheelchair Std.</span><div class="top-list-bar-wrap"><div class="top-list-bar" style="width:55%;background:#f59e0b"></div></div><span class="top-list-value">88 uses</span></div>
-                            <div class="top-list-item"><span class="top-list-label">Crutches (Pair)</span><div class="top-list-bar-wrap"><div class="top-list-bar" style="width:47%;background:#7c3aed"></div></div><span class="top-list-value">150 uses</span></div>
-                            <div class="top-list-item"><span class="top-list-label">Nebulizer Machine</span><div class="top-list-bar-wrap"><div class="top-list-bar" style="width:30%;background:#ef4444"></div></div><span class="top-list-value">62 uses</span></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- CUSTOMERS -->
-                <div class="report-panel" id="panel-customers">
-                    <div class="stats-grid">
-                        <div class="stat-card"><div class="stat-icon green"><span class="material-symbols-rounded">groups</span></div><div><div class="stat-value">842</div><div class="stat-label">Total Customers</div><div class="stat-delta up">&#9650; 18 this month</div></div></div>
-                        <div class="stat-card"><div class="stat-icon blue"><span class="material-symbols-rounded">person_add</span></div><div><div class="stat-value">38</div><div class="stat-label">New Customers</div><div class="stat-delta up">&#9650; 12% vs last month</div></div></div>
-                        <div class="stat-card"><div class="stat-icon amber"><span class="material-symbols-rounded">repeat</span></div><div><div class="stat-value">64%</div><div class="stat-label">Returning Rate</div><div class="stat-delta up">&#9650; 3% vs last month</div></div></div>
-                        <div class="stat-card"><div class="stat-icon red"><span class="material-symbols-rounded">person_off</span></div><div><div class="stat-value">9</div><div class="stat-label">With Overdue Items</div><div class="stat-delta down">&#9650; 3 this week</div></div></div>
-                    </div>
-                    <div class="charts-row equal">
-                        <div class="report-card"><div class="card-header"><div><div class="card-title">Customer growth</div><div class="card-sub">New registrations per month</div></div></div><div class="chart-wrapper chart-h-240"><canvas id="chart-customer-growth"></canvas></div></div>
-                        <div class="report-card"><div class="card-header"><div><div class="card-title">New vs returning</div><div class="card-sub">Customer type split</div></div></div><div class="chart-wrapper chart-h-240"><canvas id="chart-customer-type"></canvas></div><div class="chart-legend" id="legend-customer-type"></div></div>
-                    </div>
-                    <div class="report-table-card">
-                        <div class="card-header"><div><div class="card-title">Top customers by spending</div></div></div>
-                        <table class="custom-table"><thead><tr><th>#</th><th>Customer</th><th>Transactions</th><th>Total Spent</th><th>Last Activity</th><th>Type</th></tr></thead><tbody>
-                            <tr><td>1</td><td>Maria Santos</td><td>24</td><td>&#8369;48,200</td><td>Mar 28, 2025</td><td><span class="status-tag tag-info">Regular</span></td></tr>
-                            <tr><td>2</td><td>Jose Reyes</td><td>18</td><td>&#8369;36,750</td><td>Mar 27, 2025</td><td><span class="status-tag tag-info">Regular</span></td></tr>
-                            <tr><td>3</td><td>Ana Cruz</td><td>12</td><td>&#8369;24,100</td><td>Mar 25, 2025</td><td><span class="status-tag tag-success">New</span></td></tr>
-                            <tr><td>4</td><td>Roberto Lim</td><td>9</td><td>&#8369;18,300</td><td>Mar 22, 2025</td><td><span class="status-tag tag-info">Regular</span></td></tr>
-                            <tr><td>5</td><td>Gloria Tan</td><td>7</td><td>&#8369;14,600</td><td>Mar 20, 2025</td><td><span class="status-tag tag-success">New</span></td></tr>
-                        </tbody></table>
-                    </div>
-                </div>
-
-                <!-- FINANCIAL -->
-                <div class="report-panel" id="panel-financial">
-                    <div class="stats-grid">
-                        <div class="stat-card"><div class="stat-icon green"><span class="material-symbols-rounded">account_balance</span></div><div><div class="stat-value">&#8369;610,800</div><div class="stat-label">Gross Revenue</div><div class="stat-delta up">&#9650; 9% vs last month</div></div></div>
-                        <div class="stat-card"><div class="stat-icon red"><span class="material-symbols-rounded">trending_down</span></div><div><div class="stat-value">&#8369;142,300</div><div class="stat-label">Total Expenses</div><div class="stat-delta down">&#9650; 4% vs last month</div></div></div>
-                        <div class="stat-card"><div class="stat-icon purple"><span class="material-symbols-rounded">savings</span></div><div><div class="stat-value">&#8369;468,500</div><div class="stat-label">Net Profit</div><div class="stat-delta up">&#9650; 11% vs last month</div></div></div>
-                        <div class="stat-card"><div class="stat-icon amber"><span class="material-symbols-rounded">percent</span></div><div><div class="stat-value">76.7%</div><div class="stat-label">Profit Margin</div><div class="stat-delta up">&#9650; 1.5% vs last month</div></div></div>
-                    </div>
-                    <div class="charts-row">
-                        <div class="report-card"><div class="card-header"><div><div class="card-title">Revenue vs expenses</div><div class="card-sub">Monthly cash flow</div></div></div><div class="chart-wrapper chart-h-280"><canvas id="chart-cashflow"></canvas></div></div>
-                        <div class="report-card"><div class="card-header"><div><div class="card-title">Expense breakdown</div><div class="card-sub">By category</div></div></div><div class="chart-wrapper chart-h-280"><canvas id="chart-expenses"></canvas></div><div class="chart-legend" id="legend-expenses"></div></div>
-                    </div>
-                    <div class="report-table-card">
-                        <div class="card-header"><div><div class="card-title">Recent transactions</div><div class="card-sub">Latest financial activity</div></div></div>
-                        <table class="custom-table"><thead><tr><th>Date</th><th>Description</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead><tbody>
-                            <tr><td>Mar 28</td><td>Oxygen Tank Sales Batch</td><td>Income</td><td style="color:#16a34a;font-weight:700">+&#8369;18,600</td><td><span class="status-tag tag-success">Verified</span></td></tr>
-                            <tr><td>Mar 27</td><td>Equipment Maintenance</td><td>Expense</td><td style="color:#dc2626;font-weight:700">-&#8369;4,200</td><td><span class="status-tag tag-success">Verified</span></td></tr>
-                            <tr><td>Mar 26</td><td>Rental Collections</td><td>Income</td><td style="color:#16a34a;font-weight:700">+&#8369;9,800</td><td><span class="status-tag tag-success">Verified</span></td></tr>
-                            <tr><td>Mar 25</td><td>Supplier Payment</td><td>Expense</td><td style="color:#dc2626;font-weight:700">-&#8369;22,000</td><td><span class="status-tag tag-warning">Pending</span></td></tr>
-                            <tr><td>Mar 24</td><td>Wheelchair Sales</td><td>Income</td><td style="color:#16a34a;font-weight:700">+&#8369;12,000</td><td><span class="status-tag tag-success">Verified</span></td></tr>
-                        </tbody></table>
-                    </div>
-                </div>
-                
-            </main>
+<!-- INVENTORY -->
+<div class="report-panel" id="panel-inventory">
+    <div class="stats-grid">
+        <div class="stat-card"><div class="stat-icon blue"><span class="material-symbols-rounded">inventory_2</span></div><div><div class="stat-value">1,204</div><div class="stat-label">Total Inventory Items</div><div class="stat-delta up">&#9650; 3% this month</div></div></div>
+        <div class="stat-card"><div class="stat-icon red"><span class="material-symbols-rounded">warning</span></div><div><div class="stat-value">12</div><div class="stat-label">Low Stock Items</div><div class="stat-delta down">&#9650; 4 from last week</div></div></div>
+        <div class="stat-card"><div class="stat-icon amber"><span class="material-symbols-rounded">remove_shopping_cart</span></div><div><div class="stat-value">7</div><div class="stat-label">Out of Stock</div><div class="stat-delta down">&#9650; 2 this week</div></div></div>
+        <div class="stat-card"><div class="stat-icon green"><span class="material-symbols-rounded">recycling</span></div><div><div class="stat-value">94%</div><div class="stat-label">Stock Health Rate</div><div class="stat-delta up">&#9660; 2% vs last month</div></div></div>
+    </div>
+    <div class="charts-row">
+        <div class="report-card"><div class="card-header"><div><div class="card-title">Stock levels by category</div><div class="card-sub">Current available units</div></div></div><div class="chart-wrapper chart-h-280"><canvas id="chart-stock"></canvas></div></div>
+        <div class="report-card"><div class="card-header"><div><div class="card-title">Low stock alerts</div><div class="card-sub">Items needing reorder</div></div></div>
+            <div class="alert-row"><span class="material-symbols-rounded">warning</span><span class="alert-text">Wheelchairs — only 3 units left</span></div>
+            <div class="alert-row"><span class="material-symbols-rounded">warning</span><span class="alert-text">Crutches (Pair) — only 5 units left</span></div>
+            <div class="alert-row amber"><span class="material-symbols-rounded">info</span><span class="alert-text">Nebulizer Masks — 8 units (threshold: 10)</span></div>
+            <div class="alert-row amber"><span class="material-symbols-rounded">info</span><span class="alert-text">Oxygen Regulators — 9 units (threshold: 15)</span></div>
+            <div class="alert-row amber"><span class="material-symbols-rounded">info</span><span class="alert-text">Hospital Beds — 4 units available</span></div>
         </div>
     </div>
+    <div class="report-table-card">
+        <div class="card-header"><div><div class="card-title">Most used items</div><div class="card-sub">By usage frequency this period</div></div></div>
+        <div class="top-list">
+            <div class="top-list-item"><span class="top-list-label">Oxygen Tank (10L)</span><div class="top-list-bar-wrap"><div class="top-list-bar" style="width:92%"></div></div><span class="top-list-value">312 uses</span></div>
+            <div class="top-list-item"><span class="top-list-label">Pulse Oximeter</span><div class="top-list-bar-wrap"><div class="top-list-bar" style="width:65%;background:#00a8cc"></div></div><span class="top-list-value">204 uses</span></div>
+            <div class="top-list-item"><span class="top-list-label">Wheelchair Std.</span><div class="top-list-bar-wrap"><div class="top-list-bar" style="width:55%;background:#f59e0b"></div></div><span class="top-list-value">88 uses</span></div>
+            <div class="top-list-item"><span class="top-list-label">Crutches (Pair)</span><div class="top-list-bar-wrap"><div class="top-list-bar" style="width:47%;background:#7c3aed"></div></div><span class="top-list-value">150 uses</span></div>
+            <div class="top-list-item"><span class="top-list-label">Nebulizer Machine</span><div class="top-list-bar-wrap"><div class="top-list-bar" style="width:30%;background:#ef4444"></div></div><span class="top-list-value">62 uses</span></div>
+        </div>
+    </div>
+</div>
 
-    <script src="{{ url_for('static', filename='js/global.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/admin/admin_report.js') }}"></script>
-    <script nonce="{{ csp_nonce() }}">
-// 1. Configuration & Colors
+<!-- CUSTOMERS -->
+<div class="report-panel" id="panel-customers">
+    <div class="stats-grid">
+        <div class="stat-card"><div class="stat-icon green"><span class="material-symbols-rounded">groups</span></div><div><div class="stat-value">842</div><div class="stat-label">Total Customers</div><div class="stat-delta up">&#9650; 18 this month</div></div></div>
+        <div class="stat-card"><div class="stat-icon blue"><span class="material-symbols-rounded">person_add</span></div><div><div class="stat-value">38</div><div class="stat-label">New Customers</div><div class="stat-delta up">&#9650; 12% vs last month</div></div></div>
+        <div class="stat-card"><div class="stat-icon amber"><span class="material-symbols-rounded">repeat</span></div><div><div class="stat-value">64%</div><div class="stat-label">Returning Rate</div><div class="stat-delta up">&#9650; 3% vs last month</div></div></div>
+        <div class="stat-card"><div class="stat-icon red"><span class="material-symbols-rounded">person_off</span></div><div><div class="stat-value">9</div><div class="stat-label">With Overdue Items</div><div class="stat-delta down">&#9650; 3 this week</div></div></div>
+    </div>
+    <div class="charts-row equal">
+        <div class="report-card"><div class="card-header"><div><div class="card-title">Customer growth</div><div class="card-sub">New registrations per month</div></div></div><div class="chart-wrapper chart-h-240"><canvas id="chart-customer-growth"></canvas></div></div>
+        <div class="report-card"><div class="card-header"><div><div class="card-title">New vs returning</div><div class="card-sub">Customer type split</div></div></div><div class="chart-wrapper chart-h-240"><canvas id="chart-customer-type"></canvas></div><div class="chart-legend" id="legend-customer-type"></div></div>
+    </div>
+    <div class="report-table-card">
+        <div class="card-header"><div><div class="card-title">Top customers by spending</div></div></div>
+        <table class="custom-table"><thead><tr><th>#</th><th>Customer</th><th>Transactions</th><th>Total Spent</th><th>Last Activity</th><th>Type</th></tr></thead><tbody>
+            <tr><td>1</td><td>Maria Santos</td><td>24</td><td>&#8369;48,200</td><td>Mar 28, 2025</td><td><span class="status-tag tag-info">Regular</span></td></tr>
+            <tr><td>2</td><td>Jose Reyes</td><td>18</td><td>&#8369;36,750</td><td>Mar 27, 2025</td><td><span class="status-tag tag-info">Regular</span></td></tr>
+            <tr><td>3</td><td>Ana Cruz</td><td>12</td><td>&#8369;24,100</td><td>Mar 25, 2025</td><td><span class="status-tag tag-success">New</span></td></tr>
+            <tr><td>4</td><td>Roberto Lim</td><td>9</td><td>&#8369;18,300</td><td>Mar 22, 2025</td><td><span class="status-tag tag-info">Regular</span></td></tr>
+            <tr><td>5</td><td>Gloria Tan</td><td>7</td><td>&#8369;14,600</td><td>Mar 20, 2025</td><td><span class="status-tag tag-success">New</span></td></tr>
+        </tbody></table>
+    </div>
+</div>
+
+<!-- FINANCIAL -->
+<div class="report-panel" id="panel-financial">
+    <div class="stats-grid">
+        <div class="stat-card"><div class="stat-icon green"><span class="material-symbols-rounded">account_balance</span></div><div><div class="stat-value">&#8369;610,800</div><div class="stat-label">Gross Revenue</div><div class="stat-delta up">&#9650; 9% vs last month</div></div></div>
+        <div class="stat-card"><div class="stat-icon red"><span class="material-symbols-rounded">trending_down</span></div><div><div class="stat-value">&#8369;142,300</div><div class="stat-label">Total Expenses</div><div class="stat-delta down">&#9650; 4% vs last month</div></div></div>
+        <div class="stat-card"><div class="stat-icon purple"><span class="material-symbols-rounded">savings</span></div><div><div class="stat-value">&#8369;468,500</div><div class="stat-label">Net Profit</div><div class="stat-delta up">&#9650; 11% vs last month</div></div></div>
+        <div class="stat-card"><div class="stat-icon amber"><span class="material-symbols-rounded">percent</span></div><div><div class="stat-value">76.7%</div><div class="stat-label">Profit Margin</div><div class="stat-delta up">&#9650; 1.5% vs last month</div></div></div>
+    </div>
+    <div class="charts-row">
+        <div class="report-card"><div class="card-header"><div><div class="card-title">Revenue vs expenses</div><div class="card-sub">Monthly cash flow</div></div></div><div class="chart-wrapper chart-h-280"><canvas id="chart-cashflow"></canvas></div></div>
+        <div class="report-card"><div class="card-header"><div><div class="card-title">Expense breakdown</div><div class="card-sub">By category</div></div></div><div class="chart-wrapper chart-h-280"><canvas id="chart-expenses"></canvas></div><div class="chart-legend" id="legend-expenses"></div></div>
+    </div>
+    <div class="report-table-card">
+        <div class="card-header"><div><div class="card-title">Recent transactions</div><div class="card-sub">Latest financial activity</div></div></div>
+        <table class="custom-table"><thead><tr><th>Date</th><th>Description</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead><tbody>
+            <tr><td>Mar 28</td><td>Oxygen Tank Sales Batch</td><td>Income</td><td style="color:#16a34a;font-weight:700">+&#8369;18,600</td><td><span class="status-tag tag-success">Verified</span></td></tr>
+            <tr><td>Mar 27</td><td>Equipment Maintenance</td><td>Expense</td><td style="color:#dc2626;font-weight:700">-&#8369;4,200</td><td><span class="status-tag tag-success">Verified</span></td></tr>
+            <tr><td>Mar 26</td><td>Rental Collections</td><td>Income</td><td style="color:#16a34a;font-weight:700">+&#8369;9,800</td><td><span class="status-tag tag-success">Verified</span></td></tr>
+            <tr><td>Mar 25</td><td>Supplier Payment</td><td>Expense</td><td style="color:#dc2626;font-weight:700">-&#8369;22,000</td><td><span class="status-tag tag-warning">Pending</span></td></tr>
+            <tr><td>Mar 24</td><td>Wheelchair Sales</td><td>Income</td><td style="color:#16a34a;font-weight:700">+&#8369;12,000</td><td><span class="status-tag tag-success">Verified</span></td></tr>
+        </tbody></table>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/admin/admin_report.js') }}"></script>
+<script nonce="{{ csp_nonce() }}">
 const G='#52B788', T='#00a8cc', A='#f59e0b', R='#ef4444', P='#7c3aed', S='#94a3b8';
 const mo=['Oct','Nov','Dec','Jan','Feb','Mar'];
 const ch={};
 
-// 2. Helper Functions
 function kill(id){ if(ch[id]){ ch[id].destroy(); delete ch[id]; } }
 
-function leg(id,items){ 
-    const el=document.getElementById(id); 
-    if(!el) return; 
+function leg(id,items){
+    const el=document.getElementById(id);
+    if(!el) return;
     el.innerHTML=items.map(i=>`
         <span class="legend-item">
             <span class="legend-dot" style="background:${i.c}"></span>
             ${i.l}${i.p ? ' ('+i.p+'%)' : ''}
-        </span>`).join(''); 
+        </span>`).join('');
 }
 
-// 3. The Core Render Engine
 function renderCharts(){
     const activeBtn = document.querySelector('.tab-btn.active');
     if(!activeBtn) return;
@@ -446,34 +288,21 @@ function renderCharts(){
     }
 }
 
-// 4. Tab Switching Logic
 document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-        // Remove active from all
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.report-panel').forEach(p => p.classList.remove('active'));
-        
-        // Add active to clicked
         btn.classList.add('active');
-        const panelId = 'panel-' + btn.getAttribute('data-tab');
-        const targetPanel = document.getElementById(panelId);
-        
+        const targetPanel = document.getElementById('panel-' + btn.getAttribute('data-tab'));
         if(targetPanel) {
             targetPanel.classList.add('active');
-            // Small delay ensures the panel is visible before Chart.js tries to draw
-            setTimeout(() => {
-                renderCharts();
-            }, 50); 
+            setTimeout(() => { renderCharts(); }, 50);
         }
     });
 });
 
-// 5. Initial Run
-document.addEventListener('DOMContentLoaded', () => {
-    renderCharts();
-});
+document.addEventListener('DOMContentLoaded', () => { renderCharts(); });
 
 function exportCSV(){ alert("Exporting " + document.querySelector('.tab-btn.active').dataset.tab + " data..."); }
 </script>
-</body>
-</html>
+{% endblock %}

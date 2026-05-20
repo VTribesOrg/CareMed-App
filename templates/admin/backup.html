@@ -1,256 +1,185 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=0.9">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>CareMed | Backup Management</title>
-    <link rel="icon" type="image/png" href="{{ url_for('static', filename='icons/favicon-circle.png') }}">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_dashboard.css') }}">
-    <style>
-        .medical-sidebar, .viewport-container, .nav-label, .logo-text { transition: all 0.3s cubic-bezier(0.4,0,0.2,1); }
-        .backup-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
-        .stat-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; }
-        .stat-card.blue { border-color: #93c5fd; background: #eff6ff; }
-        .stat-card.green { border-color: #86efac; background: #f0fdf4; }
-        .stat-card.amber { border-color: #fcd34d; background: #fffbeb; }
-        .stat-num { font-size: 2rem; font-weight: 800; margin: 6px 0 2px; }
-        .stat-card.blue .stat-num { color: #2563eb; }
-        .stat-card.green .stat-num { color: #16a34a; }
-        .stat-card.amber .stat-num { color: #d97706; }
-        .stat-icon { font-size: 28px; }
-        .stat-card.blue .stat-icon { color: #2563eb; }
-        .stat-card.green .stat-icon { color: #16a34a; }
-        .stat-card.amber .stat-icon { color: #d97706; }
-        .stat-label { font-size: 0.75rem; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
-        .backup-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
-        .backup-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
-        .backup-card-header { padding: 14px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
-        .backup-card-header h3 { font-size: 0.9rem; font-weight: 700; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 6px; }
-        .backup-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
-        .backup-table th { padding: 10px 14px; text-align: left; font-size: 0.7rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .05em; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
-        .backup-table td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; color: #374151; vertical-align: middle; }
-        .backup-table tr:last-child td { border-bottom: none; }
-        .backup-table tr:hover td { background: #f8fafc; }
-        .pill { padding: 3px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 600; }
-        .pill-green { background: #f0fdf4; color: #16a34a; }
-        .pill-blue { background: #eff6ff; color: #1d4ed8; }
-        .btn-dl { display: inline-flex; align-items: center; gap: 4px; background: #002347; color: #fff; border: none; padding: 5px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; text-decoration: none; }
-        .btn-dl:hover { background: #003580; color: #fff; }
-        .btn-del { background: none; border: 1px solid #fca5a5; color: #dc2626; padding: 5px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; }
-        .btn-del:hover { background: #fef2f2; }
-        .manual-box { padding: 20px; }
-        .btn-backup { width: 100%; background: #16a34a; color: #fff; border: none; padding: 12px; border-radius: 8px; font-weight: 700; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background .15s; }
-        .btn-backup:hover { background: #15803d; }
-        .info-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-top: 14px; font-size: 0.8rem; color: #64748b; line-height: 1.7; }
-        .auto-box { background: #eff6ff; border: 1px solid #93c5fd; border-radius: 8px; padding: 14px; margin-top: 14px; font-size: 0.8rem; color: #1d4ed8; line-height: 1.7; }
-        .empty-state { text-align: center; padding: 40px; color: #94a3b8; }
-        .empty-state .material-symbols-rounded { font-size: 48px; display: block; margin-bottom: 8px; }
-        .pulse { width: 10px; height: 10px; border-radius: 50%; background: #16a34a; animation: pulse 2s infinite; display: inline-block; margin-right: 6px; }
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
-        @media (max-width: 1024px) { .backup-stats { grid-template-columns: repeat(2,1fr); } .backup-grid { grid-template-columns: 1fr; } }
-    </style>
-</head>
-<body>
-    <input type="checkbox" id="sidebar-state" hidden>
-    <script nonce="{{ csp_nonce() }}">
-        (function(){
-            const cb = document.getElementById('sidebar-state');
-            cb.checked = localStorage.getItem('sidebar-collapsed') !== 'true';
-            document.body.classList.add('ready');
-        })();
-    </script>
+{% extends "admin/nav_base.html" %}
 
-    <div class="main-wrapper">
-        <aside class="medical-sidebar">
-            <div class="sidebar-header">
-                <div class="sidebar-brand">
-                    <span class="nav-label logo-text">Care<span>Med</span></span>
-                </div>
-                <label for="sidebar-state" class="nav-toggle-label">
-                    <span class="material-symbols-rounded">menu</span>
-                </label>
-            </div>
-            <div class="sidebar-navigation">
-                <ul class="nav-menu">
-                    <li class="nav-item"><a href="{{ url_for('admin.dashboard') }}" class="nav-link"><span class="material-symbols-rounded">monitoring</span><span class="nav-label">Dashboard</span></a></li>
-                    <li class="nav-item"><a href="{{ url_for('admin.products') }}" class="nav-link"><span class="material-symbols-rounded">inventory_2</span><span class="nav-label">Product & Inventory</span></a></li>
-                    <li class="nav-item"><a href="{{ url_for('admin.customers') }}" class="nav-link"><span class="material-symbols-rounded">people</span><span class="nav-label">Customer Management</span></a></li>
-                    <li class="nav-item"><a href="{{ url_for('admin.transactions') }}" class="nav-link"><span class="material-symbols-rounded">shopping_cart</span><span class="nav-label">Transactions</span></a></li>
-                    <li class="nav-item"><a href="{{ url_for('admin.payments') }}" class="nav-link"><span class="material-symbols-rounded">payment</span><span class="nav-label">Payment Management</span></a></li>
-                    <li class="nav-item"><a href="{{ url_for('admin.reports') }}" class="nav-link"><span class="material-symbols-rounded">analytics</span><span class="nav-label">Reports & Analytics</span></a></li>
-                    <li class="nav-item"><a href="{{ url_for('admin.security_dashboard') }}" class="nav-link"><span class="material-symbols-rounded">security</span><span class="nav-label">Security Center</span></a></li>
-                    <li class="nav-item"><a href="{{ url_for('admin.backup_page') }}" class="nav-link active"><span class="material-symbols-rounded">backup</span><span class="nav-label">Backup Management</span></a></li>
-                </ul>
-                <div class="sidebar-footer">
-                    <a href="{{ url_for('admin.profile') }}" class="nav-link">
-                        <span class="material-symbols-rounded">person</span>
-                        <span class="nav-label">{{ current_user.first_name }}</span>
-                    </a>
-                    <a href="{{ url_for('auth.logout') }}" class="nav-link">
-                        <span class="material-symbols-rounded">logout</span>
-                        <span class="nav-label">Logout</span>
-                    </a>
-                </div>
-            </div>
-        </aside>
+{% block title %}Backup Management{% endblock %}
+{% block page_title %}Backup Management{% endblock %}
 
-        <div class="viewport-container">
-            <header class="system-header">
-                <h1>Backup Management</h1>
-                <div class="header-actions">
-                    <div class="action-item">
-                        <div class="clinical-user">
-                            <div class="user-info">
-                                <span class="user-name">{{ current_user.first_name }} {{ current_user.last_name }}</span>
-                                <span class="user-role">{{ current_user.role }}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </header>
+{% block extra_css %}
+<style>
+    .backup-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+    .stat-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; }
+    .stat-card.blue  { border-color: #93c5fd; background: #eff6ff; }
+    .stat-card.green { border-color: #86efac; background: #f0fdf4; }
+    .stat-card.amber { border-color: #fcd34d; background: #fffbeb; }
+    .stat-num { font-size: 2rem; font-weight: 800; margin: 6px 0 2px; }
+    .stat-card.blue  .stat-num { color: #2563eb; }
+    .stat-card.green .stat-num { color: #16a34a; }
+    .stat-card.amber .stat-num { color: #d97706; }
+    .stat-icon { font-size: 28px; }
+    .stat-card.blue  .stat-icon { color: #2563eb; }
+    .stat-card.green .stat-icon { color: #16a34a; }
+    .stat-card.amber .stat-icon { color: #d97706; }
+    .stat-label { font-size: 0.75rem; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+    .backup-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+    .backup-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
+    .backup-card-header { padding: 14px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+    .backup-card-header h3 { font-size: 0.9rem; font-weight: 700; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 6px; }
+    .backup-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .backup-table th { padding: 10px 14px; text-align: left; font-size: 0.7rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .05em; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+    .backup-table td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; color: #374151; vertical-align: middle; }
+    .backup-table tr:last-child td { border-bottom: none; }
+    .backup-table tr:hover td { background: #f8fafc; }
+    .pill { padding: 3px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 600; }
+    .pill-green { background: #f0fdf4; color: #16a34a; }
+    .pill-blue  { background: #eff6ff; color: #1d4ed8; }
+    .btn-dl { display: inline-flex; align-items: center; gap: 4px; background: #002347; color: #fff; border: none; padding: 5px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; text-decoration: none; }
+    .btn-dl:hover { background: #003580; color: #fff; }
+    .btn-del { background: none; border: 1px solid #fca5a5; color: #dc2626; padding: 5px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; }
+    .btn-del:hover { background: #fef2f2; }
+    .manual-box { padding: 20px; }
+    .btn-backup { width: 100%; background: #16a34a; color: #fff; border: none; padding: 12px; border-radius: 8px; font-weight: 700; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background .15s; }
+    .btn-backup:hover { background: #15803d; }
+    .info-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-top: 14px; font-size: 0.8rem; color: #64748b; line-height: 1.7; }
+    .auto-box { background: #eff6ff; border: 1px solid #93c5fd; border-radius: 8px; padding: 14px; margin-top: 14px; font-size: 0.8rem; color: #1d4ed8; line-height: 1.7; }
+    .empty-state { text-align: center; padding: 40px; color: #94a3b8; }
+    .empty-state .material-symbols-rounded { font-size: 48px; display: block; margin-bottom: 8px; }
+    .pulse { width: 10px; height: 10px; border-radius: 50%; background: #16a34a; animation: pulse 2s infinite; display: inline-block; margin-right: 6px; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    @media (max-width: 1024px) { .backup-stats { grid-template-columns: repeat(2,1fr); } .backup-grid { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
 
-            <main class="content-area">
+{% block content %}
 
-                {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    {% for category, message in messages %}
-                    <div style="padding:10px 16px; border-radius:8px; margin-bottom:16px;
-                        background:{{ '#f0fdf4' if category=='success' else '#fef2f2' }};
-                        color:{{ '#16a34a' if category=='success' else '#dc2626' }};
-                        border:1px solid {{ '#86efac' if category=='success' else '#fca5a5' }};
-                        font-size:0.85rem;">{{ message }}</div>
-                    {% endfor %}
-                {% endif %}
-                {% endwith %}
+<!-- Stats -->
+<div class="backup-stats">
+    <div class="stat-card blue">
+        <span class="material-symbols-rounded stat-icon">folder</span>
+        <div class="stat-num">{{ backups | length }}</div>
+        <div class="stat-label">Total Backups</div>
+    </div>
+    <div class="stat-card green">
+        <span class="material-symbols-rounded stat-icon">autorenew</span>
+        <div class="stat-num">Daily</div>
+        <div class="stat-label">Auto Backup Schedule</div>
+    </div>
+    <div class="stat-card amber">
+        <span class="material-symbols-rounded stat-icon">storage</span>
+        <div class="stat-num">{{ total_size }} KB</div>
+        <div class="stat-label">Total Storage Used</div>
+    </div>
+</div>
 
-                <!-- Stats -->
-                <div class="backup-stats">
-                    <div class="stat-card blue">
-                        <span class="material-symbols-rounded stat-icon">folder</span>
-                        <div class="stat-num">{{ backups | length }}</div>
-                        <div class="stat-label">Total Backups</div>
-                    </div>
-                    <div class="stat-card green">
-                        <span class="material-symbols-rounded stat-icon">autorenew</span>
-                        <div class="stat-num">Daily</div>
-                        <div class="stat-label">Auto Backup Schedule</div>
-                    </div>
-                    <div class="stat-card amber">
-                        <span class="material-symbols-rounded stat-icon">storage</span>
-                        <div class="stat-num">{{ total_size }} KB</div>
-                        <div class="stat-label">Total Storage Used</div>
-                    </div>
-                </div>
+<!-- Grid -->
+<div class="backup-grid">
 
-                <!-- Grid -->
-                <div class="backup-grid">
-
-                    <!-- Backup List -->
-                    <div class="backup-card">
-                        <div class="backup-card-header">
-                            <h3><span class="material-symbols-rounded" style="font-size:18px;">history</span>Backup History</h3>
-                            <span style="font-size:0.8rem; color:#94a3b8;">Last {{ backups|length }} backups — max 7 kept</span>
-                        </div>
-                        {% if backups %}
-                        <table class="backup-table">
-                            <thead>
-                                <tr>
-                                    <th>Filename</th>
-                                    <th>Created</th>
-                                    <th>Size</th>
-                                    <th>Type</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for b in backups %}
-                                <tr>
-                                    <td style="font-family:monospace; font-size:0.72rem; color:#475569;">{{ b.filename }}</td>
-                                    <td style="font-size:0.78rem; color:#64748b; white-space:nowrap;">{{ b.created_at.strftime('%b %d, %Y %I:%M %p') }}</td>
-                                    <td style="font-size:0.78rem;">{{ b.size_kb }} KB</td>
-                                    <td>
-                                        {% if b.triggered_by == 'admin' %}
-                                            <span class="pill pill-blue">Manual</span>
-                                        {% else %}
-                                            <span class="pill pill-green">Auto</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <div style="display:flex; gap:6px; align-items:center;">
-                                            <a href="{{ url_for('admin.download_backup', filename=b.filename) }}" class="btn-dl">
-                                                <span class="material-symbols-rounded" style="font-size:14px;">download</span>Download
-                                            </a>
-                                            <form method="POST" action="{{ url_for('admin.delete_backup', filename=b.filename) }}" onsubmit="return confirm('Delete this backup? This cannot be undone.')">
-                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                                <button type="submit" class="btn-del">Delete</button>
-                                            </form>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                        {% else %}
-                        <div class="empty-state">
-                            <span class="material-symbols-rounded">backup</span>
-                            <p style="font-weight:600;">No backups yet</p>
-                            <p style="font-size:0.8rem;">Create your first backup using the button on the right or wait for the automatic midnight backup.</p>
-                        </div>
-                        {% endif %}
-                    </div>
-
-                    <!-- Right Column -->
-                    <div style="display:flex; flex-direction:column; gap:20px;">
-
-                        <!-- Manual Backup -->
-                        <div class="backup-card">
-                            <div class="backup-card-header">
-                                <h3><span class="material-symbols-rounded" style="font-size:18px;">add_circle</span>Manual Backup</h3>
-                            </div>
-                            <div class="manual-box">
-                                <form method="POST" action="{{ url_for('admin.create_manual_backup') }}" onsubmit="return confirm('Create a database backup now?')">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <button type="submit" class="btn-backup">
-                                        <span class="material-symbols-rounded">backup</span>
-                                        Create Backup Now
-                                    </button>
-                                </form>
-                                <div class="info-box">
-                                    <strong>What gets backed up:</strong><br>
-                                    All database tables — users, customers, products, transactions, payments, rentals, and security logs.<br><br>
-                                    <strong>Note:</strong> Only the last 7 backups are kept. Older ones are deleted automatically.
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Auto Backup Status -->
-                        <div class="backup-card">
-                            <div class="backup-card-header">
-                                <h3><span class="material-symbols-rounded" style="font-size:18px;">schedule</span>Auto Backup</h3>
-                            </div>
-                            <div class="manual-box">
-                                <div style="display:flex; align-items:center; margin-bottom:12px;">
-                                    <div class="pulse"></div>
-                                    <span style="font-size:0.85rem; font-weight:600; color:#16a34a;">Auto backup is active</span>
-                                </div>
-                                <div class="auto-box">
-                                    <strong>Schedule:</strong> Every day at 12:00 AM midnight<br>
-                                    <strong>Retention:</strong> Last 7 days kept automatically<br>
-                                    <strong>Action needed:</strong> None — fully automatic
-                                </div>
-                            </div>
-                        </div>
-
-                    </div>
-                </div>
-            </main>
+    <!-- Backup List -->
+    <div class="backup-card">
+        <div class="backup-card-header">
+            <h3>
+                <span class="material-symbols-rounded" style="font-size:18px;">history</span>
+                Backup History
+            </h3>
+            <span style="font-size:0.8rem; color:#94a3b8;">Last {{ backups|length }} backups — max 7 kept</span>
         </div>
+        {% if backups %}
+        <table class="backup-table">
+            <thead>
+                <tr>
+                    <th>Filename</th>
+                    <th>Created</th>
+                    <th>Size</th>
+                    <th>Type</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in backups %}
+                <tr>
+                    <td style="font-family:monospace; font-size:0.72rem; color:#475569;">{{ b.filename }}</td>
+                    <td style="font-size:0.78rem; color:#64748b; white-space:nowrap;">{{ b.created_at.strftime('%b %d, %Y %I:%M %p') }}</td>
+                    <td style="font-size:0.78rem;">{{ b.size_kb }} KB</td>
+                    <td>
+                        {% if b.triggered_by == 'admin' %}
+                            <span class="pill pill-blue">Manual</span>
+                        {% else %}
+                            <span class="pill pill-green">Auto</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div style="display:flex; gap:6px; align-items:center;">
+                            <a href="{{ url_for('admin.download_backup', filename=b.filename) }}" class="btn-dl">
+                                <span class="material-symbols-rounded" style="font-size:14px;">download</span>Download
+                            </a>
+                            <form method="POST" action="{{ url_for('admin.delete_backup', filename=b.filename) }}"
+                                  onsubmit="return confirm('Delete this backup? This cannot be undone.')">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn-del">Delete</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <span class="material-symbols-rounded">backup</span>
+            <p style="font-weight:600;">No backups yet</p>
+            <p style="font-size:0.8rem;">Create your first backup using the button on the right or wait for the automatic midnight backup.</p>
+        </div>
+        {% endif %}
     </div>
 
-    <script src="{{ url_for('static', filename='js/global.js') }}"></script>
-    <script nonce="{{ csp_nonce() }}"></script>
-</body>
-</html>
+    <!-- Right Column -->
+    <div style="display:flex; flex-direction:column; gap:20px;">
+
+        <!-- Manual Backup -->
+        <div class="backup-card">
+            <div class="backup-card-header">
+                <h3>
+                    <span class="material-symbols-rounded" style="font-size:18px;">add_circle</span>
+                    Manual Backup
+                </h3>
+            </div>
+            <div class="manual-box">
+                <form method="POST" action="{{ url_for('admin.create_manual_backup') }}"
+                      onsubmit="return confirm('Create a database backup now?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn-backup">
+                        <span class="material-symbols-rounded">backup</span>
+                        Create Backup Now
+                    </button>
+                </form>
+                <div class="info-box">
+                    <strong>What gets backed up:</strong><br>
+                    All database tables — users, customers, products, transactions, payments, rentals, and security logs.<br><br>
+                    <strong>Note:</strong> Only the last 7 backups are kept. Older ones are deleted automatically.
+                </div>
+            </div>
+        </div>
+
+        <!-- Auto Backup Status -->
+        <div class="backup-card">
+            <div class="backup-card-header">
+                <h3>
+                    <span class="material-symbols-rounded" style="font-size:18px;">schedule</span>
+                    Auto Backup
+                </h3>
+            </div>
+            <div class="manual-box">
+                <div style="display:flex; align-items:center; margin-bottom:12px;">
+                    <div class="pulse"></div>
+                    <span style="font-size:0.85rem; font-weight:600; color:#16a34a;">Auto backup is active</span>
+                </div>
+                <div class="auto-box">
+                    <strong>Schedule:</strong> Every day at 12:00 AM midnight<br>
+                    <strong>Retention:</strong> Last 7 days kept automatically<br>
+                    <strong>Action needed:</strong> None — fully automatic
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}
