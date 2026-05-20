@@ -228,6 +228,8 @@
                 <h1>{% block page_title %}Admin{% endblock %}</h1>
                 <div class="header-actions">
 
+                    {% block header_actions %}{% endblock %}
+
                     <!-- Notifications -->
                     <div class="action-item">
                         <button class="icon-btn" id="notif-btn">
@@ -248,8 +250,7 @@
                         </div>
                     </div>
 
-                    <!-- Per-page slot (e.g. live monitoring tag on Security Center) -->
-                    {% block header_actions %}{% endblock %}
+
 
                     <!-- Profile dropdown (always visible on every page) -->
                     <div class="action-item">
