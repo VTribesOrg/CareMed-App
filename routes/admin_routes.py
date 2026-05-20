@@ -5,13 +5,13 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy import func, or_
 from flask_login import login_required
 from functools import wraps
-from models.product import Product, InventoryLog, Transaction, Purchase, Payment, Rental, RentalInvoice
+from models.product import Product, InventoryLog, Transaction, Purchase, Payment, Rental, RentalInvoice, Expense
 from models.customer import Customer
 from models.users import User, SecurityLog, BlockedIP
 from flask_mail import Message
 from flask import current_app
 from werkzeug.utils import secure_filename
-from datetime import datetime
+from datetime import datetime, date
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from dateutil.relativedelta import relativedelta
 from sqlalchemy.orm import joinedload, selectinload
@@ -1479,13 +1479,283 @@ def profile():
     return render_template("admin/profile.html")
 
 @admin_bp.route('/reports')
-@limiter.exempt
 @login_required
 @administrator_required
 def reports():
+    from datetime import date
+    from sqlalchemy import extract
 
-    
-    return render_template("admin/reports.html")
+    today = date.today()
+    current_year = today.year
+    current_month = today.month
+
+    # ── SALES ──────────────────────────────────────────────
+    total_sales_revenue = db.session.query(
+        func.sum(Transaction.amount_paid)
+    ).filter(Transaction.transaction_type == 'Sale').scalar() or 0
+
+    total_sale_transactions = Transaction.query.filter_by(
+        transaction_type='Sale'
+    ).count()
+
+    cancelled_orders = Transaction.query.filter_by(
+        status='Cancelled'
+    ).count()
+
+    avg_transaction_value = round(
+        float(total_sales_revenue) / total_sale_transactions, 2
+    ) if total_sale_transactions > 0 else 0
+
+    # Sales per month (last 6 months)
+    sales_by_month = []
+    sales_labels = []
+    for i in range(5, -1, -1):
+        from dateutil.relativedelta import relativedelta as rd
+        target = today - rd(months=i)
+        month_total = db.session.query(
+            func.sum(Transaction.amount_paid)
+        ).filter(
+            Transaction.transaction_type == 'Sale',
+            extract('year', Transaction.created_at) == target.year,
+            extract('month', Transaction.created_at) == target.month
+        ).scalar() or 0
+        sales_by_month.append(float(month_total))
+        sales_labels.append(target.strftime('%b'))
+
+    # Top selling products by revenue
+    top_products = db.session.query(
+        Product.name,
+        Product.equipment_type,
+        func.sum(Purchase.quantity).label('units_sold'),
+        func.sum(Purchase.total_price).label('revenue'),
+        Product.stock
+    ).join(Purchase, Purchase.product_id == Product.id)\
+     .group_by(Product.id)\
+     .order_by(func.sum(Purchase.total_price).desc())\
+     .limit(5).all()
+
+    # Sales by equipment type (for donut chart)
+    sales_by_category = db.session.query(
+        Product.equipment_type,
+        func.sum(Purchase.total_price).label('revenue')
+    ).join(Purchase, Purchase.product_id == Product.id)\
+     .group_by(Product.equipment_type)\
+     .order_by(func.sum(Purchase.total_price).desc())\
+     .limit(5).all()
+
+    # ── RENTALS ────────────────────────────────────────────
+    active_rentals = Rental.query.filter_by(status='Active').count()
+
+    rental_revenue = db.session.query(
+        func.sum(Payment.amount)
+    ).join(Transaction).filter(
+        Transaction.transaction_type == 'Rental',
+        Payment.status == 'Completed'
+    ).scalar() or 0
+
+    overdue_rentals = Rental.query.filter(
+        Rental.status == 'Active',
+        Rental.expected_return_date < today
+    ).all()
+
+    returned_rentals = Rental.query.filter_by(status='Returned').count()
+
+    # Rentals per month (last 6 months)
+    rentals_by_month = []
+    for i in range(5, -1, -1):
+        target = today - rd(months=i)
+        month_count = Rental.query.filter(
+            extract('year', Rental.created_at) == target.year,
+            extract('month', Rental.created_at) == target.month
+        ).count()
+        rentals_by_month.append(month_count)
+
+    # ── INVENTORY ──────────────────────────────────────────
+    total_inventory = db.session.query(
+        func.sum(Product.stock)
+    ).scalar() or 0
+
+    low_stock_products = Product.query.filter(
+        Product.stock <= 5,
+        Product.stock > 0
+    ).order_by(Product.stock.asc()).all()
+
+    out_of_stock_count = Product.query.filter_by(stock=0).count()
+
+    stock_health = round(
+        (1 - (out_of_stock_count / total_inventory)) * 100, 1
+    ) if total_inventory > 0 else 100
+
+    # Stock by category
+    stock_by_category = db.session.query(
+        Product.equipment_type,
+        func.sum(Product.stock).label('total_stock')
+    ).group_by(Product.equipment_type)\
+     .order_by(func.sum(Product.stock).desc())\
+     .limit(6).all()
+
+    # Most used items (by purchase + rental count)
+    most_used = db.session.query(
+        Product.name,
+        func.count(Purchase.id).label('use_count')
+    ).join(Purchase, Purchase.product_id == Product.id)\
+     .group_by(Product.id)\
+     .order_by(func.count(Purchase.id).desc())\
+     .limit(5).all()
+
+    max_use = most_used[0].use_count if most_used else 1
+
+    # ── CUSTOMERS ──────────────────────────────────────────
+    from models.customer import Customer as CustomerModel
+    total_customers = CustomerModel.query.count()
+
+    new_customers_this_month = CustomerModel.query.filter(
+        extract('year', CustomerModel.created_at) == current_year,
+        extract('month', CustomerModel.created_at) == current_month
+    ).count()
+
+    customers_with_overdue = db.session.query(
+        func.count(func.distinct(Rental.customer_id))
+    ).filter(
+        Rental.status == 'Active',
+        Rental.expected_return_date < today
+    ).scalar() or 0
+
+    # Customer growth per month
+    customer_growth = []
+    for i in range(5, -1, -1):
+        target = today - rd(months=i)
+        count = CustomerModel.query.filter(
+            extract('year', CustomerModel.created_at) == target.year,
+            extract('month', CustomerModel.created_at) == target.month
+        ).count()
+        customer_growth.append(count)
+
+    # Top customers by spending
+    top_customers = db.session.query(
+        CustomerModel.first_name,
+        CustomerModel.last_name,
+        func.count(Transaction.id).label('txn_count'),
+        func.sum(Transaction.amount_paid).label('total_spent'),
+        func.max(Transaction.created_at).label('last_activity')
+    ).join(Transaction, Transaction.customer_id == CustomerModel.id)\
+     .group_by(CustomerModel.id)\
+     .order_by(func.sum(Transaction.amount_paid).desc())\
+     .limit(5).all()
+
+    # Returning customers (transacted more than once)
+    returning_count = db.session.query(
+        func.count()
+    ).select_from(
+        db.session.query(Transaction.customer_id)
+        .group_by(Transaction.customer_id)
+        .having(func.count(Transaction.id) > 1)
+        .subquery()
+    ).scalar() or 0
+
+    returning_rate = round(
+        (returning_count / total_customers) * 100, 1
+    ) if total_customers > 0 else 0
+
+    # ── FINANCIAL ──────────────────────────────────────────
+    gross_revenue = db.session.query(
+        func.sum(Transaction.amount_paid)
+    ).scalar() or 0
+
+    total_expenses = db.session.query(
+        func.sum(Expense.amount)
+    ).scalar() or 0
+
+    net_profit = float(gross_revenue) - float(total_expenses)
+
+    profit_margin = round(
+        (net_profit / float(gross_revenue)) * 100, 1
+    ) if float(gross_revenue) > 0 else 0
+
+    # Revenue vs expenses per month
+    revenue_by_month = []
+    expenses_by_month = []
+    for i in range(5, -1, -1):
+        target = today - rd(months=i)
+        rev = db.session.query(
+            func.sum(Transaction.amount_paid)
+        ).filter(
+            extract('year', Transaction.created_at) == target.year,
+            extract('month', Transaction.created_at) == target.month
+        ).scalar() or 0
+        exp = db.session.query(
+            func.sum(Expense.amount)
+        ).filter(
+            extract('year', Expense.date_incurred) == target.year,
+            extract('month', Expense.date_incurred) == target.month
+        ).scalar() or 0
+        revenue_by_month.append(float(rev))
+        expenses_by_month.append(float(exp))
+
+    # Expense breakdown by category
+    expense_by_category = db.session.query(
+        Expense.category,
+        func.sum(Expense.amount).label('total')
+    ).group_by(Expense.category)\
+     .order_by(func.sum(Expense.amount).desc())\
+     .all()
+
+    # Recent transactions for financial tab
+    recent_transactions = Transaction.query.order_by(
+        Transaction.created_at.desc()
+    ).limit(5).all()
+
+    return render_template(
+        "admin/reports.html",
+
+        # Sales
+        total_sales_revenue=total_sales_revenue,
+        total_sale_transactions=total_sale_transactions,
+        avg_transaction_value=avg_transaction_value,
+        cancelled_orders=cancelled_orders,
+        sales_by_month=sales_by_month,
+        sales_labels=sales_labels,
+        top_products=top_products,
+        sales_by_category=sales_by_category,
+
+        # Rentals
+        active_rentals=active_rentals,
+        rental_revenue=rental_revenue,
+        overdue_rentals=overdue_rentals,
+        returned_rentals=returned_rentals,
+        rentals_by_month=rentals_by_month,
+
+        # Inventory
+        total_inventory=total_inventory,
+        low_stock_products=low_stock_products,
+        out_of_stock_count=out_of_stock_count,
+        stock_health=stock_health,
+        stock_by_category=stock_by_category,
+        most_used=most_used,
+        max_use=max_use,
+
+        # Customers
+        total_customers=total_customers,
+        new_customers_this_month=new_customers_this_month,
+        customers_with_overdue=customers_with_overdue,
+        returning_rate=returning_rate,
+        customer_growth=customer_growth,
+        top_customers=top_customers,
+        returning_count=returning_count,
+
+        # Financial
+        gross_revenue=gross_revenue,
+        total_expenses=total_expenses,
+        net_profit=net_profit,
+        profit_margin=profit_margin,
+        revenue_by_month=revenue_by_month,
+        expenses_by_month=expenses_by_month,
+        expense_by_category=expense_by_category,
+        recent_transactions=recent_transactions,
+
+        # Shared
+        month_labels=sales_labels,
+    )
 
 # ── Security Dashboard 
 @admin_bp.route('/security')
@@ -1745,102 +2015,109 @@ def delete_backup(filename):
 def notification_stream():
     """Server-Sent Events endpoint — pushes notification data every 30s."""
 
+    def build_notifications():
+        try:
+            today = date.today()
+
+            overdue = Rental.query.filter(
+                Rental.status == 'Active',
+                Rental.expected_return_date < today
+            ).count()
+
+            low_stock = Product.query.filter(
+                Product.stock <= 5,
+                Product.stock > 0
+            ).all()
+
+            out_of_stock = Product.query.filter(Product.stock == 0).count()
+
+            from models.product import PaymentProof
+            pending_proofs = PaymentProof.query.filter_by(status='Pending').count()
+
+            from models.customer import Customer
+            pending_verifications = Customer.query.filter(
+                Customer.is_id_verified == False,
+                Customer.valid_id_path != None
+            ).count()
+
+            notifications = []
+
+            if overdue > 0:
+                notifications.append({
+                    "id": "overdue",
+                    "type": "warning",
+                    "icon": "schedule",
+                    "title": f"{overdue} Overdue Return{'s' if overdue > 1 else ''}",
+                    "message": f"{overdue} rental item{'s are' if overdue > 1 else ' is'} past the return date.",
+                    "link": "/admin/transactions"
+                })
+
+            if low_stock:
+                names = ", ".join([p.name for p in low_stock[:3]])
+                extra = f" and {len(low_stock) - 3} more" if len(low_stock) > 3 else ""
+                notifications.append({
+                    "id": "low_stock",
+                    "type": "warning",
+                    "icon": "inventory_2",
+                    "title": f"{len(low_stock)} Item{'s' if len(low_stock) > 1 else ''} Running Low",
+                    "message": f"{names}{extra} — restock soon.",
+                    "link": "/admin/products"
+                })
+
+            if out_of_stock > 0:
+                notifications.append({
+                    "id": "out_of_stock",
+                    "type": "error",
+                    "icon": "remove_shopping_cart",
+                    "title": f"{out_of_stock} Item{'s' if out_of_stock > 1 else ''} Out of Stock",
+                    "message": "Immediate restock required.",
+                    "link": "/admin/products"
+                })
+
+            if pending_proofs > 0:
+                notifications.append({
+                    "id": "pending_proofs",
+                    "type": "info",
+                    "icon": "payments",
+                    "title": f"{pending_proofs} Pending Payment Proof{'s' if pending_proofs > 1 else ''}",
+                    "message": "GCash payments waiting for verification.",
+                    "link": "/admin/transactions"
+                })
+
+            if pending_verifications > 0:
+                notifications.append({
+                    "id": "pending_verifications",
+                    "type": "info",
+                    "icon": "verified_user",
+                    "title": f"{pending_verifications} ID Verification{'s' if pending_verifications > 1 else ''} Pending",
+                    "message": "Customer IDs uploaded and awaiting review.",
+                    "link": "/admin/customers"
+                })
+
+            return notifications
+
+        except Exception as e:
+            current_app.logger.error(f"SSE notification error: {e}")
+            return []
+
     def generate():
+        # Send immediately on connect
+        notifications = build_notifications()
+        payload = json.dumps({"count": len(notifications), "notifications": notifications})
+        yield f"data: {payload}\n\n"
+
+        # Then every 30 seconds
+        import time
+        interval = 30
+        elapsed = 0
         while True:
-            try:
-                today = date.today()
-
-                # Overdue rentals
-                overdue = Rental.query.filter(
-                    Rental.status == 'Active',
-                    Rental.expected_return_date < today
-                ).count()
-
-                # Low stock (≤5 units)
-                low_stock = Product.query.filter(
-                    Product.stock <= 5,
-                    Product.stock > 0
-                ).all()
-
-                # Out of stock
-                out_of_stock = Product.query.filter(
-                    Product.stock == 0
-                ).count()
-
-                # Pending GCash proofs
-                from models.product import PaymentProof
-                pending_proofs = PaymentProof.query.filter_by(
-                    status='Pending'
-                ).count()
-
-                # Unverified customers with uploaded IDs
-                from models.customer import Customer
-                pending_verifications = Customer.query.filter(
-                    Customer.is_id_verified == False,
-                    Customer.valid_id_path != None
-                ).count()
-
-                notifications = []
-
-                if overdue > 0:
-                    notifications.append({
-                        "id": "overdue",
-                        "type": "warning",
-                        "icon": "schedule",
-                        "title": f"{overdue} Overdue Return{'s' if overdue > 1 else ''}",
-                        "message": f"{overdue} rental item{'s are' if overdue > 1 else ' is'} past the return date.",
-                        "link": "/admin/transactions"
-                    })
-
-                for product in low_stock:
-                    notifications.append({
-                        "id": f"low_stock_{product.id}",
-                        "type": "warning",
-                        "icon": "inventory_2",
-                        "title": "Low Stock",
-                        "message": f"{product.name} — only {product.stock} unit{'s' if product.stock != 1 else ''} left.",
-                        "link": "/admin/products"
-                    })
-
-                if out_of_stock > 0:
-                    notifications.append({
-                        "id": "out_of_stock",
-                        "type": "error",
-                        "icon": "remove_shopping_cart",
-                        "title": f"{out_of_stock} Item{'s' if out_of_stock > 1 else ''} Out of Stock",
-                        "message": "Immediate restock required.",
-                        "link": "/admin/products"
-                    })
-
-                if pending_proofs > 0:
-                    notifications.append({
-                        "id": "pending_proofs",
-                        "type": "info",
-                        "icon": "payments",
-                        "title": f"{pending_proofs} Pending Payment Proof{'s' if pending_proofs > 1 else ''}",
-                        "message": "GCash payment{'s' if pending_proofs > 1 else ''} waiting for verification.",
-                        "link": "/admin/transactions"
-                    })
-
-                if pending_verifications > 0:
-                    notifications.append({
-                        "id": "pending_verifications",
-                        "type": "info",
-                        "icon": "verified_user",
-                        "title": f"{pending_verifications} ID Verification{'s' if pending_verifications > 1 else ''} Pending",
-                        "message": "Customer IDs uploaded and awaiting review.",
-                        "link": "/admin/customers"
-                    })
-
-                total = len(notifications)
-                payload = json.dumps({"count": total, "notifications": notifications})
+            time.sleep(1)
+            elapsed += 1
+            if elapsed >= interval:
+                elapsed = 0
+                notifications = build_notifications()
+                payload = json.dumps({"count": len(notifications), "notifications": notifications})
                 yield f"data: {payload}\n\n"
-
-            except Exception as e:
-                current_app.logger.error(f"SSE notification error: {e}")
-                yield f"data: {json.dumps({'count': 0, 'notifications': []})}\n\n"
-
-            time.sleep(30)
 
     return Response(
         stream_with_context(generate()),
@@ -1850,7 +2127,6 @@ def notification_stream():
             'X-Accel-Buffering': 'no'
         }
     )
-
 
 @admin_bp.route('/notifications/data')
 @login_required
@@ -1891,11 +2167,15 @@ def notification_data():
                 "link": "/admin/transactions"
             })
 
-        for product in low_stock:
+        if low_stock:
+            names = ", ".join([p.name for p in low_stock[:3]])
+            extra = f" and {len(low_stock) - 3} more" if len(low_stock) > 3 else ""
             notifications.append({
-                "id": f"low_stock_{product.id}", "type": "warning", "icon": "inventory_2",
-                "title": "Low Stock",
-                "message": f"{product.name} — only {product.stock} unit{'s' if product.stock != 1 else ''} left.",
+                "id": "low_stock",
+                "type": "warning",
+                "icon": "inventory_2",
+                "title": f"{len(low_stock)} Item{'s' if len(low_stock) > 1 else ''} Running Low",
+                "message": f"{names}{extra} — restock soon.",
                 "link": "/admin/products"
             })
 

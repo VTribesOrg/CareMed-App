@@ -11,6 +11,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import atexit
 
 app = Flask(__name__)
+app.jinja_env.globals['enumerate'] = enumerate
 
 if os.environ.get('FLASK_ENV') == 'development':
     app.config.from_object('config.DevConfig')
@@ -62,7 +63,7 @@ def check_blocked_ip():
     ip = request.remote_addr
     blocked = BlockedIP.query.filter_by(ip_address=ip, is_active=True).first()
     if blocked:
-        from datetime import datetime
+        from datetime import datetime, date
         if blocked.blocked_until and blocked.blocked_until < datetime.utcnow():
             # Temporary block has expired — deactivate it
             blocked.is_active = False

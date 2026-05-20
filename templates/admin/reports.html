@@ -13,10 +13,6 @@
     .tab-btn.active { background:#52B788; color:#fff; }
     .tab-btn:hover:not(.active) { background:#f1f5f9; color:#002347; }
     .toolbar-right { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-    .date-select { padding:8px 12px; border:1px solid #dbe2e1; border-radius:8px; font-family:'Plus Jakarta Sans',sans-serif; font-size:.82rem; font-weight:600; color:#002347; background:#fff; cursor:pointer; outline:none; }
-    .export-btn { display:flex; align-items:center; gap:6px; padding:8px 16px; border-radius:8px; border:1px solid #dbe2e1; background:#fff; font-family:'Plus Jakarta Sans',sans-serif; font-size:.82rem; font-weight:700; color:#002347; cursor:pointer; transition:all .2s; }
-    .export-btn:hover { background:#f1f5f9; }
-    .export-btn .material-symbols-rounded { font-size:18px; }
     .print-btn { display:flex; align-items:center; gap:6px; padding:8px 16px; border-radius:8px; border:none; background:#52B788; font-family:'Plus Jakarta Sans',sans-serif; font-size:.82rem; font-weight:700; color:#fff; cursor:pointer; transition:all .2s; }
     .print-btn:hover { background:#3d9e71; }
     .print-btn .material-symbols-rounded { font-size:18px; }
@@ -29,9 +25,6 @@
     .stat-icon.purple { background:#f5f3ff; color:#7c3aed; }
     .stat-value { font-size:1.4rem; font-weight:800; color:#002347; line-height:1; }
     .stat-label { font-size:.78rem; color:#64748b; font-weight:600; margin-top:3px; }
-    .stat-delta { font-size:.75rem; font-weight:700; margin-top:4px; }
-    .stat-delta.up   { color:#52B788; }
-    .stat-delta.down { color:#ef4444; }
     .charts-row { display:grid; grid-template-columns:2fr 1fr; gap:16px; }
     .charts-row.equal { grid-template-columns:1fr 1fr; }
     .card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
@@ -46,6 +39,9 @@
     .tag-warning { background:#fffbeb; color:#d97706; }
     .tag-danger  { background:#fef2f2; color:#dc2626; }
     .tag-info    { background:#e0f2fe; color:#0284c7; }
+    .custom-table { width:100%; border-collapse:collapse; font-size:0.85rem; }
+    .custom-table th { padding:10px 12px; text-align:left; font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; background:#f8fafc; border-bottom:1px solid #e2e8f0; }
+    .custom-table td { padding:10px 12px; border-bottom:1px solid #f1f5f9; color:#374151; }
     .custom-table tr:hover td { background:#f8fafc; }
     .top-list { display:flex; flex-direction:column; gap:10px; margin-top:8px; }
     .top-list-item { display:flex; align-items:center; gap:10px; }
@@ -59,6 +55,8 @@
     .alert-row.amber { background:#fffbeb; border-color:#fde68a; }
     .alert-row.amber .material-symbols-rounded { color:#d97706; }
     .alert-row.amber .alert-text { color:#78350f; }
+    .empty-state { text-align:center; padding:40px; color:#94a3b8; }
+    .empty-state .material-symbols-rounded { font-size:40px; display:block; margin-bottom:8px; }
     @media print { .report-toolbar,.medical-sidebar,.system-header{display:none!important} .content-area{padding:0} }
 </style>
 {% endblock %}
@@ -75,142 +73,480 @@
         <button class="tab-btn" data-tab="financial">Financial</button>
     </div>
     <div class="toolbar-right">
-        <select class="date-select">
-            <option value="7">Last 7 days</option>
-            <option value="30" selected>Last 30 days</option>
-            <option value="90">Last 3 months</option>
-            <option value="365">This year</option>
-        </select>
-        <button class="export-btn" onclick="exportCSV()">
-            <span class="material-symbols-rounded">download</span> Export CSV
-        </button>
         <button class="print-btn" onclick="window.print()">
             <span class="material-symbols-rounded">print</span> Print
         </button>
     </div>
 </div>
 
-<!-- SALES -->
+<!-- ═══════════════════════════════════ SALES ═══ -->
 <div class="report-panel active" id="panel-sales">
     <div class="stats-grid">
-        <div class="stat-card"><div class="stat-icon green"><span class="material-symbols-rounded">payments</span></div><div><div class="stat-value">&#8369;428,500</div><div class="stat-label">Total Sales Revenue</div><div class="stat-delta up">&#9650; 12% vs last month</div></div></div>
-        <div class="stat-card"><div class="stat-icon blue"><span class="material-symbols-rounded">receipt_long</span></div><div><div class="stat-value">1,204</div><div class="stat-label">Total Transactions</div><div class="stat-delta up">&#9650; 8% vs last month</div></div></div>
-        <div class="stat-card"><div class="stat-icon amber"><span class="material-symbols-rounded">trending_up</span></div><div><div class="stat-value">&#8369;356</div><div class="stat-label">Avg. Transaction Value</div><div class="stat-delta up">&#9650; 3% vs last month</div></div></div>
-        <div class="stat-card"><div class="stat-icon red"><span class="material-symbols-rounded">cancel</span></div><div><div class="stat-value">24</div><div class="stat-label">Cancelled Orders</div><div class="stat-delta down">&#9660; 5% vs last month</div></div></div>
+        <div class="stat-card">
+            <div class="stat-icon green"><span class="material-symbols-rounded">payments</span></div>
+            <div>
+                <div class="stat-value">₱{{ "{:,.0f}".format(total_sales_revenue) }}</div>
+                <div class="stat-label">Total Sales Revenue</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon blue"><span class="material-symbols-rounded">receipt_long</span></div>
+            <div>
+                <div class="stat-value">{{ total_sale_transactions }}</div>
+                <div class="stat-label">Total Sale Transactions</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon amber"><span class="material-symbols-rounded">trending_up</span></div>
+            <div>
+                <div class="stat-value">₱{{ "{:,.2f}".format(avg_transaction_value) }}</div>
+                <div class="stat-label">Avg. Transaction Value</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon red"><span class="material-symbols-rounded">cancel</span></div>
+            <div>
+                <div class="stat-value">{{ cancelled_orders }}</div>
+                <div class="stat-label">Cancelled Orders</div>
+            </div>
+        </div>
     </div>
+
     <div class="charts-row">
-        <div class="report-card"><div class="card-header"><div><div class="card-title">Revenue over time</div><div class="card-sub">Monthly sales trend</div></div></div><div class="chart-wrapper chart-h-280"><canvas id="chart-revenue"></canvas></div></div>
-        <div class="report-card"><div class="card-header"><div><div class="card-title">Sales by category</div><div class="card-sub">Product breakdown</div></div></div><div class="chart-wrapper chart-h-280"><canvas id="chart-category"></canvas></div><div class="chart-legend" id="legend-category"></div></div>
+        <div class="report-card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Revenue over time</div>
+                    <div class="card-sub">Monthly sales — last 6 months</div>
+                </div>
+            </div>
+            <div class="chart-wrapper chart-h-280"><canvas id="chart-revenue"></canvas></div>
+        </div>
+        <div class="report-card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Sales by category</div>
+                    <div class="card-sub">Revenue breakdown</div>
+                </div>
+            </div>
+            <div class="chart-wrapper chart-h-280"><canvas id="chart-category"></canvas></div>
+            <div class="chart-legend" id="legend-category"></div>
+        </div>
     </div>
+
     <div class="report-table-card">
-        <div class="card-header"><div><div class="card-title">Top selling items</div><div class="card-sub">By revenue this period</div></div></div>
-        <table class="custom-table"><thead><tr><th>#</th><th>Product</th><th>Category</th><th>Units Sold</th><th>Revenue</th><th>Status</th></tr></thead><tbody>
-            <tr><td>1</td><td>Oxygen Tank (10L)</td><td>Respiratory</td><td>312</td><td>&#8369;156,000</td><td><span class="status-tag tag-success">Active</span></td></tr>
-            <tr><td>2</td><td>Wheelchair Standard</td><td>Mobility</td><td>88</td><td>&#8369;88,000</td><td><span class="status-tag tag-success">Active</span></td></tr>
-            <tr><td>3</td><td>Pulse Oximeter</td><td>Monitoring</td><td>204</td><td>&#8369;61,200</td><td><span class="status-tag tag-success">Active</span></td></tr>
-            <tr><td>4</td><td>Crutches (Pair)</td><td>Mobility</td><td>150</td><td>&#8369;45,000</td><td><span class="status-tag tag-warning">Low stock</span></td></tr>
-            <tr><td>5</td><td>Nebulizer Machine</td><td>Respiratory</td><td>62</td><td>&#8369;37,200</td><td><span class="status-tag tag-success">Active</span></td></tr>
-        </tbody></table>
+        <div class="card-header">
+            <div>
+                <div class="card-title">Top selling items</div>
+                <div class="card-sub">By revenue — all time</div>
+            </div>
+        </div>
+        {% if top_products %}
+        <table class="custom-table">
+            <thead>
+                <tr><th>#</th><th>Product</th><th>Category</th><th>Units Sold</th><th>Revenue</th><th>Stock</th></tr>
+            </thead>
+            <tbody>
+                {% for i, p in enumerate(top_products) %}
+                <tr>
+                    <td>{{ i + 1 }}</td>
+                    <td>{{ p.name }}</td>
+                    <td>{{ p.equipment_type or '—' }}</td>
+                    <td>{{ p.units_sold }}</td>
+                    <td style="font-weight:700; color:#16a34a;">₱{{ "{:,.2f}".format(p.revenue) }}</td>
+                    <td>
+                        {% if p.stock == 0 %}
+                            <span class="status-tag tag-danger">Out of stock</span>
+                        {% elif p.stock <= 5 %}
+                            <span class="status-tag tag-warning">Low stock</span>
+                        {% else %}
+                            <span class="status-tag tag-success">{{ p.stock }} units</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <span class="material-symbols-rounded">receipt_long</span>
+            <p>No sales data yet.</p>
+        </div>
+        {% endif %}
     </div>
 </div>
 
-<!-- RENTALS -->
+<!-- ═══════════════════════════════════ RENTALS ═══ -->
 <div class="report-panel" id="panel-rentals">
     <div class="stats-grid">
-        <div class="stat-card"><div class="stat-icon blue"><span class="material-symbols-rounded">event_repeat</span></div><div><div class="stat-value">48</div><div class="stat-label">Active Rentals</div><div class="stat-delta up">&#9650; 5% this week</div></div></div>
-        <div class="stat-card"><div class="stat-icon green"><span class="material-symbols-rounded">payments</span></div><div><div class="stat-value">&#8369;182,300</div><div class="stat-label">Rental Revenue</div><div class="stat-delta up">&#9650; 5% vs last month</div></div></div>
-        <div class="stat-card"><div class="stat-icon red"><span class="material-symbols-rounded">schedule</span></div><div><div class="stat-value">6</div><div class="stat-label">Overdue Returns</div><div class="stat-delta down">&#9650; 2 this week</div></div></div>
-        <div class="stat-card"><div class="stat-icon amber"><span class="material-symbols-rounded">calendar_month</span></div><div><div class="stat-value">14.3 days</div><div class="stat-label">Avg. Rental Duration</div><div class="stat-delta up">&#9650; 1 day vs prior</div></div></div>
+        <div class="stat-card">
+            <div class="stat-icon blue"><span class="material-symbols-rounded">event_repeat</span></div>
+            <div>
+                <div class="stat-value">{{ active_rentals }}</div>
+                <div class="stat-label">Active Rentals</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon green"><span class="material-symbols-rounded">payments</span></div>
+            <div>
+                <div class="stat-value">₱{{ "{:,.0f}".format(rental_revenue) }}</div>
+                <div class="stat-label">Rental Revenue</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon red"><span class="material-symbols-rounded">schedule</span></div>
+            <div>
+                <div class="stat-value">{{ overdue_rentals | length }}</div>
+                <div class="stat-label">Overdue Returns</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon amber"><span class="material-symbols-rounded">assignment_turned_in</span></div>
+            <div>
+                <div class="stat-value">{{ returned_rentals }}</div>
+                <div class="stat-label">Completed Rentals</div>
+            </div>
+        </div>
     </div>
+
     <div class="charts-row equal">
-        <div class="report-card"><div class="card-header"><div><div class="card-title">Rental volume per month</div><div class="card-sub">Units rented out</div></div></div><div class="chart-wrapper chart-h-240"><canvas id="chart-rental-volume"></canvas></div></div>
-        <div class="report-card"><div class="card-header"><div><div class="card-title">Rental status breakdown</div><div class="card-sub">Current snapshot</div></div></div><div class="chart-wrapper chart-h-240"><canvas id="chart-rental-status"></canvas></div><div class="chart-legend" id="legend-rental-status"></div></div>
+        <div class="report-card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Rental volume per month</div>
+                    <div class="card-sub">Last 6 months</div>
+                </div>
+            </div>
+            <div class="chart-wrapper chart-h-240"><canvas id="chart-rental-volume"></canvas></div>
+        </div>
+        <div class="report-card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Rental status breakdown</div>
+                    <div class="card-sub">Current snapshot</div>
+                </div>
+            </div>
+            <div class="chart-wrapper chart-h-240"><canvas id="chart-rental-status"></canvas></div>
+            <div class="chart-legend" id="legend-rental-status"></div>
+        </div>
     </div>
+
     <div class="report-table-card">
-        <div class="card-header"><div><div class="card-title">Overdue rentals</div><div class="card-sub">Requires immediate action</div></div></div>
-        <table class="custom-table"><thead><tr><th>Rental #</th><th>Customer</th><th>Item</th><th>Due Date</th><th>Days Late</th><th>Deposit</th><th>Status</th></tr></thead><tbody>
-            <tr><td>#882</td><td>Maria Santos</td><td>Oxygen Tank #7721</td><td>Mar 20, 2025</td><td>9 days</td><td>&#8369;2,000</td><td><span class="status-tag tag-danger">Overdue</span></td></tr>
-            <tr><td>#876</td><td>Jose Reyes</td><td>Wheelchair Deluxe</td><td>Mar 22, 2025</td><td>7 days</td><td>&#8369;3,500</td><td><span class="status-tag tag-danger">Overdue</span></td></tr>
-            <tr><td>#891</td><td>Ana Cruz</td><td>Hospital Bed</td><td>Mar 25, 2025</td><td>4 days</td><td>&#8369;5,000</td><td><span class="status-tag tag-warning">At risk</span></td></tr>
-        </tbody></table>
+        <div class="card-header">
+            <div>
+                <div class="card-title">Overdue rentals</div>
+                <div class="card-sub">Requires immediate action</div>
+            </div>
+        </div>
+        {% if overdue_rentals %}
+        <table class="custom-table">
+            <thead>
+                <tr><th>Rental #</th><th>Customer</th><th>Item</th><th>Due Date</th><th>Days Late</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+                {% for r in overdue_rentals %}
+                {% set days_late = (today - r.expected_return_date).days %}
+                <tr>
+                    <td>#{{ r.id }}</td>
+                    <td>
+                        {% if r.customer %}
+                            {{ r.customer.first_name }} {{ r.customer.last_name }}
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if r.product %}{{ r.product.name }}{% else %}—{% endif %}
+                    </td>
+                    <td>{{ r.expected_return_date.strftime('%b %d, %Y') }}</td>
+                    <td style="color:#dc2626; font-weight:700;">{{ days_late }} days</td>
+                    <td><span class="status-tag tag-danger">Overdue</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <span class="material-symbols-rounded">check_circle</span>
+            <p>No overdue rentals. All good!</p>
+        </div>
+        {% endif %}
     </div>
 </div>
 
-<!-- INVENTORY -->
+<!-- ═══════════════════════════════════ INVENTORY ═══ -->
 <div class="report-panel" id="panel-inventory">
     <div class="stats-grid">
-        <div class="stat-card"><div class="stat-icon blue"><span class="material-symbols-rounded">inventory_2</span></div><div><div class="stat-value">1,204</div><div class="stat-label">Total Inventory Items</div><div class="stat-delta up">&#9650; 3% this month</div></div></div>
-        <div class="stat-card"><div class="stat-icon red"><span class="material-symbols-rounded">warning</span></div><div><div class="stat-value">12</div><div class="stat-label">Low Stock Items</div><div class="stat-delta down">&#9650; 4 from last week</div></div></div>
-        <div class="stat-card"><div class="stat-icon amber"><span class="material-symbols-rounded">remove_shopping_cart</span></div><div><div class="stat-value">7</div><div class="stat-label">Out of Stock</div><div class="stat-delta down">&#9650; 2 this week</div></div></div>
-        <div class="stat-card"><div class="stat-icon green"><span class="material-symbols-rounded">recycling</span></div><div><div class="stat-value">94%</div><div class="stat-label">Stock Health Rate</div><div class="stat-delta up">&#9660; 2% vs last month</div></div></div>
+        <div class="stat-card">
+            <div class="stat-icon blue"><span class="material-symbols-rounded">inventory_2</span></div>
+            <div>
+                <div class="stat-value">{{ total_inventory }}</div>
+                <div class="stat-label">Total Stock Units</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon amber"><span class="material-symbols-rounded">warning</span></div>
+            <div>
+                <div class="stat-value">{{ low_stock_products | length }}</div>
+                <div class="stat-label">Low Stock Items</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon red"><span class="material-symbols-rounded">remove_shopping_cart</span></div>
+            <div>
+                <div class="stat-value">{{ out_of_stock_count }}</div>
+                <div class="stat-label">Out of Stock</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon green"><span class="material-symbols-rounded">recycling</span></div>
+            <div>
+                <div class="stat-value">{{ stock_health }}%</div>
+                <div class="stat-label">Stock Health Rate</div>
+            </div>
+        </div>
     </div>
+
     <div class="charts-row">
-        <div class="report-card"><div class="card-header"><div><div class="card-title">Stock levels by category</div><div class="card-sub">Current available units</div></div></div><div class="chart-wrapper chart-h-280"><canvas id="chart-stock"></canvas></div></div>
-        <div class="report-card"><div class="card-header"><div><div class="card-title">Low stock alerts</div><div class="card-sub">Items needing reorder</div></div></div>
-            <div class="alert-row"><span class="material-symbols-rounded">warning</span><span class="alert-text">Wheelchairs — only 3 units left</span></div>
-            <div class="alert-row"><span class="material-symbols-rounded">warning</span><span class="alert-text">Crutches (Pair) — only 5 units left</span></div>
-            <div class="alert-row amber"><span class="material-symbols-rounded">info</span><span class="alert-text">Nebulizer Masks — 8 units (threshold: 10)</span></div>
-            <div class="alert-row amber"><span class="material-symbols-rounded">info</span><span class="alert-text">Oxygen Regulators — 9 units (threshold: 15)</span></div>
-            <div class="alert-row amber"><span class="material-symbols-rounded">info</span><span class="alert-text">Hospital Beds — 4 units available</span></div>
+        <div class="report-card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Stock levels by category</div>
+                    <div class="card-sub">Available units per type</div>
+                </div>
+            </div>
+            <div class="chart-wrapper chart-h-280"><canvas id="chart-stock"></canvas></div>
+        </div>
+        <div class="report-card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Low stock alerts</div>
+                    <div class="card-sub">Items needing reorder</div>
+                </div>
+            </div>
+            {% if low_stock_products %}
+                {% for p in low_stock_products %}
+                <div class="alert-row {% if p.stock <= 2 %}{% else %}amber{% endif %}">
+                    <span class="material-symbols-rounded">{% if p.stock <= 2 %}warning{% else %}info{% endif %}</span>
+                    <span class="alert-text">{{ p.name }} — only {{ p.stock }} unit{{ 's' if p.stock != 1 else '' }} left</span>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <span class="material-symbols-rounded">check_circle</span>
+                    <p>All stock levels healthy!</p>
+                </div>
+            {% endif %}
         </div>
     </div>
+
     <div class="report-table-card">
-        <div class="card-header"><div><div class="card-title">Most used items</div><div class="card-sub">By usage frequency this period</div></div></div>
-        <div class="top-list">
-            <div class="top-list-item"><span class="top-list-label">Oxygen Tank (10L)</span><div class="top-list-bar-wrap"><div class="top-list-bar" style="width:92%"></div></div><span class="top-list-value">312 uses</span></div>
-            <div class="top-list-item"><span class="top-list-label">Pulse Oximeter</span><div class="top-list-bar-wrap"><div class="top-list-bar" style="width:65%;background:#00a8cc"></div></div><span class="top-list-value">204 uses</span></div>
-            <div class="top-list-item"><span class="top-list-label">Wheelchair Std.</span><div class="top-list-bar-wrap"><div class="top-list-bar" style="width:55%;background:#f59e0b"></div></div><span class="top-list-value">88 uses</span></div>
-            <div class="top-list-item"><span class="top-list-label">Crutches (Pair)</span><div class="top-list-bar-wrap"><div class="top-list-bar" style="width:47%;background:#7c3aed"></div></div><span class="top-list-value">150 uses</span></div>
-            <div class="top-list-item"><span class="top-list-label">Nebulizer Machine</span><div class="top-list-bar-wrap"><div class="top-list-bar" style="width:30%;background:#ef4444"></div></div><span class="top-list-value">62 uses</span></div>
+        <div class="card-header">
+            <div>
+                <div class="card-title">Most sold items</div>
+                <div class="card-sub">By purchase count</div>
+            </div>
         </div>
+        {% if most_used %}
+        <div class="top-list">
+            {% for item in most_used %}
+            {% set bar_width = (item.use_count / max_use * 100) | int %}
+            <div class="top-list-item">
+                <span class="top-list-label">{{ item.name }}</span>
+                <div class="top-list-bar-wrap">
+                    <div class="top-list-bar" style="width:{{ bar_width }}%"></div>
+                </div>
+                <span class="top-list-value">{{ item.use_count }} sales</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <span class="material-symbols-rounded">inventory_2</span>
+            <p>No sales data yet.</p>
+        </div>
+        {% endif %}
     </div>
 </div>
 
-<!-- CUSTOMERS -->
+<!-- ═══════════════════════════════════ CUSTOMERS ═══ -->
 <div class="report-panel" id="panel-customers">
     <div class="stats-grid">
-        <div class="stat-card"><div class="stat-icon green"><span class="material-symbols-rounded">groups</span></div><div><div class="stat-value">842</div><div class="stat-label">Total Customers</div><div class="stat-delta up">&#9650; 18 this month</div></div></div>
-        <div class="stat-card"><div class="stat-icon blue"><span class="material-symbols-rounded">person_add</span></div><div><div class="stat-value">38</div><div class="stat-label">New Customers</div><div class="stat-delta up">&#9650; 12% vs last month</div></div></div>
-        <div class="stat-card"><div class="stat-icon amber"><span class="material-symbols-rounded">repeat</span></div><div><div class="stat-value">64%</div><div class="stat-label">Returning Rate</div><div class="stat-delta up">&#9650; 3% vs last month</div></div></div>
-        <div class="stat-card"><div class="stat-icon red"><span class="material-symbols-rounded">person_off</span></div><div><div class="stat-value">9</div><div class="stat-label">With Overdue Items</div><div class="stat-delta down">&#9650; 3 this week</div></div></div>
+        <div class="stat-card">
+            <div class="stat-icon green"><span class="material-symbols-rounded">groups</span></div>
+            <div>
+                <div class="stat-value">{{ total_customers }}</div>
+                <div class="stat-label">Total Customers</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon blue"><span class="material-symbols-rounded">person_add</span></div>
+            <div>
+                <div class="stat-value">{{ new_customers_this_month }}</div>
+                <div class="stat-label">New This Month</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon amber"><span class="material-symbols-rounded">repeat</span></div>
+            <div>
+                <div class="stat-value">{{ returning_rate }}%</div>
+                <div class="stat-label">Returning Rate</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon red"><span class="material-symbols-rounded">person_off</span></div>
+            <div>
+                <div class="stat-value">{{ customers_with_overdue }}</div>
+                <div class="stat-label">With Overdue Items</div>
+            </div>
+        </div>
     </div>
+
     <div class="charts-row equal">
-        <div class="report-card"><div class="card-header"><div><div class="card-title">Customer growth</div><div class="card-sub">New registrations per month</div></div></div><div class="chart-wrapper chart-h-240"><canvas id="chart-customer-growth"></canvas></div></div>
-        <div class="report-card"><div class="card-header"><div><div class="card-title">New vs returning</div><div class="card-sub">Customer type split</div></div></div><div class="chart-wrapper chart-h-240"><canvas id="chart-customer-type"></canvas></div><div class="chart-legend" id="legend-customer-type"></div></div>
+        <div class="report-card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Customer growth</div>
+                    <div class="card-sub">New registrations — last 6 months</div>
+                </div>
+            </div>
+            <div class="chart-wrapper chart-h-240"><canvas id="chart-customer-growth"></canvas></div>
+        </div>
+        <div class="report-card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">New vs returning</div>
+                    <div class="card-sub">Customer type split</div>
+                </div>
+            </div>
+            <div class="chart-wrapper chart-h-240"><canvas id="chart-customer-type"></canvas></div>
+            <div class="chart-legend" id="legend-customer-type"></div>
+        </div>
     </div>
+
     <div class="report-table-card">
-        <div class="card-header"><div><div class="card-title">Top customers by spending</div></div></div>
-        <table class="custom-table"><thead><tr><th>#</th><th>Customer</th><th>Transactions</th><th>Total Spent</th><th>Last Activity</th><th>Type</th></tr></thead><tbody>
-            <tr><td>1</td><td>Maria Santos</td><td>24</td><td>&#8369;48,200</td><td>Mar 28, 2025</td><td><span class="status-tag tag-info">Regular</span></td></tr>
-            <tr><td>2</td><td>Jose Reyes</td><td>18</td><td>&#8369;36,750</td><td>Mar 27, 2025</td><td><span class="status-tag tag-info">Regular</span></td></tr>
-            <tr><td>3</td><td>Ana Cruz</td><td>12</td><td>&#8369;24,100</td><td>Mar 25, 2025</td><td><span class="status-tag tag-success">New</span></td></tr>
-            <tr><td>4</td><td>Roberto Lim</td><td>9</td><td>&#8369;18,300</td><td>Mar 22, 2025</td><td><span class="status-tag tag-info">Regular</span></td></tr>
-            <tr><td>5</td><td>Gloria Tan</td><td>7</td><td>&#8369;14,600</td><td>Mar 20, 2025</td><td><span class="status-tag tag-success">New</span></td></tr>
-        </tbody></table>
+        <div class="card-header">
+            <div>
+                <div class="card-title">Top customers by spending</div>
+            </div>
+        </div>
+        {% if top_customers %}
+        <table class="custom-table">
+            <thead>
+                <tr><th>#</th><th>Customer</th><th>Transactions</th><th>Total Spent</th><th>Last Activity</th></tr>
+            </thead>
+            <tbody>
+                {% for i, c in enumerate(top_customers) %}
+                <tr>
+                    <td>{{ i + 1 }}</td>
+                    <td>{{ c.first_name }} {{ c.last_name }}</td>
+                    <td>{{ c.txn_count }}</td>
+                    <td style="font-weight:700; color:#16a34a;">₱{{ "{:,.2f}".format(c.total_spent) }}</td>
+                    <td style="color:#94a3b8;">{{ c.last_activity.strftime('%b %d, %Y') if c.last_activity else '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <span class="material-symbols-rounded">groups</span>
+            <p>No customer transaction data yet.</p>
+        </div>
+        {% endif %}
     </div>
 </div>
 
-<!-- FINANCIAL -->
+<!-- ═══════════════════════════════════ FINANCIAL ═══ -->
 <div class="report-panel" id="panel-financial">
     <div class="stats-grid">
-        <div class="stat-card"><div class="stat-icon green"><span class="material-symbols-rounded">account_balance</span></div><div><div class="stat-value">&#8369;610,800</div><div class="stat-label">Gross Revenue</div><div class="stat-delta up">&#9650; 9% vs last month</div></div></div>
-        <div class="stat-card"><div class="stat-icon red"><span class="material-symbols-rounded">trending_down</span></div><div><div class="stat-value">&#8369;142,300</div><div class="stat-label">Total Expenses</div><div class="stat-delta down">&#9650; 4% vs last month</div></div></div>
-        <div class="stat-card"><div class="stat-icon purple"><span class="material-symbols-rounded">savings</span></div><div><div class="stat-value">&#8369;468,500</div><div class="stat-label">Net Profit</div><div class="stat-delta up">&#9650; 11% vs last month</div></div></div>
-        <div class="stat-card"><div class="stat-icon amber"><span class="material-symbols-rounded">percent</span></div><div><div class="stat-value">76.7%</div><div class="stat-label">Profit Margin</div><div class="stat-delta up">&#9650; 1.5% vs last month</div></div></div>
+        <div class="stat-card">
+            <div class="stat-icon green"><span class="material-symbols-rounded">account_balance</span></div>
+            <div>
+                <div class="stat-value">₱{{ "{:,.0f}".format(gross_revenue) }}</div>
+                <div class="stat-label">Gross Revenue</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon red"><span class="material-symbols-rounded">trending_down</span></div>
+            <div>
+                <div class="stat-value">₱{{ "{:,.0f}".format(total_expenses) }}</div>
+                <div class="stat-label">Total Expenses</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon purple"><span class="material-symbols-rounded">savings</span></div>
+            <div>
+                <div class="stat-value">₱{{ "{:,.0f}".format(net_profit) }}</div>
+                <div class="stat-label">Net Profit</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon amber"><span class="material-symbols-rounded">percent</span></div>
+            <div>
+                <div class="stat-value">{{ profit_margin }}%</div>
+                <div class="stat-label">Profit Margin</div>
+            </div>
+        </div>
     </div>
+
     <div class="charts-row">
-        <div class="report-card"><div class="card-header"><div><div class="card-title">Revenue vs expenses</div><div class="card-sub">Monthly cash flow</div></div></div><div class="chart-wrapper chart-h-280"><canvas id="chart-cashflow"></canvas></div></div>
-        <div class="report-card"><div class="card-header"><div><div class="card-title">Expense breakdown</div><div class="card-sub">By category</div></div></div><div class="chart-wrapper chart-h-280"><canvas id="chart-expenses"></canvas></div><div class="chart-legend" id="legend-expenses"></div></div>
+        <div class="report-card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Revenue vs Expenses</div>
+                    <div class="card-sub">Monthly cash flow — last 6 months</div>
+                </div>
+            </div>
+            <div class="chart-wrapper chart-h-280"><canvas id="chart-cashflow"></canvas></div>
+        </div>
+        <div class="report-card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Expense breakdown</div>
+                    <div class="card-sub">By category</div>
+                </div>
+            </div>
+            <div class="chart-wrapper chart-h-280"><canvas id="chart-expenses"></canvas></div>
+            <div class="chart-legend" id="legend-expenses"></div>
+        </div>
     </div>
+
     <div class="report-table-card">
-        <div class="card-header"><div><div class="card-title">Recent transactions</div><div class="card-sub">Latest financial activity</div></div></div>
-        <table class="custom-table"><thead><tr><th>Date</th><th>Description</th><th>Type</th><th>Amount</th><th>Status</th></tr></thead><tbody>
-            <tr><td>Mar 28</td><td>Oxygen Tank Sales Batch</td><td>Income</td><td style="color:#16a34a;font-weight:700">+&#8369;18,600</td><td><span class="status-tag tag-success">Verified</span></td></tr>
-            <tr><td>Mar 27</td><td>Equipment Maintenance</td><td>Expense</td><td style="color:#dc2626;font-weight:700">-&#8369;4,200</td><td><span class="status-tag tag-success">Verified</span></td></tr>
-            <tr><td>Mar 26</td><td>Rental Collections</td><td>Income</td><td style="color:#16a34a;font-weight:700">+&#8369;9,800</td><td><span class="status-tag tag-success">Verified</span></td></tr>
-            <tr><td>Mar 25</td><td>Supplier Payment</td><td>Expense</td><td style="color:#dc2626;font-weight:700">-&#8369;22,000</td><td><span class="status-tag tag-warning">Pending</span></td></tr>
-            <tr><td>Mar 24</td><td>Wheelchair Sales</td><td>Income</td><td style="color:#16a34a;font-weight:700">+&#8369;12,000</td><td><span class="status-tag tag-success">Verified</span></td></tr>
-        </tbody></table>
+        <div class="card-header">
+            <div>
+                <div class="card-title">Recent transactions</div>
+                <div class="card-sub">Latest financial activity</div>
+            </div>
+        </div>
+        {% if recent_transactions %}
+        <table class="custom-table">
+            <thead>
+                <tr><th>Date</th><th>Reference</th><th>Type</th><th>Amount</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+                {% for t in recent_transactions %}
+                <tr>
+                    <td style="color:#94a3b8;">{{ t.created_at.strftime('%b %d') if t.created_at else '—' }}</td>
+                    <td style="font-family:monospace; font-size:0.8rem;">{{ t.reference_no }}</td>
+                    <td>{{ t.transaction_type }}</td>
+                    <td style="font-weight:700; color:#16a34a;">₱{{ "{:,.2f}".format(t.amount_paid) }}</td>
+                    <td>
+                        {% if t.payment_status == 'Paid' %}
+                            <span class="status-tag tag-success">Paid</span>
+                        {% elif t.payment_status == 'Partial' %}
+                            <span class="status-tag tag-warning">Partial</span>
+                        {% else %}
+                            <span class="status-tag tag-danger">Unpaid</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <span class="material-symbols-rounded">account_balance</span>
+            <p>No transactions recorded yet.</p>
+        </div>
+        {% endif %}
     </div>
 </div>
 
@@ -219,20 +555,47 @@
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/admin/admin_report.js') }}"></script>
 <script nonce="{{ csp_nonce() }}">
+
+// Real data from Flask
+const LABELS  = {{ month_labels | tojson }};
+const SALES   = {{ sales_by_month | tojson }};
+const RENTALS = {{ rentals_by_month | tojson }};
+const REVENUE = {{ revenue_by_month | tojson }};
+const EXPENSES_M = {{ expenses_by_month | tojson }};
+const CUST_GROWTH = {{ customer_growth | tojson }};
+
+const CAT_LABELS = {{ sales_by_category | map(attribute=0) | list | tojson }};
+const CAT_DATA   = {{ sales_by_category | map(attribute=1) | list | map('float') | list | tojson }};
+
+const STOCK_LABELS = {{ stock_by_category | map(attribute=0) | list | tojson }};
+const STOCK_DATA   = {{ stock_by_category | map(attribute=1) | list | map('int') | list | tojson }};
+
+const EXP_LABELS = {{ expense_by_category | map(attribute=0) | list | tojson }};
+const EXP_DATA   = {{ expense_by_category | map(attribute=1) | list | map('float') | list | tojson }};
+
+const ACTIVE_R   = {{ active_rentals }};
+const OVERDUE_R  = {{ overdue_rentals | length }};
+const RETURNED_R = {{ returned_rentals }};
+const TOTAL_CUST = {{ total_customers }};
+const RETURNING  = {{ returning_count }};
+
 const G='#52B788', T='#00a8cc', A='#f59e0b', R='#ef4444', P='#7c3aed', S='#94a3b8';
-const mo=['Oct','Nov','Dec','Jan','Feb','Mar'];
-const ch={};
+const COLORS = [G, T, A, R, P, S, '#06b6d4', '#8b5cf6'];
+const ch = {};
 
 function kill(id){ if(ch[id]){ ch[id].destroy(); delete ch[id]; } }
 
-function leg(id,items){
-    const el=document.getElementById(id);
+function leg(id, labels, data, colors){
+    const el = document.getElementById(id);
     if(!el) return;
-    el.innerHTML=items.map(i=>`
-        <span class="legend-item">
-            <span class="legend-dot" style="background:${i.c}"></span>
-            ${i.l}${i.p ? ' ('+i.p+'%)' : ''}
-        </span>`).join('');
+    const total = data.reduce((a,b) => a+b, 0);
+    el.innerHTML = labels.map((l,i) => {
+        const pct = total > 0 ? Math.round(data[i]/total*100) : 0;
+        return `<span class="legend-item">
+            <span class="legend-dot" style="background:${colors[i]}"></span>
+            ${l} (${pct}%)
+        </span>`;
+    }).join('');
 }
 
 function renderCharts(){
@@ -240,51 +603,112 @@ function renderCharts(){
     if(!activeBtn) return;
     const tab = activeBtn.dataset.tab;
 
-    if(tab==='sales'){
+    if(tab === 'sales'){
         kill('revenue'); kill('category');
-        ch['revenue']=new Chart(document.getElementById('chart-revenue'),{
-            type:'bar',
-            data:{
-                labels:mo,
-                datasets:[
-                    {label:'Sales', data:[310000,340000,295000,380000,410000,428500], backgroundColor:G+'CC', borderRadius:6},
-                    {label:'Target', data:[350000,350000,350000,360000,390000,410000], type:'line', borderColor:T, tension:0.4, borderWidth:2}
+        ch['revenue'] = new Chart(document.getElementById('chart-revenue'), {
+            type: 'bar',
+            data: {
+                labels: LABELS,
+                datasets: [
+                    { label: 'Sales', data: SALES, backgroundColor: G+'CC', borderRadius: 6 }
                 ]
             },
-            options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{ticks:{callback:v=>'₱'+(v/1000)+'k'}}}}
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { ticks: { callback: v => '₱' + (v/1000).toFixed(0) + 'k' } } }
+            }
         });
-        const cD=[45,28,18,9], cC=[G,T,A,R], cL=['Respiratory','Mobility','Monitoring','Other'];
-        ch['category']=new Chart(document.getElementById('chart-category'),{type:'doughnut',data:{labels:cL,datasets:[{data:cD,backgroundColor:cC,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},cutout:'65%'}});
-        leg('legend-category', cL.map((l,i)=>({c:cC[i],l,p:cD[i]})));
+
+        if(CAT_DATA.length > 0){
+            const catColors = CAT_LABELS.map((_, i) => COLORS[i % COLORS.length]);
+            ch['category'] = new Chart(document.getElementById('chart-category'), {
+                type: 'doughnut',
+                data: { labels: CAT_LABELS, datasets: [{ data: CAT_DATA, backgroundColor: catColors, borderWidth: 0 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '65%' }
+            });
+            leg('legend-category', CAT_LABELS, CAT_DATA, catColors);
+        }
     }
 
-    if(tab==='rentals'){
+    if(tab === 'rentals'){
         kill('rental-volume'); kill('rental-status');
-        ch['rental-volume']=new Chart(document.getElementById('chart-rental-volume'),{type:'bar',data:{labels:mo,datasets:[{label:'Rentals',data:[38,42,35,44,46,48],backgroundColor:T+'CC',borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}});
-        const rD=[48,6,12], rC=[G,R,A], rL=['Active','Overdue','Returned'];
-        ch['rental-status']=new Chart(document.getElementById('chart-rental-status'),{type:'doughnut',data:{labels:rL,datasets:[{data:rD,backgroundColor:rC,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},cutout:'65%'}});
-        leg('legend-rental-status', rL.map((l,i)=>({c:rC[i],l,p:rD[i]})));
+        ch['rental-volume'] = new Chart(document.getElementById('chart-rental-volume'), {
+            type: 'bar',
+            data: { labels: LABELS, datasets: [{ label: 'Rentals', data: RENTALS, backgroundColor: T+'CC', borderRadius: 6 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        });
+        const rD = [ACTIVE_R, OVERDUE_R, RETURNED_R];
+        const rC = [G, R, A];
+        const rL = ['Active', 'Overdue', 'Returned'];
+        ch['rental-status'] = new Chart(document.getElementById('chart-rental-status'), {
+            type: 'doughnut',
+            data: { labels: rL, datasets: [{ data: rD, backgroundColor: rC, borderWidth: 0 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '65%' }
+        });
+        leg('legend-rental-status', rL, rD, rC);
     }
 
-    if(tab==='inventory'){
+    if(tab === 'inventory'){
         kill('stock');
-        ch['stock']=new Chart(document.getElementById('chart-stock'),{type:'bar',data:{labels:['Respi','Mobil','Monit','Beds','Other'],datasets:[{label:'Stock',data:[420,188,310,42,244],backgroundColor:G+'CC',borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false}});
+        if(STOCK_DATA.length > 0){
+            ch['stock'] = new Chart(document.getElementById('chart-stock'), {
+                type: 'bar',
+                data: {
+                    labels: STOCK_LABELS,
+                    datasets: [{ label: 'Stock', data: STOCK_DATA, backgroundColor: G+'CC', borderRadius: 6 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
     }
 
-    if(tab==='customers'){
+    if(tab === 'customers'){
         kill('customer-growth'); kill('customer-type');
-        ch['customer-growth']=new Chart(document.getElementById('chart-customer-growth'),{type:'line',data:{labels:mo,datasets:[{label:'New',data:[22,28,19,32,35,38],borderColor:G,backgroundColor:G+'22',fill:true,tension:0.4}]},options:{responsive:true,maintainAspectRatio:false}});
-        const ctD=[538,304], ctC=[G,T], ctL=['Returning','New'];
-        ch['customer-type']=new Chart(document.getElementById('chart-customer-type'),{type:'doughnut',data:{labels:ctL,datasets:[{data:ctD,backgroundColor:ctC,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},cutout:'65%'}});
-        leg('legend-customer-type', ctL.map((l,i)=>({c:ctC[i],l,p:Math.round(ctD[i]/842*100)})));
+        ch['customer-growth'] = new Chart(document.getElementById('chart-customer-growth'), {
+            type: 'line',
+            data: {
+                labels: LABELS,
+                datasets: [{ label: 'New Customers', data: CUST_GROWTH, borderColor: G, backgroundColor: G+'22', fill: true, tension: 0.4 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+        const ctD = [RETURNING, TOTAL_CUST - RETURNING];
+        const ctC = [G, T];
+        const ctL = ['Returning', 'New'];
+        ch['customer-type'] = new Chart(document.getElementById('chart-customer-type'), {
+            type: 'doughnut',
+            data: { labels: ctL, datasets: [{ data: ctD, backgroundColor: ctC, borderWidth: 0 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '65%' }
+        });
+        leg('legend-customer-type', ctL, ctD, ctC);
     }
 
-    if(tab==='financial'){
+    if(tab === 'financial'){
         kill('cashflow'); kill('expenses');
-        ch['cashflow']=new Chart(document.getElementById('chart-cashflow'),{type:'bar',data:{labels:mo,datasets:[{label:'Rev',data:[520,560,490,580,600,610],backgroundColor:G+'BB'},{label:'Exp',data:[110,130,105,125,138,142],backgroundColor:R+'BB'}]},options:{responsive:true,maintainAspectRatio:false}});
-        const eD=[38,26,18,12,6], eC=[A,R,T,P,S], eL=['Supplies','Maint','Utils','Staff','Other'];
-        ch['expenses']=new Chart(document.getElementById('chart-expenses'),{type:'doughnut',data:{labels:eL,datasets:[{data:eD,backgroundColor:eC,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},cutout:'65%'}});
-        leg('legend-expenses', eL.map((l,i)=>({c:eC[i],l,p:eD[i]})));
+        ch['cashflow'] = new Chart(document.getElementById('chart-cashflow'), {
+            type: 'bar',
+            data: {
+                labels: LABELS,
+                datasets: [
+                    { label: 'Revenue', data: REVENUE, backgroundColor: G+'BB', borderRadius: 6 },
+                    { label: 'Expenses', data: EXPENSES_M, backgroundColor: R+'BB', borderRadius: 6 }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: { y: { ticks: { callback: v => '₱' + (v/1000).toFixed(0) + 'k' } } }
+            }
+        });
+        if(EXP_DATA.length > 0){
+            const expColors = EXP_LABELS.map((_, i) => COLORS[i % COLORS.length]);
+            ch['expenses'] = new Chart(document.getElementById('chart-expenses'), {
+                type: 'doughnut',
+                data: { labels: EXP_LABELS, datasets: [{ data: EXP_DATA, backgroundColor: expColors, borderWidth: 0 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '65%' }
+            });
+            leg('legend-expenses', EXP_LABELS, EXP_DATA, expColors);
+        }
     }
 }
 
@@ -293,16 +717,11 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.report-panel').forEach(p => p.classList.remove('active'));
         btn.classList.add('active');
-        const targetPanel = document.getElementById('panel-' + btn.getAttribute('data-tab'));
-        if(targetPanel) {
-            targetPanel.classList.add('active');
-            setTimeout(() => { renderCharts(); }, 50);
-        }
+        const panel = document.getElementById('panel-' + btn.dataset.tab);
+        if(panel){ panel.classList.add('active'); setTimeout(renderCharts, 50); }
     });
 });
 
-document.addEventListener('DOMContentLoaded', () => { renderCharts(); });
-
-function exportCSV(){ alert("Exporting " + document.querySelector('.tab-btn.active').dataset.tab + " data..."); }
+document.addEventListener('DOMContentLoaded', renderCharts);
 </script>
 {% endblock %}
