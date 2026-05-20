@@ -19,7 +19,10 @@ import os
 import uuid
 import random, string
 from utils.backup import create_backup, get_all_backups
-from flask import send_file
+from flask import send_file, Response, stream_with_context
+import json
+import time
+
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -1734,3 +1737,194 @@ def delete_backup(filename):
         flash("Backup file not found.", "error")
 
     return redirect(url_for('admin.backup_page'))
+
+
+@admin_bp.route('/notifications/stream')
+@login_required
+@administrator_required
+def notification_stream():
+    """Server-Sent Events endpoint — pushes notification data every 30s."""
+
+    def generate():
+        while True:
+            try:
+                today = date.today()
+
+                # Overdue rentals
+                overdue = Rental.query.filter(
+                    Rental.status == 'Active',
+                    Rental.expected_return_date < today
+                ).count()
+
+                # Low stock (≤5 units)
+                low_stock = Product.query.filter(
+                    Product.stock <= 5,
+                    Product.stock > 0
+                ).all()
+
+                # Out of stock
+                out_of_stock = Product.query.filter(
+                    Product.stock == 0
+                ).count()
+
+                # Pending GCash proofs
+                from models.product import PaymentProof
+                pending_proofs = PaymentProof.query.filter_by(
+                    status='Pending'
+                ).count()
+
+                # Unverified customers with uploaded IDs
+                from models.customer import Customer
+                pending_verifications = Customer.query.filter(
+                    Customer.is_id_verified == False,
+                    Customer.valid_id_path != None
+                ).count()
+
+                notifications = []
+
+                if overdue > 0:
+                    notifications.append({
+                        "id": "overdue",
+                        "type": "warning",
+                        "icon": "schedule",
+                        "title": f"{overdue} Overdue Return{'s' if overdue > 1 else ''}",
+                        "message": f"{overdue} rental item{'s are' if overdue > 1 else ' is'} past the return date.",
+                        "link": "/admin/transactions"
+                    })
+
+                for product in low_stock:
+                    notifications.append({
+                        "id": f"low_stock_{product.id}",
+                        "type": "warning",
+                        "icon": "inventory_2",
+                        "title": "Low Stock",
+                        "message": f"{product.name} — only {product.stock} unit{'s' if product.stock != 1 else ''} left.",
+                        "link": "/admin/products"
+                    })
+
+                if out_of_stock > 0:
+                    notifications.append({
+                        "id": "out_of_stock",
+                        "type": "error",
+                        "icon": "remove_shopping_cart",
+                        "title": f"{out_of_stock} Item{'s' if out_of_stock > 1 else ''} Out of Stock",
+                        "message": "Immediate restock required.",
+                        "link": "/admin/products"
+                    })
+
+                if pending_proofs > 0:
+                    notifications.append({
+                        "id": "pending_proofs",
+                        "type": "info",
+                        "icon": "payments",
+                        "title": f"{pending_proofs} Pending Payment Proof{'s' if pending_proofs > 1 else ''}",
+                        "message": "GCash payment{'s' if pending_proofs > 1 else ''} waiting for verification.",
+                        "link": "/admin/transactions"
+                    })
+
+                if pending_verifications > 0:
+                    notifications.append({
+                        "id": "pending_verifications",
+                        "type": "info",
+                        "icon": "verified_user",
+                        "title": f"{pending_verifications} ID Verification{'s' if pending_verifications > 1 else ''} Pending",
+                        "message": "Customer IDs uploaded and awaiting review.",
+                        "link": "/admin/customers"
+                    })
+
+                total = len(notifications)
+                payload = json.dumps({"count": total, "notifications": notifications})
+                yield f"data: {payload}\n\n"
+
+            except Exception as e:
+                current_app.logger.error(f"SSE notification error: {e}")
+                yield f"data: {json.dumps({'count': 0, 'notifications': []})}\n\n"
+
+            time.sleep(30)
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'X-Accel-Buffering': 'no'
+        }
+    )
+
+
+@admin_bp.route('/notifications/data')
+@login_required
+@administrator_required
+def notification_data():
+    """One-shot JSON endpoint — used for the initial page load."""
+    try:
+        today = date.today()
+
+        overdue = Rental.query.filter(
+            Rental.status == 'Active',
+            Rental.expected_return_date < today
+        ).count()
+
+        low_stock = Product.query.filter(
+            Product.stock <= 5,
+            Product.stock > 0
+        ).all()
+
+        out_of_stock = Product.query.filter(Product.stock == 0).count()
+
+        from models.product import PaymentProof
+        pending_proofs = PaymentProof.query.filter_by(status='Pending').count()
+
+        from models.customer import Customer
+        pending_verifications = Customer.query.filter(
+            Customer.is_id_verified == False,
+            Customer.valid_id_path != None
+        ).count()
+
+        notifications = []
+
+        if overdue > 0:
+            notifications.append({
+                "id": "overdue", "type": "warning", "icon": "schedule",
+                "title": f"{overdue} Overdue Return{'s' if overdue > 1 else ''}",
+                "message": f"{overdue} rental item{'s are' if overdue > 1 else ' is'} past the return date.",
+                "link": "/admin/transactions"
+            })
+
+        for product in low_stock:
+            notifications.append({
+                "id": f"low_stock_{product.id}", "type": "warning", "icon": "inventory_2",
+                "title": "Low Stock",
+                "message": f"{product.name} — only {product.stock} unit{'s' if product.stock != 1 else ''} left.",
+                "link": "/admin/products"
+            })
+
+        if out_of_stock > 0:
+            notifications.append({
+                "id": "out_of_stock", "type": "error", "icon": "remove_shopping_cart",
+                "title": f"{out_of_stock} Item{'s' if out_of_stock > 1 else ''} Out of Stock",
+                "message": "Immediate restock required.",
+                "link": "/admin/products"
+            })
+
+        if pending_proofs > 0:
+            notifications.append({
+                "id": "pending_proofs", "type": "info", "icon": "payments",
+                "title": f"{pending_proofs} Pending Payment Proof{'s' if pending_proofs > 1 else ''}",
+                "message": "GCash payments waiting for verification.",
+                "link": "/admin/transactions"
+            })
+
+        if pending_verifications > 0:
+            notifications.append({
+                "id": "pending_verifications", "type": "info", "icon": "verified_user",
+                "title": f"{pending_verifications} ID Verification{'s' if pending_verifications > 1 else ''} Pending",
+                "message": "Customer IDs uploaded and awaiting review.",
+                "link": "/admin/customers"
+            })
+
+        return jsonify({"count": len(notifications), "notifications": notifications})
+
+    except Exception as e:
+        current_app.logger.error(f"Notification data error: {e}")
+        return jsonify({"count": 0, "notifications": []})
