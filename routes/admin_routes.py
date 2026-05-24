@@ -5,7 +5,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy import func, or_
 from flask_login import login_required
 from functools import wraps
-from models.product import Product, InventoryLog, Transaction, Purchase, Payment, Rental, RentalInvoice, Expense
+from models.product import Product, InventoryLog, Transaction, Purchase, Payment, Rental, RentalInvoice, Expense, PaymentProof
 from models.customer import Customer
 from models.users import User, SecurityLog, BlockedIP
 from flask_mail import Message
@@ -1360,6 +1360,85 @@ def post_payment():
         flash(f'A system error occurred: {str(e)}', 'danger')
 
     return redirect(request.referrer or url_for('admin.transactions'))
+
+
+@admin_bp.route('/confirm-payment-proof/<int:proof_id>', methods=['POST'])
+@login_required
+@administrator_required
+def confirm_payment_proof(proof_id):
+    from models.product import PaymentProof
+    from decimal import Decimal
+
+    proof = PaymentProof.query.get_or_404(proof_id)
+    txn = Transaction.query.get_or_404(proof.transaction_id)
+
+    try:
+        # Check if payment with this reference number already exists
+        existing_payment = Payment.query.filter_by(
+            reference_number=proof.reference_number
+        ).first()
+
+        if existing_payment:
+            # Payment already recorded — just mark proof as verified
+            # and sync the transaction status
+            proof.status = 'Verified'
+            proof.payment_id = existing_payment.id
+
+            total = Decimal(str(txn.total_amount or 0))
+            total_paid = db.session.query(
+                db.func.sum(Payment.amount)
+            ).filter_by(transaction_id=txn.id, status='Completed').scalar() or Decimal('0')
+
+            txn.amount_paid = total_paid
+            txn.balance_due = max(Decimal('0'), total - total_paid)
+            txn.payment_method = 'GCash'
+            txn.payment_status = 'Paid' if txn.balance_due <= 0 else 'Partial'
+
+            db.session.commit()
+            flash('Payment proof verified successfully.', 'success')
+            return redirect(url_for('admin.transaction_details', id=txn.id))
+
+        # No existing payment — create a new one
+        total = Decimal(str(txn.total_amount or 0))
+        already_paid = Decimal(str(txn.amount_paid or 0))
+        remaining = total - already_paid
+
+        new_payment = Payment(
+            transaction_id=txn.id,
+            amount=remaining if remaining > 0 else total,
+            payment_method='GCash',
+            reference_number=proof.reference_number,
+            status='Completed',
+            verified_by_id=current_user.id,
+            verified_at=datetime.utcnow()
+        )
+        db.session.add(new_payment)
+        db.session.flush()
+
+        proof.status = 'Verified'
+        proof.payment_id = new_payment.id
+
+        txn.amount_paid = already_paid + new_payment.amount
+        txn.balance_due = max(Decimal('0'), total - txn.amount_paid)
+        txn.payment_method = 'GCash'
+
+        if txn.balance_due <= 0:
+            txn.payment_status = 'Paid'
+            txn.amount_paid = total
+            txn.balance_due = Decimal('0')
+        else:
+            txn.payment_status = 'Partial'
+
+        db.session.commit()
+        flash('Payment confirmed and marked as Paid successfully.', 'success')
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Payment confirmation error: {e}")
+        flash(f'Failed to confirm payment: {str(e)}', 'error')
+
+    return redirect(url_for('admin.transaction_details', id=txn.id))
+
 
 @admin_bp.route('/transaction/<int:txn_id>/return', methods=['POST'])
 @login_required

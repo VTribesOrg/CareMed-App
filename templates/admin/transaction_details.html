@@ -5,9 +5,85 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/admin/admin_transaction_details.css') }}">
+<style>
+    /* ── PRINT STYLES ──────────────────────────── */
+    .print-receipt { display: none; }
+
+    @media print {
+        /* Hide everything */
+        .medical-sidebar,
+        .system-header,
+        .btn-print,
+        .content-header,
+        .details-grid,
+        .details-main-content,
+        .details-sidebar,
+        .action-card,
+        .tracking-sidebar-card,
+        .summary-side-card,
+        nav, header,
+        .nav_base,
+        #main-toast-container,
+        template {
+            display: none !important;
+        }
+
+        /* Reset layout */
+        body,
+        .main-wrapper,
+        .viewport-container,
+        .content-area {
+            background: white !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+
+        /* Show only the receipt */
+        .print-receipt {
+            display: block !important;
+            font-family: 'Plus Jakarta Sans', Arial, sans-serif;
+            font-size: 13px;
+            color: #000;
+            padding: 20px 30px;
+            margin: 0 auto;
+            width: 100%;
+            max-width: 700px;
+        }
+
+        .receipt-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 16px; }
+        .receipt-logo { font-size: 22px; font-weight: 900; letter-spacing: 2px; }
+        .receipt-logo span { color: #52B788; }
+        .receipt-subtitle { font-size: 11px; color: #555; margin-top: 2px; }
+        .receipt-type { display: inline-block; border: 1px solid #000; padding: 2px 12px; font-size: 11px; font-weight: 700; margin-top: 6px; text-transform: uppercase; letter-spacing: 1px; }
+        .receipt-ref { font-size: 11px; color: #555; margin-top: 4px; }
+        .receipt-section { margin-bottom: 14px; }
+        .receipt-section-title { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #555; border-bottom: 1px solid #ddd; padding-bottom: 4px; margin-bottom: 8px; }
+        .receipt-row { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 12px; }
+        .receipt-row.bold { font-weight: 700; }
+        .receipt-row.total { border-top: 2px solid #000; padding-top: 6px; font-size: 14px; font-weight: 900; }
+        .receipt-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 8px; }
+        .receipt-table th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: #555; border-bottom: 1px solid #ddd; padding: 4px 0; }
+        .receipt-table td { padding: 5px 0; border-bottom: 1px solid #f0f0f0; }
+        .receipt-table td:last-child { text-align: right; }
+        .receipt-table th:last-child { text-align: right; }
+        .receipt-status { display: inline-block; padding: 3px 10px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+        .receipt-status.paid { border: 1px solid #16a34a; color: #16a34a; }
+        .receipt-status.partial { border: 1px solid #d97706; color: #d97706; }
+        .receipt-status.unpaid { border: 1px solid #dc2626; color: #dc2626; }
+        .receipt-footer { text-align: center; border-top: 1px dashed #999; padding-top: 12px; margin-top: 16px; font-size: 11px; color: #777; }
+        .receipt-footer strong { display: block; font-size: 13px; color: #000; margin-bottom: 4px; }
+
+        * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+    }
+</style>
 {% endblock %}
 
-{# Override flash block — this page uses toast-style flash messages instead of the base flash bars #}
+{# Override flash block — this page uses toast-style flash messages #}
 {% block flash %}
 <div id="main-toast-container" class="toast-container">
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -50,6 +126,7 @@
 {% endblock %}
 
 {% block content %}
+
 <header class="content-header">
     <div class="header-title-group">
         <a href="{{ url_for('admin.transactions') }}" class="btn-icon-plain">
@@ -60,7 +137,6 @@
             <small class="reference-subtext">Ref: {{ txn.reference_no }}</small>
         </div>
     </div>
-
     <button class="btn-print" id="trigger-print">
         <span class="material-symbols-rounded">print</span> Print Invoice
     </button>
@@ -70,12 +146,12 @@
 
     <section class="details-main-content">
 
+        <!-- Items Table -->
         <div class="action-card">
             <header class="card-header-custom">
                 <span class="header-label-text">Purchased / Rented Items</span>
                 <span class="badge-soft-info">{{ txn.transaction_type }}</span>
             </header>
-
             <div class="table-container">
                 <table class="item-list-table">
                     <thead>
@@ -135,6 +211,7 @@
             </div>
         </div>
 
+        <!-- Monthly Billing Schedule (Rental only) -->
         {% if txn.transaction_type == 'Rental' %}
         <div class="action-card" style="margin-top: 20px;">
             <header class="card-header-custom">
@@ -145,7 +222,6 @@
                     <span class="header-label-text mb-0">Monthly Billing Schedule</span>
                 </div>
             </header>
-
             <div class="table-container">
                 <table class="item-list-table">
                     <thead>
@@ -226,6 +302,7 @@
         </div>
         {% endif %}
 
+        <!-- Process Return (Rental only) -->
         {% if txn.transaction_type == 'Rental' and txn.status == 'Open' %}
         <div class="action-card warning" style="margin-top: 20px;">
             <header class="card-header-custom" style="display:flex; align-items:center; justify-content:space-between;">
@@ -241,7 +318,6 @@
                     Item currently with customer
                 </span>
             </header>
-
             <div class="card-body-padding">
                 <form action="{{ url_for('admin.process_return', txn_id=txn.id) }}" method="POST" class="form-grid">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -269,6 +345,7 @@
 
     <aside class="details-sidebar">
 
+        <!-- Tracking Card -->
         <div class="tracking-sidebar-card">
             <div class="tracking-header">
                 <span class="tracking-label">Order Progress</span>
@@ -278,7 +355,6 @@
                     {{ txn.tracking_status }}
                 </span>
             </div>
-
             <form action="{{ url_for('admin.update_tracking', txn_id=txn.id) }}" method="POST">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div style="display: flex; flex-direction: column; gap: 8px;">
@@ -292,7 +368,6 @@
                             <span class="material-symbols-rounded" style="font-size: 16px;">cancel</span>
                             Cancel Order
                         </button>
-
                     {% elif txn.tracking_status == 'VERIFIED' %}
                         <input type="hidden" name="tracking_status" value="SHIPPED">
                         <button type="submit" class="btn-step ship">
@@ -303,7 +378,6 @@
                             <span class="material-symbols-rounded" style="font-size: 16px;">cancel</span>
                             Cancel Order
                         </button>
-
                     {% elif txn.tracking_status == 'SHIPPED' %}
                         <input type="hidden" name="tracking_status" value="DELIVERED">
                         <button type="submit" class="btn-step complete">
@@ -317,39 +391,65 @@
                                 <option value="CANCELED">Force Cancel</option>
                             </select>
                         </div>
-
                     {% elif txn.tracking_status == 'DELIVERED' %}
                         <div class="tracking-state-info state-finished">
-                            <span class="material-symbols-rounded" style="font-size: 20px;">auto_awesome</span> Order Delivered
+                            <span class="material-symbols-rounded" style="font-size: 20px;">auto_awesome</span>
+                            Order Delivered
                         </div>
-
                     {% elif txn.tracking_status == 'CANCELLED' %}
                         <div class="tracking-state-info state-voided">
-                            <span class="material-symbols-rounded" style="font-size: 20px;">block</span> Order Canceled
+                            <span class="material-symbols-rounded" style="font-size: 20px;">block</span>
+                            Order Canceled
                         </div>
                     {% endif %}
                 </div>
             </form>
         </div>
 
+        <!-- GCash Payment Proof Verification -->
         {% if txn.payment_proof %}
         <div class="summary-side-card" style="border-left: 4px solid #f59e0b; margin-bottom: 20px;">
             <h5 class="sidebar-card-title">Verify GCash Payment</h5>
-            <p><strong>Ref No:</strong> {{ txn.payment_proof.reference_number }}</p>
+            <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:12px;">
+                <div style="display:flex; justify-content:space-between; font-size:0.85rem;">
+                    <span style="color:#64748b; font-weight:600;">Reference No</span>
+                    <span style="font-weight:700; font-family:monospace;">{{ txn.payment_proof.reference_number }}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:0.85rem;">
+                    <span style="color:#64748b; font-weight:600;">Status</span>
+                    {% if txn.payment_proof.status == 'Verified' %}
+                        <span style="color:#16a34a; font-weight:700;">✓ Verified</span>
+                    {% else %}
+                        <span style="color:#d97706; font-weight:700;">⏳ Pending Review</span>
+                    {% endif %}
+                </div>
+            </div>
             <a href="{{ url_for('static', filename='uploads/payments/' ~ txn.payment_proof.proof_image) }}" target="_blank">
                 <img src="{{ url_for('static', filename='uploads/payments/' ~ txn.payment_proof.proof_image) }}"
-                    style="width: 100%; border-radius: 5px; margin-bottom: 10px; cursor: zoom-in;"
+                    style="width:100%; border-radius:8px; margin-bottom:12px; cursor:zoom-in; border:1px solid #e2e8f0;"
                     alt="Payment Proof">
             </a>
-            <form action="" method="POST">
+            {% if txn.payment_proof.status != 'Verified' %}
+            <form action="{{ url_for('admin.confirm_payment_proof', proof_id=txn.payment_proof.id) }}"
+                  method="POST"
+                  onsubmit="return confirm('Confirm this GCash payment and mark transaction as Paid?')">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn-approve" style="width: 100%; background: #10b981; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                <button type="submit"
+                        style="width:100%; background:#10b981; color:white; border:none; padding:10px; border-radius:8px; cursor:pointer; font-weight:700; font-size:0.9rem; display:flex; align-items:center; justify-content:center; gap:6px;">
+                    <span class="material-symbols-rounded" style="font-size:18px;">check_circle</span>
                     Confirm &amp; Mark as Paid
                 </button>
             </form>
+            {% else %}
+            <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:8px; padding:10px; text-align:center; font-size:0.85rem; color:#16a34a; font-weight:700;">
+                <span class="material-symbols-rounded" style="font-size:16px; vertical-align:middle;">verified</span>
+                Payment already verified
+            </div>
+            {% endif %}
         </div>
         {% endif %}
 
+        <!-- Payment Summary -->
         <div class="summary-side-card summary-spacing">
             <h5 class="sidebar-card-title">Payment Summary</h5>
             <div class="info-row">
@@ -371,6 +471,7 @@
             </div>
         </div>
 
+        <!-- Customer Details -->
         <div class="summary-side-card">
             <h5 class="sidebar-card-title">Customer Details</h5>
             <a href="{{ url_for('admin.customer_details', id=txn.customer_id) }}" class="customer-profile-link">
@@ -392,9 +493,15 @@
                 <span class="info-label">Fulfillment Type:</span>
                 <div class="info-value">
                     {% if txn.fulfillment_type|lower == 'delivery' %}
-                        <span class="badge-soft-primary"><span class="material-symbols-rounded" style="font-size: 14px; align-item: center; vertical-align: middle; line-height: 1;">local_shipping</span> DELIVERY</span>
+                        <span class="badge-soft-primary">
+                            <span class="material-symbols-rounded" style="font-size:14px; vertical-align:middle;">local_shipping</span>
+                            DELIVERY
+                        </span>
                     {% else %}
-                        <span class="badge-soft-info"><span class="material-symbols-rounded" style="font-size: 14px; align-item: center; vertical-align: middle; line-height: 1;">store</span> PICKUP</span>
+                        <span class="badge-soft-info">
+                            <span class="material-symbols-rounded" style="font-size:14px; vertical-align:middle;">store</span>
+                            PICKUP
+                        </span>
                     {% endif %}
                 </div>
             </div>
@@ -427,7 +534,9 @@
                 </div>
                 <div class="breakdown-item total-row">
                     <span>Total Value</span>
-                    <span class="text-dark font-bold">₱{{ "{:,.2f}".format((txn.total_amount or 0) + (txn.total_late_fees or 0)) }}</span>
+                    <span class="text-dark font-bold">
+                        ₱{{ "{:,.2f}".format((txn.total_amount or 0) + (txn.total_late_fees or 0)) }}
+                    </span>
                 </div>
             </div>
 
@@ -446,7 +555,170 @@
 
 </div>
 
+<!-- ── PRINTABLE RECEIPT (hidden on screen, shown on print) ── -->
+<div class="print-receipt">
+
+    <div class="receipt-header">
+        <div class="receipt-logo">Care<span>Med</span></div>
+        <div class="receipt-subtitle">Medical Equipment Rental &amp; Sales</div>
+        <div class="receipt-subtitle">Iloilo City, Philippines</div>
+        <div class="receipt-type">
+            {% if txn.transaction_type == 'Rental' %}Rental Invoice
+            {% elif txn.payment_status == 'Paid' %}Official Receipt
+            {% else %}Sales Invoice{% endif %}
+        </div>
+        <div class="receipt-ref">Ref: {{ txn.reference_no }}</div>
+        <div class="receipt-ref">
+            Date: {{ txn.created_at.strftime('%B %d, %Y at %I:%M %p') if txn.created_at else '—' }}
+        </div>
+    </div>
+
+    <div class="receipt-section">
+        <div class="receipt-section-title">Customer Information</div>
+        <div class="receipt-row">
+            <span>Name</span>
+            <span><strong>{{ txn.customer_name or '—' }}</strong></span>
+        </div>
+        {% if txn.customer and txn.customer.customer_profile %}
+        <div class="receipt-row">
+            <span>Contact</span>
+            <span>{{ txn.customer.customer_profile.contact_number or '—' }}</span>
+        </div>
+        <div class="receipt-row">
+            <span>Address</span>
+            <span>{{ txn.customer.customer_profile.home_address or '—' }}</span>
+        </div>
+        {% endif %}
+        <div class="receipt-row">
+            <span>Fulfillment</span>
+            <span>{{ txn.fulfillment_type or 'Pickup' }}</span>
+        </div>
+        {% if txn.delivery_address %}
+        <div class="receipt-row">
+            <span>Delivery Address</span>
+            <span>{{ txn.delivery_address }}</span>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="receipt-section">
+        <div class="receipt-section-title">Items</div>
+        <table class="receipt-table">
+            <thead>
+                <tr>
+                    <th>Description</th>
+                    <th>Qty</th>
+                    <th>Unit Price</th>
+                    <th>Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if txn.purchases %}
+                    {% for item in txn.purchases %}
+                    <tr>
+                        <td>{{ item.product.name if item.product else '—' }}</td>
+                        <td>{{ item.quantity }}</td>
+                        <td>₱{{ "{:,.2f}".format(item.unit_price or 0) }}</td>
+                        <td>₱{{ "{:,.2f}".format(item.total_price or 0) }}</td>
+                    </tr>
+                    {% endfor %}
+                {% elif txn.rentals %}
+                    {% for item in txn.rentals %}
+                    <tr>
+                        <td>{{ item.product.name if item.product else '—' }} (Rental)</td>
+                        <td>{{ item.quantity }}</td>
+                        <td>₱{{ "{:,.2f}".format(item.monthly_rate or 0) }}/mo</td>
+                        <td>₱{{ "{:,.2f}".format(item.monthly_rate or 0) }}</td>
+                    </tr>
+                    {% endfor %}
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="receipt-section">
+        <div class="receipt-section-title">Payment Summary</div>
+        <div class="receipt-row">
+            <span>Subtotal</span>
+            <span>₱{{ "{:,.2f}".format(txn.total_amount or 0) }}</span>
+        </div>
+        {% if txn.total_late_fees and txn.total_late_fees > 0 %}
+        <div class="receipt-row">
+            <span>Late Fees</span>
+            <span>₱{{ "{:,.2f}".format(txn.total_late_fees) }}</span>
+        </div>
+        {% endif %}
+        <div class="receipt-row total">
+            <span>TOTAL DUE</span>
+            <span>₱{{ "{:,.2f}".format(txn.total_amount or 0) }}</span>
+        </div>
+        <div class="receipt-row bold" style="margin-top:8px;">
+            <span>Amount Paid</span>
+            <span>₱{{ "{:,.2f}".format(txn.amount_paid or 0) }}</span>
+        </div>
+        <div class="receipt-row bold">
+            <span>Balance Due</span>
+            <span>₱{{ "{:,.2f}".format(txn.balance_due or 0) }}</span>
+        </div>
+        <div class="receipt-row" style="margin-top:8px;">
+            <span>Payment Method</span>
+            <span>{{ txn.payment_method or 'Cash' }}</span>
+        </div>
+        <div class="receipt-row">
+            <span>Payment Status</span>
+            <span class="receipt-status {{ txn.payment_status | lower }}">
+                {{ txn.payment_status }}
+            </span>
+        </div>
+    </div>
+
+    {% if txn.transaction_type == 'Rental' and txn.rentals %}
+    <div class="receipt-section">
+        <div class="receipt-section-title">Rental Period</div>
+        {% for rental in txn.rentals %}
+        <div class="receipt-row">
+            <span>Start Date</span>
+            <span>{{ rental.rental_start_date.strftime('%B %d, %Y') if rental.rental_start_date else '—' }}</span>
+        </div>
+        <div class="receipt-row">
+            <span>Expected Return</span>
+            <span>{{ rental.expected_return_date.strftime('%B %d, %Y') if rental.expected_return_date else '—' }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="receipt-footer">
+        <strong>Thank you for choosing CareMed!</strong>
+        This document serves as your official
+        {% if txn.payment_status == 'Paid' %}receipt{% else %}invoice{% endif %}
+        for transaction {{ txn.reference_no }}.
+        <br><br>
+        Processed by: {{ current_user.first_name }} {{ current_user.last_name }}
+        &nbsp;|&nbsp;
+        Printed: <span id="print-date"></span>
+    </div>
+
+</div>
+
+<script nonce="{{ csp_nonce() }}">
+    // Set print date
+    document.getElementById('print-date').textContent = new Date().toLocaleDateString('en-PH', {
+        year: 'numeric', month: 'long', day: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+    });
+
+    // Print button
+    const printBtn = document.getElementById('trigger-print');
+    if (printBtn) {
+        printBtn.addEventListener('click', function () {
+            window.print();
+        });
+    }
+</script>
+
 {% include 'modals/rent_purch_modal.html' %}
+
 {% endblock %}
 
 {% block extra_js %}
