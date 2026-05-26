@@ -1273,28 +1273,7 @@ def post_payment():
             flash("Reference number already exists.", "danger")
             return redirect(request.referrer)
 
-        unpaid_invoices = []
-        if invoice_id:
-            target = RentalInvoice.query.get(invoice_id)
-            if target:
-                unpaid_invoices = [target]
-        elif txn.transaction_type == 'Rental':
-            unpaid_invoices = RentalInvoice.query.filter(
-                RentalInvoice.rental_id.in_([r.id for r in txn.rentals]),
-                RentalInvoice.status != 'Paid'
-            ).order_by(RentalInvoice.service_period_start.asc()).all()
-
-        total_remaining = sum(inv.remaining_balance for inv in unpaid_invoices)
-
-        if amount > total_remaining:
-            flash(
-                f'Payment amount ₱{amount:,.2f} exceeds the total remaining balance of ₱{total_remaining:,.2f}.',
-                'danger'
-            )
-            return redirect(request.referrer)
-
-        remaining_to_distribute = amount
-
+        # ── Handle receipt upload (shared for both Sale & Rental) ──
         receipt_path = None
         file = request.files.get('receipt_image')
         if file and file.filename:
@@ -1308,20 +1287,25 @@ def post_payment():
             file.save(os.path.join(upload_folder, filename))
             receipt_path = f'uploads/receipts/{filename}'
 
-        for inv in unpaid_invoices:
-            if remaining_to_distribute <= 0:
-                break
+        # ── SALE: direct payment against the transaction ───────────
+        if txn.transaction_type == 'Sale':
+            sale_balance = Decimal(str(txn.balance_due or 0))
 
-            inv_balance = inv.remaining_balance
-            if inv_balance <= 0:
-                continue
+            if sale_balance <= 0:
+                flash('This transaction is already fully paid.', 'info')
+                return redirect(request.referrer)
 
-            payment_amount = min(remaining_to_distribute, inv_balance)
+            if amount > sale_balance:
+                flash(
+                    f'Payment ₱{amount:,.2f} exceeds the remaining balance of ₱{sale_balance:,.2f}.',
+                    'danger'
+                )
+                return redirect(request.referrer)
 
             payment = Payment(
                 transaction_id=txn.id,
-                invoice_id=inv.id,
-                amount=payment_amount,
+                invoice_id=None,        
+                amount=amount,
                 payment_method=method,
                 reference_number=ref_number,
                 receipt_image_path=receipt_path,
@@ -1331,12 +1315,59 @@ def post_payment():
             )
             db.session.add(payment)
 
-            if payment_amount >= inv_balance:
-                inv.status = "Paid"
+        # ── RENTAL: distribute across unpaid invoices ──────────────
+        else:
+            unpaid_invoices = []
+            if invoice_id:
+                target = RentalInvoice.query.get(invoice_id)
+                if target:
+                    unpaid_invoices = [target]
             else:
-                inv.status = "Partially Paid"
+                unpaid_invoices = RentalInvoice.query.filter(
+                    RentalInvoice.rental_id.in_([r.id for r in txn.rentals]),
+                    RentalInvoice.status != 'Paid'
+                ).order_by(RentalInvoice.service_period_start.asc()).all()
 
-            remaining_to_distribute -= payment_amount
+            total_remaining = sum(inv.remaining_balance for inv in unpaid_invoices)
+
+            if amount > total_remaining:
+                flash(
+                    f'Payment ₱{amount:,.2f} exceeds the total remaining balance of ₱{total_remaining:,.2f}.',
+                    'danger'
+                )
+                return redirect(request.referrer)
+
+            remaining_to_distribute = amount
+
+            for inv in unpaid_invoices:
+                if remaining_to_distribute <= 0:
+                    break
+
+                inv_balance = inv.remaining_balance
+                if inv_balance <= 0:
+                    continue
+
+                payment_amount = min(remaining_to_distribute, inv_balance)
+
+                payment = Payment(
+                    transaction_id=txn.id,
+                    invoice_id=inv.id,
+                    amount=payment_amount,
+                    payment_method=method,
+                    reference_number=ref_number,
+                    receipt_image_path=receipt_path,
+                    status="Completed",
+                    verified_by_id=current_user.id,
+                    verified_at=datetime.utcnow()
+                )
+                db.session.add(payment)
+
+                if payment_amount >= inv_balance:
+                    inv.status = "Paid"
+                else:
+                    inv.status = "Partially Paid"
+
+                remaining_to_distribute -= payment_amount
 
         db.session.flush()
         db.session.expire(txn, ['payments'])
@@ -1362,50 +1393,63 @@ def post_payment():
     return redirect(request.referrer or url_for('admin.transactions'))
 
 
+
 @admin_bp.route('/confirm-payment-proof/<int:proof_id>', methods=['POST'])
 @login_required
 @administrator_required
 def confirm_payment_proof(proof_id):
-    from models.product import PaymentProof
-    from decimal import Decimal
-
     proof = PaymentProof.query.get_or_404(proof_id)
     txn = Transaction.query.get_or_404(proof.transaction_id)
 
     try:
-        # Check if payment with this reference number already exists
+        # Guard: don't double-record the same reference number
         existing_payment = Payment.query.filter_by(
             reference_number=proof.reference_number
         ).first()
 
         if existing_payment:
-            # Payment already recorded — just mark proof as verified
-            # and sync the transaction status
+            # Already recorded — just mark the proof as verified
             proof.status = 'Verified'
             proof.payment_id = existing_payment.id
-
-            total = Decimal(str(txn.total_amount or 0))
-            total_paid = db.session.query(
-                db.func.sum(Payment.amount)
-            ).filter_by(transaction_id=txn.id, status='Completed').scalar() or Decimal('0')
-
-            txn.amount_paid = total_paid
-            txn.balance_due = max(Decimal('0'), total - total_paid)
-            txn.payment_method = 'GCash'
-            txn.payment_status = 'Paid' if txn.balance_due <= 0 else 'Partial'
-
+            db.session.flush()
+            db.session.expire(txn, ['payments'])
+            txn.update_totals()
             db.session.commit()
             flash('Payment proof verified successfully.', 'success')
             return redirect(url_for('admin.transaction_details', id=txn.id))
 
-        # No existing payment — create a new one
-        total = Decimal(str(txn.total_amount or 0))
-        already_paid = Decimal(str(txn.amount_paid or 0))
-        remaining = total - already_paid
+        # No existing payment — create one for the remaining balance
+        remaining = Decimal(str(txn.balance_due or 0))
+
+        if remaining <= 0:
+            flash('This transaction is already fully paid.', 'info')
+            return redirect(url_for('admin.transaction_details', id=txn.id))
+
+        # For rentals: attach to the oldest unpaid invoice
+        invoice_id_to_use = None
+        if txn.transaction_type == 'Rental':
+            unpaid_invoice = RentalInvoice.query.filter(
+                RentalInvoice.rental_id.in_([r.id for r in txn.rentals]),
+                RentalInvoice.status != 'Paid'
+            ).order_by(RentalInvoice.service_period_start.asc()).first()
+
+            if unpaid_invoice:
+                invoice_id_to_use = unpaid_invoice.id
+                pay_amount = min(remaining, unpaid_invoice.remaining_balance)
+
+                if pay_amount >= unpaid_invoice.remaining_balance:
+                    unpaid_invoice.status = 'Paid'
+                else:
+                    unpaid_invoice.status = 'Partially Paid'
+            else:
+                pay_amount = remaining
+        else:
+            pay_amount = remaining
 
         new_payment = Payment(
             transaction_id=txn.id,
-            amount=remaining if remaining > 0 else total,
+            invoice_id=invoice_id_to_use,
+            amount=pay_amount,
             payment_method='GCash',
             reference_number=proof.reference_number,
             status='Completed',
@@ -1418,89 +1462,106 @@ def confirm_payment_proof(proof_id):
         proof.status = 'Verified'
         proof.payment_id = new_payment.id
 
-        txn.amount_paid = already_paid + new_payment.amount
-        txn.balance_due = max(Decimal('0'), total - txn.amount_paid)
-        txn.payment_method = 'GCash'
-
-        if txn.balance_due <= 0:
-            txn.payment_status = 'Paid'
-            txn.amount_paid = total
-            txn.balance_due = Decimal('0')
-        else:
-            txn.payment_status = 'Partial'
-
+        # ── Let update_totals() handle all status strings ──
+        db.session.expire(txn, ['payments'])
+        txn.update_totals()
         db.session.commit()
+
         flash('Payment confirmed and marked as Paid successfully.', 'success')
 
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Payment confirmation error: {e}")
+        current_app.logger.error(f"PROOF_CONFIRM_ERROR | proof {proof_id} | {str(e)}")
         flash(f'Failed to confirm payment: {str(e)}', 'error')
 
     return redirect(url_for('admin.transaction_details', id=txn.id))
 
 
+
 @admin_bp.route('/transaction/<int:txn_id>/return', methods=['POST'])
 @login_required
+@administrator_required
 def process_return(txn_id):
     txn = Transaction.query.get_or_404(txn_id)
-    
+
     return_notes = request.form.get('return_notes', '').strip()
     raw_late_fees = request.form.get('late_fees', '0')
-    
+
     try:
         late_fees = Decimal(raw_late_fees)
     except (InvalidOperation, ValueError, TypeError):
         late_fees = Decimal('0.00')
 
     try:
-        current_balance = txn.balance_due if txn.balance_due is not None else Decimal('0.00')
-        current_total = txn.total_amount if txn.total_amount is not None else Decimal('0.00')
-
-        txn.balance_due = current_balance + late_fees
-        txn.total_amount = current_total + late_fees
-        
-        txn.status = 'Completed'
+        # ── Fix: use full name, not .username ──────────────
+        user_display_name = f"{current_user.first_name} {current_user.last_name}"
 
         if txn.rentals:
             for rental in txn.rentals:
-                rental.status = 'Returned' 
-                rental.actual_return_date = datetime.utcnow().date() 
+                rental.status = 'Returned'
+                rental.actual_return_date = datetime.utcnow().date()
                 rental.return_condition_notes = return_notes
                 rental.late_fees_incurred = late_fees
-                
+
+                # Apply late fee to the last unpaid invoice
+                if late_fees > 0:
+                    last_invoice = sorted(
+                        rental.invoices,
+                        key=lambda inv: inv.service_period_start
+                    )[-1] if rental.invoices else None
+
+                    if last_invoice:
+                        last_invoice.late_fee = (
+                            Decimal(str(last_invoice.late_fee or 0)) + late_fees
+                        )
+
                 if rental.product:
                     equipment_name = rental.product.equipment_type or ""
-                    
+
                     if "Tank" in equipment_name:
                         rental.product.status = 'Empty'
-                        rental.product.stock_empty = (rental.product.stock_empty or 0) + rental.quantity
+                        rental.product.stock_empty = (
+                            rental.product.stock_empty or 0
+                        ) + rental.quantity
                     else:
                         rental.product.status = 'Available'
-                        rental.product.stock = (rental.product.stock or 0) + rental.quantity
-
-                    user_display_name = "System"
-                    if current_user:
-                        user_display_name = getattr(current_user, 'username', 'Admin')
+                        rental.product.stock = (
+                            rental.product.stock or 0
+                        ) + rental.quantity
 
                     new_log = InventoryLog(
                         product_id=rental.product.id,
                         action="Equipment Return",
                         quantity=rental.quantity,
-                        note=f"Returned from Txn {txn.reference_no}. \n Condition: {return_notes if return_notes else 'Good'}",
-                        user_id=current_user.id if current_user else None,
+                        note=(
+                            f"Returned from Txn {txn.reference_no}. "
+                            f"Condition: {return_notes if return_notes else 'Good'}"
+                        ),
+                        user_id=current_user.id,
                         user_name=user_display_name
                     )
                     db.session.add(new_log)
 
+        # ── Fix: let update_totals() set the status correctly ──
+        db.session.flush()
+        db.session.expire(txn, ['payments', 'rentals'])
+        txn.update_totals()
         db.session.commit()
-        flash(f"Equipment return processed for {txn.reference_no}. \n Stock levels and logs updated.", "success")
-        
+
+        flash(
+            f"Equipment return processed for {txn.reference_no}. "
+            f"Stock levels and logs updated.",
+            "success"
+        )
+
     except Exception as e:
         db.session.rollback()
-        flash("An error occurred while processing the return. \n Please try again.", "danger")
+        current_app.logger.error(f"RETURN_ERROR | TXN: {txn_id} | {str(e)}")
+        flash("An error occurred while processing the return. Please try again.", "danger")
 
     return redirect(url_for('admin.transaction_details', id=txn.id))
+
+
 
 from flask import request
 

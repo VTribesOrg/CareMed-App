@@ -153,8 +153,11 @@ class Transaction(db.Model):
             if self.payment_status == "Fully Paid":
                 if self.transaction_type == "Sale":
                     if self.fulfillment_type == "Delivery":
-                        if self.delivery_status == "Delivered":
+                        # Close if delivery confirmed via either field
+                        if (self.delivery_status == "Delivered"
+                                or self.tracking_status == "DELIVERED"):
                             self.status = "Closed"
+                            self.delivery_status = "Delivered"  # keep in sync
                     else:  # Pickup
                         if self.delivery_status in ["Picked Up", "N/A"]:
                             self.status = "Closed"
