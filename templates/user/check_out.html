@@ -128,13 +128,13 @@
         </a>
 
         <div class="nav-links">
-            <a href="{{ url_for('user.products')}}" class="nav-shop-link hover">
+            <a href="{{ url_for('user.products')}}" class="nav-shop-link hover {% if request.endpoint == 'user.products' %}active-link{% endif %}">
                 <i class="fa-solid fa-bag-shopping"></i> Browse Equipment
             </a>
 
-            <a href="#how" class="nav-account-btn hover">How It Works</a>
+            <a href="{{ url_for('user.homepage') }}#how" class="nav-account-btn hover">How It Works</a>
 
-            <a href="#about" class="nav-account-btn hover">About</a>
+            <a href="{{ url_for('user.homepage') }}#about" class="nav-account-btn hover">About</a>
 
             <a href="{{ url_for('auth.login')}}" class="nav-account-btn guest-only hover">
                 <i class="fa-solid fa-right-to-bracket"></i> Sign In
@@ -169,7 +169,11 @@
                     <div class="user-info">
                         <span class="user-name">
                             {% if current_user.is_authenticated %}
-                                Hello, {{ current_user.customer_profile.first_name }}
+                                {% if current_user.customer_profile %}
+                                    Hello, {{ current_user.customer_profile.first_name }}
+                                {% else %}
+                                    Hello, {{ current_user.email.split('@')[0] }}
+                                {% endif %}
                             {% else %}
                                 Guest
                             {% endif %}
@@ -828,3 +832,6 @@
 </body>
 
 </html>
+
+
+===============================
