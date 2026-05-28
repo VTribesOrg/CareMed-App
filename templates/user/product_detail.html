@@ -549,7 +549,7 @@
             </a>
 
             <a href="{{ url_for('user.profile')}}" class="auth-only">
-                <i class="fa-solid fa-user"></i> My Profile
+                <i class="fa-solid fa-user"></i> My Account
             </a>
 
             <!-- Updated: Now points to the Split Dashboard -->
@@ -643,7 +643,7 @@
                 <div class="dropdown-menu" id="dropdownMenu">
                     {% if current_user.is_authenticated %}
                         <a href="{{ url_for('user.profile') }}">
-                            <i class="fa-solid fa-user"></i> My Profile
+                            <i class="fa-solid fa-user"></i> My Account
                         </a>
                         <a href="{{ url_for('user.dashboard') }}">
                             <i class="fa-solid fa-clock-rotate-left"></i> My Activity
@@ -872,6 +872,206 @@
                 </div>
             </div>
 
+            <div class="pd-extra-info" style="margin-top: 24px;">
+                <div class="pd-info-tabs" style="margin-bottom: 20px;">
+                    <button class="pd-tab-link pd-active">Ratings & Reviews</button>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr; gap: 24px; background: white; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0;">
+                    
+                    {% set total_reviews = product.reviews|length %}
+                    {% set avg_rating = ((product.reviews | sum(attribute='rating')) / total_reviews) if total_reviews > 0 else 0 %}
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 24px; padding-bottom: 24px; border-bottom: 1px solid #f1f5f9;">
+                        
+                        <div style="display: flex; flex-direction: column; gap: 6px; justify-content: center; align-items: center; text-align: center; background: #f8fafc; border-radius: 10px; padding: 20px;">
+                            
+                            <h3 style="font-size: 3rem; margin: 0; color: #1e293b; font-weight: 800; line-height: 1;">
+                                {{ "%.1f"|format(avg_rating) }}
+                            </h3>
+
+                            <div style="color: #f59e0b; font-size: 1.1rem; display: flex; gap: 4px;">
+                                {% for i in range(1,6) %}
+                                    {% if avg_rating >= i %}
+                                        <i class="fa-solid fa-star"></i>
+                                    {% elif avg_rating >= i - 0.5 %}
+                                        <i class="fa-solid fa-star-half-stroke"></i>
+                                    {% else %}
+                                        <i class="fa-regular fa-star"></i>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+
+                            <span style="font-size: 0.85rem; color: #64748b; font-weight: 500; margin-top: 4px;">
+                                {{ total_reviews }} Verified Customer Review{{ 's' if total_reviews != 1 else '' }}
+                            </span>
+                        </div>
+
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            <h4 style="margin: 0; font-size: 1rem; color: #1e293b; font-weight: 600;">
+                                <i class="fa-solid fa-pen-line"></i> Share Your Experience
+                            </h4>
+                            
+                            {% if current_user.is_authenticated %}
+                                <form action="{{ url_for('user.submit_review', product_id=product.id) }}"
+                                    method="POST"
+                                    style="display: flex; flex-direction: column; gap: 12px;">
+
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    
+                                    <div>
+                                        <label style="font-size: 0.8rem; color: #475569; display: block; margin-bottom: 4px; font-weight: 500;">
+                                            Your Rating
+                                        </label>
+
+                                        <div style="display: flex; flex-direction: row-reverse; justify-content: flex-end; gap: 6px;" class="rating-star-selector">
+                                            
+                                            <input type="radio" id="star5" name="rating" value="5" required style="display: none;">
+                                            <label for="star5" class="review-star" data-rating="5" style="cursor: pointer; font-size: 1.3rem; color: #cbd5e1;">
+                                                <i class="fa-solid fa-star"></i>
+                                            </label>
+
+                                            <input type="radio" id="star4" name="rating" value="4" style="display: none;">
+                                            <label for="star4" class="review-star" data-rating="4" style="cursor: pointer; font-size: 1.3rem; color: #cbd5e1;">
+                                                <i class="fa-solid fa-star"></i>
+                                            </label>
+
+                                            <input type="radio" id="star3" name="rating" value="3" style="display: none;">
+                                            <label for="star3" class="review-star" data-rating="3" style="cursor: pointer; font-size: 1.3rem; color: #cbd5e1;">
+                                                <i class="fa-solid fa-star"></i>
+                                            </label>
+
+                                            <input type="radio" id="star2" name="rating" value="2" style="display: none;">
+                                            <label for="star2" class="review-star" data-rating="2" style="cursor: pointer; font-size: 1.3rem; color: #cbd5e1;">
+                                                <i class="fa-solid fa-star"></i>
+                                            </label>
+
+                                            <input type="radio" id="star1" name="rating" value="1" style="display: none;">
+                                            <label for="star1" class="review-star" data-rating="1" style="cursor: pointer; font-size: 1.3rem; color: #cbd5e1;">
+                                                <i class="fa-solid fa-star"></i>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label style="font-size: 0.8rem; color: #475569; display: block; margin-bottom: 4px; font-weight: 500;">
+                                            Review Details
+                                        </label>
+
+                                        <textarea name="comment"
+                                                rows="3"
+                                                placeholder="How did this equipment help you? Share details about condition, cleanliness, or setup support..."
+                                                required
+                                                style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.85rem; font-family: inherit; resize: vertical;"></textarea>
+                                    </div>
+
+                                    <button type="submit"
+                                            class="pd-btn-primary"
+                                            style="padding: 10px 16px; font-size: 0.85rem; align-self: flex-start;">
+                                        Submit Review
+                                    </button>
+                                </form>
+
+                            {% else %}
+                                <div style="background: #f1f5f9; border-radius: 8px; padding: 16px; text-align: center; border: 1px dashed #cbd5e1;">
+                                    <p style="font-size: 0.85rem; color: #475569; margin: 0 0 10px 0;">
+                                        You must be signed in to rate or review items.
+                                    </p>
+
+                                    <a href="{{ url_for('auth.login', next=request.path) }}"
+                                    class="pd-btn-secondary"
+                                    style="display: inline-block; padding: 6px 14px; font-size: 0.8rem; text-decoration: none;">
+                                        Sign In
+                                    </a>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 16px;">
+                        {% if product.reviews %}
+
+                            {% for review in product.reviews|sort(attribute='created_at', reverse=True) %}
+                                <div style="padding-bottom: 16px; border-bottom: 1px solid #f1f5f9;">
+
+                                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+                                        
+                                        <div>
+                                            <strong style="font-size: 0.9rem; color: #1e293b; display: block;">
+                                                {% if review.user %}
+                                                    {% if review.user.full_name|trim %}
+                                                        {{ review.user.full_name }}
+                                                    {% elif review.user.customer_profile and review.user.customer_profile.full_name|trim %}
+                                                        {{ review.user.customer_profile.full_name }}
+                                                    {% else %}
+                                                        {{ review.user.email.split('@')[0] }}
+                                                    {% endif %}
+                                                {% else %}
+                                                    Anonymous User
+                                                {% endif %}
+                                            </strong>
+                                            
+
+                                            <div style="font-size: 0.72rem; color: #94a3b8; margin-top: 5px;">
+                                                {{ review.created_at.strftime('%b %d, %Y') }}
+                                            </div>
+                                        </div>
+
+                                        <div style="color: #f59e0b; font-size: 0.8rem;">
+                                            {% for i in range(review.rating) %}
+                                                <i class="fa-solid fa-star"></i>
+                                            {% endfor %}
+
+                                            {% for i in range(5 - review.rating) %}
+                                                <i class="fa-regular fa-star"></i>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+
+                                    <p style="font-size: 0.85rem; color: #475569; margin: 4px 0 0 0; line-height: 1.4;">
+                                        {{ review.comment }}
+                                    </p>
+                                </div>
+                            {% endfor %}
+
+                        {% else %}
+                            <p style="font-size: 0.85rem; color: #64748b; text-align: center; padding: 20px 0;">
+                                No reviews listed for this equipment yet. Be the first to share your experience!
+                            </p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <script>
+            document.addEventListener("DOMContentLoaded", function () {
+
+                const stars = document.querySelectorAll(".review-star");
+
+                stars.forEach(star => {
+
+                    star.addEventListener("click", function () {
+
+                        const rating = parseInt(this.dataset.rating);
+
+                        stars.forEach(s => {
+                            const currentRating = parseInt(s.dataset.rating);
+
+                            if (currentRating <= rating) {
+                                s.style.color = "#f59e0b";
+                            } else {
+                                s.style.color = "#cbd5e1";
+                            }
+                        });
+                    });
+                });
+            });
+            </script>
+
+            <style>
+                .rating-star-selector input:checked ~ label { color: #f59e0b !important; }
+                .rating-star-selector label:hover, .rating-star-selector label:hover ~ label { color: #f59e0b !important; }
+            </style>
             <div class="pd-safety-banner">
                 <i class="fa-solid fa-triangle-exclamation"></i>
                 <span><strong>Safety Note:</strong> Please consult with a healthcare professional before operating this equipment. Detailed user manuals are provided upon delivery.</span>

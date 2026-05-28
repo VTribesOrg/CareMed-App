@@ -143,12 +143,6 @@
                             <span class="nav-label">Inventory</span>
                         </a>
                     </li>
-                    <li class="nav-item" title="Refill Requests">
-                        <a href="#" class="nav-link">
-                            <span class="material-symbols-rounded">gas_meter</span>
-                            <span class="nav-label">Refill Requests</span>
-                        </a>
-                    </li>
                     <li class="nav-item" title="Customer Records">
                         <a href="{{ url_for('admin.customers') }}"
                             class="nav-link {% if request.endpoint in ['admin.customers', 'admin.customer_details'] %}active{% endif %}">

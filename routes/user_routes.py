@@ -6,7 +6,8 @@ from extensions import db, passhasher, limiter
 from forms.update_profile_form import UpdateProfileForm, ChangePasswordForm
 from functools import wraps
 from models.customer import Customer
-from models.product import Product, Cart, CartItem, Payment, Transaction, Rental, Purchase, InventoryLog, PaymentProof
+from models.product import Product, Cart, CartItem, Payment, Transaction, Rental, Purchase, InventoryLog, PaymentProof, ProductReview
+from models.users import User
 from datetime import datetime, date
 from decimal import Decimal, ROUND_HALF_UP
 import os
@@ -15,8 +16,6 @@ from PIL import Image
 import random
 import string
 from sqlalchemy import or_
-
-
 
 user_bp = Blueprint('user', __name__, url_prefix='/customer')
 
@@ -176,9 +175,14 @@ def products():
             
     return render_template('user/products.html', products=all_products, current_category=category, in_cart_items=in_cart_items)
 
+
 @user_bp.route('/product/<int:product_id>')
 def product_detail(product_id):
-    product = Product.query.get_or_404(product_id)
+    product = Product.query.options(
+            joinedload(Product.reviews)
+            .joinedload(ProductReview.user)
+            .joinedload(User.customer_profile)
+        ).get_or_404(product_id)
     
     category = request.args.get('category', 'All')
     search_query = request.args.get('search', '').strip()
@@ -965,3 +969,44 @@ def upload_ids():
         return redirect(url_for('user.checkout'))
     
     
+@user_bp.route('/product/<int:product_id>/review', methods=['POST'])
+@login_required
+def submit_review(product_id):
+    product = Product.query.get_or_404(product_id)
+    
+    rating_val = request.form.get('rating')
+    comment_text = request.form.get('comment', '').strip()
+    
+    if not rating_val:
+        flash('Please choose a valid star rating value.', 'error')
+        return redirect(url_for('user.product_detail', product_id=product_id))
+        
+    if not comment_text:
+        flash('Review details cannot be left completely blank.', 'error')
+        return redirect(url_for('user.product_detail', product_id=product_id))
+        
+    try:
+        rating_score = int(rating_val)
+        if rating_score < 1 or rating_score > 5:
+            raise ValueError
+    except ValueError:
+        flash('Invalid rating input detected. Please try again.', 'error')
+        return redirect(url_for('user.product_detail', product_id=product_id))
+
+    new_review = ProductReview(
+        product_id=product.id,
+        user_id=current_user.id,
+        rating=rating_score,
+        comment=comment_text
+    )
+    
+    try:
+        db.session.add(new_review)
+        db.session.commit()
+        flash('Thank you! Your product review has been submitted successfully.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash('An internal error occurred while trying to save your review.', 'error')
+        
+    return redirect(url_for('user.product_detail', product_id=product_id))
+

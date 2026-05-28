@@ -355,3 +355,20 @@ class CartItem(db.Model):
 
     cart = db.relationship("Cart", back_populates="items")
     product = db.relationship("Product")
+    
+class ProductReview(db.Model):
+    __tablename__ = 'product_reviews'
+
+    id = db.Column(db.Integer, primary_key=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+
+    rating = db.Column(db.Integer, nullable=False)
+    comment = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref=db.backref('reviews', lazy=True, cascade="all, delete-orphan"))
+    product = db.relationship('Product', backref=db.backref('reviews', lazy=True, cascade="all, delete-orphan"))
+    
+    def __repr__(self):
+        return f"<ProductReview User {self.user_id} -> Product {self.product_id}: {self.rating} Stars>"

@@ -461,7 +461,7 @@
             </a>
 
             <a href="{{ url_for('user.profile')}}" class="auth-only">
-                <i class="fa-solid fa-user"></i> My Profile
+                <i class="fa-solid fa-user"></i> My Account
             </a>
 
             <!-- Updated: Now points to the Split Dashboard -->
@@ -551,7 +551,7 @@
                 <div class="dropdown-menu" id="dropdownMenu">
                     {% if current_user.is_authenticated %}
                         <a href="{{ url_for('user.profile') }}">
-                            <i class="fa-solid fa-user"></i> My Profile
+                            <i class="fa-solid fa-user"></i> My Account
                         </a>
                         <a href="{{ url_for('user.dashboard') }}">
                             <i class="fa-solid fa-clock-rotate-left"></i> My Activity
