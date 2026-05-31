@@ -176,6 +176,7 @@ Please review the Security Center: /admin/security
         except Exception:
             pass
 
+
 @auth_bp.route("/login", methods=["GET", "POST"])
 @limiter.limit("5 per 5 minute", key_func=login_key, methods=["POST"])
 def login():
@@ -197,7 +198,6 @@ def login():
         if not user:
             passhasher.hash("dummy_password")
 
-            # Count recent failed attempts from this IP
             cutoff = datetime.utcnow() - timedelta(minutes=10)
             recent_attempts = SecurityLog.query.filter(
                 SecurityLog.ip_address == request.remote_addr,
@@ -205,7 +205,6 @@ def login():
                 SecurityLog.created_at >= cutoff
             ).count()
 
-            # Only mark suspicious after 3rd attempt
             log_security_event(
                 "Failed Login",
                 f"Login attempt for unknown email: {email}",
@@ -260,7 +259,6 @@ def login():
                 user.lock_reason = "Too many failed login attempts"
                 db.session.commit()
 
-                # Send lockout notification
                 try:
                     lock_msg = Message(
                         subject="CareMed — Account Temporarily Locked",
@@ -308,9 +306,16 @@ If this was not you, reset your password immediately.
         # -- Successful login
         prev_failures = user.failed_login_attempts
 
+        # Check if this is a new/different device
+        current_ua = request.headers.get('User-Agent', 'Unknown')
+        last_ua = user.last_login_user_agent or ''
+        is_new_device = last_ua == '' or last_ua != current_ua
+
+        # Update last login info
         user.failed_login_attempts = 0
         user.account_locked_until = None
         user.last_login_at = now
+        user.last_login_user_agent = current_ua
         db.session.commit()
 
         if prev_failures >= 3:
@@ -332,27 +337,193 @@ If this was not you, reset your password immediately.
         login_user(user, remember=form.remember_me.data if hasattr(form, 'remember_me') else True)
         session.permanent = True
 
-        # Send login notification email
-        try:
-            login_msg = Message(
-                subject="CareMed — New Login Detected",
-                sender=current_app.config.get('MAIL_DEFAULT_SENDER'),
-                recipients=[user.email]
-            )
-            login_msg.body = f"""
-                Hello {user.first_name},
+        # Only send email if different device or first ever login
+        if is_new_device:
+            try:
+                login_msg = Message(
+                    subject="CareMed — New Login From Unrecognized Device",
+                    sender=current_app.config.get('MAIL_DEFAULT_SENDER'),
+                    recipients=[user.email]
+                )
 
-                A new login was detected on your CareMed account.
+                ua = current_ua
+                if 'Chrome' in ua and 'Edg' not in ua:
+                    browser = 'Google Chrome'
+                elif 'Firefox' in ua:
+                    browser = 'Mozilla Firefox'
+                elif 'Safari' in ua and 'Chrome' not in ua:
+                    browser = 'Safari'
+                elif 'Edg' in ua:
+                    browser = 'Microsoft Edge'
+                else:
+                    browser = 'Unknown Browser'
 
-                Time      : {datetime.utcnow().strftime('%B %d, %Y %I:%M %p')} UTC
-                IP Address: {request.remote_addr}
-                Device    : {request.headers.get('User-Agent', 'Unknown')[:100]}
+                if 'Windows' in ua:
+                    os_name = 'Windows'
+                elif 'Mac' in ua:
+                    os_name = 'macOS'
+                elif 'iPhone' in ua or 'iPad' in ua:
+                    os_name = 'iOS'
+                elif 'Android' in ua:
+                    os_name = 'Android'
+                elif 'Linux' in ua:
+                    os_name = 'Linux'
+                else:
+                    os_name = 'Unknown OS'
 
-                If this was not you, please reset your password immediately.
-            """
-            mail.send(login_msg)
-        except Exception:
-            pass
+                login_time = now.strftime('%B %d, %Y at %I:%M %p UTC')
+
+                reset_url = url_for('auth.forgot_password', _external=True)
+                login_msg.html = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0; padding:0; background-color:#f1f5f9; font-family:'Segoe UI', Arial, sans-serif;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9; padding:40px 0;">
+        <tr>
+            <td align="center">
+                <table width="580" cellpadding="0" cellspacing="0" style="background:#ffffff; border-radius:16px; overflow:hidden; box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+
+                    <!-- Header -->
+                    <tr>
+                        <td style="background:linear-gradient(135deg,#002347 0%,#1a4d7a 100%); padding:32px 40px; text-align:center;">
+                            <h1 style="margin:0; color:#ffffff; font-size:26px; font-weight:800; letter-spacing:-0.5px;">
+                                Care<span style="color:#52B788;">Med</span>
+                            </h1>
+                            <p style="margin:6px 0 0 0; color:#93c5fd; font-size:13px;">Medical Equipment Rental &amp; Sales</p>
+                        </td>
+                    </tr>
+
+                    <!-- Alert Banner -->
+                    <tr>
+                        <td style="background:#fffbeb; border-bottom:3px solid #f59e0b; padding:16px 40px; text-align:center;">
+                            <p style="margin:0; color:#92400e; font-size:14px; font-weight:700;">
+                                &#9888;&nbsp; New Sign-In From an Unrecognized Device
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Body -->
+                    <tr>
+                        <td style="padding:36px 40px;">
+                            <p style="margin:0 0 8px 0; color:#1e293b; font-size:16px; font-weight:700;">
+                                Hello {user.first_name},
+                            </p>
+                            <p style="margin:0 0 28px 0; color:#64748b; font-size:14px; line-height:1.6;">
+                                We detected a sign-in to your CareMed account from a device we haven't seen before.
+                                Here are the details:
+                            </p>
+
+                            <!-- Login Details Card -->
+                            <table width="100%" cellpadding="0" cellspacing="0"
+                                   style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; margin-bottom:28px;">
+                                <tr>
+                                    <td style="padding:20px 24px; border-bottom:1px solid #e2e8f0; background:#f1f5f9;">
+                                        <p style="margin:0; color:#64748b; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em;">
+                                            Sign-In Details
+                                        </p>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding:20px 24px;">
+                                        <table width="100%" cellpadding="0" cellspacing="0">
+                                            <tr>
+                                                <td style="padding:8px 0; border-bottom:1px solid #f1f5f9; width:40%;">
+                                                    <span style="color:#64748b; font-size:13px;">&#128197; Date &amp; Time</span>
+                                                </td>
+                                                <td style="padding:8px 0; border-bottom:1px solid #f1f5f9;">
+                                                    <span style="color:#1e293b; font-size:13px; font-weight:600;">{login_time}</span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding:8px 0; border-bottom:1px solid #f1f5f9;">
+                                                    <span style="color:#64748b; font-size:13px;">&#127760; IP Address</span>
+                                                </td>
+                                                <td style="padding:8px 0; border-bottom:1px solid #f1f5f9;">
+                                                    <span style="color:#1e293b; font-size:13px; font-weight:600; font-family:monospace;">{request.remote_addr}</span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding:8px 0; border-bottom:1px solid #f1f5f9;">
+                                                    <span style="color:#64748b; font-size:13px;">&#128187; Browser</span>
+                                                </td>
+                                                <td style="padding:8px 0; border-bottom:1px solid #f1f5f9;">
+                                                    <span style="color:#1e293b; font-size:13px; font-weight:600;">{browser}</span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding:8px 0;">
+                                                    <span style="color:#64748b; font-size:13px;">&#128187; Operating System</span>
+                                                </td>
+                                                <td style="padding:8px 0;">
+                                                    <span style="color:#1e293b; font-size:13px; font-weight:600;">{os_name}</span>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- Was it you? -->
+                            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;">
+                                <tr>
+                                    <td style="background:#f0fdf4; border:1px solid #86efac; border-radius:10px; padding:16px 20px;">
+                                        <p style="margin:0 0 4px 0; color:#166534; font-size:14px; font-weight:700;">
+                                            &#10003;&nbsp; This was you?
+                                        </p>
+                                        <p style="margin:0; color:#166534; font-size:13px;">
+                                            No action needed. You can safely ignore this email.
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+                                <tr>
+                                    <td style="background:#fef2f2; border:1px solid #fca5a5; border-radius:10px; padding:16px 20px;">
+                                        <p style="margin:0 0 4px 0; color:#991b1b; font-size:14px; font-weight:700;">
+                                            &#10005;&nbsp; This wasn't you?
+                                        </p>
+                                        <p style="margin:0 0 12px 0; color:#991b1b; font-size:13px;">
+                                            Your account may be compromised. Reset your password immediately.
+                                        </p>
+                                        <a href="{reset_url}"
+                                           style="display:inline-block; background:#dc2626; color:#ffffff; text-decoration:none; padding:10px 20px; border-radius:8px; font-size:13px; font-weight:700;">
+                                            Reset Password Now
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background:#f8fafc; border-top:1px solid #e2e8f0; padding:24px 40px; text-align:center;">
+                            <p style="margin:0 0 4px 0; color:#94a3b8; font-size:12px;">
+                                This is an automated security alert from CareMed.
+                            </p>
+                            <p style="margin:0; color:#94a3b8; font-size:12px;">
+                                &copy; 2026 CareMed &mdash; Medical Equipment Rental &amp; Sales, Iloilo City, Philippines
+                            </p>
+                        </td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+                """
+
+                mail.send(login_msg)
+
+            except Exception:
+                pass  # Never break login if email fails
 
         if user.role == "Administrator":
             return redirect(url_for("admin.dashboard"))
@@ -638,6 +809,10 @@ def logout():
     session["force_account_select"] = True 
     return redirect(url_for("auth.login"))
 
+
+@auth_bp.route("/forgot-password", methods=["GET"])
+def forgot_password():
+    return redirect(url_for('auth.login', forgot='1'))
 
 @auth_bp.route("/send-reset-link", methods=["POST"])
 @limiter.limit("5 per minute", key_func=login_key, methods=["POST"])

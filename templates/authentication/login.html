@@ -240,7 +240,7 @@
                 </button>
                 
                 <p class="footer-note" style="margin-top: 20px;">
-                    Remember your password? <a href="javascript:void(0)" onclick="closeForgotModal()">Back to Login</a>
+                    Remember your password? <a href="javascript:void(0)" id="backToLoginLink">Back to Login</a>
                 </p>
             </div>
         </div>
@@ -362,6 +362,12 @@
                 modalOverlay.addEventListener('click', (e) => {
                     if (e.target === modalOverlay) closeForgotModal();
                 });
+            }
+
+            // 6. Auto-open forgot password modal if redirected from security email
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('forgot') === '1') {
+                openForgotModal();
             }
         });
 

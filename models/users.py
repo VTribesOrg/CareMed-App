@@ -38,6 +38,8 @@ class User(UserMixin, db.Model):
 
     customer_profile = db.relationship("Customer", back_populates="user", uselist=False, foreign_keys="[Customer.user_id]")
     
+    last_login_user_agent = db.Column(db.String(255), nullable=True)
+    
     @property
     def full_name(self):
         return f"{self.first_name} {self.last_name}"
