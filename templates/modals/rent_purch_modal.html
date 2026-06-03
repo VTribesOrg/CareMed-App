@@ -3,20 +3,21 @@
         <div class="modal-header-row">
             <div class="header-content-area">
                 <h2 class="modal-header">Process Equipment Rental</h2>
+                
                 <div class="selected-asset-banner">
                     <div class="banner-left">
                         <div class="asset-context-label">
-                            <span class="material-symbols-rounded">inventory_2</span>
-                            RENTAL ITEM
+                            <span class="material-symbols-rounded">person</span>
+                            SELECTED RENTER / PATIENT
                         </div>
                         <div class="asset-display-name">
-                            <span id="rent-equipment-name">--</span>
+                            <span id="rent-patient-display-name">No Patient Selected</span>
                         </div>
                     </div>
                     <div class="banner-right">
-                        <div id="rent-stock-badge" class="stock-status-badge status-in-stock">
+                        <div id="active-renter-badge" class="stock-status-badge status-in-stock">
                             <span class="dot"></span>
-                            <span id="rent-stock-display">0 Units Available</span>
+                            <span id="rent-customer-type-display">Active Session</span>
                         </div>
                     </div>
                 </div>
@@ -24,25 +25,57 @@
             <span class="material-symbols-rounded modal-close close-rent-modal absolute-close-btn">close</span>
         </div>
 
-        <form id="rentEntryForm" action="{{ url_for('admin.process_rental') }}" method="POST" data-fulfillment="Pickup">
+        <form id="rentEntryForm" action="{{ url_for('admin.process_rental') }}" method="POST" data-fulfillment="Walk-In">
             <input type="hidden" name="csrf_token" id="rent_csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="transaction_type" value="Rental">
-            <input type="hidden" name="product_id" id="rent-product-id">
+            
+            <input type="hidden" name="customer_id" id="global-customer-id">
             
             <div class="form-layout-grid">
-                <div class="form-field full-width">
-                    <label>Renter (Customer)</label>
+                
+                <div class="form-field full-width product-search-container" style="position: relative;">
+                    <label>Add Equipment / Medical Products</label>
                     <div class="select-wrapper">
-                        <span class="material-symbols-rounded filter-icon">person</span>
-                        <select class="medical-select" required id="rental-customer-id" name="customer_id">
-                            <option value="" disabled selected>Select renter...</option>
-                            {% for customer in customers %}
-                                <option value="{{ customer.id }}">
-                                    {{ customer.first_name }} {{ customer.last_name }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                        <span class="material-symbols-rounded select-icon">expand_more</span>
+                        <span class="material-symbols-rounded filter-icon">manage_search</span>
+                        <input type="text" id="product-search-input" class="clinical-input" style="padding-left: 40px;" placeholder="Search rentable items by name or ID..." autocomplete="off">
+                        <span class="material-symbols-rounded select-icon" style="color: #64748b;">expand_more</span>
+                    </div>
+
+                    <div id="product-dropdown-list" class="product-dropdown-overlay hidden" style="position: absolute; top: 100%; left: 0; width: 100%; z-index: 99; max-height: 200px; margin-top: 4px; overflow-y: auto; background: white; border: 1px solid #cbd5e1; border-radius: 6px; box-shadow: 0px 4px 12px rgba(0,0,0,0.1);">
+                        {% for item in all_equipment %}
+                            {% if item.rent_price and item.rent_price | float > 0 %}
+                                <div class="product-option-item" 
+                                    data-id="{{ item.id }}" 
+                                    data-name="{{ item.name }}" 
+                                    data-stock="{{ item.stock }}" 
+                                    data-rent="{{ item.rent_price or '0.00' }}" 
+                                    data-search-string="{{ item.name.lower() }} {% if item.asset_tag %}{{ item.asset_tag.lower() }}{% endif %}" 
+                                    style="padding: 10px 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span class="material-symbols-rounded" style="color: #0284c7;">inventory_2</span>
+                                        <div>
+                                            <strong class="prod-name-text">{{ item.name }}</strong>
+                                            {% if item.asset_tag %}
+                                                <span style="font-size: 11px; color: #94a3b8; background: #f1f5f9; padding: 1px 4px; border-radius: 3px;">{{ item.asset_tag }}</span>
+                                            {% endif %}
+                                            <div style="font-size: 11px; color: #64748b;">₱{{ "{:,.2f}".format(item.rent_price or 0) }}/mo</div>
+                                        </div>
+                                    </div>
+                                    <span class="badge stock-count-text" style="font-size: 11px; padding: 2px 6px; background: #e0f2fe; color: #0369a1; border-radius: 4px;">{{ item.stock }} Available</span>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                        <div id="no-product-match" style="display: none; padding: 10px 12px; color: #94a3b8; text-align: center;">No items found</div>
+                    </div>
+                </div>
+
+                <div class="form-field full-width">
+                    <label style="margin-bottom: 6px; display: block;">Selected Equipment Basket</label>
+                    <div id="selected-products-container" style="display: flex; flex-direction: column; gap: 8px; border: 1px dashed #cbd5e1; padding: 12px; border-radius: 8px; min-height: 60px; background: #f8fafc;">
+                        <div id="empty-basket-placeholder" style="color: #94a3b8; text-align: center; font-size: 13px; margin: auto; padding: 8px 0;">
+                            <span class="material-symbols-rounded" style="vertical-align: middle; font-size: 18px; margin-right: 4px;">shopping_basket</span>
+                            No items added yet. Search above to select multiple items.
+                        </div>
                     </div>
                 </div>
 
@@ -52,21 +85,16 @@
                 </div>
 
                 <div class="form-field">
-                    <label>Expected Return</label>
-                    <input type="date" name="return_date" id="rent-return-date" class="clinical-input" required>
-                </div>
-
-                <div class="form-field">
-                    <label>Monthly Rate (₱)</label>
-                    <input type="number" id="rent-rate-display" name="unit_price" class="clinical-input" step="0.01" required>
-                </div>
-
-                <div class="form-field">
-                    <label>Quantity to Rent</label>
-                    <div class="quantity-input-wrapper" style="position: relative;">
-                         <span class="material-symbols-rounded" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 18px; color: #64748b;">shopping_cart</span>
-                         <input type="number" id="rent-quantity-input" name="quantity" class="clinical-input" style="padding-left: 40px;" min="1" value="1" required>
+                    <label>Rental Duration (Months)</label>
+                    <div style="position: relative; display: flex; align-items: center;">
+                        <span class="material-symbols-rounded" style="position: absolute; left: 12px; color: #64748b; font-size: 20px;">schedule</span>
+                        <input type="number" id="rent-duration-months" class="clinical-input" style="padding-left: 40px;" min="1" max="60" value="1" required>
                     </div>
+                    <!-- Hidden input automatically populated by JS so your backend form submission remains untouched -->
+                    <input type="hidden" name="return_date" id="rent-return-date">
+                    <small style="display: block; margin-top: 4px; color: #0284c7; font-weight: 500;">
+                        Expected Return: <span id="rent-return-date-preview">--</span>
+                    </small>
                 </div>
 
                 <div class="form-field">
@@ -83,8 +111,8 @@
                 </div>
 
                 <div class="form-field">
-                    <label>Initial Payment (₱)</label>
-                    <input type="number" id="rent-amount-paid" name="amount_paid" class="clinical-input" step="0.01" value="0.00" placeholder="Payment for 1st month">
+                    <label>Initial Payment Paid (₱)</label>
+                    <input type="number" id="rent-amount-paid" name="amount_paid" class="clinical-input" step="0.01" value="0.00" placeholder="e.g. Deposit or 1st month">
                 </div>
 
                 <div class="form-field full-width" id="rent-ref-group" style="display: none;">
@@ -96,8 +124,8 @@
                     <label>Fulfillment Type</label>
                     <div id="rent-fulfillment-group" style="display: flex; gap: 12px; padding: 4px 0;">
                         <label class="fulfillment-option">
-                            <input type="radio" name="fulfillment_type" value="Pickup" checked>
-                            <span>Pickup</span>
+                            <input type="radio" name="fulfillment_type" value="Walk-In" checked>
+                            <span>Walk-In</span>
                         </label>
                         <label class="fulfillment-option">
                             <input type="radio" name="fulfillment_type" value="Delivery">
@@ -106,7 +134,7 @@
                     </div>
                 </div>
 
-                <div id="rent-delivery-fields" class="full-width" style="display: none; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div id="rent-delivery-fields" class="full-width" style="display: none; grid-template-columns: 1fr 1fr 120px; gap: 12px;">
                     <div class="form-field"> 
                         <label>Delivery Address</label>
                         <input type="text" name="delivery_address" class="clinical-input" placeholder="House #, Street, Brgy...">
@@ -115,12 +143,26 @@
                         <label>Landmark</label>
                         <input type="text" name="landmark" class="clinical-input" placeholder="Near church, blue gate, etc.">
                     </div>
+                    <div class="form-field"> 
+                        <label>Delivery Fee (₱)</label>
+                        <input type="number" id="rent-delivery-fee" name="delivery_fee" class="clinical-input" min="0" step="0.01" value="0.00" placeholder="0.00">
+                    </div>
                 </div>
 
                 <div class="form-field full-width">
                     <label>Rental Notes / Conditions</label>
-                    <textarea class="clinical-input" id="rent-notes" name="warranty_or_notes" placeholder="Condition of item, serial numbers, etc..." style="height: 40px; padding-top: 8px; resize: none;"></textarea>
+                    <textarea class="clinical-input" id="rent-notes" name="warranty_or_notes" placeholder="Condition of items, serial numbers, etc..." style="height: 40px; padding-top: 8px; resize: none;"></textarea>
                 </div>
+
+                <div class="form-field full-width" id="rent-serial-number-group" style="display: none;">
+                    <label>Oxygen Equipment Serial Number / Tank ID</label>
+                    <div style="position: relative; display: flex; align-items: center;">
+                        <span class="material-symbols-rounded" style="position: absolute; left: 12px; color: #64748b; font-size: 20px;">layers</span>
+                        <input type="text" id="rent-asset-serial" name="serial_number" class="clinical-input" style="padding-left: 40px;" placeholder="Enter serial number...">
+                    </div>
+                </div>
+
+
             </div>
 
             <div class="rental-summary-box">
@@ -132,8 +174,11 @@
                 <div class="summary-details">
                     <div class="summary-row">
                         <span>Items Count & Duration</span>
-                        <span id="rent-duration-text" class="text-info">1 Unit × 0 Months</span>
+                        <span id="rent-duration-text" class="text-info">0 Items × 0 Months</span>
                     </div>
+
+                    <div id="rent-summary-items-breakdown" style="display: flex; flex-direction: column; gap: 4px; padding: 6px 0 6px 12px; border-left: 2px solid #cbd5e1; margin: 4px 0;">
+                        </div>
 
                     <div class="summary-row">
                         <span>Total Contract Value</span>
@@ -170,20 +215,21 @@
         <div class="modal-header-row">
             <div class="header-content-area">
                 <h2 class="modal-header">Process Equipment Purchase</h2>
+                
                 <div class="selected-asset-banner">
                     <div class="banner-left">
                         <div class="asset-context-label">
-                            <span class="material-symbols-rounded">shopping_cart</span>
-                            PURCHASE ITEM
+                            <span class="material-symbols-rounded">person</span>
+                            SELECTED BUYER / PATIENT
                         </div>
                         <div class="asset-display-name">
-                            <span id="purchase-equipment-name">--</span>
+                            <span id="purchase-patient-display-name">No Patient Selected</span>
                         </div>
                     </div>
                     <div class="banner-right">
-                        <div id="purchase-stock-badge" class="stock-status-badge status-in-stock">
+                        <div id="active-buyer-badge" class="stock-status-badge status-in-stock">
                             <span class="dot"></span>
-                            <span id="purchase-stock-display">0 Units Available</span>
+                            <span id="purchase-customer-type-display">Active Session</span>
                         </div>
                     </div>
                 </div>
@@ -191,34 +237,58 @@
             <span class="material-symbols-rounded modal-close close-purchase-modal absolute-close-btn">close</span>
         </div>
 
-        <form id="purchaseEntryForm" data-fulfillment="Pickup">
-            <input type="hidden" name="csrf_token" id="csrf_token" value="{{ csrf_token() }}">
+        <form id="purchaseEntryForm" action="{{ url_for('admin.process_purchase') }}" method="POST" data-fulfillment="Walk-In">
+            <input type="hidden" name="csrf_token" id="purchase_csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="transaction_type" value="Purchase">
+            
+            <input type="hidden" name="customer_id" id="global-purchase-customer-id">
+            
             <div class="form-layout-grid">
-                <div class="form-field full-width">
-                    <label>Buyer (Customer)</label>
+                
+                <div class="form-field full-width product-search-container" style="position: relative;">
+                    <label>Add Equipment / Medical Products</label>
                     <div class="select-wrapper">
-                        <span class="material-symbols-rounded filter-icon">person</span>
-                        <select class="medical-select" required id="purchase-customer" name="customer_id">
-                            <option value="" disabled selected>Select buyer...</option>
-                            {% for customer in customers %}
-                                <option value="{{ customer.id }}">
-                                    {{ customer.first_name }} {{ customer.last_name }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                        <span class="material-symbols-rounded select-icon">expand_more</span>
+                        <span class="material-symbols-rounded filter-icon">manage_search</span>
+                        <input type="text" id="purchase-product-search-input" class="clinical-input" style="padding-left: 40px;" placeholder="Search commercial items by name or ID..." autocomplete="off">
+                        <span class="material-symbols-rounded select-icon" style="color: #64748b;">expand_more</span>
+                    </div>
+
+                    <div id="purchase-product-dropdown-list" class="product-dropdown-overlay hidden" style="position: absolute; top: 100%; left: 0; width: 100%; z-index: 99; max-height: 200px; margin-top: 4px; overflow-y: auto; background: white; border: 1px solid #cbd5e1; border-radius: 6px; box-shadow: 0px 4px 12px rgba(0,0,0,0.1);">
+                        {% for item in all_equipment %}
+                            {% if item.sale_price and item.sale_price | float > 0 %}
+                                <div class="purchase-product-option-item" 
+                                    data-id="{{ item.id }}" 
+                                    data-name="{{ item.name }}" 
+                                    data-stock="{{ item.stock }}" 
+                                    data-price="{{ item.sale_price or '0.00' }}" 
+                                    data-search-string="{{ item.name.lower() }} {% if item.asset_tag %}{{ item.asset_tag.lower() }}{% endif %}" 
+                                    style="padding: 10px 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span class="material-symbols-rounded" style="color: #f59e0b;">shopping_cart</span>
+                                        <div>
+                                            <strong class="prod-name-text">{{ item.name }}</strong>
+                                            {% if item.asset_tag %}
+                                                <span style="font-size: 11px; color: #94a3b8; background: #f1f5f9; padding: 1px 4px; border-radius: 3px;">{{ item.asset_tag }}</span>
+                                            {% endif %}
+                                            <div style="font-size: 11px; color: #64748b;">₱{{ "{:,.2f}".format(item.sale_price or 0) }} Unit Price</div>
+                                        </div>
+                                    </div>
+                                    <span class="badge stock-count-text" style="font-size: 11px; padding: 2px 6px; background: #fef3c7; color: #b45309; border-radius: 4px;">{{ item.stock }} Available</span>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                        <div id="no-purchase-product-match" style="display: none; padding: 10px 12px; color: #94a3b8; text-align: center;">No items found</div>
                     </div>
                 </div>
 
-                <div class="form-field">
-                    <label>Quantity to Purchase</label>
-                    <input type="number" id="purchase-qty" name="quantity" class="clinical-input" min="1" value="1" required>
-                </div>
-
-                <div class="form-field">
-                    <label>Unit Sale Price (₱)</label>
-                    <input type="number" id="purchase-unit-price" name="unit_price" class="clinical-input" step="0.01" required>
+                <div class="form-field full-width">
+                    <label style="margin-bottom: 6px; display: block;">Selected Purchase Basket</label>
+                    <div id="purchase-selected-products-container" style="display: flex; flex-direction: column; gap: 8px; border: 1px dashed #cbd5e1; padding: 12px; border-radius: 8px; min-height: 60px; background: #f8fafc;">
+                        <div id="purchase-empty-basket-placeholder" style="color: #94a3b8; text-align: center; font-size: 13px; margin: auto; padding: 8px 0;">
+                            <span class="material-symbols-rounded" style="vertical-align: middle; font-size: 18px; margin-right: 4px;">shopping_basket</span>
+                            No items added yet. Search above to select items.
+                        </div>
+                    </div>
                 </div>
 
                 <div class="form-field">
@@ -236,7 +306,7 @@
 
                 <div class="form-field">
                     <label>Amount Paid (₱)</label>
-                    <input type="number" id="purchase-amount-paid" name="amount_paid" class="clinical-input" step="0.01" placeholder="0.00" required>
+                    <input type="number" id="purchase-amount-paid" name="amount_paid" class="clinical-input" step="0.01" value="0.00" placeholder="e.g. Total or Partial deposit">
                 </div>
 
                 <div class="form-field full-width" id="purchase-ref-group" style="display: none;">
@@ -248,8 +318,8 @@
                     <label>Fulfillment Type</label>
                     <div id="purchase-fulfillment-group" style="display: flex; gap: 12px; padding: 4px 0;">
                         <label class="fulfillment-option">
-                            <input type="radio" name="fulfillment_type" value="Pickup" checked>
-                            <span>Pickup</span>
+                            <input type="radio" name="fulfillment_type" value="Walk-In" checked>
+                            <span>Walk-In</span>
                         </label>
                         <label class="fulfillment-option">
                             <input type="radio" name="fulfillment_type" value="Delivery">
@@ -271,16 +341,45 @@
 
                 <div class="form-field full-width">
                     <label>Warranty / Notes</label>
-                    <textarea class="clinical-input" id="purchase-warranty-notes" name="warranty_or_notes" placeholder="Serial numbers or terms..." style="height: 40px; padding-top: 8px; resize: none;"></textarea>
+                    <textarea class="clinical-input" id="purchase-warranty-notes" name="warranty_or_notes" placeholder="Serial numbers, conditions, or store terms..." style="height: 40px; padding-top: 8px; resize: none;"></textarea>
                 </div>
             </div>
 
             <div class="rental-summary-box">
-                <div class="summary-label-group">
-                    <span>SALE SUMMARY</span>
-                    <span>Total Price:</span>
+                <div class="summary-header">
+                    <span class="material-symbols-rounded">receipt_long</span>
+                    <span>PURCHASE BILLING SUMMARY</span>
                 </div>
-                <span class="total-amount-display" id="purchase-total-display">₱0.00</span>
+                
+                <div class="summary-details">
+                    <div class="summary-row">
+                        <span>Items Count</span>
+                        <span id="purchase-items-count-text" class="text-info">0 Items Selected</span>
+                    </div>
+
+                    <div id="purchase-summary-items-breakdown" style="display: flex; flex-direction: column; gap: 4px; padding: 6px 0 6px 12px; border-left: 2px solid #cbd5e1; margin: 4px 0;">
+                        </div>
+
+                    <div class="summary-row">
+                        <span>Gross Total Amount</span>
+                        <span id="purchase-gross-bill" class="amount">₱0.00</span>
+                    </div>
+                    
+                    <div class="summary-row deduction">
+                        <span>Amount Paid</span>
+                        <span id="purchase-summary-paid-val" class="amount">- ₱0.00</span>
+                    </div>
+                    
+                    <div class="summary-divider"></div>
+                    
+                    <div class="summary-row total-row">
+                        <div class="total-label-group">
+                            <span class="main-total-label">Balance Due</span>
+                            <small id="purchase-balance-label">Remaining collectibles</small>
+                        </div>
+                        <span class="total-amount-display" id="purchase-total-display">₱0.00</span>
+                    </div>
+                </div>
             </div>
 
             <div class="modal-footer-actions">
@@ -290,7 +389,6 @@
         </form>
     </div>
 </div>
-
 
 <div id="addPaymentModal" class="medical-modal-overlay hidden">
     <div class="medical-modal-content" style="max-width: 480px;">

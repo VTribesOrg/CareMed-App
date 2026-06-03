@@ -91,7 +91,12 @@
             <input type="text" id="table-search" placeholder="Search reference or customer..." value="{{ search_query }}">
         </div>
 
-        <div class="filter-group">
+        <div class="filter-group d-flex align-items-center flex-nowrap gap-2">
+            <select id="status-filter" class="medical-select">
+                <option value="">All Statuses</option>
+                <option value="overdue" {{ 'selected' if current_status == 'overdue' }}>⚠️ Overdue Only</option>
+            </select>
+
             <select id="type-filter" class="medical-select">
                 <option value="">All Types</option>
                 <option value="Rental" {{ 'selected' if current_type == 'Rental' }}>Rental</option>
@@ -103,63 +108,109 @@
                 <option value="Pickup" {{ 'selected' if current_fulfillment == 'Pickup' }}>Pickup</option>
                 <option value="Delivery" {{ 'selected' if current_fulfillment == 'Delivery' }}>Delivery</option>
             </select>
+            
+            <div class="custom-dropdown flex-shrink-0" id="customActionDropdown" style="position: relative; display: inline-block;">
+                <button class="d-flex align-items-center justify-content-center" 
+                        type="button" 
+                        id="customDropdownBtn"
+                        style="width: 38px; height: 38px; border-radius: 8px; border: 1px solid #e2e8f0; background-color: #ffffff; color: #64748b; padding: 0; cursor: pointer; transition: all 0.2s ease;">
+                    <span class="material-symbols-rounded" style="font-size: 20px;">more_vert</span>
+                </button>
+                
+                <ul class="custom-dropdown-menu" 
+                    id="customDropdownMenu"
+                    style="display: none; list-style: none; padding: 6px; background: #ffffff; margin: 6px 0 0 0; border-radius: 8px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); border: 1px solid #e2e8f0; min-width: 190px; position: absolute; right: 0; left: auto; z-index: 1050;">
+                    <li>
+                        <a class="custom-dropdown-item d-flex align-items-center gap-2 px-3 py-2 fw-medium" 
+                           href="{{ url_for('admin.export_transactions', q=search_query, type=current_type, fulfillment=current_fulfillment, status=current_status) }}"
+                           style="border-radius: 6px; text-decoration: none; font-size: 13.5px; color: #1e293b; transition: all 0.15s ease;">
+                            <span class="material-symbols-rounded" style="font-size: 18px; color: #16a34a;">table_view</span>
+                            <span>Export Spreadsheet</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
 
-            {% if search_query or current_type or current_fulfillment %}
-            <button type="button" id="clear-filters-btn" class="clear-filter-btn">
+            {% if search_query or current_type or current_fulfillment or current_status %}
+            <button type="button" id="clear-filters-btn" class="clear-filter-btn text-nowrap">
                 <span class="material-symbols-rounded">filter_alt_off</span>
-                Clear
+                Reset
             </button>
             {% endif %}
         </div>
     </div>
 
+    <style>
+        /* Dropdown Visibility & Interactions */
+        .custom-dropdown-menu.show {
+            display: block !important;
+            animation: dropdownFadeIn 0.15s ease-out;
+        }
+        
+        #customDropdownBtn:hover {
+            background-color: #f8fafc !important;
+            border-color: #cbd5e1 !important;
+            color: #334155 !important;
+        }
+
+        .custom-dropdown-item:hover {
+            background-color: #f1f5f9 !important;
+            color: #0f172a !important;
+        }
+
+        @keyframes dropdownFadeIn {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+
     <div class="table-responsive">
-        <table class="medical-table">
+        <table class="medical-table align-middle">
             <thead>
                 <tr>
-                    <th>Ref No.</th>
+                    <th style="min-width: 140px;">Ref No.</th>
                     <th>Customer Name</th>
                     <th>Type</th>
                     <th>Item</th>
                     <th>Fulfillment</th>
-                    <th>Total</th>
-                    <th>Paid</th>
-                    <th>Balance Due</th>
-                    <th>Status</th>
-                    <th>Date</th>
-                    <th class="text-end">Actions</th>
+                    <th class="text-end" style="min-width: 100px;">Total</th>
+                    <th class="text-end" style="min-width: 100px;">Paid</th>
+                    <th class="text-end" style="min-width: 120px;">Balance Due</th>
+                    <th class="text-center" style="min-width: 130px;">Status</th>
+                    <th style="min-width: 120px;">Date</th>
+                    <th class="text-end" style="min-width: 90px;">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for txn in transactions %}
                 <tr>
-                    <td class="ref-cell">
-                        <div class="ref-copy-wrapper">
+                    <td>
+                        <div class="ref-copy-wrapper d-flex align-items-center">
                             <input type="text" class="ref-id-input" value="{{ txn.reference_no }}" readonly title="Click to select">
-                            <div class="btn-copy-hint" onclick="navigator.clipboard.writeText('{{ txn.reference_no }}')">
-                                <i class="material-symbols-rounded">content_copy</i>
+                            <div class="btn-copy-hint ms-1" onclick="navigator.clipboard.writeText('{{ txn.reference_no }}')" style="cursor: pointer;">
+                                <i class="material-symbols-rounded" style="font-size: 18px; vertical-align: middle;">content_copy</i>
                             </div>
                         </div>
                     </td>
 
                     <td>
-                        <span class="fw-bold text-dark">{{ txn.customer_name or (txn.customer.first_name ~ ' ' ~ txn.customer.last_name) }}</span>
+                        <span class="fw-bold text-dark text-nowrap">{{ txn.customer_name or (txn.customer.first_name ~ ' ' ~ txn.customer.last_name) }}</span>
                     </td>
 
                     <td>
-                        <span class="badge {{ 'badge-soft-info' if txn.transaction_type == 'Rental' else 'badge-soft-primary' }}">
+                        <span class="badge {{ 'badge-soft-info' if txn.transaction_type == 'Rental' else 'badge-soft-primary' }} text-nowrap">
                             {{ txn.transaction_type }}
                         </span>
                     </td>
 
                     <td>
-                        <small class="fw-medium text-dark text-truncate d-block" style="max-width: 120px;">
+                        <small class="fw-medium text-dark text-truncate d-block" style="max-width: 130px;" title="{% if txn.rentals %}{{ txn.rentals[0].product.equipment_type }}{% elif txn.purchases %}{{ txn.purchases[0].product.equipment_type }}{% endif %}">
                             {% if txn.rentals %}
                                 {{ txn.rentals[0].product.equipment_type }}
-                                {% if txn.rentals|length > 1 %}<span class="text-primary">+{{ txn.rentals|length - 1 }}</span>{% endif %}
+                                {% if txn.rentals|length > 1 %}<span class="text-primary fw-bold">+{{ txn.rentals|length - 1 }}</span>{% endif %}
                             {% elif txn.purchases %}
                                 {{ txn.purchases[0].product.equipment_type }}
-                                {% if txn.purchases|length > 1 %}<span class="text-primary">+{{ txn.purchases|length - 1 }}</span>{% endif %}
+                                {% if txn.purchases|length > 1 %}<span class="text-primary fw-bold">+{{ txn.purchases|length - 1 }}</span>{% endif %}
                             {% else %}
                                 <span class="text-muted">—</span>
                             {% endif %}
@@ -167,54 +218,55 @@
                     </td>
 
                     <td>
-                        <div class="d-flex align-items-center">
-                            <small>{{ txn.fulfillment_type }}</small>
-                        </div>
+                        <span class="text-muted small text-nowrap">{{ txn.fulfillment_type }}</span>
                     </td>
 
-                    <td class="fw-bold text-dark">₱{{ "{:,.2f}".format(txn.total_amount) }}</td>
-
-                    <td class="text-success fw-medium">₱{{ "{:,.2f}".format(txn.amount_paid) }}</td>
-
-                    <td>
+                    <td class="fw-bold text-dark text-end">₱{{ "{:,.2f}".format(txn.total_amount) }}</td>
+                    <td class="text-success fw-medium text-end">₱{{ "{:,.2f}".format(txn.amount_paid) }}</td>
+                    <td class="text-end">
                         {% if txn.balance_due > 0 %}
                             <span class="text-danger fw-bold">₱{{ "{:,.2f}".format(txn.balance_due) }}</span>
                         {% else %}
-                            <div class="d-flex flex-column">
-                                <span class="badge badge-soft-success w-fit">Fully Paid</span>
+                            <div class="d-flex justify-content-end">
+                                <span class="badge badge-soft-success text-nowrap px-2 py-1" style="display: inline-block; white-space: nowrap;">Fully Paid</span>
                             </div>
                         {% endif %}
                     </td>
 
-                    <td class="status-cell">
-                        {% if txn.status == 'Open' and txn.payment_status == 'Fully Paid' %}
-                            {% if txn.transaction_type == 'Rental' %}
-                                <div class="status-pill status-awaiting-return" title="Payment complete, item with customer">
-                                    <span class="material-symbols-rounded">assignment_return</span>
-                                    <span class="status-text">Awaiting Return</span>
+                    <td class="text-center">
+                        <div class="d-inline-flex justify-content-center w-100">
+                            {% if txn.calculated_overdue %}
+                                <div class="status-pill status-overdue" title="Payment terms or contract duration window is overdue" style="background: #fef2f2; color: #ef4444; border: 1px solid #fee2e2; display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; white-space: nowrap;">
+                                    <span class="material-symbols-rounded" style="font-size: 16px;">error</span>
+                                    <span class="status-text">Overdue</span>
                                 </div>
+                            {% elif txn.status == 'Open' and txn.payment_status == 'Fully Paid' %}
+                                {% if txn.transaction_type == 'Rental' %}
+                                    <div class="status-pill status-awaiting-return" title="Payment complete, item with customer">
+                                        <span class="material-symbols-rounded">assignment_return</span>
+                                        <span class="status-text">Awaiting Return</span>
+                                    </div>
+                                {% else %}
+                                    <div class="status-pill status-awaiting-pickup" title="Payment complete, item ready for customer">
+                                        <span class="material-symbols-rounded">package_2</span>
+                                        <span class="status-text">Awaiting Pickup</span>
+                                    </div>
+                                {% endif %}
                             {% else %}
-                                <div class="status-pill status-awaiting-pickup" title="Payment complete, item ready for customer">
-                                    <span class="material-symbols-rounded">package_2</span>
-                                    <span class="status-text">Awaiting Pickup</span>
+                                <div class="status-pill status-{{ txn.status|lower }}" data-status="{{ txn.status }}">
+                                    <span class="dot"></span>
+                                    <span class="status-text">{{ txn.status }}</span>
                                 </div>
                             {% endif %}
-                        {% else %}
-                            <div class="status-pill status-{{ txn.status|lower }}" data-status="{{ txn.status }}">
-                                <span class="dot"></span>
-                                <span class="status-text">{{ txn.status }}</span>
-                            </div>
-                        {% endif %}
-                    </td>
-
-                    <td>
-                        <div class="date-stack">
-                            <span class="fw-medium">{{ txn.created_at.strftime('%B %d, %Y') }}</span>
                         </div>
                     </td>
 
+                    <td>
+                        <span class="fw-medium text-muted small text-nowrap">{{ txn.created_at.strftime('%b %d, %Y') }}</span>
+                    </td>
+
                     <td class="text-end">
-                        <div class="action-row-container d-flex justify-content-end gap-1">
+                        <div class="action-row-container d-inline-flex justify-content-end gap-1">
                             <button type="button"
                                 class="btn-action btn-add-payment {{ 'disabled opacity-50' if txn.balance_due <= 0 }}"
                                 title="Add Payment"
@@ -236,7 +288,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="12" style="height: 400px; text-align: center; vertical-align: middle; border: none;">
+                    <td colspan="11" style="height: 400px; text-align: center; vertical-align: middle; border: none;">
                         <div class="d-flex flex-column align-items-center justify-content-center h-100 w-100">
                             <div class="empty-state-content" style="margin: auto;">
                                 <i class="material-symbols-rounded text-light" style="font-size: 80px; opacity: 0.4; display: block; margin: 0 auto;">receipt_long</i>
@@ -270,7 +322,7 @@
 
         <div class="pagination-controls">
             {% if pagination.has_prev %}
-            <a href="{{ url_for('admin.transactions', page=pagination.prev_num, limit=current_limit, q=search_query, type=current_type, fulfillment=current_fulfillment) }}" class="pag-btn">
+            <a href="{{ url_for('admin.transactions', page=pagination.prev_num, limit=current_limit, q=search_query, type=current_type, fulfillment=current_fulfillment, status=current_status) }}" class="pag-btn">
                 <span class="material-symbols-rounded">chevron_left</span>
             </a>
             {% else %}
@@ -280,7 +332,7 @@
             <span class="page-number">Page <strong>{{ pagination.page }}</strong> of {{ pagination.pages }}</span>
 
             {% if pagination.has_next %}
-            <a href="{{ url_for('admin.transactions', page=pagination.next_num, limit=current_limit, q=search_query, type=current_type, fulfillment=current_fulfillment) }}" class="pag-btn">
+            <a href="{{ url_for('admin.transactions', page=pagination.next_num, limit=current_limit, q=search_query, type=current_type, fulfillment=current_fulfillment, status=current_status) }}" class="pag-btn">
                 <span class="material-symbols-rounded">chevron_right</span>
             </a>
             {% else %}
@@ -294,10 +346,9 @@
             </div>
         </div>
     </div>
-
 </div>
 
-<!-- New Transaction Selection Modal -->
+
 <div id="txnSelectionModal" class="medical-modal-overlay hidden">
     <div class="medical-modal-content" style="max-width: 500px;">
         <div class="modal-header-tnx-row">
@@ -310,21 +361,50 @@
 
         <div class="modal-body" style="padding: 20px 0;">
             <div class="form-field">
-                <label style="font-weight: 700; color: #1e293b; margin-bottom: 8px; display: block;">1. Select Equipment</label>
-                <div class="select-wrapper" style="position: relative;">
-                    <select id="global-equipment-select" class="medical-select" style="width: 100%; padding-left: 44px;">
-                        <option value="" disabled selected>Search equipment...</option>
-                        {% for item in all_equipment %}
-                            <option value="{{ item.id }}"
-                                    data-name="{{ item.equipment_type }} {{ item.name }}"
-                                    data-stock="{{ item.stock }}"
-                                    data-price="{{ item.sale_price }}"
-                                    data-rent="{{ item.rent_price }}">
-                                {{ item.name }} — (Qty: {{ item.stock }}) — {{ item.transaction_type }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                    <span class="material-symbols-rounded" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #64748b;">inventory_2</span>
+                <label style="font-weight: 700; color: #1e293b; margin-bottom: 8px; display: block;">1. Select Customer / Patient</label>
+                
+                <div class="customer-search-container" style="position: relative;">
+                    <input type="text" 
+                           id="customer-search-input" 
+                           class="medical-select" 
+                           placeholder="Type to search name or email..." 
+                           style="width: 100%; height: 44px; padding: 0 16px 0 44px; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #1e293b; font-size: 0.95rem; outline: none; box-sizing: border-box;"
+                           autocomplete="off">
+                    <span class="material-symbols-rounded" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #64748b; pointer-events: none; font-size: 20px;">person_search</span>
+                    
+                    <input type="hidden" id="global-customer-id" name="customer_id" value="">
+                    
+                    <div id="customer-dropdown-list" class="custom-search-dropdown hidden" style="position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; max-height: 220px; overflow-y: auto; z-index: 1050; box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -2px rgba(15, 23, 42, 0.04); margin-top: 0; box-sizing: border-box;">
+                        {% if customers %}
+                            {% for cust in customers %}
+                                <div class="customer-option-item" 
+                                    data-id="{{ cust.id }}" 
+                                    data-search-string="{{ cust.full_name|lower }} {{ cust.user.email|lower if cust.user else '' }}"
+                                    style="padding: 10px 16px; cursor: pointer; border-bottom: 1px solid #f1f5f9; display: flex; flex-direction: column; gap: 2px; transition: background-color 0.15s ease;">
+                                    
+                                    <strong class="cust-name-text" style="font-size: 0.9rem; color: #1e293b; font-weight: 600;">
+                                        {{ cust.full_name }}
+                                    </strong>
+
+                                    <small class="cust-sub-text" style="font-size: 0.75rem; color: #64748b;">
+                                        {% if cust.user %}
+                                            Email: {{ cust.user.email }}
+                                        {% else %}
+                                            Contact: {{ cust.contact_number or 'No phone logged' }}
+                                        {% endif %}
+                                    </small>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div style="padding: 16px; text-align: center; color: #64748b; font-size: 0.85rem;">
+                                No active customer records available
+                            </div>
+                        {% endif %}
+
+                        <div id="no-customer-match" style="padding: 16px; text-align: center; color: #94a3b8; font-size: 0.85rem; display: none;">
+                            No customer names match your search
+                        </div>
+                    </div>
                 </div>
             </div>
 

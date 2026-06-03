@@ -242,7 +242,6 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
             <div style="display:flex; gap:0; align-items:stretch; padding:0;">
-                <!-- Documents -->
                 <div style="flex:0 0 320px; padding:0 0 24px 24px; background:#fcfdfe;">
                     <p style="font-size:0.7rem; color:#3b82f6; text-transform:uppercase; font-weight:800; letter-spacing:0.05em; margin:0 0 15px 0;">Identity Documents</p>
 
@@ -279,7 +278,6 @@
 
                 <div style="width:1px; background:#f1f5f9; align-self:stretch;"></div>
 
-                <!-- Personal Info -->
                 <div style="flex:1; padding:0 24px 24px 24px; display:flex; flex-direction:column; gap:12px;">
                     <p style="font-size:0.7rem; color:#3b82f6; text-transform:uppercase; font-weight:800; letter-spacing:0.05em; margin:0;">Personal Information</p>
 
@@ -309,9 +307,15 @@
                         </div>
                     </div>
 
-                    <div class="form-field">
-                        <label style="font-size:0.75rem; margin-bottom:2px; display:block;">Phone Number</label>
-                        <input type="tel" name="contact_number" class="clinical-input" placeholder="09XX XXX XXXX" style="height:40px;" required>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                        <div class="form-field">
+                            <label style="font-size:0.75rem; margin-bottom:2px; display:block;">Primary Contact No.</label>
+                            <input type="tel" name="contact_number" class="clinical-input" placeholder="09XX XXX XXXX" style="height:40px;" required>
+                        </div>
+                        <div class="form-field">
+                            <label style="font-size:0.75rem; margin-bottom:2px; display:block;">Secondary Contact No.</label>
+                            <input type="tel" name="secondary_contact_number" class="clinical-input" placeholder="09XX XXX XXXX (Optional)" style="height:40px;">
+                        </div>
                     </div>
 
                     <div class="form-field">

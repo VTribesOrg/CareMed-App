@@ -13,6 +13,7 @@ class Customer(db.Model):
     gender = db.Column(db.String(20), nullable=True) 
 
     contact_number = db.Column(db.String(50), nullable=True)
+    secondary_contact_number = db.Column(db.String(50), nullable=True)
     home_address = db.Column(db.String(255), nullable=True)
     
     primary_id_type = db.Column(db.String(50), nullable=True)
@@ -41,25 +42,20 @@ class Customer(db.Model):
     
     @property
     def masked_phone(self):
-        if not self.contact_number:
+        return self._mask_phone_logic(self.contact_number)
+
+    @property
+    def masked_secondary_phone(self):
+        return self._mask_phone_logic(self.secondary_contact_number)
+
+    def _mask_phone_logic(self, target_number):
+        if not target_number:
             return None
-
         try:
-            phone = self.contact_number.strip()
-
-            # Keep only digits for masking logic
+            phone = target_number.strip()
             digits = ''.join(filter(str.isdigit, phone))
-
             if len(digits) <= 4:
                 return '*' * len(digits)
-
-            # Show first 2 and last 2 digits
-            masked = (
-                digits[:2] +
-                '*' * (len(digits) - 4) +
-                digits[-2:]
-            )
-
-            return masked
+            return digits[:2] + '*' * (len(digits) - 4) + digits[-2:]
         except Exception:
             return None

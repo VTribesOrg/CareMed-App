@@ -7,35 +7,79 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/admin/admin_profile.css') }}">
 {% endblock %}
 
+
+{# Override flash block — this page uses toast-style flash messages #}
+{% block flash %}
+<div id="main-toast-container" class="toast-container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="medical-toast {{ category or 'info' }}" role="alert">
+                    <div class="toast-progress"></div>
+                    <span class="material-symbols-rounded toast-icon">
+                        {% if category == 'success' %}check_circle
+                        {% elif category == 'error' %}error
+                        {% elif category == 'warning' %}warning
+                        {% else %}info{% endif %}
+                    </span>
+                    <div class="toast-content">
+                        <span class="toast-title">{{ category|capitalize or 'Notice' }}</span>
+                        <span class="toast-message">{{ message|replace('\n', '<br>')|safe }}</span>
+                    </div>
+                    <button class="toast-close" onclick="this.parentElement.remove()">
+                        <span class="material-symbols-rounded">close</span>
+                    </button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+</div>
+
+<template id="toast-template">
+    <div class="medical-toast" role="alert">
+        <div class="toast-progress"></div>
+        <span class="material-symbols-rounded toast-icon"></span>
+        <div class="toast-content">
+            <span class="toast-title"></span>
+            <span class="toast-message"></span>
+        </div>
+        <button class="toast-close" onclick="this.parentElement.remove()">
+            <span class="material-symbols-rounded">close</span>
+        </button>
+    </div>
+</template>
+{% endblock %}
+
 {% block content %}
 
 <div class="profile-settings-wrapper">
 
-    <!-- Profile Header Banner -->
     <div class="activity-section profile-header-banner"
         style="margin-bottom:24px; display:flex; align-items:center; gap:24px;">
         <div style="position:relative; width:120px; height:120px; flex-shrink:0;">
-            <input type="file" id="avatar-upload" accept="image/*" hidden>
+            <input type="file" id="avatar-upload" accept="image/*" style="display: none;">
 
-            <div class="profile-avatar-large" id="avatar-container">
-                {% if current_user.image_file %}
-                    <img src="{{ url_for('static', filename='profile_pics/' + current_user.image_file) }}"
-                         id="profile-img-display" class="avatar-img">
+            <div class="profile-avatar-large" id="avatar-container" style="cursor: pointer; width: 100%; height: 100%; border-radius: 50%; overflow: hidden; background: #f1f5f9; display: flex; align-items: center; justify-content: center;">
+                {% if current_user.profile_path %}
+                    <img src="{{ url_for('admin.serve_profile_pic', filename=current_user.profile_path) }}"
+                         id="profile-img-display" class="avatar-img" style="width: 100%; height: 100%; object-fit: cover;">
+                    <span class="material-symbols-rounded" id="profile-avatar-icon" style="display:none; font-size: 64px; color: #94a3b8;">person</span>
                 {% else %}
-                    <span class="material-symbols-rounded" id="profile-avatar-icon">person</span>
-                    <img src="" id="profile-img-display" class="avatar-img" style="display:none;">
+                    <span class="material-symbols-rounded" id="profile-avatar-icon" style="font-size: 64px; color: #94a3b8;">person</span>
+                    <img src="" id="profile-img-display" class="avatar-img" style="display:none; width: 100%; height: 100%; object-fit: cover;">
                 {% endif %}
             </div>
 
-            <button class="icon-btn" id="camera-trigger"
+            <button class="icon-btn" id="camera-trigger" type="button"
                 style="position:absolute; bottom:0; right:0; background:#52B788; color:white; border-radius:50%;
-                       width:32px; height:32px; border:2px solid white; pointer-events:none; z-index:5;
+                       width:32px; height:32px; border:2px solid white; cursor:pointer; z-index:5;
                        display:flex; align-items:center; justify-content:center;">
                 <span class="material-symbols-rounded" style="font-size:18px;">photo_camera</span>
             </button>
 
-            <button id="remove-avatar" title="Remove Photo">
-                <span class="material-symbols-rounded" style="font-size:16px; font-weight:800;">close</span>
+            <button id="remove-avatar" type="button" title="Remove Photo" 
+                style="position: absolute; top: 0; right: 0; background: #ef4444; color: white; border: 2px solid white; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; display: {% if current_user.profile_path %}flex{% else %}none{% endif %}; align-items: center; justify-content: center; z-index: 5;">
+                <span class="material-symbols-rounded" style="font-size:14px; font-weight:800;">close</span>
             </button>
         </div>
 
@@ -49,7 +93,7 @@
             <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
                 <span class="status-pill status-ready">Verified {{ current_user.role }}</span>
                 <span class="status-pill" style="background:#e0f2fe; color:#0369a1;">
-                    Member since {{ current_user.created_at.strftime('%Y') if current_user.created_at else '2024' }}
+                    Member since {{ current_user.created_at.strftime('%Y') if current_user.created_at else '2026' }}
                 </span>
             </div>
         </div>
@@ -57,7 +101,6 @@
 
     <div class="dashboard-split">
 
-        <!-- Settings Nav -->
         <aside class="settings-nav">
             <div class="activity-section" style="padding:12px; height:fit-content; position:sticky; top:20px;">
                 <nav style="display:flex; flex-direction:column; gap:4px;">
@@ -77,26 +120,13 @@
             </div>
         </aside>
 
-        <!-- Form Area -->
         <div style="display:flex; flex-direction:column; gap:24px; flex:1;">
             <form id="profile-master-form" method="POST" action="{{ url_for('admin.profile') }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-                <div class="activity-section profile-header-banner"
-                     style="margin-bottom:24px; display:flex; align-items:center; gap:24px;">
-                    <div>
-                        <h2 class="registry-title" style="font-size:1.5rem; margin-bottom:4px;">
-                            {{ current_user.first_name }} {{ current_user.last_name }}
-                        </h2>
-                        <p style="margin:0; color:#64748b; font-weight:600; font-size:0.9rem;">
-                            System {{ current_user.role | capitalize }} • CareMed Iloilo Branch
-                        </p>
-                    </div>
-                </div>
-
                 <section id="personal-info" class="activity-section content-section" style="margin-bottom:24px;">
-                    <div class="form-section-header">
-                        <h3 class="registry-title">Personal Information</h3>
+                    <div class="form-section-header" style="margin-bottom: 20px;">
+                        <h3 class="registry-title" style="margin: 0;">Personal Information</h3>
                     </div>
                     <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px,1fr)); gap:20px;">
                         <div class="input-group">

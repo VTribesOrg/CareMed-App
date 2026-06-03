@@ -85,7 +85,7 @@ class Transaction(db.Model):
     payments = db.relationship("Payment", back_populates="transaction", cascade="all, delete-orphan")
     payment_proof = db.relationship("PaymentProof", backref="transaction", uselist=False, cascade="all, delete-orphan")
     
-    fulfillment_type = db.Column(db.String(20), default="Pickup") 
+    fulfillment_type = db.Column(db.String(20), default="Walk-in") 
     delivery_status = db.Column(db.String(20), default="N/A") 
     tracking_status = db.Column(db.String(20), default="SUBMITTED")
     delivery_address = db.Column(db.Text, nullable=True)
@@ -153,13 +153,12 @@ class Transaction(db.Model):
             if self.payment_status == "Fully Paid":
                 if self.transaction_type == "Sale":
                     if self.fulfillment_type == "Delivery":
-                        # Close if delivery confirmed via either field
                         if (self.delivery_status == "Delivered"
                                 or self.tracking_status == "DELIVERED"):
                             self.status = "Closed"
-                            self.delivery_status = "Delivered"  # keep in sync
-                    else:  # Pickup
-                        if self.delivery_status in ["Picked Up", "N/A"]:
+                            self.delivery_status = "Delivered"  
+                    else:  
+                        if self.delivery_status in ["Walk-in", "N/A"]:
                             self.status = "Closed"
 
                 elif self.transaction_type == "Rental":

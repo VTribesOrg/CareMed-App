@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, url_for, redirect, flash, request, jsonify, current_app
+from flask import Blueprint, render_template, url_for, redirect, flash, request, jsonify, current_app, send_from_directory
 from flask_login import current_user
 from extensions import db, limiter, csrf
 from sqlalchemy.orm import joinedload
@@ -222,7 +222,6 @@ def unverify_customer(id):
         
     return redirect(url_for('admin.customer_details', id=id))
 
-
 @admin_bp.route('/admin/add-customer', methods=['POST'])
 @login_required
 def add_customer():
@@ -231,19 +230,21 @@ def add_customer():
         flash("Unauthorized access.", "error")
         return redirect(url_for('user.homepage'))
 
-
     first_name = request.form.get('first_name', '').strip().title()
     last_name = request.form.get('last_name', '').strip().title()
     contact_number = request.form.get('contact_number', '').strip()
+    
+    secondary_contact = request.form.get('secondary_contact_number', '')
+    secondary_contact_number = secondary_contact.strip() if secondary_contact else None
+    
     home_address = request.form.get('home_address', '').strip()
     birthday_str = request.form.get('birthday')
     gender = request.form.get('gender')
     primary_id_type = request.form.get('primary_id_type')
     secondary_id_type = request.form.get('secondary_id_type')
 
-
     if not all([first_name, last_name, contact_number, birthday_str]):
-        flash("Basic details (Name, Contact, Birthday) are required.", "error")
+        flash("Basic details (Name, Primary Contact, Birthday) are required.", "error")
         return redirect(request.referrer)
 
     try:
@@ -251,7 +252,6 @@ def add_customer():
     except (ValueError, TypeError):
         flash("Invalid birthday format. Please use YYYY-MM-DD.", "error")
         return redirect(request.referrer)
-
 
     existing = Customer.query.filter_by(
         first_name=first_name, 
@@ -261,7 +261,6 @@ def add_customer():
     if existing:
         flash(f"A customer named {first_name} {last_name} with this birthday already exists.", "warning")
         return redirect(request.referrer)
-
 
     upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'ids')
     os.makedirs(upload_folder, exist_ok=True)
@@ -282,7 +281,6 @@ def add_customer():
     valid_id_path = save_id_file(valid_id_file)
     secondary_id_path = save_id_file(secondary_id_file)
 
-
     new_customer = Customer(
         user_id=None, 
         first_name=first_name,
@@ -290,6 +288,7 @@ def add_customer():
         birthday=birthday,
         gender=gender,
         contact_number=contact_number,
+        secondary_contact_number=secondary_contact_number,
         home_address=home_address,
         primary_id_type=primary_id_type,
         secondary_id_type=secondary_id_type,
@@ -303,6 +302,7 @@ def add_customer():
 
     try:
         db.session.add(new_customer)
+        
         log = InventoryLog(
             action="Admin Created Customer",
             note=f"Customer {first_name} {last_name} added manually by {current_user.email}",
@@ -712,18 +712,21 @@ def edit_product(product_id):
 
 @admin_bp.route('/update_stock/<int:product_id>', methods=['POST'])
 @login_required
-@administrator_required 
+@administrator_required
 @csrf.exempt
 def update_stock(product_id):
 
     data = request.get_json() or {}
     product = Product.query.get_or_404(product_id)
-    
+
     try:
         increment = int(data.get('increment', 0))
         reason = data.get('reason', '').strip() or 'Stock replenishment'
     except (ValueError, TypeError):
-        return jsonify({"success": False, "message": "Invalid quantity format."}), 400
+        return jsonify({
+            "success": False,
+            "message": "Invalid quantity format."
+        }), 400
 
     if increment <= 0:
         return jsonify({
@@ -734,21 +737,25 @@ def update_stock(product_id):
     try:
         old_stock = product.stock
         product.stock += increment
-        
-        if product.status == "Out of Stock" and product.stock > 0:
-            product.status = "Available"
 
-        log_note = f"Restocked: {old_stock} → {product.stock}. Reason: {reason}"
-        
+        product.status = (
+            "Available" if product.stock > 0 else "Out of Stock"
+        )
+
+        log_note = (
+            f"Restocked: {old_stock} → {product.stock}. "
+            f"Reason: {reason}"
+        )
+
         inventory_log = InventoryLog(
             product_id=product.id,
             action="Restock",
             quantity=increment,
             note=log_note[:255],
             user_id=current_user.id,
-            user_name=current_user.full_name 
+            user_name=current_user.full_name
         )
-        
+
         db.session.add(inventory_log)
         db.session.commit()
 
@@ -756,15 +763,22 @@ def update_stock(product_id):
             "success": True,
             "new_stock": product.stock,
             "new_status": product.status,
-            "message": f"Added {increment} units. Total stock for {product.model} is now {product.stock}."
+            "message": (
+                f"Added {increment} units. "
+                f"Total stock for {product.name} is now {product.stock}."
+            )
         })
 
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        current_app.logger.error(f"Stock Update Error for Product {product_id}: {e}")
+
+        current_app.logger.exception(
+            f"Stock Update Error for Product {product_id}"
+        )
+
         return jsonify({
-            "success": False, 
-            "message": "A database error occurred while updating stock."
+            "success": False,
+            "message": "Unable to update inventory at this time."
         }), 500
     
         
@@ -934,26 +948,43 @@ def process_purchase():
 @login_required
 @administrator_required
 def process_rental():
-    product_id = request.form.get('product_id')
 
-    if not product_id:
-        flash("No product was selected. Please restart the transaction.", "danger")
+    product_ids = request.form.getlist('product_id[]') or request.form.getlist('product_id')
+    quantities = request.form.getlist('quantity[]') or request.form.getlist('quantity')
+    unit_prices = request.form.getlist('unit_price[]') or request.form.getlist('unit_price')
+
+    if not product_ids and request.form.get('product_id'):
+        product_ids = [request.form.get('product_id')]
+        quantities = [request.form.get('quantity', 1)]
+        unit_prices = [request.form.get('unit_price', '0')]
+
+    if not product_ids or len(product_ids) == 0:
+        flash("No products were selected in your equipment basket. Please restart the transaction.", "danger")
         return redirect(request.referrer)
 
-    try:
-        raw_unit_price = request.form.get('unit_price', '0').replace(',', '').strip() or '0'
-        raw_amount_paid = request.form.get('amount_paid', '0').replace(',', '').strip() or '0'
-        quantity = int(request.form.get('quantity', 1))
+    # Fulfillment parsing and Delivery Fee assignment logic
+    fulfillment_type = request.form.get('fulfillment_type', 'Walk-In')
+    delivery_fee = Decimal("0.00")
 
-        unit_price = Decimal(raw_unit_price)
+    try:
+        raw_amount_paid = request.form.get('amount_paid', '0').replace(',', '').strip() or '0'
         amount_paid = Decimal(raw_amount_paid)
 
-        if quantity <= 0:
-            flash("Quantity must be at least 1.", "warning")
+        if amount_paid < 0:
+            flash("Initial payment cannot be negative.", "warning")
             return redirect(request.referrer)
 
+        # Only process delivery fees if fulfillment type explicitly says Delivery
+        if fulfillment_type == "Delivery":
+            raw_delivery_fee = request.form.get('delivery_fee', '0').replace(',', '').strip() or '0'
+            delivery_fee = Decimal(raw_delivery_fee)
+
+            if delivery_fee < 0:
+                flash("Delivery fee cannot be negative.", "warning")
+                return redirect(request.referrer)
+
     except Exception:
-        flash("Invalid numeric values or quantity provided.", "danger")
+        flash("Invalid numeric values provided for calculations.", "danger")
         return redirect(request.referrer)
 
     method = request.form.get('payment_method')
@@ -965,17 +996,7 @@ def process_rental():
         flash(f"A reference number is required for {method} payments.", "warning")
         return redirect(request.referrer)
 
-    if amount_paid < 0:
-        flash("Initial payment cannot be negative.", "warning")
-        return redirect(request.referrer)
-
     try:
-        product = Product.query.get_or_404(product_id)
-
-        if product.stock < quantity:
-            flash(f"Insufficient stock. Only {product.stock} units available.", "danger")
-            return redirect(request.referrer)
-
         transaction_type = request.form.get('transaction_type', 'Rental')
         prefix = "RNT" if transaction_type == "Rental" else "PUR"
 
@@ -992,14 +1013,12 @@ def process_rental():
             flash("Return date cannot be earlier than start date.", "danger")
             return redirect(request.referrer)
 
-        contract_total = unit_price
-
         new_txn = Transaction(
             reference_no=ref_no,
             customer_id=request.form.get('customer_id'),
             transaction_type=transaction_type,
-            total_amount=contract_total,
-            fulfillment_type=request.form.get('fulfillment_type'),
+            total_amount=Decimal("0.00"),  
+            fulfillment_type=fulfillment_type,
             delivery_address=request.form.get('delivery_address'),
             landmark=request.form.get('landmark'),
             status="Open"
@@ -1007,37 +1026,61 @@ def process_rental():
         db.session.add(new_txn)
         db.session.flush()
 
-        new_rental = Rental(
-            transaction_id=new_txn.id,
-            product_id=product_id,
-            customer_id=new_txn.customer_id,
-            start_date=start_date,
-            expected_return_date=expected_return,
-            monthly_rate=unit_price,  
-            quantity=quantity,        
-            deposit_amount=Decimal("0.00"),
-            status="Active"
-        )
-        db.session.add(new_rental)
+        created_rentals = []
 
-        product.stock -= quantity
-        new_log = InventoryLog(
-            product_id=product.id,
-            action="Rental",
-            quantity=-quantity,
-            note=f"Rental Transaction: {ref_no}",
-            user_id=current_user.id,
-            user_name=current_user.full_name,
-            created_at=datetime.now()
-        )
-        db.session.add(new_log)
+        for index, p_id in enumerate(product_ids):
+            product = Product.query.get_or_404(p_id)
+            
+            qty = int(quantities[index]) if index < len(quantities) else 1
+            raw_price = unit_prices[index].replace(',', '').strip() if index < len(unit_prices) else '0'
+            u_price = Decimal(raw_price)
 
-        if product.stock <= 0:
-            product.status = "Out of Stock"
+            if qty <= 0:
+                db.session.rollback()
+                flash(f"Quantity for product '{product.name}' must be at least 1.", "warning")
+                return redirect(request.referrer)
+
+            if product.stock < qty:
+                db.session.rollback()
+                flash(f"Insufficient stock for '{product.name}'. Only {product.stock} units available.", "danger")
+                return redirect(request.referrer)
+
+            new_rental = Rental(
+                transaction_id=new_txn.id,
+                product_id=p_id,
+                customer_id=new_txn.customer_id,
+                start_date=start_date,
+                expected_return_date=expected_return,
+                monthly_rate=u_price,  
+                quantity=qty,        
+                deposit_amount=Decimal("0.00"),
+                delivery_fee=delivery_fee, # Propagated delivery fee tracking down onto model items
+                status="Active"
+            )
+            db.session.add(new_rental)
+            created_rentals.append(new_rental)
+
+            product.stock -= qty
+            
+            new_log = InventoryLog(
+                product_id=product.id,
+                action="Rental",
+                quantity=-qty,
+                note=f"Rental Transaction: {ref_no}",
+                user_id=current_user.id,
+                user_name=current_user.full_name,
+                created_at=datetime.now()
+            )
+            db.session.add(new_log)
+
+            if product.stock <= 0:
+                product.status = "Out of Stock"
 
         db.session.flush()
 
-        new_rental.generate_monthly_invoices()
+        for rental_item in created_rentals:
+            rental_item.generate_monthly_invoices()
+        
         db.session.flush()
 
         if amount_paid > 0:
@@ -1048,7 +1091,10 @@ def process_rental():
                 flash(f"The reference number '{user_ref_no}' has already been used.", "danger")
                 return redirect(request.referrer)
 
-            invoices = RentalInvoice.query.filter_by(rental_id=new_rental.id).order_by(RentalInvoice.service_period_start).all()
+            rental_ids = [r.id for r in created_rentals]
+            invoices = RentalInvoice.query.filter(RentalInvoice.rental_id.in_(rental_ids))\
+                .order_by(RentalInvoice.service_period_start).all()
+            
             remaining_payment = amount_paid
 
             for invoice in invoices:
@@ -1073,7 +1119,6 @@ def process_rental():
                 )
                 db.session.add(new_payment)
 
-
                 if payment_amount >= invoice_balance:
                     invoice.status = "Paid"
                 else:
@@ -1083,13 +1128,15 @@ def process_rental():
 
         new_txn.update_totals()
         db.session.commit()
-        flash(f"Rental confirmed for {quantity} unit(s)! Ref: {ref_no}", "success")
+        
+        total_qty_sum = sum(int(q) for q in quantities)
+        flash(f"Rental confirmed for {total_qty_sum} unit(s) across {len(product_ids)} unique item type(s)! Ref: {ref_no}", "success")
 
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"RENTAL_PROCESS_ERROR: {str(e)}")
-        flash(f"Error: {str(e)}", "danger")
-
+        flash(f"Error processing contract basket: {str(e)}", "danger")
+        
     return redirect(url_for('admin.transactions'))
 
 
@@ -1139,7 +1186,6 @@ def product_history(product_id):
         }), 500
 
 
-
 @admin_bp.route('/transactions')
 @login_required
 @administrator_required
@@ -1150,6 +1196,7 @@ def transactions():
     search_query = request.args.get('q', '').strip()
     txn_type = request.args.get('type', '')
     fulfillment = request.args.get('fulfillment', '')
+    status_filter = request.args.get('status', '')
 
     query = Transaction.query.options(
         joinedload(Transaction.customer),
@@ -1170,9 +1217,30 @@ def transactions():
     if fulfillment:
         query = query.filter(Transaction.fulfillment_type == fulfillment)
 
+    if status_filter == 'overdue':
+        current_date = datetime.now().date()
+        query = query.filter(
+            Transaction.balance_due > 0,
+            or_(
+                Transaction.status == 'Due', 
+                Transaction.rentals.any(Rental.expected_return_date < current_date)
+            ) 
+        )
+
     pagination = query.order_by(Transaction.created_at.desc()).paginate(
         page=page, per_page=limit, error_out=False
     )
+
+    current_date = datetime.now().date()
+    for txn in pagination.items:
+        rental_overdue = False
+        if txn.rentals and txn.rentals[0].expected_return_date:
+            ret_date = txn.rentals[0].expected_return_date
+            if hasattr(ret_date, 'date'):
+                ret_date = ret_date.date()
+            rental_overdue = ret_date < current_date
+            
+        txn.calculated_overdue = txn.balance_due > 0 and (getattr(txn, 'is_overdue', False) or rental_overdue)
 
     stats = {
         'pending': Transaction.query.filter_by(payment_status='Unpaid').count(),
@@ -1191,12 +1259,117 @@ def transactions():
         current_limit=limit,
         current_type=txn_type,
         current_fulfillment=fulfillment,
+        current_status=status_filter, 
         customers=customers,
         all_equipment=all_equipment,
+        datetime_now_date=current_date,
         **stats
     )
     
-    
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment
+from io import BytesIO
+from flask import make_response
+
+@admin_bp.route('/transactions/export')
+@login_required
+@administrator_required
+def export_transactions():
+    search_query = request.args.get('q', '').strip()
+    txn_type = request.args.get('type', '')
+    fulfillment = request.args.get('fulfillment', '')
+    status_filter = request.args.get('status', '')
+
+    query = Transaction.query.options(
+        joinedload(Transaction.customer),
+        selectinload(Transaction.rentals)
+    )
+
+    if search_query:
+        query = query.filter(or_(
+            Transaction.reference_no.ilike(f"%{search_query}%"),
+            Transaction.customer_name.ilike(f"%{search_query}%"),
+            Transaction.landmark.ilike(f"%{search_query}%")
+        ))
+    if txn_type:
+        query = query.filter(Transaction.transaction_type == txn_type)
+    if fulfillment:
+        query = query.filter(Transaction.fulfillment_type == fulfillment)
+    if status_filter == 'overdue':
+        current_date = datetime.now().date()
+        query = query.filter(
+            Transaction.balance_due > 0,
+            or_(
+                Transaction.status == 'Due', 
+                Transaction.rentals.any(Rental.expected_return_date < current_date)
+            )
+        )
+
+    transactions_list = query.order_by(Transaction.created_at.desc()).all()
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Transactions"
+
+    header_font = Font(name="Arial", size=11, bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="16A34A", end_color="16A34A", fill_type="solid") # Matching dashboard green
+    center_align = Alignment(horizontal="center", vertical="center")
+    right_align = Alignment(horizontal="right", vertical="center")
+
+    headers = ['Reference No', 'Customer Name', 'Type', 'Fulfillment', 'Total Amount', 'Amount Paid', 'Balance Due', 'Status', 'Date']
+    ws.append(headers)
+
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_num)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = center_align
+
+    for txn in transactions_list:
+        cust_name = txn.customer_name or (f"{txn.customer.first_name} {txn.customer.last_name}" if txn.customer else "—")
+        txn_date = txn.created_at.strftime('%Y-%m-%d') if txn.created_at else "—"
+        
+        row_data = [
+            txn.reference_no,
+            cust_name,
+            txn.transaction_type,
+            txn.fulfillment_type,
+            txn.total_amount,
+            txn.amount_paid,
+            txn.balance_due,
+            txn.status,
+            txn_date
+        ]
+        ws.append(row_data)
+        
+        current_row = ws.max_row
+        ws.cell(row=current_row, column=5).number_format = '"₱"#,##0.00' 
+        ws.cell(row=current_row, column=6).number_format = '"₱"#,##0.00' 
+        ws.cell(row=current_row, column=7).number_format = '"₱"#,##0.00' 
+        
+        ws.cell(row=current_row, column=5).alignment = right_align
+        ws.cell(row=current_row, column=6).alignment = right_align
+        ws.cell(row=current_row, column=7).alignment = right_align
+        ws.cell(row=current_row, column=8).alignment = center_align
+        ws.cell(row=current_row, column=9).alignment = center_align
+
+    # Auto-fit column widths
+    for col in ws.columns:
+        max_len = max(len(str(cell.value or '')) for cell in col)
+        col_letter = openpyxl.utils.get_column_letter(col[0].column)
+        ws.column_dimensions[col_letter].width = max(max_len + 3, 12)
+
+    # Save to memory buffer
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    # Send response file download stream
+    response = make_response(output.getvalue())
+    response.headers["Content-Disposition"] = "attachment; filename=transactions_export.xlsx"
+    response.headers["Content-type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    return response
+
 @admin_bp.route('/transaction_details/<int:id>') 
 @login_required
 @administrator_required
@@ -1597,26 +1770,113 @@ def system_logs():
         current_type=current_type
     )
 
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'webp'}
+
 @admin_bp.route('/profile', methods=['GET', 'POST'])
 @limiter.exempt
 @login_required
 @administrator_required
 def profile():
     if request.method == 'POST':
-        current_user.first_name = request.form.get('fname')
-        current_user.last_name = request.form.get('lname')
-        current_user.email = request.form.get('email')
+        fname = request.form.get('fname', '').strip()
+        lname = request.form.get('lname', '').strip()
+        email = request.form.get('email', '').strip()
+
+        if not fname or not lname or not email:
+            flash('All fields are required.', 'danger')
+            return redirect(url_for('admin.profile'))
+
+        existing_user = User.query.filter_by(email=email).first()
+        if existing_user and existing_user.id != current_user.id:
+            flash('That email address is already in use.', 'danger')
+            return redirect(url_for('admin.profile'))
+
+        current_user.first_name = fname
+        current_user.last_name = lname
+        current_user.email = email
 
         try:
             db.session.commit()
             flash('Profile updated successfully!', 'success')
         except Exception as e:
             db.session.rollback()
-            flash('An error occurred while updating.', 'danger')
+            flash('An error occurred while updating your information.', 'danger')
             
         return redirect(url_for('admin.profile')) 
 
     return render_template("admin/profile.html")
+
+
+@admin_bp.route('/profile/update-avatar', methods=['POST'])
+@login_required
+@administrator_required
+def update_avatar():
+    """Handles profile picture uploads via AJAX."""
+    if 'avatar' not in request.files:
+        return jsonify({'success': False, 'message': 'No file part'}), 400
+        
+    file = request.files['avatar']
+    if file.filename == '':
+        return jsonify({'success': False, 'message': 'No selected file'}), 400
+
+    if file and allowed_file(file.filename):
+        upload_folder = os.path.join(current_app.root_path, 'uploads', 'profiles')
+        os.makedirs(upload_folder, exist_ok=True)
+
+        file_ext = file.filename.rsplit('.', 1)[1].lower()
+        filename = secure_filename(f"user_{current_user.id}.{file_ext}")
+        filepath = os.path.join(upload_folder, filename)
+
+        try:
+            # FIXED: Checking and clearing out old image using profile_path
+            if current_user.profile_path:
+                old_path = os.path.join(upload_folder, current_user.profile_path)
+                if os.path.exists(old_path):
+                    os.remove(old_path)
+
+            file.save(filepath)
+            current_user.profile_path = filename # FIXED: Assigned to database column property
+            db.session.commit()
+
+            img_url = url_for('admin.serve_profile_pic', filename=filename)
+            return jsonify({'success': True, 'img_url': img_url})
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'message': 'Database error or saving failed.'}), 500
+
+    return jsonify({'success': False, 'message': 'Invalid file extension.'}), 400
+
+
+@admin_bp.route('/profile/remove-avatar', methods=['POST'])
+@login_required
+@administrator_required
+def remove_avatar():
+    """Handles removing profile picture via AJAX."""
+    if not current_user.profile_path:
+        return jsonify({'success': True})
+
+    upload_folder = os.path.join(current_app.root_path, 'uploads', 'profiles')
+    try:
+        old_path = os.path.join(upload_folder, current_user.profile_path)
+        if os.path.exists(old_path):
+            os.remove(old_path)
+
+        current_user.profile_path = None # FIXED: Cleared database column property
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': 'Could not remove image.'}), 500
+
+
+@admin_bp.route('/uploads/profiles/<filename>')
+@login_required
+def serve_profile_pic(filename):
+    """Securely serves files from the uploads/profiles folder."""
+    return send_from_directory(os.path.join(current_app.root_path, 'uploads', 'profiles'), filename)
+
 
 @admin_bp.route('/reports')
 @login_required

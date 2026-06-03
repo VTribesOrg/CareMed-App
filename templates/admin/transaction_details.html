@@ -146,82 +146,101 @@
                     <span class="header-label-text mb-0">Monthly Billing Schedule</span>
                 </div>
             </header>
-            <div class="table-container">
-                <table class="item-list-table">
-                    <thead>
-                        <tr>
-                            <th>Due Date</th>
-                            <th>Amount Due</th>
-                            <th>Progress (Paid/Total)</th>
-                            <th>Balance</th>
-                            <th>Status</th>
-                            <th class="text-end">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for rental in txn.rentals %}
-                            {% for invoice in rental.invoices %}
-                            <tr>
-                                <td>
-                                    <div class="item-title">
-                                        Due: {{ invoice.service_period_start.strftime('%B %d, %Y') }}
-                                    </div>
-                                </td>
-                                <td class="col-amount">
-                                    ₱{{ "{:,.2f}".format(invoice.amount_due + (invoice.late_fee or 0)) }}
-                                </td>
-                                <td class="text-muted" style="font-size: 0.85rem;">
-                                    <span class="fw-bold">₱{{ "{:,.2f}".format(invoice.total_invoice_value) }}</span>/
-                                    <small>₱{{ "{:,.2f}".format(invoice.amount_paid) }}</small>
-                                </td>
-                                <td class="fw-bold">
-                                    {% if invoice.remaining_balance > 0 %}
-                                        <span class="text-danger">₱{{ "{:,.2f}".format(invoice.remaining_balance) }}</span>
-                                    {% else %}
-                                        <span class="text-success">₱0.00</span>
-                                    {% endif %}
-                                </td>
-                                <td class="col-status">
-                                    {% if invoice.status == 'Paid' %}
-                                        <span class="badge-soft-success">Paid</span>
-                                    {% elif invoice.status == 'Partially Paid' %}
-                                        <span class="badge-soft-warning">Partial</span>
-                                    {% else %}
-                                        {% if invoice.service_period_start < current_date %}
-                                            <span class="badge-soft-danger">Overdue</span>
+
+            <div class="card-body-custom" style="padding: 20px; display: flex; flex-direction: column; gap: 25px;">
+                {% for rental in txn.rentals %}
+                <div class="product-billing-group">
+                    <div class="product-billing-header mb-2" style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #f0f2f5; padding-bottom: 8px;">
+                        <span class="fw-bold" style="color: var(--medical-primary); font-size: 1.05rem;">
+                            {{ rental.product.name }} 
+                            <span class="text-muted" style="font-weight: normal; font-size: 0.9rem;">(Qty: {{ rental.quantity }})</span>
+                        </span>
+                        <span class="badge bg-light text-dark" style="font-size: 0.85rem; border: 1px solid #dee2e6;">
+                            Rate: ₱{{ "{:,.2f}".format(rental.monthly_rate) }}/mo
+                        </span>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="item-list-table">
+                            <thead>
+                                <tr>
+                                    <th>Due Date</th>
+                                    <th>Amount Due</th>
+                                    <th>Progress (Paid/Total)</th>
+                                    <th>Balance</th>
+                                    <th>Status</th>
+                                    <th class="text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for invoice in rental.invoices %}
+                                <tr>
+                                    <td>
+                                        <div class="item-title">
+                                            Due: {{ invoice.service_period_start.strftime('%B %d, %Y') }}
+                                        </div>
+                                    </td>
+                                    <td class="col-amount">
+                                        ₱{{ "{:,.2f}".format(invoice.amount_due + (invoice.late_fee or 0)) }}
+                                    </td>
+                                    <td class="text-muted" style="font-size: 0.85rem;">
+                                        <span class="fw-bold">₱{{ "{:,.2f}".format(invoice.total_invoice_value) }}</span>/
+                                        <small>₱{{ "{:,.2f}".format(invoice.amount_paid) }}</small>
+                                    </td>
+                                    <td class="fw-bold">
+                                        {% if invoice.remaining_balance > 0 %}
+                                            <span class="text-danger">₱{{ "{:,.2f}".format(invoice.remaining_balance) }}</span>
                                         {% else %}
-                                            <span class="badge-soft-danger">Unpaid</span>
+                                            <span class="text-success">₱0.00</span>
                                         {% endif %}
-                                    {% endif %}
-                                </td>
-                                <td class="col-action">
-                                    <div class="action-wrapper d-flex align-items-center">
-                                        {% if invoice.status != 'Paid' %}
-                                            <button type="button"
-                                                    class="btn-action-payment btn-add-payment"
-                                                    data-txn-id="{{ txn.id }}"
-                                                    data-ref="{{ txn.reference_no }}"
-                                                    data-balance="{{ invoice.remaining_balance }}"
-                                                    data-type="Rental"
-                                                    data-monthly-rate="{{ rental.monthly_rate }}"
-                                                    data-unpaid-count="{{ rental.invoices|selectattr('status', 'ne', 'Paid')|list|length }}"
-                                                    data-invoice-id="{{ invoice.id }}">
-                                                <i class="material-symbols-rounded">payments</i>
-                                                <span>Pay Now</span>
-                                            </button>
+                                    </td>
+                                    <td class="col-status">
+                                        {% if invoice.status == 'Paid' %}
+                                            <span class="badge-soft-success">Paid</span>
+                                        {% elif invoice.status == 'Partially Paid' %}
+                                            <span class="badge-soft-warning">Partial</span>
                                         {% else %}
-                                            <div class="settled-pill">
-                                                <span class="material-symbols-rounded">check_circle</span>
-                                                <span class="settled-text">Settled</span>
-                                            </div>
+                                            {% if invoice.service_period_start < current_date %}
+                                                <span class="badge-soft-danger">Overdue</span>
+                                            {% else %}
+                                                <span class="badge-soft-danger">Unpaid</span>
+                                            {% endif %}
                                         {% endif %}
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        {% endfor %}
-                    </tbody>
-                </table>
+                                    </td>
+                                    <td class="col-action">
+                                        <div class="action-wrapper d-flex align-items-center">
+                                            {% if invoice.status != 'Paid' %}
+                                                <button type="button"
+                                                        class="btn-action-payment btn-add-payment"
+                                                        data-txn-id="{{ txn.id }}"
+                                                        data-ref="{{ txn.reference_no }}"
+                                                        data-balance="{{ invoice.remaining_balance }}"
+                                                        data-type="Rental"
+                                                        data-monthly-rate="{{ rental.monthly_rate }}"
+                                                        data-unpaid-count="{{ rental.invoices|selectattr('status', 'ne', 'Paid')|list|length }}"
+                                                        data-invoice-id="{{ invoice.id }}">
+                                                    <i class="material-symbols-rounded">payments</i>
+                                                    <span>Pay Now</span>
+                                                </button>
+                                            {% else %}
+                                                <div class="settled-pill">
+                                                    <span class="material-symbols-rounded">check_circle</span>
+                                                    <span class="settled-text">Settled</span>
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted">No invoices generated for this item.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endfor %}
             </div>
         </div>
         {% endif %}

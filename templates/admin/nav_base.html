@@ -254,14 +254,20 @@
                                 <span class="user-role">{{ current_user.role }}</span>
                             </div>
                             <div class="user-avatar" id="avatar-wrapper">
-                                <span class="material-symbols-rounded" id="avatar-icon">person</span>
-                                <img src="" alt="User" id="header-avatar-img" class="hidden">
+                                {% if current_user.profile_path %}
+                                    <span class="material-symbols-rounded" id="avatar-icon" style="display: none;">person</span>
+                                    <img src="{{ url_for('admin.serve_profile_pic', filename=current_user.profile_path) }}" 
+                                        alt="User" id="header-avatar-img">
+                                {% else %}
+                                    <span class="material-symbols-rounded" id="avatar-icon">person</span>
+                                    <img src="" alt="User" id="header-avatar-img" class="hidden">
+                                {% endif %}
                             </div>
                         </div>
                         <div class="header-dropdown" id="profile-dropdown">
                             <div class="dropdown-header">My Account</div>
                             <a href="{{ url_for('admin.profile') }}" class="dropdown-item">
-                                <span class="material-symbols-rounded">person</span>Profile Settings
+                                <span class="material-symbols-rounded">person</span>Account Settings
                             </a>
                             <a href="#" class="dropdown-item">
                                 <span class="material-symbols-rounded">security</span>Activity Log

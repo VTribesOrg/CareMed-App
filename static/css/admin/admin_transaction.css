@@ -847,6 +847,24 @@ body.ready .viewport-container {
     z-index: 10;
 }
 
+.medical-table th, 
+.medical-table td {
+    padding: 12px 16px;
+    vertical-align: middle !important;
+}
+
+.badge {
+    display: inline-block;
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    padding: 0.45em 0.8em;
+    font-weight: 600;
+}
+
+.text-nowrap {
+    white-space: nowrap !important;
+}
+
 .medical-table td {
     padding: 14px 12px;
     border-bottom: 1px solid #f1f5f9;
@@ -1412,6 +1430,9 @@ body.ready .viewport-container {
 
 /*============================= end of formLayout =============================*/
 
+.customer-option-item:hover {
+    background-color: #f8fafc;
+}
 
 /*============================= modalFooterActions =============================*/
 .modal-footer-actions {
