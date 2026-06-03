@@ -62,7 +62,7 @@
         </div>
     </div>
     <button class="btn-print" id="trigger-print">
-        <span class="material-symbols-rounded">print</span> Print Invoice
+        <span class="material-symbols-rounded">print</span> Print Rental Agreement
     </button>
 </header>
 
@@ -498,166 +498,236 @@
 
 </div>
 
-<!-- ── PRINTABLE RECEIPT (hidden on screen, shown on print) ── -->
+{% if txn.transaction_type == 'Rental' %}
+<!-- ── PRINTABLE RENTAL AGREEMENT (hidden on screen, shown on print) ── -->
 <div class="print-receipt">
 
-    <div class="receipt-header">
-        <div class="receipt-logo">Care<span>Med</span></div>
-        <div class="receipt-subtitle">Medical Equipment Rental &amp; Sales</div>
-        <div class="receipt-subtitle">Iloilo City, Philippines</div>
-        <div class="receipt-type">
-            {% if txn.transaction_type == 'Rental' %}Rental Invoice
-            {% elif txn.payment_status == 'Paid' %}Official Receipt
-            {% else %}Sales Invoice{% endif %}
-        </div>
-        <div class="receipt-ref">Ref: {{ txn.reference_no }}</div>
-        <div class="receipt-ref">
-            Date: {{ txn.created_at.strftime('%B %d, %Y at %I:%M %p') if txn.created_at else '—' }}
-        </div>
-    </div>
+    <div class="ra-wrapper">
 
-    <div class="receipt-section">
-        <div class="receipt-section-title">Customer Information</div>
-        <div class="receipt-row">
-            <span>Name</span>
-            <span><strong>{{ txn.customer_name or '—' }}</strong></span>
+        {# ── HEADER: logo left, company title right ── #}
+        <div class="ra-header">
+            <div class="ra-logo-area">
+                <img src="{{ url_for('static', filename='icons/logo.svg') }}" alt="CareMed Logo">
+                <div class="ra-logo-sub">Home Medical Equipment<br>Rental Services</div>
+            </div>
+            <div class="ra-title-area">
+                <div class="ra-company-name">CAREMED HOME MEDICAL EQUIPMENT RENTAL SERVICES</div>
+                <div class="ra-address">Q. Abeto St., Mandurriao, Iloilo City</div>
+                <div class="ra-contact">Smart: 0912-585-6730 &nbsp;|&nbsp; Globe: 0956-554-6832</div>
+                <div class="ra-doc-title">RENTAL AGREEMENT</div>
+                <div class="ra-intro">
+                    <span class="ra-intro-line">
+                        This Rental Agreement is made and entered into this
+                        <span class="ra-blank-sm">{{ txn.created_at.strftime('%d') if txn.created_at else '____' }}</span>
+                        day of
+                        <span class="ra-blank-sm">{{ txn.created_at.strftime('%B %Y') if txn.created_at else '____________' }}</span>,
+                        2026, by and between: Caremed, hereinafter referred to as the Lessor,
+                    </span>
+                    <span class="ra-intro-line">And</span>
+                </div>
+            </div>
         </div>
-        {% if txn.customer and txn.customer.customer_profile %}
-        <div class="receipt-row">
-            <span>Contact</span>
-            <span>{{ txn.customer.customer_profile.contact_number or '—' }}</span>
-        </div>
-        <div class="receipt-row">
-            <span>Address</span>
-            <span>{{ txn.customer.customer_profile.home_address or '—' }}</span>
-        </div>
-        {% endif %}
-        <div class="receipt-row">
-            <span>Fulfillment</span>
-            <span>{{ txn.fulfillment_type or 'Pickup' }}</span>
-        </div>
-        {% if txn.delivery_address %}
-        <div class="receipt-row">
-            <span>Delivery Address</span>
-            <span>{{ txn.delivery_address }}</span>
-        </div>
-        {% endif %}
-    </div>
 
-    <div class="receipt-section">
-        <div class="receipt-section-title">Items</div>
-        <table class="receipt-table">
+        {# ── PARTIES ── #}
+        <div class="ra-parties">
+
+            {# Row 1: Name of Renter (left) | Primary Contact No. (right) #}
+            <div class="ra-party-row-top">
+                <div class="ra-left-col">
+                    <span class="ra-label">Name of Renter:</span>
+                    <span class="ra-value">{{ txn.customer_name or '' }}</span>
+                </div>
+                <div class="ra-right-col">
+                    <span class="ra-label">Primary Contact No.:</span>
+                    <span class="ra-value">
+                        {% if txn.customer and txn.customer.customer_profile %}{{ txn.customer.customer_profile.contact_number or '' }}{% endif %}
+                    </span>
+                </div>
+            </div>
+
+            {# Row 2: Address (left) | Secondary Contact No. (right) #}
+            <div class="ra-party-row-mid">
+                <div class="ra-left-col">
+                    <span class="ra-label">Address:</span>
+                    <span class="ra-value">
+                        {% if txn.delivery_address %}{{ txn.delivery_address }}
+                        {% elif txn.customer and txn.customer.customer_profile %}{{ txn.customer.customer_profile.home_address or '' }}
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="ra-right-col">
+                    <span class="ra-label">Secondary Contact No.:</span>
+                    <span class="ra-value"></span>
+                </div>
+            </div>
+
+            <div class="ra-party-note">hereinafter referred to as the Lessee.</div>
+        </div>
+
+        {# ── Section 1: Equipment Details ── #}
+        <div class="ra-section-title">1. Equipment Details</div>
+        <table class="ra-equipment-table">
+            <colgroup>
+                <col><col><col><col><col><col><col>
+            </colgroup>
             <thead>
                 <tr>
-                    <th>Description</th>
-                    <th>Qty</th>
-                    <th>Unit Price</th>
-                    <th>Amount</th>
+                    <th>QUANTITY</th>
+                    <th>EQUIPMENT</th>
+                    <th>SERIAL #</th>
+                    <th>SOLD</th>
+                    <th>REFILL</th>
+                    <th>RENTAL<br>RATE</th>
+                    <th>DURATION</th>
                 </tr>
             </thead>
             <tbody>
-                {% if txn.purchases %}
-                    {% for item in txn.purchases %}
-                    <tr>
-                        <td>{{ item.product.name if item.product else '—' }}</td>
-                        <td>{{ item.quantity }}</td>
-                        <td>₱{{ "{:,.2f}".format(item.unit_price or 0) }}</td>
-                        <td>₱{{ "{:,.2f}".format(item.total_price or 0) }}</td>
-                    </tr>
-                    {% endfor %}
-                {% elif txn.rentals %}
+                {% if txn.rentals %}
                     {% for item in txn.rentals %}
                     <tr>
-                        <td>{{ item.product.name if item.product else '—' }} (Rental)</td>
                         <td>{{ item.quantity }}</td>
+                        <td>{{ item.product.name if item.product else '—' }}</td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
                         <td>₱{{ "{:,.2f}".format(item.monthly_rate or 0) }}/mo</td>
-                        <td>₱{{ "{:,.2f}".format(item.monthly_rate or 0) }}</td>
+                        <td>
+                            {% if item.rental_start_date and item.expected_return_date %}
+                                {{ item.rental_start_date.strftime('%b %d') }} – {{ item.expected_return_date.strftime('%b %d, %Y') }}
+                            {% endif %}
+                        </td>
                     </tr>
+                    {% endfor %}
+                    {% for i in range([6 - txn.rentals|length, 0]|max) %}
+                    <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                    {% endfor %}
+                {% else %}
+                    {% for i in range(6) %}
+                    <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
                     {% endfor %}
                 {% endif %}
             </tbody>
         </table>
-    </div>
 
-    <div class="receipt-section">
-        <div class="receipt-section-title">Payment Summary</div>
-        <div class="receipt-row">
-            <span>Subtotal</span>
-            <span>₱{{ "{:,.2f}".format(txn.total_amount or 0) }}</span>
-        </div>
-        {% if txn.total_late_fees and txn.total_late_fees > 0 %}
-        <div class="receipt-row">
-            <span>Late Fees</span>
-            <span>₱{{ "{:,.2f}".format(txn.total_late_fees) }}</span>
-        </div>
-        {% endif %}
-        <div class="receipt-row total">
-            <span>TOTAL DUE</span>
-            <span>₱{{ "{:,.2f}".format(txn.total_amount or 0) }}</span>
-        </div>
-        <div class="receipt-row bold" style="margin-top:8px;">
-            <span>Amount Paid</span>
-            <span>₱{{ "{:,.2f}".format(txn.amount_paid or 0) }}</span>
-        </div>
-        <div class="receipt-row bold">
-            <span>Balance Due</span>
-            <span>₱{{ "{:,.2f}".format(txn.balance_due or 0) }}</span>
-        </div>
-        <div class="receipt-row" style="margin-top:8px;">
-            <span>Payment Method</span>
-            <span>{{ txn.payment_method or 'Cash' }}</span>
-        </div>
-        <div class="receipt-row">
-            <span>Payment Status</span>
-            <span class="receipt-status {{ txn.payment_status | lower }}">
-                {{ txn.payment_status }}
+        {# ── Delivery Fee: own line ── #}
+        <div class="ra-delivery-row">
+            <span class="ra-label">Delivery Fee:</span>
+            <span class="ra-underline">
+                {% if txn.fulfillment_type|lower == 'delivery' %}&nbsp;{% else %}N/A{% endif %}
             </span>
         </div>
-    </div>
 
-    {% if txn.transaction_type == 'Rental' and txn.rentals %}
-    <div class="receipt-section">
-        <div class="receipt-section-title">Rental Period</div>
-        {% for rental in txn.rentals %}
-        <div class="receipt-row">
-            <span>Start Date</span>
-            <span>{{ rental.rental_start_date.strftime('%B %d, %Y') if rental.rental_start_date else '—' }}</span>
+        {# ── Advance Pick-Up Charge (left) + Total Amount (right) ── #}
+        <div class="ra-fees-row">
+            <div class="ra-fee-item">
+                <span class="ra-label">Advance Pick-Up Charge:</span>
+                <span class="ra-underline-wide">&nbsp;</span>
+            </div>
+            <div class="ra-fee-item">
+                <span class="ra-label">Total Amount:</span>
+                <span class="ra-underline-wide">₱{{ "{:,.2f}".format(txn.total_amount or 0) }}</span>
+            </div>
         </div>
-        <div class="receipt-row">
-            <span>Expected Return</span>
-            <span>{{ rental.expected_return_date.strftime('%B %d, %Y') if rental.expected_return_date else '—' }}</span>
-        </div>
-        {% endfor %}
-    </div>
-    {% endif %}
 
-    <div class="receipt-footer">
-        <strong>Thank you for choosing CareMed!</strong>
-        This document serves as your official
-        {% if txn.payment_status == 'Paid' %}receipt{% else %}invoice{% endif %}
-        for transaction {{ txn.reference_no }}.
-        <br><br>
-        Processed by: {{ current_user.first_name }} {{ current_user.last_name }}
-        &nbsp;|&nbsp;
-        Printed: <span id="print-date"></span>
+        {# ── Section 2: Rental Period ── #}
+        <div class="ra-section-title">2. Rental Period</div>
+        <div class="ra-rental-period">
+            The rental period shall begin on
+            <span class="ra-blank">
+                {% if txn.rentals and txn.rentals[0].rental_start_date %}{{ txn.rentals[0].rental_start_date.strftime('%B %d, %Y') }}{% endif %}
+            </span>
+            and end on
+            <span class="ra-blank">
+                {% if txn.rentals and txn.rentals[0].expected_return_date %}{{ txn.rentals[0].expected_return_date.strftime('%B %d, %Y') }}{% endif %}
+            </span>,
+            unless extended or terminated earlier by mutual agreement.
+        </div>
+
+        {# ── Section 3 ── #}
+        <div class="ra-section-title">3. Payment Terms</div>
+        <div class="ra-terms">
+            <div class="ra-term">- Full payment of the rental fee and advance pick-up charge is required upon Pick up / delivery.</div>
+            <div class="ra-term">- All rental payments and <span class="ra-red">oxygen content are strictly non-refundable.</span></div>
+            <div class="ra-term">- Rental extensions must be reported and settled before the next due date.</div>
+        </div>
+
+        {# ── Section 4 ── #}
+        <div class="ra-section-title">4. Delivery and Return</div>
+        <div class="ra-terms">
+            <div class="ra-term">- Upon completion of the rental period, the Lessee shall return the equipment in good and clean condition, subject to inspection by the Lessor. If the equipment is found to be unclean, specifically the suction machine, <span class="ra-red">a cleaning charge of 300 will apply.</span></div>
+            <div class="ra-term">- The <span class="ra-red">advance pick – up charge shall be refundable only</span> if the renter personally returns the equipment to the Caremed store.</div>
+            <div class="ra-term">- If the Caremed staff will pick up the equipment from the renter's address, the advance pick – up charge shall be non-refundable.</div>
+            <div class="ra-term">- Any damage, loss, or missing parts will be charged accordingly.</div>
+            <div class="ra-term">- In case of <span class="ra-red">major damage</span> or total loss of the equipment, it shall be <span class="ra-red">considered sold at its cash price.</span></div>
+        </div>
+
+        {# ── Section 5 ── #}
+        <div class="ra-section-title">5. Equipment Use and Care</div>
+        <div class="ra-terms">
+            <div class="ra-term">- The Lessee agrees to use the equipment only for its intended medical purpose and with proper care.</div>
+            <div class="ra-term">- The Lessee shall not lend, sublease, or modify the equipment.</div>
+            <div class="ra-term">- The Lessor shall not be liable for any injury, accident, or damage resulting from improper use.</div>
+            <div class="ra-term">- The lessee must monitor the oxygen level and arrange refilling as needed. Caremed shall not be liable for any issues arising from failure to monitor oxygen content.</div>
+        </div>
+
+        {# ── Section 6 ── #}
+        <div class="ra-section-title">6. Maintenance and Repairs</div>
+        <div class="ra-terms">
+            <div class="ra-term">- The Lessee shall notify Caremed immediately if the equipment malfunctions.</div>
+            <div class="ra-term">- <span class="ra-red">Only authorized technicians</span> from Caremed are allowed to service or repair the equipment.</div>
+        </div>
+
+        {# ── Section 7 ── #}
+        <div class="ra-section-title">7. Termination and Penalty</div>
+        <div class="ra-terms">
+            <div class="ra-term">- Either party may terminate this agreement upon written notice.</div>
+            <div class="ra-term">- Early termination by the Lessee will not entitle them to a refund of unused days.</div>
+            <div class="ra-term">- If the <span class="ra-red">Lessee fails to return the equipment within three (3) days after the due date</span>, without prior notice. The rental shall automatically be considered extended for one (1) full month, and the corresponding monthly rental fee shall apply.</div>
+            <div class="ra-term">- As the rental is already 10 days overdue, our team will proceed with the recovery of the equipment from the lessee's location.</div>
+            <div class="ra-term">- The oxygen tank must be returned to Caremed for refilling. <span class="ra-red">Any refilling done outside without Caremed's consent will be subject to a penalty.</span></div>
+        </div>
+
+        {# ── Section 8: Acknowledgment ── #}
+        <div class="ra-section-title">8. Acknowledgment</div>
+        <div class="ra-acknowledgment">
+            By signing below, both parties acknowledge that they have read, understood, and agreed to the terms and conditions of this Rental Agreement.
+        </div>
+
+        {# ── Signatures ── #}
+        <div class="ra-signatures">
+            <div class="ra-sig-block">
+                <div class="ra-sig-heading">Conformed by:</div>
+                <div class="ra-sig-line"></div>
+                <div class="ra-sig-label">Renter's signature over printed name</div>
+                <div class="ra-sig-date">Date Signed: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
+            </div>
+            <div class="ra-sig-right">
+                <div class="ra-sig-heading">Approved by:</div>
+                <div class="ra-sig-line"></div>
+                <div class="ra-sig-label">Owner / Representative</div>
+                <div class="ra-sig-date">Date Signed: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
+            </div>
+        </div>
+
     </div>
 
 </div>
+{% endif %}
 
 <script nonce="{{ csp_nonce() }}">
-    // Set print date
-    document.getElementById('print-date').textContent = new Date().toLocaleDateString('en-PH', {
-        year: 'numeric', month: 'long', day: 'numeric',
-        hour: '2-digit', minute: '2-digit'
-    });
-
-    // Print button
+    {% if txn.transaction_type == 'Rental' %}
     const printBtn = document.getElementById('trigger-print');
     if (printBtn) {
         printBtn.addEventListener('click', function () {
             window.print();
         });
     }
+    {% else %}
+    const printBtn = document.getElementById('trigger-print');
+    if (printBtn) {
+        printBtn.style.display = 'none';
+    }
+    {% endif %}
 </script>
 
 {% include 'modals/rent_purch_modal.html' %}
