@@ -29,6 +29,7 @@ class User(UserMixin, db.Model):
     reset_otp_code = db.Column(db.String(255), nullable=True)
     reset_code_expiry = db.Column(db.DateTime, nullable=True)
     last_otp_sent = db.Column(db.DateTime, nullable=True)
+    password_last_reset_at = db.Column(db.DateTime, nullable=True)
     
     is_active = db.Column(db.Boolean, default=True)
     

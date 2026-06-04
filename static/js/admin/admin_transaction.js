@@ -174,7 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ===============================
+// ===============================
     // TRANSACTION TYPE HANDLING
     // ===============================
     document.querySelectorAll('[data-flow]').forEach(button => {
@@ -193,13 +193,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const customerId = customerIdInput?.value;
             const customerName = customerInput?.value;
 
-            // VALIDATION (runs ONCE only)
-            if (!customerId) {
+            // VALIDATION (Skips alert only if flowType is 'Refill')
+            if (!customerId && flowType !== 'Refill') {
                 alert("Please select a Customer / Patient first.");
                 return;
             }
 
-            // CLOSE MODAL
+            // CLOSE TRANSACTION SELECTION MODAL
             if (selectionModal) {
                 selectionModal.classList.add('hidden');
             }
@@ -227,6 +227,32 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // ===============================
+            // R E F I L L 
+            // ===============================
+            else if (flowType === 'Refill') {
+                const refillModal = document.getElementById('refillAssetModal');
+                const refillNameText = document.getElementById('refill-patient-display-name');
+                const refillCustomerHidden = document.getElementById('global-refill-customer-id');
+
+                if (refillModal) {
+                    // Clear previous entries out cleanly before showing
+                    const serialInput = document.getElementById('refill-serial-number');
+                    if (serialInput) serialInput.value = "";
+                    
+                    // Populate if available, otherwise apply generic patient layout fallbacks
+                    if (customerId && customerName) {
+                        if (refillNameText) refillNameText.innerText = customerName;
+                        if (refillCustomerHidden) refillCustomerHidden.value = customerId;
+                    } else {
+                        if (refillNameText) refillNameText.innerText = "Walk-in / Unspecified Customer";
+                        if (refillCustomerHidden) refillCustomerHidden.value = "";
+                    }
+
+                    refillModal.classList.remove('hidden');
+                }
+            }
+
+            // ===============================
             // P U R C H A S E
             // ===============================
             else {
@@ -243,6 +269,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         });
+    });
+
+    // ========================================================
+    // SECURE CSP CLOSE LISTENERS & FORM RESET FOR REFILL MODAL
+    // ========================================================
+    document.addEventListener('click', function (event) {
+        const targetBtn = event.target.closest('#close-refill-modal, #cancel-refill-modal');
+        if (targetBtn) {
+            const refillModal = document.getElementById('refillAssetModal');
+            if (refillModal) {
+                // 1. Close the modal layout
+                refillModal.classList.add('hidden');
+                
+                // 2. Safely find and reset all form inputs to default values
+                const refillForm = document.getElementById('refill-transaction-form');
+                if (refillForm) {
+                    refillForm.reset();
+                }
+            }
+        }
     });
 });
 
@@ -1177,6 +1223,18 @@ document.addEventListener('DOMContentLoaded', function() {
         btn.addEventListener('click', function() {
             const flow = this.getAttribute('data-flow');
             
+
+            if (flow === 'Refill') {
+                document.getElementById('txnSelectionModal').classList.add('hidden');
+                
+                const refillModal = document.getElementById('refillAssetModal');
+                if (refillModal) {
+                    refillModal.classList.remove('hidden');
+                }
+
+                return; 
+            }
+
             let productId = "";
             let name = "--";
             let stock = 0;
@@ -1203,6 +1261,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const activeCustomerId = txnGlobalCustomerIdInput ? txnGlobalCustomerIdInput.value : "";
             const activeCustomerName = txnCustomerSearchInput ? txnCustomerSearchInput.value : "";
             
+            // This validation check remains strictly for Rental & Purchase
             if (!activeCustomerId) {
                 return;
             }
@@ -1232,6 +1291,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('rentAssetModal').classList.remove('hidden');
                 calculateRentalTotals();
             } else {
+                // This acts as your fallback choice block for "Sale" / Purchase
                 const purchaseFormGlobalCustomerId = document.getElementById('global-purchase-customer-id');
                 const purchasePatientDisplayName = document.getElementById('purchase-patient-display-name');
 
@@ -1561,20 +1621,20 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 
-    document.addEventListener("DOMContentLoaded", function() {
-        const dropdownBtn = document.getElementById("customDropdownBtn");
-        const dropdownMenu = document.getElementById("customDropdownMenu");
+document.addEventListener("DOMContentLoaded", function() {
+    const dropdownBtn = document.getElementById("customDropdownBtn");
+    const dropdownMenu = document.getElementById("customDropdownMenu");
 
-        // Click to toggle dropdown
-        dropdownBtn.addEventListener("click", function(event) {
-            event.stopPropagation();
-            dropdownMenu.classList.toggle("show");
-        });
-
-        // Close dropdown when clicking outside
-        document.addEventListener("click", function(event) {
-            if (!document.getElementById("customActionDropdown").contains(event.target)) {
-                dropdownMenu.classList.remove("show");
-            }
-        });
+    // Click to toggle dropdown
+    dropdownBtn.addEventListener("click", function(event) {
+        event.stopPropagation();
+        dropdownMenu.classList.toggle("show");
     });
+
+    // Close dropdown when clicking outside
+    document.addEventListener("click", function(event) {
+        if (!document.getElementById("customActionDropdown").contains(event.target)) {
+            dropdownMenu.classList.remove("show");
+        }
+    });
+});
