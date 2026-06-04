@@ -61,9 +61,11 @@
             <small class="reference-subtext">Ref: {{ txn.reference_no }}</small>
         </div>
     </div>
+    {% if txn.transaction_type == 'Rental' %}
     <button class="btn-print" id="trigger-print">
         <span class="material-symbols-rounded">print</span> Print Rental Agreement
     </button>
+    {% endif %}
 </header>
 
 <div class="details-grid">
@@ -152,7 +154,7 @@
                 <div class="product-billing-group">
                     <div class="product-billing-header mb-2" style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #f0f2f5; padding-bottom: 8px;">
                         <span class="fw-bold" style="color: var(--medical-primary); font-size: 1.05rem;">
-                            {{ rental.product.name }} 
+                            {{ rental.product.name }}
                             <span class="text-muted" style="font-weight: normal; font-size: 0.9rem;">(Qty: {{ rental.quantity }})</span>
                         </span>
                         <span class="badge bg-light text-dark" style="font-size: 0.85rem; border: 1px solid #dee2e6;">
@@ -294,7 +296,7 @@
                 <span class="tracking-label">Order Progress</span>
                 <span class="status-badge
                     {% if txn.tracking_status == 'DELIVERED' %}delivered
-                    {% elif txn.tracking_status == 'CANCELED' %}canceled{% endif %}">
+                    {% elif txn.tracking_status == 'CANCELLED' %}canceled{% endif %}">
                     {{ txn.tracking_status }}
                 </span>
             </div>
@@ -307,7 +309,7 @@
                             <span class="material-symbols-rounded" style="font-size: 18px;">verified_user</span>
                             Verify Order
                         </button>
-                        <button type="submit" name="tracking_status" value="CANCELED" class="btn-outline-danger" onclick="return confirm('Cancel this order?')">
+                        <button type="submit" name="tracking_status" value="CANCELLED" class="btn-outline-danger" onclick="return confirm('Cancel this order?')">
                             <span class="material-symbols-rounded" style="font-size: 16px;">cancel</span>
                             Cancel Order
                         </button>
@@ -331,7 +333,7 @@
                             <select name="tracking_status" class="select-override" onchange="if(confirm('Restart status?')) this.form.submit()">
                                 <option value="" selected disabled>More Actions...</option>
                                 <option value="SUBMITTED">Restart Status</option>
-                                <option value="CANCELED">Force Cancel</option>
+                                <option value="CANCELLED">Force Cancel</option>
                             </select>
                         </div>
                     {% elif txn.tracking_status == 'DELIVERED' %}
@@ -361,9 +363,15 @@
                 <div style="display:flex; justify-content:space-between; font-size:0.85rem;">
                     <span style="color:#64748b; font-weight:600;">Status</span>
                     {% if txn.payment_proof.status == 'Verified' %}
-                        <span style="color:#16a34a; font-weight:700;">✓ Verified</span>
+                        <span style="color:#16a34a; font-weight:700;">
+                            <span class="material-symbols-rounded" style="font-size:14px; vertical-align:middle;">verified</span>
+                            Verified
+                        </span>
                     {% else %}
-                        <span style="color:#d97706; font-weight:700;"> Pending Review</span>
+                        <span style="color:#d97706; font-weight:700;">
+                            <span class="material-symbols-rounded" style="font-size:14px; vertical-align:middle;">hourglass_top</span>
+                            Pending Review
+                        </span>
                     {% endif %}
                 </div>
             </div>
@@ -521,7 +529,7 @@
                         <span class="ra-blank-sm">{{ txn.created_at.strftime('%d') if txn.created_at else '____' }}</span>
                         day of
                         <span class="ra-blank-sm">{{ txn.created_at.strftime('%B %Y') if txn.created_at else '____________' }}</span>,
-                        2026, by and between: Caremed, hereinafter referred to as the Lessor,
+                        by and between: Caremed, hereinafter referred to as the Lessor,
                     </span>
                     <span class="ra-intro-line">And</span>
                 </div>
@@ -535,12 +543,15 @@
             <div class="ra-party-row-top">
                 <div class="ra-left-col">
                     <span class="ra-label">Name of Renter:</span>
-                    <span class="ra-value">{{ txn.customer_name or '' }}</span>
+                    <span class="ra-value">
+                        {{ txn.customer_name or 
+                        (txn.customer.first_name ~ ' ' ~ txn.customer.last_name if txn.customer else '') }}
+                    </span>
                 </div>
                 <div class="ra-right-col">
                     <span class="ra-label">Primary Contact No.:</span>
                     <span class="ra-value">
-                        {% if txn.customer and txn.customer.customer_profile %}{{ txn.customer.customer_profile.contact_number or '' }}{% endif %}
+                        {% if txn.customer %}{{ txn.customer.contact_number or '' }}{% endif %}
                     </span>
                 </div>
             </div>
@@ -551,13 +562,15 @@
                     <span class="ra-label">Address:</span>
                     <span class="ra-value">
                         {% if txn.delivery_address %}{{ txn.delivery_address }}
-                        {% elif txn.customer and txn.customer.customer_profile %}{{ txn.customer.customer_profile.home_address or '' }}
+                        {% elif txn.customer %}{{ txn.customer.home_address or '' }}
                         {% endif %}
                     </span>
                 </div>
                 <div class="ra-right-col">
                     <span class="ra-label">Secondary Contact No.:</span>
-                    <span class="ra-value"></span>
+                    <span class="ra-value">
+                        {% if txn.customer %}{{ txn.customer.secondary_contact_number or '' }}{% endif %}
+                    </span>
                 </div>
             </div>
 
@@ -592,8 +605,8 @@
                         <td></td>
                         <td>₱{{ "{:,.2f}".format(item.monthly_rate or 0) }}/mo</td>
                         <td>
-                            {% if item.rental_start_date and item.expected_return_date %}
-                                {{ item.rental_start_date.strftime('%b %d') }} – {{ item.expected_return_date.strftime('%b %d, %Y') }}
+                            {% if item.start_date and item.expected_return_date %}
+                                {{ item.start_date.strftime('%b %d') }} – {{ item.expected_return_date.strftime('%b %d, %Y') }}
                             {% endif %}
                         </td>
                     </tr>
@@ -613,7 +626,11 @@
         <div class="ra-delivery-row">
             <span class="ra-label">Delivery Fee:</span>
             <span class="ra-underline">
-                {% if txn.fulfillment_type|lower == 'delivery' %}&nbsp;{% else %}N/A{% endif %}
+                {% if txn.fulfillment_type|lower == 'delivery' and txn.rentals %}
+                    ₱{{ "{:,.2f}".format(txn.rentals[0].delivery_fee or 0) }}
+                {% else %}
+                    N/A
+                {% endif %}
             </span>
         </div>
 
@@ -634,11 +651,15 @@
         <div class="ra-rental-period">
             The rental period shall begin on
             <span class="ra-blank">
-                {% if txn.rentals and txn.rentals[0].rental_start_date %}{{ txn.rentals[0].rental_start_date.strftime('%B %d, %Y') }}{% endif %}
+                {% if txn.rentals and txn.rentals[0].start_date %}
+                    {{ txn.rentals[0].start_date.strftime('%B %d, %Y') }}
+                {% endif %}
             </span>
             and end on
             <span class="ra-blank">
-                {% if txn.rentals and txn.rentals[0].expected_return_date %}{{ txn.rentals[0].expected_return_date.strftime('%B %d, %Y') }}{% endif %}
+                {% if txn.rentals and txn.rentals[0].expected_return_date %}
+                    {{ txn.rentals[0].expected_return_date.strftime('%B %d, %Y') }}
+                {% endif %}
             </span>,
             unless extended or terminated earlier by mutual agreement.
         </div>
@@ -721,11 +742,6 @@
         printBtn.addEventListener('click', function () {
             window.print();
         });
-    }
-    {% else %}
-    const printBtn = document.getElementById('trigger-print');
-    if (printBtn) {
-        printBtn.style.display = 'none';
     }
     {% endif %}
 </script>

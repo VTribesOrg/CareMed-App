@@ -1,32 +1,12 @@
 {% extends "admin/nav_base.html" %}
-
+ 
 {% block title %}Transaction{% endblock %}
 {% block page_title %}Transaction{% endblock %}
-
+ 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/admin/admin_transaction.css') }}">
-<style>
-    .content-placeholder {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 60vh;
-        text-align: center;
-    }
-
-    .placeholder-box {
-        padding: 40px;
-        border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    }
-
-    .placeholder-icon {
-        font-size: 48px;
-        color: #52B788;
-    }
-</style>
 {% endblock %}
-
+ 
 {# Override flash block — this page uses toast-style flash messages #}
 {% block flash %}
 <div id="main-toast-container" class="toast-container">
@@ -53,7 +33,7 @@
         {% endif %}
     {% endwith %}
 </div>
-
+ 
 <template id="toast-template">
     <div class="medical-toast" role="alert">
         <div class="toast-progress"></div>
@@ -68,13 +48,13 @@
     </div>
 </template>
 {% endblock %}
-
+ 
 {% block content %}
 <div class="page-header">
     <div class="header-titles">
         <p>Keep track of medical equipment transactions, rentals, sales, and service activity logs.</p>
     </div>
-
+ 
     <button class="primary-action-btn" id="open-txn-selection">
         <span class="material-symbols-rounded">add_circle</span>
         <div class="btn-label">
@@ -83,26 +63,30 @@
         </div>
     </button>
 </div>
-
+ 
 <div class="asset-registry-card">
     <div class="table-header-actions">
         <div class="search-box">
             <span class="material-symbols-rounded">search</span>
             <input type="text" id="table-search" placeholder="Search reference or customer..." value="{{ search_query }}">
         </div>
-
+ 
         <div class="filter-group d-flex align-items-center flex-nowrap gap-2">
             <select id="status-filter" class="medical-select">
                 <option value="">All Statuses</option>
-                <option value="overdue" {{ 'selected' if current_status == 'overdue' }}>⚠️ Overdue Only</option>
+                <option value="overdue"       {{ 'selected' if current_status == 'overdue' }}>Overdue Returns</option>
+                <option value="expiring"      {{ 'selected' if current_status == 'expiring' }}>Expiring Soon</option>
+                <option value="unpaid"        {{ 'selected' if current_status == 'unpaid' }}>Unpaid</option>
+                <option value="partial"       {{ 'selected' if current_status == 'partial' }}>Partially Paid</option>
+                <option value="submitted"     {{ 'selected' if current_status == 'submitted' }}>Awaiting Verification</option>
             </select>
-
+ 
             <select id="type-filter" class="medical-select">
                 <option value="">All Types</option>
                 <option value="Rental" {{ 'selected' if current_type == 'Rental' }}>Rental</option>
                 <option value="Sale" {{ 'selected' if current_type == 'Sale' }}>Sale</option>
             </select>
-
+ 
             <select id="fulfillment-filter" class="medical-select">
                 <option value="">All Fulfillment</option>
                 <option value="Pickup" {{ 'selected' if current_fulfillment == 'Pickup' }}>Pickup</option>
@@ -130,7 +114,7 @@
                     </li>
                 </ul>
             </div>
-
+ 
             {% if search_query or current_type or current_fulfillment or current_status %}
             <button type="button" id="clear-filters-btn" class="clear-filter-btn text-nowrap">
                 <span class="material-symbols-rounded">filter_alt_off</span>
@@ -140,30 +124,7 @@
         </div>
     </div>
 
-    <style>
-        /* Dropdown Visibility & Interactions */
-        .custom-dropdown-menu.show {
-            display: block !important;
-            animation: dropdownFadeIn 0.15s ease-out;
-        }
-        
-        #customDropdownBtn:hover {
-            background-color: #f8fafc !important;
-            border-color: #cbd5e1 !important;
-            color: #334155 !important;
-        }
-
-        .custom-dropdown-item:hover {
-            background-color: #f1f5f9 !important;
-            color: #0f172a !important;
-        }
-
-        @keyframes dropdownFadeIn {
-            from { opacity: 0; transform: translateY(-4px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-    </style>
-
+ 
     <div class="table-responsive">
         <table class="medical-table align-middle">
             <thead>
@@ -192,17 +153,17 @@
                             </div>
                         </div>
                     </td>
-
+ 
                     <td>
                         <span class="fw-bold text-dark text-nowrap">{{ txn.customer_name or (txn.customer.first_name ~ ' ' ~ txn.customer.last_name) }}</span>
                     </td>
-
+ 
                     <td>
                         <span class="badge {{ 'badge-soft-info' if txn.transaction_type == 'Rental' else 'badge-soft-primary' }} text-nowrap">
                             {{ txn.transaction_type }}
                         </span>
                     </td>
-
+ 
                     <td>
                         <small class="fw-medium text-dark text-truncate d-block" style="max-width: 130px;" title="{% if txn.rentals %}{{ txn.rentals[0].product.equipment_type }}{% elif txn.purchases %}{{ txn.purchases[0].product.equipment_type }}{% endif %}">
                             {% if txn.rentals %}
@@ -216,11 +177,11 @@
                             {% endif %}
                         </small>
                     </td>
-
+ 
                     <td>
                         <span class="text-muted small text-nowrap">{{ txn.fulfillment_type }}</span>
                     </td>
-
+ 
                     <td class="fw-bold text-dark text-end">₱{{ "{:,.2f}".format(txn.total_amount) }}</td>
                     <td class="text-success fw-medium text-end">₱{{ "{:,.2f}".format(txn.amount_paid) }}</td>
                     <td class="text-end">
@@ -232,7 +193,7 @@
                             </div>
                         {% endif %}
                     </td>
-
+ 
                     <td class="text-center">
                         <div class="d-inline-flex justify-content-center w-100">
                             {% if txn.calculated_overdue %}
@@ -260,11 +221,11 @@
                             {% endif %}
                         </div>
                     </td>
-
+ 
                     <td>
                         <span class="fw-medium text-muted small text-nowrap">{{ txn.created_at.strftime('%b %d, %Y') }}</span>
                     </td>
-
+ 
                     <td class="text-end">
                         <div class="action-row-container d-inline-flex justify-content-end gap-1">
                             <button type="button"
@@ -279,7 +240,7 @@
                                 {% if txn.balance_due <= 0 %}disabled{% endif %}>
                                 <i class="material-symbols-rounded">add_card</i>
                             </button>
-
+ 
                             <a href="{{ url_for('admin.transaction_details', id=txn.id) }}" class="btn-action" title="View/Return Details">
                                 <i class="material-symbols-rounded">visibility</i>
                             </a>
@@ -302,7 +263,7 @@
             </tbody>
         </table>
     </div>
-
+ 
     <div class="pagination-footer">
         <div class="table-limit-control">
             <span class="limit-label">Show</span>
@@ -313,13 +274,13 @@
             </select>
             <span class="limit-label">entries</span>
         </div>
-
+ 
         <div class="pagination-info">
             Showing <strong>{{ (pagination.page - 1) * pagination.per_page + 1 }}</strong> to
             <strong>{{ [pagination.page * pagination.per_page, pagination.total]|min }}</strong>
             of <strong>{{ pagination.total }}</strong> transactions
         </div>
-
+ 
         <div class="pagination-controls">
             {% if pagination.has_prev %}
             <a href="{{ url_for('admin.transactions', page=pagination.prev_num, limit=current_limit, q=search_query, type=current_type, fulfillment=current_fulfillment, status=current_status) }}" class="pag-btn">
@@ -328,9 +289,9 @@
             {% else %}
             <div class="pag-btn disabled" style="opacity: 0.4;"><span class="material-symbols-rounded">chevron_left</span></div>
             {% endif %}
-
+ 
             <span class="page-number">Page <strong>{{ pagination.page }}</strong> of {{ pagination.pages }}</span>
-
+ 
             {% if pagination.has_next %}
             <a href="{{ url_for('admin.transactions', page=pagination.next_num, limit=current_limit, q=search_query, type=current_type, fulfillment=current_fulfillment, status=current_status) }}" class="pag-btn">
                 <span class="material-symbols-rounded">chevron_right</span>
@@ -338,7 +299,7 @@
             {% else %}
             <div class="pag-btn disabled" style="opacity: 0.4;"><span class="material-symbols-rounded">chevron_right</span></div>
             {% endif %}
-
+ 
             <div class="jump-to-wrapper">
                 <span class="jump-text">Go to</span>
                 <input type="number" id="jump-page-input" class="jump-input" min="1" max="{{ pagination.pages }}" value="{{ pagination.page }}">
@@ -347,18 +308,18 @@
         </div>
     </div>
 </div>
-
-
+ 
+ 
 <div id="txnSelectionModal" class="medical-modal-overlay hidden">
     <div class="medical-modal-content" style="max-width: 500px;">
         <div class="modal-header-tnx-row">
             <h2 class="modal-header">New Transaction</h2>
         </div>
-
+ 
         <button class="modal-close-btn" id="close-selection-modal">
             <span class="material-symbols-rounded">close</span>
         </button>
-
+ 
         <div class="modal-body" style="padding: 20px 0;">
             <div class="form-field">
                 <label style="font-weight: 700; color: #1e293b; margin-bottom: 8px; display: block;">1. Select Customer / Patient</label>
@@ -385,7 +346,7 @@
                                     <strong class="cust-name-text" style="font-size: 0.9rem; color: #1e293b; font-weight: 600;">
                                         {{ cust.full_name }}
                                     </strong>
-
+ 
                                     <small class="cust-sub-text" style="font-size: 0.75rem; color: #64748b;">
                                         {% if cust.user %}
                                             Email: {{ cust.user.email }}
@@ -400,14 +361,14 @@
                                 No active customer records available
                             </div>
                         {% endif %}
-
+ 
                         <div id="no-customer-match" style="padding: 16px; text-align: center; color: #94a3b8; font-size: 0.85rem; display: none;">
                             No customer names match your search
                         </div>
                     </div>
                 </div>
             </div>
-
+ 
             <label style="display: block; margin-top: 24px; font-size: 0.85rem; font-weight: 700; color: #64748b; text-transform: uppercase;">2. Choose Transaction Type</label>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px;">
                 <button type="button" class="type-choice-btn rental" data-flow="Rental">
@@ -422,10 +383,10 @@
         </div>
     </div>
 </div>
-
+ 
 {% include 'modals/rent_purch_modal.html' %}
 {% endblock %}
-
+ 
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/admin/admin_transaction.js') }}"></script>
 {% endblock %}

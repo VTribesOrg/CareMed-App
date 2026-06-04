@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, url_for, redirect, flash, request,
 from flask_login import current_user
 from extensions import db, limiter, csrf
 from sqlalchemy.orm import joinedload
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, and_
 from flask_login import login_required
 from functools import wraps
 from models.product import Product, InventoryLog, Transaction, Purchase, Payment, Rental, RentalInvoice, Expense, PaymentProof
@@ -82,33 +82,72 @@ def dashboard():
 @login_required
 @administrator_required
 def customers():
-    page = request.args.get('page', 1, type=int)
-    limit = request.args.get('limit', 10, type=int)
+    page         = request.args.get('page', 1, type=int)
+    limit        = request.args.get('limit', 10, type=int)
     search_query = request.args.get('q', '').strip()
-
+    filter_type  = request.args.get('filter', '')         
+ 
     query = Customer.query
-
+ 
+    # text search
     if search_query:
         query = query.filter(or_(
             Customer.first_name.ilike(f"%{search_query}%"),
             Customer.last_name.ilike(f"%{search_query}%"),
             Customer.contact_number.ilike(f"%{search_query}%")
         ))
-
+ 
+    # ── filter deep-links from notifications ──────────────────────────────
+    if filter_type == 'overdue_invoices':
+        # Customers who have at least one unpaid invoice past its due date
+        from models.product import RentalInvoice, Rental as RentalModel
+        today = date.today()
+        overdue_customer_ids = db.session.query(
+            RentalModel.customer_id
+        ).join(
+            RentalInvoice, RentalInvoice.rental_id == RentalModel.id
+        ).filter(
+            RentalInvoice.status != 'Paid',
+            RentalInvoice.service_period_start < today
+        ).distinct().subquery()
+ 
+        query = query.filter(Customer.id.in_(overdue_customer_ids))
+ 
+    elif filter_type == 'pending_id':
+        # Customers who uploaded an ID but are not yet verified
+        query = query.filter(
+            Customer.is_id_verified == False,
+            Customer.valid_id_path != None
+        )
+ 
+    elif filter_type == 'inactive_open':
+        # Deactivated customers who still have open transactions
+        open_txn_customer_ids = db.session.query(
+            Transaction.customer_id
+        ).filter(
+            Transaction.status == 'Open'
+        ).distinct().subquery()
+ 
+        query = query.filter(
+            Customer.is_active == False,
+            Customer.id.in_(open_txn_customer_ids)
+        )
+    # ─────────────────────────────────────────────────────────────────────
+ 
     pagination = query.order_by(Customer.last_name.asc()).paginate(
         page=page,
         per_page=limit,
         error_out=False
     )
-
+ 
     return render_template(
         "admin/customers.html",
         customers=pagination.items,
         pagination=pagination,
         search_query=search_query,
-        current_limit=limit
+        current_limit=limit,
+        current_filter=filter_type      
     )
-
 
 @admin_bp.route('/get_customer/<int:id>')
 @login_required
@@ -421,48 +460,57 @@ def update_customer():
 @login_required
 @administrator_required
 def products():
-
-    page = request.args.get('page', 1, type=int)
-    limit = request.args.get('limit', 10, type=int)
-    search_query = request.args.get('q', '').strip()
-    equipment_type = request.args.get('type', 'all')  
-
+    page           = request.args.get('page', 1, type=int)
+    limit          = request.args.get('limit', 10, type=int)
+    search_query   = request.args.get('q', '').strip()
+    equipment_type = request.args.get('type', 'all')
+    filter_type    = request.args.get('filter', '')         
+ 
     query = Product.query
-
+ 
     if search_query:
         query = query.filter(or_(
             Product.equipment_type.ilike(f"%{search_query}%"),
             Product.name.ilike(f"%{search_query}%")
         ))
-
+ 
     if equipment_type and equipment_type != 'all':
         query = query.filter(Product.equipment_type.ilike(f"%{equipment_type}%"))
-
+ 
+    # ── filter deep-links from notifications ──────────────────────────────
+    if filter_type == 'low_stock':
+        query = query.filter(
+            Product.stock <= 5,
+            Product.stock > 0,
+            Product.status != 'Archived'
+        )
+    elif filter_type == 'out_of_stock':
+        query = query.filter(
+            Product.stock == 0,
+            Product.status != 'Archived'
+        )
+    # ─────────────────────────────────────────────────────────────────────
+ 
     pagination = query.order_by(
         Product.equipment_type.asc(),
         Product.name.asc()
-    ).paginate(
-        page=page,
-        per_page=limit,
-        error_out=False
-    )
-
+    ).paginate(page=page, per_page=limit, error_out=False)
+ 
     start_entry = 0
-    end_entry = 0
-
+    end_entry   = 0
     if pagination.total > 0:
         start_entry = (pagination.page - 1) * pagination.per_page + 1
-        end_entry = min(pagination.page * pagination.per_page, pagination.total)
-
+        end_entry   = min(pagination.page * pagination.per_page, pagination.total)
+ 
     stats = {
-        'total_inventory': db.session.query(func.sum(Product.stock)).scalar() or 0,
-        'low_stock_count': Product.query.filter(Product.stock <= 5).count(),
+        'total_inventory':    db.session.query(func.sum(Product.stock)).scalar() or 0,
+        'low_stock_count':    Product.query.filter(Product.stock <= 5).count(),
         'available_for_rent': Product.query.filter_by(status='Available').count()
     }
-
+ 
     customers = Customer.query.filter_by(is_active=True)\
         .order_by(Customer.last_name.asc()).all()
-
+ 
     return render_template(
         "admin/products.html",
         products=pagination.items,
@@ -471,11 +519,11 @@ def products():
         search_query=search_query,
         current_limit=limit,
         current_type=equipment_type,
+        current_filter=filter_type,      
         start_entry=start_entry,
         end_entry=end_entry,
         **stats
     )
-
 
 
 @admin_bp.route('/add-product', methods=['POST'])
@@ -1216,16 +1264,52 @@ def transactions():
     
     if fulfillment:
         query = query.filter(Transaction.fulfillment_type == fulfillment)
+        
 
     if status_filter == 'overdue':
         current_date = datetime.now().date()
         query = query.filter(
             Transaction.balance_due > 0,
             or_(
-                Transaction.status == 'Due', 
+                Transaction.status == 'Due',
                 Transaction.rentals.any(Rental.expected_return_date < current_date)
-            ) 
+            )
         )
+ 
+    elif status_filter == 'expiring':
+        # Rentals whose return date is today or within the next 3 days
+        from datetime import timedelta
+        current_date = datetime.now().date()
+        soon = current_date + timedelta(days=3)
+        query = query.filter(
+            Transaction.transaction_type == 'Rental',
+            Transaction.rentals.any(
+                and_(
+                    Rental.status == 'Active',
+                    Rental.expected_return_date >= current_date,
+                    Rental.expected_return_date <= soon
+                )
+            )
+        )
+ 
+    elif status_filter == 'unpaid':
+        query = query.filter(
+            Transaction.payment_status == 'Unpaid',
+            Transaction.status == 'Open'
+        )
+ 
+    elif status_filter == 'partial':
+        query = query.filter(
+            Transaction.payment_status == 'Partially Paid',
+            Transaction.status == 'Open'
+        )
+ 
+    elif status_filter == 'submitted':
+        query = query.filter(
+            Transaction.tracking_status == 'SUBMITTED',
+            Transaction.status == 'Open'
+        )
+
 
     pagination = query.order_by(Transaction.created_at.desc()).paginate(
         page=page, per_page=limit, error_out=False
@@ -2409,104 +2493,218 @@ def delete_backup(filename):
     return redirect(url_for('admin.backup_page'))
 
 
+def _build_notifications():
+
+    from models.product import PaymentProof, RentalInvoice
+    from models.customer import Customer
+    from datetime import timedelta
+ 
+    today = date.today()
+    soon  = today + timedelta(days=3)
+    notifications = []
+ 
+    # ── 1. OVERDUE EQUIPMENT RETURNS ──────────────────────────────────────
+    overdue_rentals = Rental.query.filter(
+        Rental.status == 'Active',
+        Rental.expected_return_date < today
+    ).all()
+    overdue_count = len(overdue_rentals)
+ 
+    if overdue_count > 0:
+        names = list({
+            r.transaction.customer_name for r in overdue_rentals
+            if r.transaction and r.transaction.customer_name
+        })[:3]
+        extra = f" and {overdue_count - 3} more" if overdue_count > 3 else ""
+        notifications.append({
+            "id": "overdue_returns",
+            "type": "error",
+            "icon": "assignment_late",
+            "title": f"{overdue_count} Overdue Equipment Return{'s' if overdue_count > 1 else ''}",
+            "message": f"{', '.join(names)}{extra} — equipment past return date.",
+            "link": "/admin/transactions?type=Rental&status=overdue"
+        })
+ 
+    # ── 2. CUSTOMERS WITH OVERDUE INVOICES ────────────────────────────────
+    overdue_invoices = RentalInvoice.query.filter(
+        RentalInvoice.status != 'Paid',
+        RentalInvoice.service_period_start < today
+    ).all()
+ 
+    overdue_customer_ids = set()
+    overdue_invoice_count = 0
+    for inv in overdue_invoices:
+        if inv.remaining_balance > 0:
+            overdue_invoice_count += 1
+            if inv.rental and inv.rental.customer_id:
+                overdue_customer_ids.add(inv.rental.customer_id)
+ 
+    if overdue_customer_ids:
+        c = len(overdue_customer_ids)
+        notifications.append({
+            "id": "overdue_invoices",
+            "type": "error",
+            "icon": "receipt_long",
+            "title": f"{c} Customer{'s' if c > 1 else ''} with Overdue Invoice{'s' if overdue_invoice_count > 1 else ''}",
+            "message": f"{overdue_invoice_count} unpaid invoice{'s' if overdue_invoice_count > 1 else ''} past due date.",
+            "link": "/admin/customers?filter=overdue_invoices"
+        })
+ 
+    # ── 3. RENTALS EXPIRING WITHIN 3 DAYS ─────────────────────────────────
+    expiring_soon = Rental.query.filter(
+        Rental.status == 'Active',
+        Rental.expected_return_date >= today,
+        Rental.expected_return_date <= soon
+    ).all()
+    expiring_count = len(expiring_soon)
+ 
+    if expiring_count > 0:
+        names = list({
+            r.transaction.customer_name for r in expiring_soon
+            if r.transaction and r.transaction.customer_name
+        })[:3]
+        extra = f" and {expiring_count - 3} more" if expiring_count > 3 else ""
+        notifications.append({
+            "id": "expiring_soon",
+            "type": "warning",
+            "icon": "event_upcoming",
+            "title": f"{expiring_count} Rental{'s' if expiring_count > 1 else ''} Expiring Soon",
+            "message": f"{', '.join(names)}{extra} — return due within 3 days.",
+            "link": "/admin/transactions?type=Rental&status=expiring"
+        })
+ 
+    # ── 4. UNPAID SALE TRANSACTIONS ───────────────────────────────────────
+    unpaid_sales = Transaction.query.filter(
+        Transaction.transaction_type == 'Sale',
+        Transaction.payment_status == 'Unpaid',
+        Transaction.status == 'Open'
+    ).count()
+ 
+    if unpaid_sales > 0:
+        notifications.append({
+            "id": "unpaid_sales",
+            "type": "warning",
+            "icon": "money_off",
+            "title": f"{unpaid_sales} Unpaid Sale Transaction{'s' if unpaid_sales > 1 else ''}",
+            "message": f"{unpaid_sales} sale{'s' if unpaid_sales > 1 else ''} with outstanding balance.",
+            "link": "/admin/transactions?type=Sale&status=unpaid"
+        })
+ 
+    # ── 5. PARTIALLY PAID TRANSACTIONS ────────────────────────────────────
+    partial_payments = Transaction.query.filter(
+        Transaction.payment_status == 'Partially Paid',
+        Transaction.status == 'Open'
+    ).count()
+ 
+    if partial_payments > 0:
+        notifications.append({
+            "id": "partial_payments",
+            "type": "warning",
+            "icon": "payments",
+            "title": f"{partial_payments} Partially Paid Transaction{'s' if partial_payments > 1 else ''}",
+            "message": f"{partial_payments} transaction{'s' if partial_payments > 1 else ''} still have remaining balances.",
+            "link": "/admin/transactions?status=partial"
+        })
+ 
+    # ── 6. LOW STOCK ──────────────────────────────────────────────────────
+    low_stock = Product.query.filter(
+        Product.stock <= 5,
+        Product.stock > 0,
+        Product.status != 'Archived'
+    ).all()
+ 
+    if low_stock:
+        names = ", ".join([p.name for p in low_stock[:3]])
+        extra = f" and {len(low_stock) - 3} more" if len(low_stock) > 3 else ""
+        notifications.append({
+            "id": "low_stock",
+            "type": "warning",
+            "icon": "inventory_2",
+            "title": f"{len(low_stock)} Item{'s' if len(low_stock) > 1 else ''} Running Low",
+            "message": f"{names}{extra} — restock soon.",
+            "link": "/admin/products?filter=low_stock"
+        })
+ 
+    # ── 7. OUT OF STOCK ───────────────────────────────────────────────────
+    out_of_stock = Product.query.filter(
+        Product.stock == 0,
+        Product.status != 'Archived'
+    ).count()
+ 
+    if out_of_stock > 0:
+        notifications.append({
+            "id": "out_of_stock",
+            "type": "error",
+            "icon": "remove_shopping_cart",
+            "title": f"{out_of_stock} Item{'s' if out_of_stock > 1 else ''} Out of Stock",
+            "message": "Immediate restock required.",
+            "link": "/admin/products?filter=out_of_stock"
+        })
+ 
+    # ── 8. ORDERS STUCK AT SUBMITTED ─────────────────────────────────────
+    stuck_submitted = Transaction.query.filter(
+        Transaction.tracking_status == 'SUBMITTED',
+        Transaction.status == 'Open'
+    ).count()
+ 
+    if stuck_submitted > 0:
+        notifications.append({
+            "id": "stuck_submitted",
+            "type": "info",
+            "icon": "hourglass_top",
+            "title": f"{stuck_submitted} Order{'s' if stuck_submitted > 1 else ''} Awaiting Verification",
+            "message": f"{stuck_submitted} order{'s' if stuck_submitted > 1 else ''} submitted and not yet verified.",
+            "link": "/admin/transactions?status=submitted"
+        })
+ 
+    # ── 9. PENDING CUSTOMER ID VERIFICATIONS ─────────────────────────────
+    pending_verifications = Customer.query.filter(
+        Customer.is_id_verified == False,
+        Customer.valid_id_path != None
+    ).count()
+ 
+    if pending_verifications > 0:
+        notifications.append({
+            "id": "pending_verifications",
+            "type": "info",
+            "icon": "verified_user",
+            "title": f"{pending_verifications} ID Verification{'s' if pending_verifications > 1 else ''} Pending",
+            "message": "Customer IDs uploaded and awaiting admin review.",
+            "link": "/admin/customers?filter=pending_id"
+        })
+ 
+    # ── 10. INACTIVE CUSTOMERS WITH OPEN TRANSACTIONS ─────────────────────
+    inactive_with_open = db.session.query(func.count(Transaction.id)).join(
+        Customer, Customer.id == Transaction.customer_id
+    ).filter(
+        Customer.is_active == False,
+        Transaction.status == 'Open'
+    ).scalar() or 0
+ 
+    if inactive_with_open > 0:
+        notifications.append({
+            "id": "inactive_open_txn",
+            "type": "warning",
+            "icon": "person_off",
+            "title": f"{inactive_with_open} Open Transaction{'s' if inactive_with_open > 1 else ''} — Inactive Customer{'s' if inactive_with_open > 1 else ''}",
+            "message": "Deactivated customers still have open transactions.",
+            "link": "/admin/customers?filter=inactive_open"
+        })
+ 
+    return notifications
+ 
+ 
 @admin_bp.route('/notifications/stream')
 @login_required
 @administrator_required
 def notification_stream():
     """Server-Sent Events endpoint — pushes notification data every 30s."""
-
-    def build_notifications():
-        try:
-            today = date.today()
-
-            overdue = Rental.query.filter(
-                Rental.status == 'Active',
-                Rental.expected_return_date < today
-            ).count()
-
-            low_stock = Product.query.filter(
-                Product.stock <= 5,
-                Product.stock > 0
-            ).all()
-
-            out_of_stock = Product.query.filter(Product.stock == 0).count()
-
-            from models.product import PaymentProof
-            pending_proofs = PaymentProof.query.filter_by(status='Pending').count()
-
-            from models.customer import Customer
-            pending_verifications = Customer.query.filter(
-                Customer.is_id_verified == False,
-                Customer.valid_id_path != None
-            ).count()
-
-            notifications = []
-
-            if overdue > 0:
-                notifications.append({
-                    "id": "overdue",
-                    "type": "warning",
-                    "icon": "schedule",
-                    "title": f"{overdue} Overdue Return{'s' if overdue > 1 else ''}",
-                    "message": f"{overdue} rental item{'s are' if overdue > 1 else ' is'} past the return date.",
-                    "link": "/admin/transactions"
-                })
-
-            if low_stock:
-                names = ", ".join([p.name for p in low_stock[:3]])
-                extra = f" and {len(low_stock) - 3} more" if len(low_stock) > 3 else ""
-                notifications.append({
-                    "id": "low_stock",
-                    "type": "warning",
-                    "icon": "inventory_2",
-                    "title": f"{len(low_stock)} Item{'s' if len(low_stock) > 1 else ''} Running Low",
-                    "message": f"{names}{extra} — restock soon.",
-                    "link": "/admin/products"
-                })
-
-            if out_of_stock > 0:
-                notifications.append({
-                    "id": "out_of_stock",
-                    "type": "error",
-                    "icon": "remove_shopping_cart",
-                    "title": f"{out_of_stock} Item{'s' if out_of_stock > 1 else ''} Out of Stock",
-                    "message": "Immediate restock required.",
-                    "link": "/admin/products"
-                })
-
-            if pending_proofs > 0:
-                notifications.append({
-                    "id": "pending_proofs",
-                    "type": "info",
-                    "icon": "payments",
-                    "title": f"{pending_proofs} Pending Payment Proof{'s' if pending_proofs > 1 else ''}",
-                    "message": "GCash payments waiting for verification.",
-                    "link": "/admin/transactions"
-                })
-
-            if pending_verifications > 0:
-                notifications.append({
-                    "id": "pending_verifications",
-                    "type": "info",
-                    "icon": "verified_user",
-                    "title": f"{pending_verifications} ID Verification{'s' if pending_verifications > 1 else ''} Pending",
-                    "message": "Customer IDs uploaded and awaiting review.",
-                    "link": "/admin/customers"
-                })
-
-            return notifications
-
-        except Exception as e:
-            current_app.logger.error(f"SSE notification error: {e}")
-            return []
-
+ 
     def generate():
-        # Send immediately on connect
-        notifications = build_notifications()
+        notifications = _build_notifications()
         payload = json.dumps({"count": len(notifications), "notifications": notifications})
         yield f"data: {payload}\n\n"
-
-        # Then every 30 seconds
+ 
         import time
         interval = 30
         elapsed = 0
@@ -2515,10 +2713,10 @@ def notification_stream():
             elapsed += 1
             if elapsed >= interval:
                 elapsed = 0
-                notifications = build_notifications()
+                notifications = _build_notifications()
                 payload = json.dumps({"count": len(notifications), "notifications": notifications})
                 yield f"data: {payload}\n\n"
-
+ 
     return Response(
         stream_with_context(generate()),
         mimetype='text/event-stream',
@@ -2527,84 +2725,17 @@ def notification_stream():
             'X-Accel-Buffering': 'no'
         }
     )
-
+ 
+ 
 @admin_bp.route('/notifications/data')
 @login_required
 @administrator_required
 def notification_data():
     """One-shot JSON endpoint — used for the initial page load."""
     try:
-        today = date.today()
-
-        overdue = Rental.query.filter(
-            Rental.status == 'Active',
-            Rental.expected_return_date < today
-        ).count()
-
-        low_stock = Product.query.filter(
-            Product.stock <= 5,
-            Product.stock > 0
-        ).all()
-
-        out_of_stock = Product.query.filter(Product.stock == 0).count()
-
-        from models.product import PaymentProof
-        pending_proofs = PaymentProof.query.filter_by(status='Pending').count()
-
-        from models.customer import Customer
-        pending_verifications = Customer.query.filter(
-            Customer.is_id_verified == False,
-            Customer.valid_id_path != None
-        ).count()
-
-        notifications = []
-
-        if overdue > 0:
-            notifications.append({
-                "id": "overdue", "type": "warning", "icon": "schedule",
-                "title": f"{overdue} Overdue Return{'s' if overdue > 1 else ''}",
-                "message": f"{overdue} rental item{'s are' if overdue > 1 else ' is'} past the return date.",
-                "link": "/admin/transactions"
-            })
-
-        if low_stock:
-            names = ", ".join([p.name for p in low_stock[:3]])
-            extra = f" and {len(low_stock) - 3} more" if len(low_stock) > 3 else ""
-            notifications.append({
-                "id": "low_stock",
-                "type": "warning",
-                "icon": "inventory_2",
-                "title": f"{len(low_stock)} Item{'s' if len(low_stock) > 1 else ''} Running Low",
-                "message": f"{names}{extra} — restock soon.",
-                "link": "/admin/products"
-            })
-
-        if out_of_stock > 0:
-            notifications.append({
-                "id": "out_of_stock", "type": "error", "icon": "remove_shopping_cart",
-                "title": f"{out_of_stock} Item{'s' if out_of_stock > 1 else ''} Out of Stock",
-                "message": "Immediate restock required.",
-                "link": "/admin/products"
-            })
-
-        if pending_proofs > 0:
-            notifications.append({
-                "id": "pending_proofs", "type": "info", "icon": "payments",
-                "title": f"{pending_proofs} Pending Payment Proof{'s' if pending_proofs > 1 else ''}",
-                "message": "GCash payments waiting for verification.",
-                "link": "/admin/transactions"
-            })
-
-        if pending_verifications > 0:
-            notifications.append({
-                "id": "pending_verifications", "type": "info", "icon": "verified_user",
-                "title": f"{pending_verifications} ID Verification{'s' if pending_verifications > 1 else ''} Pending",
-                "message": "Customer IDs uploaded and awaiting review.",
-                "link": "/admin/customers"
-            })
-
+        notifications = _build_notifications()
         return jsonify({"count": len(notifications), "notifications": notifications})
-
     except Exception as e:
         current_app.logger.error(f"Notification data error: {e}")
         return jsonify({"count": 0, "notifications": []})
+ 
