@@ -334,8 +334,14 @@ If this was not you, reset your password immediately.
                 is_suspicious=False
             )
 
-        login_user(user, remember=form.remember_me.data if hasattr(form, 'remember_me') else True)
-        session.permanent = True
+        if user.role.strip() == 'Administrator':
+            remember = False
+            session.permanent = False         
+        else:
+            remember = form.remember_me.data   
+            session.permanent = remember       
+ 
+        login_user(user, remember=remember)
 
         # Only send email if different device or first ever login
         if is_new_device:
@@ -792,8 +798,15 @@ def callback():
         flash("An internal error occurred during login. Please try again.", "danger")
         return redirect(url_for("auth.login"))
 
-    login_user(user, remember=True)
-    session.permanent = True
+    if user.role.strip() == 'Administrator':
+        remember = False
+        session.permanent = False
+    else:
+        remember = True
+        session.permanent = True
+ 
+    login_user(user, remember=remember)
+    
     user.last_login_at = datetime.utcnow()
     db.session.commit()
 

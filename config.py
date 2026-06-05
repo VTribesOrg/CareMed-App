@@ -1,5 +1,6 @@
 import os
 from dotenv import load_dotenv
+from datetime import timedelta
 
 load_dotenv()
 
@@ -28,8 +29,11 @@ class Config:
     SESSION_COOKIE_SAMESITE = "Strict"  
     PERMANENT_SESSION_LIFETIME = 3600   
 
-    REMEMBER_COOKIE_SECURE = True
-    REMEMBER_COOKIE_HTTPONLY = True
+    REMEMBER_COOKIE_DURATION    = timedelta(hours=8)  
+    REMEMBER_COOKIE_SECURE      = True
+    REMEMBER_COOKIE_HTTPONLY    = True
+    REMEMBER_COOKIE_SAMESITE    = "Strict"
+    PERMANENT_SESSION_LIFETIME  = timedelta(hours=2)   
 
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  
 
@@ -89,8 +93,10 @@ class DevConfig:
 
     PERMANENT_SESSION_LIFETIME = 3600
 
-    REMEMBER_COOKIE_SECURE = False
-    REMEMBER_COOKIE_HTTPONLY = True
+    REMEMBER_COOKIE_DURATION    = timedelta(hours=8)
+    REMEMBER_COOKIE_SECURE      = False
+    REMEMBER_COOKIE_HTTPONLY    = True
+    PERMANENT_SESSION_LIFETIME  = timedelta(hours=2)
 
 
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024

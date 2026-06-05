@@ -45,6 +45,28 @@ body {
     padding: 0;
 }
 
+.form-row-spaced {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    margin: 6px 0 14px;
+}
+.remember-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: #555;
+    cursor: pointer;
+    user-select: none;
+}
+.remember-label input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    accent-color: #2563eb;
+    cursor: pointer;
+}
+
 /* ============================================================
    LOGIN WRAPPER: Main layout container
    ============================================================ */

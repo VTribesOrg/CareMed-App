@@ -10,11 +10,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='icons/favicon-circle.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/user/login.css') }}">
-
 </head>
-
 <body>
-
     <div class="login-wrapper">
         <div class="side-visual">
             <div class="nav-header">
@@ -186,6 +183,13 @@
                             {% endif %}
                             {% endwith %}
 
+                        </div>
+
+                        <div class="form-row-spaced">
+                            <label class="remember-label">
+                                {{ form.remember_me(id="remember_me") }}
+                                <span>Remember me</span>
+                            </label>
                         </div>
 
                         <button type="submit" class="btn-primary" id="loginBtn">

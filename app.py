@@ -9,6 +9,10 @@ from flask_talisman import Talisman
 from models.users import SecurityLog, BlockedIP
 from apscheduler.schedulers.background import BackgroundScheduler
 import atexit
+from flask_login import current_user, logout_user
+from datetime import datetime, timedelta
+from flask import session
+
 
 app = Flask(__name__)
 app.jinja_env.globals['enumerate'] = enumerate
@@ -73,6 +77,31 @@ def check_blocked_ip():
                 db.session.rollback()
         else:
             abort(403)
+
+
+@app.before_request          
+def enforce_admin_session_timeout():
+    """
+    Extra safety net:
+    - Admins have a 2-hour idle timeout (on top of Flask-Login session_protection).
+    - If an admin's session has no 'last_active' timestamp, set it now.
+    - If idle for more than 2 hours, log them out and redirect to login.
+    """
+    if current_user.is_authenticated and current_user.role.strip() == 'Administrator':
+        now = datetime.utcnow()
+        last_active = session.get('last_active')
+ 
+        if last_active:
+            last_active_dt = datetime.fromisoformat(last_active)
+            idle_minutes = (now - last_active_dt).total_seconds() / 60
+            if idle_minutes > 120:   # 2 hours
+                logout_user()
+                session.clear()
+                flash("Your admin session expired due to inactivity. Please log in again.", "warning")
+                return redirect(url_for('auth.login'))
+ 
+        # Update last active timestamp on every request
+        session['last_active'] = now.isoformat()
 
 
 # Rate-limit handler: log to IDS + return user-friendly response 

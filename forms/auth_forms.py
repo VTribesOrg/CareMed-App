@@ -1,6 +1,6 @@
 import re
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, TelField, SubmitField
+from wtforms import StringField, PasswordField, TelField, SubmitField, BooleanField
 from wtforms.validators import (DataRequired, Length, Email, EqualTo, ValidationError)
 
 def validate_name(form, field):
@@ -58,6 +58,8 @@ class LoginForm(FlaskForm):
     email = StringField("Email Address", validators=[DataRequired(), Email(), validate_gmail])
     
     password = PasswordField("Password", validators=[DataRequired()])
+    
+    remember_me = BooleanField("Remember me", default=False)
     
     
 class ResetPasswordForm(FlaskForm):
