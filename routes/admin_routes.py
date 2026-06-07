@@ -1264,23 +1264,12 @@ def transactions():
     
     if fulfillment:
         query = query.filter(Transaction.fulfillment_type == fulfillment)
-        
-
-    if status_filter == 'overdue':
-        current_date = datetime.now().date()
-        query = query.filter(
-            Transaction.balance_due > 0,
-            or_(
-                Transaction.status == 'Due',
-                Transaction.rentals.any(Rental.expected_return_date < current_date)
-            )
-        )
  
     elif status_filter == 'expiring':
-        # Rentals whose return date is today or within the next 3 days
+        # Rentals whose return date is today or within the next 5 days
         from datetime import timedelta
         current_date = datetime.now().date()
-        soon = current_date + timedelta(days=3)
+        soon = current_date + timedelta(days=5)
         query = query.filter(
             Transaction.transaction_type == 'Rental',
             Transaction.rentals.any(
@@ -1290,6 +1279,13 @@ def transactions():
                     Rental.expected_return_date <= soon
                 )
             )
+        )
+        
+    elif status_filter == 'overdue_payment':
+        query = query.filter(
+            Transaction.transaction_type == 'Rental',
+            Transaction.balance_due > 0,
+            Transaction.status == 'Open'
         )
  
     elif status_filter == 'unpaid':
@@ -2531,88 +2527,58 @@ def _build_notifications():
     from models.product import PaymentProof, RentalInvoice
     from models.customer import Customer
     from datetime import timedelta
- 
+
     today = date.today()
-    soon  = today + timedelta(days=3)
+    soon  = today + timedelta(days=5)
     notifications = []
- 
-    # ── 1. OVERDUE EQUIPMENT RETURNS ──────────────────────────────────────
-    overdue_rentals = Rental.query.filter(
-        Rental.status == 'Active',
-        Rental.expected_return_date < today
-    ).all()
-    overdue_count = len(overdue_rentals)
- 
-    if overdue_count > 0:
-        names = list({
-            r.transaction.customer_name for r in overdue_rentals
-            if r.transaction and r.transaction.customer_name
-        })[:3]
-        extra = f" and {overdue_count - 3} more" if overdue_count > 3 else ""
+
+    # ── 1. RENTALS WITH OVERDUE PAYMENT ───────────────────────────────────
+    overdue_payment_txns = db.session.query(Transaction).join(
+        Rental, Rental.transaction_id == Transaction.id
+    ).filter(
+        Transaction.transaction_type == 'Rental',
+        Transaction.balance_due > 0,
+        Transaction.status == 'Open',
+        Rental.start_date <= today
+    ).distinct().all()
+
+    overdue_payment_count = len(overdue_payment_txns)
+
+    if overdue_payment_count > 0:
         notifications.append({
-            "id": "overdue_returns",
+            "id": "overdue_payments",
             "type": "error",
             "icon": "assignment_late",
-            "title": f"{overdue_count} Overdue Equipment Return{'s' if overdue_count > 1 else ''}",
-            "message": f"{', '.join(names)}{extra} — equipment past return date.",
-            "link": "/admin/transactions?type=Rental&status=overdue"
+            "title": f"{overdue_payment_count} Rental{'s' if overdue_payment_count > 1 else ''} with Overdue Payment{'s' if overdue_payment_count > 1 else ''}",
+            "message": "Click to view and collect outstanding rental payments.",
+            "link": "/admin/transactions?type=Rental&status=overdue_payment"
         })
- 
-    # ── 2. CUSTOMERS WITH OVERDUE INVOICES ────────────────────────────────
-    overdue_invoices = RentalInvoice.query.filter(
-        RentalInvoice.status != 'Paid',
-        RentalInvoice.service_period_start < today
-    ).all()
- 
-    overdue_customer_ids = set()
-    overdue_invoice_count = 0
-    for inv in overdue_invoices:
-        if inv.remaining_balance > 0:
-            overdue_invoice_count += 1
-            if inv.rental and inv.rental.customer_id:
-                overdue_customer_ids.add(inv.rental.customer_id)
- 
-    if overdue_customer_ids:
-        c = len(overdue_customer_ids)
-        notifications.append({
-            "id": "overdue_invoices",
-            "type": "error",
-            "icon": "receipt_long",
-            "title": f"{c} Customer{'s' if c > 1 else ''} with Overdue Invoice{'s' if overdue_invoice_count > 1 else ''}",
-            "message": f"{overdue_invoice_count} unpaid invoice{'s' if overdue_invoice_count > 1 else ''} past due date.",
-            "link": "/admin/customers?filter=overdue_invoices"
-        })
- 
-    # ── 3. RENTALS EXPIRING WITHIN 3 DAYS ─────────────────────────────────
+
+    # ── 2. RENTALS EXPIRING WITHIN 3 DAYS ─────────────────────────────────
     expiring_soon = Rental.query.filter(
         Rental.status == 'Active',
         Rental.expected_return_date >= today,
         Rental.expected_return_date <= soon
     ).all()
     expiring_count = len(expiring_soon)
- 
+
     if expiring_count > 0:
-        names = list({
-            r.transaction.customer_name for r in expiring_soon
-            if r.transaction and r.transaction.customer_name
-        })[:3]
-        extra = f" and {expiring_count - 3} more" if expiring_count > 3 else ""
         notifications.append({
             "id": "expiring_soon",
             "type": "warning",
             "icon": "event_upcoming",
             "title": f"{expiring_count} Rental{'s' if expiring_count > 1 else ''} Expiring Soon",
-            "message": f"{', '.join(names)}{extra} — return due within 3 days.",
+            "message": "Click to view rentals expiring within 5 days.",
             "link": "/admin/transactions?type=Rental&status=expiring"
         })
- 
-    # ── 4. UNPAID SALE TRANSACTIONS ───────────────────────────────────────
+
+    # ── 3. UNPAID SALE TRANSACTIONS ───────────────────────────────────────
     unpaid_sales = Transaction.query.filter(
         Transaction.transaction_type == 'Sale',
         Transaction.payment_status == 'Unpaid',
         Transaction.status == 'Open'
     ).count()
- 
+
     if unpaid_sales > 0:
         notifications.append({
             "id": "unpaid_sales",
@@ -2622,13 +2588,13 @@ def _build_notifications():
             "message": f"{unpaid_sales} sale{'s' if unpaid_sales > 1 else ''} with outstanding balance.",
             "link": "/admin/transactions?type=Sale&status=unpaid"
         })
- 
-    # ── 5. PARTIALLY PAID TRANSACTIONS ────────────────────────────────────
+
+    # ── 4. PARTIALLY PAID TRANSACTIONS ────────────────────────────────────
     partial_payments = Transaction.query.filter(
         Transaction.payment_status == 'Partially Paid',
         Transaction.status == 'Open'
     ).count()
- 
+
     if partial_payments > 0:
         notifications.append({
             "id": "partial_payments",
@@ -2638,14 +2604,14 @@ def _build_notifications():
             "message": f"{partial_payments} transaction{'s' if partial_payments > 1 else ''} still have remaining balances.",
             "link": "/admin/transactions?status=partial"
         })
- 
-    # ── 6. LOW STOCK ──────────────────────────────────────────────────────
+
+    # ── 5. LOW STOCK ──────────────────────────────────────────────────────
     low_stock = Product.query.filter(
         Product.stock <= 5,
         Product.stock > 0,
         Product.status != 'Archived'
     ).all()
- 
+
     if low_stock:
         names = ", ".join([p.name for p in low_stock[:3]])
         extra = f" and {len(low_stock) - 3} more" if len(low_stock) > 3 else ""
@@ -2657,13 +2623,13 @@ def _build_notifications():
             "message": f"{names}{extra} — restock soon.",
             "link": "/admin/products?filter=low_stock"
         })
- 
-    # ── 7. OUT OF STOCK ───────────────────────────────────────────────────
+
+    # ── 6. OUT OF STOCK ───────────────────────────────────────────────────
     out_of_stock = Product.query.filter(
         Product.stock == 0,
         Product.status != 'Archived'
     ).count()
- 
+
     if out_of_stock > 0:
         notifications.append({
             "id": "out_of_stock",
@@ -2673,13 +2639,13 @@ def _build_notifications():
             "message": "Immediate restock required.",
             "link": "/admin/products?filter=out_of_stock"
         })
- 
-    # ── 8. ORDERS STUCK AT SUBMITTED ─────────────────────────────────────
+
+    # ── 7. ORDERS STUCK AT SUBMITTED ─────────────────────────────────────
     stuck_submitted = Transaction.query.filter(
         Transaction.tracking_status == 'SUBMITTED',
         Transaction.status == 'Open'
     ).count()
- 
+
     if stuck_submitted > 0:
         notifications.append({
             "id": "stuck_submitted",
@@ -2689,13 +2655,13 @@ def _build_notifications():
             "message": f"{stuck_submitted} order{'s' if stuck_submitted > 1 else ''} submitted and not yet verified.",
             "link": "/admin/transactions?status=submitted"
         })
- 
-    # ── 9. PENDING CUSTOMER ID VERIFICATIONS ─────────────────────────────
+
+    # ── 8. PENDING CUSTOMER ID VERIFICATIONS ─────────────────────────────
     pending_verifications = Customer.query.filter(
         Customer.is_id_verified == False,
         Customer.valid_id_path != None
     ).count()
- 
+
     if pending_verifications > 0:
         notifications.append({
             "id": "pending_verifications",
@@ -2705,15 +2671,15 @@ def _build_notifications():
             "message": "Customer IDs uploaded and awaiting admin review.",
             "link": "/admin/customers?filter=pending_id"
         })
- 
-    # ── 10. INACTIVE CUSTOMERS WITH OPEN TRANSACTIONS ─────────────────────
+
+    # ── 9. INACTIVE CUSTOMERS WITH OPEN TRANSACTIONS ─────────────────────
     inactive_with_open = db.session.query(func.count(Transaction.id)).join(
         Customer, Customer.id == Transaction.customer_id
     ).filter(
         Customer.is_active == False,
         Transaction.status == 'Open'
     ).scalar() or 0
- 
+
     if inactive_with_open > 0:
         notifications.append({
             "id": "inactive_open_txn",
@@ -2723,10 +2689,9 @@ def _build_notifications():
             "message": "Deactivated customers still have open transactions.",
             "link": "/admin/customers?filter=inactive_open"
         })
- 
+
     return notifications
- 
- 
+
 @admin_bp.route('/notifications/stream')
 @login_required
 @administrator_required
