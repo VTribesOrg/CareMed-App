@@ -1953,6 +1953,7 @@ def remove_avatar():
 
 @admin_bp.route('/uploads/profiles/<filename>')
 @login_required
+@limiter.exempt
 def serve_profile_pic(filename):
     """Securely serves files from the uploads/profiles folder."""
     return send_from_directory(os.path.join(current_app.root_path, 'uploads', 'profiles'), filename)

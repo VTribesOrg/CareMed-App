@@ -186,7 +186,7 @@
                         data-event="{{ log.event_type | lower }}"
                         data-useragent="{{ log.user_agent | lower if log.user_agent else '' }}">
                         <td style="white-space:nowrap; color:#94a3b8; font-size:0.72rem;">
-                            {{ log.created_at.strftime('%m/%d %H:%M:%S') }}
+                            {{ log.created_at|pst('%m/%d %I:%M:%S %p') }}
                         </td>
                         <td>
                             {% set et = log.event_type | lower %}
@@ -274,7 +274,7 @@
                             <div class="block-meta">{{ b.reason }}</div>
                             {% if b.blocked_until %}
                             <div style="font-size:0.7rem; color:#94a3b8;">
-                                Until: {{ b.blocked_until.strftime('%m/%d %H:%M') }}
+                                Until: {{ b.blocked_until|pst('%m/%d %H:%M') }} 
                             </div>
                             {% else %}
                             <div style="font-size:0.7rem; color:#dc2626; font-weight:600;">Permanent</div>
@@ -371,8 +371,8 @@
                     {% for log in admin_logs %}
                     <tr class="admin-log-row" data-aevent="{{ log.event_type | lower }}">
                         <td style="white-space:nowrap; color:#94a3b8; font-size:0.72rem;">
-                            {{ log.created_at.strftime('%b %d, %Y') }}<br>
-                            <span style="font-size:0.68rem;">{{ log.created_at.strftime('%I:%M:%S %p') }}</span>
+                            {{ log.created_at|pst('%b %d, %Y') }} <br>
+                            <span style="font-size:0.68rem;">{{ log.created_at|pst('%I:%M:%S %p') }}</span>
                         </td>
                         <td>
                             {% set et = log.event_type | lower %}

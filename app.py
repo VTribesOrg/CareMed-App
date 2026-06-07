@@ -10,7 +10,7 @@ from models.users import SecurityLog, BlockedIP
 from apscheduler.schedulers.background import BackgroundScheduler
 import atexit
 from flask_login import current_user, logout_user
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from flask import session
 
 
@@ -59,6 +59,14 @@ Talisman(
     session_cookie_http_only=True,
     frame_options="SAMEORIGIN",
 )
+
+@app.template_filter('pst')
+def utc_to_pst(dt, fmt='%m/%d %H:%M:%S'):
+    if not dt:
+        return ''
+    pst = timezone(timedelta(hours=8))
+    aware = dt.replace(tzinfo=timezone.utc).astimezone(pst)
+    return aware.strftime(fmt)
 
 
 # IDS: Block requests from blocked IPs before they reach any route 
@@ -142,10 +150,17 @@ def ratelimit_handler(e):
         db.session.rollback()
 
     import time
-    server_time = int(time.time()) 
+    server_time = int(time.time())
+
+    retry_after = 300  
+    try:
+        if hasattr(e, 'retry_after') and e.retry_after:
+            retry_after = int(e.retry_after)
+    except Exception:
+        pass
 
     if request.endpoint == "auth.login":
-        message = "Too many login attempts were made from your IP address. For your security, please wait 5 minutes before trying again."
+        message = "Too many login attempts were made from your IP address. For your security, please wait before trying again."
         back_url = url_for("auth.login")
         back_label = "Back to Login"
     else:
@@ -153,12 +168,42 @@ def ratelimit_handler(e):
         back_url = url_for("user.homepage")
         back_label = "Return to Home"
 
+    deadline = server_time + retry_after
+
     return render_template(
         'errors/429.html',
         message=message,
         back_url=back_url,
-        back_label=back_label
+        back_label=back_label,
+        deadline=deadline,        
+        retry_after=retry_after
     ), 429
+    
+@app.errorhandler(403)
+def forbidden_handler(e):
+    from models.users import BlockedIP
+    from datetime import datetime, timezone, timedelta
+
+    ip = request.remote_addr
+    blocked = BlockedIP.query.filter_by(ip_address=ip, is_active=True).first()
+
+    block_until = None
+    is_permanent = False
+
+    if blocked:
+        if blocked.blocked_until:
+            pst = timezone(timedelta(hours=8))
+            block_until_pst = blocked.blocked_until.replace(tzinfo=timezone.utc).astimezone(pst)
+            block_until = block_until_pst.strftime('%B %d, %Y at %I:%M %p') + ' PST'
+        else:
+            is_permanent = True
+
+    return render_template(
+        'errors/403.html',
+        block_until=block_until,
+        is_permanent=is_permanent
+    ), 403
+
 
 @app.template_filter('currency')
 def currency(value):
