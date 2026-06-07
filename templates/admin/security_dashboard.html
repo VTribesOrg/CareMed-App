@@ -1,8 +1,10 @@
+rity dashboard · HTML
+ 
 {% extends "admin/nav_base.html" %}
-
+ 
 {% block title %}Security Center{% endblock %}
 {% block page_title %}Security Center (IDS){% endblock %}
-
+ 
 {% block extra_css %}
 <style>
     .ids-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; margin-bottom: 24px; }
@@ -23,6 +25,22 @@
     .stat-card.green .stat-icon { color:#16a34a; }
     .stat-label { font-size:0.75rem; color:#64748b; font-weight:600; text-transform:uppercase; letter-spacing:.05em; }
     .ids-grid { display:grid; grid-template-columns:2fr 1fr; gap:20px; }
+    /* ── Tab Nav ── */
+    .sec-tabs { display:flex; gap:0; border-bottom:2px solid #e2e8f0; margin-bottom:20px; }
+    .sec-tab {
+        padding:10px 22px; font-size:0.85rem; font-weight:600; color:#64748b;
+        border:none; background:none; cursor:pointer; border-bottom:2px solid transparent;
+        margin-bottom:-2px; display:flex; align-items:center; gap:6px; transition:all .15s;
+    }
+    .sec-tab:hover { color:#002347; }
+    .sec-tab.active { color:#002347; border-bottom-color:#002347; }
+    .sec-tab .tab-count {
+        background:#e2e8f0; color:#64748b; border-radius:99px;
+        font-size:0.7rem; font-weight:700; padding:1px 7px; min-width:22px; text-align:center;
+    }
+    .sec-tab.active .tab-count { background:#002347; color:#fff; }
+    .tab-panel { display:none; }
+    .tab-panel.active { display:block; }
     .ids-card { background:#fff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; }
     .ids-card-header { padding:14px 20px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; }
     .ids-card-header h3 { font-size:0.9rem; font-weight:700; color:#1e293b; margin:0; display:flex; align-items:center; gap:6px; }
@@ -47,6 +65,8 @@
     .filter-bar { display:flex; gap:8px; padding:10px 14px; background:#f8fafc; border-bottom:1px solid #e2e8f0; flex-wrap:wrap; }
     .fbtn { padding:4px 12px; border-radius:99px; font-size:0.75rem; font-weight:600; border:1px solid #e2e8f0; background:#fff; color:#64748b; cursor:pointer; transition:all .15s; }
     .fbtn.active, .fbtn:hover { background:#002347; color:#fff; border-color:#002347; }
+    .fbtn-admin { padding:4px 12px; border-radius:99px; font-size:0.75rem; font-weight:600; border:1px solid #e2e8f0; background:#fff; color:#64748b; cursor:pointer; transition:all .15s; }
+    .fbtn-admin.active, .fbtn-admin:hover { background:#002347; color:#fff; border-color:#002347; }
     .log-scroll { max-height:460px; overflow-y:auto; }
     .block-item { display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-radius:8px; border:1px solid #fee2e2; background:#fef2f2; margin:8px; }
     .block-ip { font-family:monospace; font-weight:700; color:#dc2626; font-size:0.85rem; }
@@ -71,15 +91,15 @@
     @media (max-width:1100px) { .ids-stats { grid-template-columns:repeat(2,1fr); } .ids-grid { grid-template-columns:1fr; } }
 </style>
 {% endblock %}
-
+ 
 {% block header_actions %}
 <div class="live-tag">
     <div class="pulse"></div> Live monitoring active
 </div>
 {% endblock %}
-
+ 
 {% block content %}
-
+ 
 <!-- Stats -->
 <div class="ids-stats">
     <div class="stat-card blue">
@@ -103,9 +123,25 @@
         <div class="stat-label">Blocked IPs</div>
     </div>
 </div>
-
+ 
+<!-- Tab Navigation -->
+<div class="sec-tabs">
+    <button class="sec-tab active" data-tab="security-events">
+        <span class="material-symbols-rounded" style="font-size:16px;">shield</span>
+        Security Events
+        <span class="tab-count">{{ total_logs }}</span>
+    </button>
+    <button class="sec-tab" data-tab="admin-activity">
+        <span class="material-symbols-rounded" style="font-size:16px;">manage_accounts</span>
+        Admin Activity
+        <span class="tab-count">{{ admin_activity_count }}</span>
+    </button>
+</div>
+ 
+<!-- ══ TAB: Security Events (existing content) ══ -->
+<div class="tab-panel active" id="tab-security-events">
 <div class="ids-grid">
-
+ 
     <!-- Security Event Log -->
     <div class="ids-card">
         <div class="ids-card-header">
@@ -120,7 +156,7 @@
                 </form>
             </div>
         </div>
-
+ 
         <div class="filter-bar">
             <button class="fbtn active" data-filter="all">All ({{ total_logs }})</button>
             <button class="fbtn" data-filter="suspicious">Suspicious ({{ suspicious_count }})</button>
@@ -130,7 +166,7 @@
             <button class="fbtn" data-filter="blocked">Blocked IPs ({{ blocked_ip_count }})</button>
             <button class="fbtn" data-filter="bot">Bot Detection ({{ bot_count }})</button>
         </div>
-
+ 
         <div class="log-scroll">
             {% if logs %}
             <table class="log-table">
@@ -218,10 +254,10 @@
             {% endif %}
         </div>
     </div>
-
+ 
     <!-- Right Column -->
     <div style="display:flex; flex-direction:column; gap:20px;">
-
+ 
         <!-- Blocked IPs -->
         <div class="ids-card">
             <div class="ids-card-header">
@@ -260,7 +296,7 @@
                 {% endif %}
             </div>
         </div>
-
+ 
         <!-- Block IP Form -->
         <div class="ids-card">
             <div class="ids-card-header">
@@ -296,17 +332,131 @@
                 </div>
             </form>
         </div>
-
+ 
     </div>
-</div>
-
+</div><!-- /.ids-grid -->
+</div><!-- /#tab-security-events -->
+ 
+<!-- ══ TAB: Admin Activity ══ -->
+<div class="tab-panel" id="tab-admin-activity">
+    <div class="ids-card">
+        <div class="ids-card-header">
+            <h3>
+                <span class="material-symbols-rounded" style="font-size:18px;">manage_accounts</span>
+                Admin Login &amp; Logout History
+            </h3>
+            <span style="font-size:0.8rem; color:#94a3b8;">Last 200 events</span>
+        </div>
+ 
+        <div class="filter-bar">
+            <button class="fbtn-admin active" data-afilter="all">All ({{ admin_activity_count }})</button>
+            <button class="fbtn-admin" data-afilter="login">Logins ({{ admin_login_count }})</button>
+            <button class="fbtn-admin" data-afilter="logout">Logouts ({{ admin_logout_count }})</button>
+            <button class="fbtn-admin" data-afilter="expired">Session Expired ({{ admin_expired_count }})</button>
+            <button class="fbtn-admin" data-afilter="failed">Failed Attempts ({{ admin_failed_count }})</button>
+        </div>
+ 
+        <div class="log-scroll">
+            {% if admin_logs %}
+            <table class="log-table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Event</th>
+                        <th>Admin</th>
+                        <th>IP Address</th>
+                        <th>Browser / OS</th>
+                        <th>Session Duration</th>
+                    </tr>
+                </thead>
+                <tbody id="adminLogBody">
+                    {% for log in admin_logs %}
+                    <tr class="admin-log-row" data-aevent="{{ log.event_type | lower }}">
+                        <td style="white-space:nowrap; color:#94a3b8; font-size:0.72rem;">
+                            {{ log.created_at.strftime('%b %d, %Y') }}<br>
+                            <span style="font-size:0.68rem;">{{ log.created_at.strftime('%I:%M:%S %p') }}</span>
+                        </td>
+                        <td>
+                            {% set et = log.event_type | lower %}
+                            {% if 'admin login' in et %}
+                                <span class="pill pill-green">
+                                    <span class="material-symbols-rounded" style="font-size:12px;vertical-align:middle;">login</span>
+                                    Logged In
+                                </span>
+                            {% elif 'admin logout' in et %}
+                                <span class="pill pill-blue">
+                                    <span class="material-symbols-rounded" style="font-size:12px;vertical-align:middle;">logout</span>
+                                    Logged Out
+                                </span>
+                            {% elif 'session expired' in et or 'expired' in et %}
+                                <span class="pill pill-yellow">
+                                    <span class="material-symbols-rounded" style="font-size:12px;vertical-align:middle;">timer_off</span>
+                                    Session Expired
+                                </span>
+                            {% elif 'failed' in et %}
+                                <span class="pill pill-red">
+                                    <span class="material-symbols-rounded" style="font-size:12px;vertical-align:middle;">block</span>
+                                    Failed Attempt
+                                </span>
+                            {% elif 'new device' in et %}
+                                <span class="pill pill-orange">
+                                    <span class="material-symbols-rounded" style="font-size:12px;vertical-align:middle;">devices</span>
+                                    New Device
+                                </span>
+                            {% else %}
+                                <span class="pill pill-gray">{{ log.event_type }}</span>
+                            {% endif %}
+                        </td>
+                        <td style="font-size:0.8rem;">
+                            <div style="font-weight:600; color:#1e293b;">{{ log.user_email or '—' }}</div>
+                        </td>
+                        <td style="font-family:monospace; font-size:0.78rem; color:#475569;">
+                            {{ log.ip_address or '—' }}
+                        </td>
+                        <td style="font-size:0.75rem; color:#64748b; max-width:160px;">
+                            {% if log.user_agent %}
+                                {% set ua = log.user_agent %}
+                                {% if 'Chrome' in ua and 'Edg' not in ua %}Chrome
+                                {% elif 'Firefox' in ua %}Firefox
+                                {% elif 'Edg' in ua %}Edge
+                                {% elif 'Safari' in ua and 'Chrome' not in ua %}Safari
+                                {% else %}Unknown Browser
+                                {% endif %}
+                                /
+                                {% if 'Windows' in ua %}Windows
+                                {% elif 'Mac' in ua %}macOS
+                                {% elif 'iPhone' in ua or 'iPad' in ua %}iOS
+                                {% elif 'Android' in ua %}Android
+                                {% elif 'Linux' in ua %}Linux
+                                {% else %}Unknown OS
+                                {% endif %}
+                            {% else %}—{% endif %}
+                        </td>
+                        <td style="font-size:0.78rem; color:#64748b;">
+                            {{ log.description or '—' }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state">
+                <span class="material-symbols-rounded">manage_accounts</span>
+                <p style="font-weight:600;">No admin activity recorded yet</p>
+                <p style="font-size:0.8rem;">Admin login and logout events will appear here.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div><!-- /#tab-admin-activity -->
+ 
 {% endblock %}
-
+ 
 {% block extra_js %}
 <script nonce="{{ csp_nonce() }}">
 (function () {
     const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-
+ 
     // Filter buttons
     function applyFilter(type, activeBtn) {
         document.querySelectorAll('.fbtn').forEach(b => b.classList.remove('active'));
@@ -325,13 +475,13 @@
             row.style.display = show ? '' : 'none';
         });
     }
-
+ 
     document.querySelectorAll('.fbtn').forEach(btn => {
         btn.addEventListener('click', function () {
             applyFilter(this.dataset.filter, this);
         });
     });
-
+ 
     // Delete individual log
     const logBody = document.getElementById('logBody');
     if (logBody) {
@@ -356,7 +506,7 @@
             }
         });
     }
-
+ 
     // Clear all logs
     const clearForm = document.getElementById('clearLogsForm');
     if (clearForm) {
@@ -366,7 +516,7 @@
             }
         });
     }
-
+ 
     // Unblock IP confirm
     document.querySelectorAll('.unblock-form').forEach(form => {
         form.addEventListener('submit', function (e) {
@@ -375,9 +525,38 @@
             }
         });
     });
-
+ 
     // Auto-refresh every 30 seconds
     setTimeout(() => location.reload(), 30000);
+ 
+    // ── Tab switching ─────────────────────────────────────────────
+    document.querySelectorAll('.sec-tab').forEach(tab => {
+        tab.addEventListener('click', function () {
+            document.querySelectorAll('.sec-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            this.classList.add('active');
+            document.getElementById('tab-' + this.dataset.tab).classList.add('active');
+        });
+    });
+ 
+    // ── Admin activity filter buttons ─────────────────────────────
+    document.querySelectorAll('.fbtn-admin').forEach(btn => {
+        btn.addEventListener('click', function () {
+            document.querySelectorAll('.fbtn-admin').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            const filter = this.dataset.afilter;
+            document.querySelectorAll('.admin-log-row').forEach(row => {
+                const ev = (row.dataset.aevent || '').toLowerCase();
+                let show = false;
+                if      (filter === 'all')     show = true;
+                else if (filter === 'login')   show = ev.includes('admin login');
+                else if (filter === 'logout')  show = ev.includes('admin logout');
+                else if (filter === 'expired') show = ev.includes('expired');
+                else if (filter === 'failed')  show = ev.includes('failed');
+                row.style.display = show ? '' : 'none';
+            });
+        });
+    });
 })();
 </script>
 {% endblock %}

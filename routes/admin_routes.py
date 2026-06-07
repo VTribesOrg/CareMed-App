@@ -11,7 +11,7 @@ from models.users import User, SecurityLog, BlockedIP
 from flask_mail import Message
 from flask import current_app
 from werkzeug.utils import secure_filename
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from dateutil.relativedelta import relativedelta
 from sqlalchemy.orm import joinedload, selectinload
@@ -2247,27 +2247,53 @@ def reports():
 @login_required
 @administrator_required
 def security_dashboard():
-    from datetime import datetime, timedelta
- 
+
     logs = SecurityLog.query.order_by(SecurityLog.created_at.desc()).limit(500).all()
     blocked = BlockedIP.query.filter_by(is_active=True).order_by(BlockedIP.blocked_at.desc()).all()
-
-    total_logs = SecurityLog.query.count()
-    suspicious_count = SecurityLog.query.filter_by(is_suspicious=True).count()
-    blocked_count = BlockedIP.query.filter_by(is_active=True).count()
-    rate_limit_count = SecurityLog.query.filter_by(event_type="Rate Limit Violation").count()
-
-    # ── ADD THESE ──
-    failed_count = SecurityLog.query.filter(
-        SecurityLog.event_type.ilike("%failed%")
+ 
+    total_logs        = SecurityLog.query.count()
+    suspicious_count  = SecurityLog.query.filter_by(is_suspicious=True).count()
+    blocked_count     = BlockedIP.query.filter_by(is_active=True).count()
+    rate_limit_count  = SecurityLog.query.filter_by(event_type="Rate Limit Violation").count()
+ 
+    failed_count      = SecurityLog.query.filter(SecurityLog.event_type.ilike("%failed%")).count()
+    locked_count      = SecurityLog.query.filter(SecurityLog.event_type.ilike("%lock%")).count()
+    blocked_ip_count  = SecurityLog.query.filter(SecurityLog.event_type.ilike("%block%")).count()
+    bot_count         = SecurityLog.query.filter_by(event_type="Bot Detected").count()
+ 
+    # ── Admin Activity tab ────────────────────────────────────────────────
+    # All event types that belong to admin activity monitoring
+    admin_event_types = [
+        'Admin Login',
+        'Admin Login — New Device',
+        'Admin Logout',
+        'Admin Session Expired',
+        'Admin Failed Login',
+    ]
+ 
+    admin_logs = SecurityLog.query.filter(
+        SecurityLog.event_type.in_(admin_event_types)
+    ).order_by(SecurityLog.created_at.desc()).limit(200).all()
+ 
+    admin_activity_count = SecurityLog.query.filter(
+        SecurityLog.event_type.in_(admin_event_types)
     ).count()
-    locked_count = SecurityLog.query.filter(
-        SecurityLog.event_type.ilike("%lock%")
+ 
+    admin_login_count = SecurityLog.query.filter(
+        SecurityLog.event_type.in_(['Admin Login', 'Admin Login — New Device'])
     ).count()
-    blocked_ip_count = SecurityLog.query.filter(
-        SecurityLog.event_type.ilike("%block%")
+ 
+    admin_logout_count = SecurityLog.query.filter_by(
+        event_type='Admin Logout'
     ).count()
-    bot_count = SecurityLog.query.filter_by(event_type="Bot Detected").count()
+ 
+    admin_expired_count = SecurityLog.query.filter_by(
+        event_type='Admin Session Expired'
+    ).count()
+ 
+    admin_failed_count = SecurityLog.query.filter_by(
+        event_type='Admin Failed Login'
+    ).count()
  
     return render_template(
         'admin/security_dashboard.html',
@@ -2281,9 +2307,16 @@ def security_dashboard():
         locked_count=locked_count,
         blocked_ip_count=blocked_ip_count,
         bot_count=bot_count,
+        # admin activity
+        admin_logs=admin_logs,
+        admin_activity_count=admin_activity_count,
+        admin_login_count=admin_login_count,
+        admin_logout_count=admin_logout_count,
+        admin_expired_count=admin_expired_count,
+        admin_failed_count=admin_failed_count,
     )
- 
- 
+
+
 # ── Block an IP (manual or auto via JS) 
 @admin_bp.route('/security/block-ip', methods=['POST'])
 @login_required

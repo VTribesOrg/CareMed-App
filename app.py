@@ -95,6 +95,25 @@ def enforce_admin_session_timeout():
             last_active_dt = datetime.fromisoformat(last_active)
             idle_minutes = (now - last_active_dt).total_seconds() / 60
             if idle_minutes > 120:   # 2 hours
+                # Log the expiry BEFORE clearing the session
+                try:
+                    from models.users import SecurityLog
+                    from extensions import db
+                    expiry_log = SecurityLog(
+                        ip_address=request.remote_addr,
+                        event_type='Admin Session Expired',
+                        description=f"Admin session auto-expired after {int(idle_minutes)} min of inactivity.",
+                        user_id=current_user.id,
+                        user_email=current_user.email,
+                        user_agent=request.headers.get('User-Agent', 'Unknown')[:255],
+                        severity='Low',
+                        is_suspicious=False
+                    )
+                    db.session.add(expiry_log)
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+ 
                 logout_user()
                 session.clear()
                 flash("Your admin session expired due to inactivity. Please log in again.", "warning")
