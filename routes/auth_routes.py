@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, current_app
-from flask_login import login_user, logout_user, login_required
+from flask_login import login_user, logout_user, login_required, current_user
 from argon2.exceptions import VerifyMismatchError
 from extensions import db, passhasher, oauth, mail, limiter, get_remote_address
 from flask_mail import Message
@@ -326,16 +326,32 @@ If this was not you, reset your password immediately.
                 is_suspicious=True,
                 severity='High'
             )
-        else:
+ 
+        if user.role.strip() == 'Administrator':
+            remember = False
+            session.permanent = False
+            # Log admin login with specific event type for Admin Activity tab
+            event_type = 'Admin Login — New Device' if is_new_device else 'Admin Login'
             log_security_event(
-                "Successful Login",
-                f"User logged in successfully: {email}",
+                event_type,
+                f"Admin logged in from {'new/unrecognized' if is_new_device else 'known'} device. "
+                f"IP: {request.remote_addr}",
                 user=user,
-                is_suspicious=False
+                is_suspicious=False,
+                severity='Low'
             )
-
-        login_user(user, remember=form.remember_me.data if hasattr(form, 'remember_me') else True)
-        session.permanent = True
+        else:
+            remember = form.remember_me.data
+            session.permanent = remember
+            if prev_failures < 3:   # avoid double-logging suspicious logins
+                log_security_event(
+                    "Successful Login",
+                    f"User logged in successfully: {email}",
+                    user=user,
+                    is_suspicious=False
+                )
+ 
+        login_user(user, remember=remember)
 
         # Only send email if different device or first ever login
         if is_new_device:
@@ -792,8 +808,15 @@ def callback():
         flash("An internal error occurred during login. Please try again.", "danger")
         return redirect(url_for("auth.login"))
 
-    login_user(user, remember=True)
-    session.permanent = True
+    if user.role.strip() == 'Administrator':
+        remember = False
+        session.permanent = False
+    else:
+        remember = True
+        session.permanent = True
+ 
+    login_user(user, remember=remember)
+    
     user.last_login_at = datetime.utcnow()
     db.session.commit()
 
@@ -805,8 +828,31 @@ def callback():
 @auth_bp.route("/logout")
 @login_required
 def logout():
+    # Log admin logout before the session is cleared
+    if current_user.is_authenticated and current_user.role.strip() == 'Administrator':
+        # Calculate session duration from last_active
+        last_active = session.get('last_active')
+        if last_active:
+            try:
+                last_active_dt = datetime.fromisoformat(last_active)
+                duration_mins = int((datetime.utcnow() - last_active_dt).total_seconds() / 60)
+                duration_str = f"Session duration: ~{duration_mins} min"
+            except Exception:
+                duration_str = "Session duration: unknown"
+        else:
+            duration_str = "Session duration: unknown"
+ 
+        log_security_event(
+            "Admin Logout",
+            f"Admin manually logged out. {duration_str}. IP: {request.remote_addr}",
+            user=current_user,
+            is_suspicious=False,
+            severity='Low'
+        )
+ 
     logout_user()
-    session["force_account_select"] = True 
+    session.clear()
+    session["force_account_select"] = True
     return redirect(url_for("auth.login"))
 
 

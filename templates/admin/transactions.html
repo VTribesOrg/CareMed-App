@@ -74,7 +74,7 @@
         <div class="filter-group d-flex align-items-center flex-nowrap gap-2">
             <select id="status-filter" class="medical-select">
                 <option value="">All Statuses</option>
-                <option value="overdue"       {{ 'selected' if current_status == 'overdue' }}>Overdue Payments</option>
+                <option value="overdue_payment" {{ 'selected' if current_status == 'overdue_payment' }}>Overdue</option>
                 <option value="expiring"      {{ 'selected' if current_status == 'expiring' }}>Expiring Soon</option>
                 <option value="unpaid"        {{ 'selected' if current_status == 'unpaid' }}>Unpaid</option>
                 <option value="partial"       {{ 'selected' if current_status == 'partial' }}>Partially Paid</option>

@@ -120,50 +120,25 @@
     </div>
 
     <script nonce="{{ csp_nonce() }}">
-        const WAIT_SECONDS = 300;
-        const storageKey = 'ratelimit_active';
-
-        // Only set a new start time if there's no existing active countdown
-        // or if the previous one has already expired
-        const existing = sessionStorage.getItem(storageKey);
-        if (existing) {
-            const data = JSON.parse(existing);
-            const elapsed = Math.floor((Date.now() - data.start) / 1000);
-            if (elapsed >= WAIT_SECONDS) {
-                // Previous countdown already finished — start fresh
-                sessionStorage.setItem(storageKey, JSON.stringify({ start: Date.now() }));
-            }
-            // else: still valid, keep existing start time
-        } else {
-            // No existing countdown — start fresh
-            sessionStorage.setItem(storageKey, JSON.stringify({ start: Date.now() }));
-        }
-
-        const data = JSON.parse(sessionStorage.getItem(storageKey));
-        const elapsed = Math.floor((Date.now() - data.start) / 1000);
-        let seconds = Math.max(0, WAIT_SECONDS - elapsed);
+        const DEADLINE = {{ deadline }};
 
         const countdownEl = document.getElementById('countdown');
         const countdownText = document.getElementById('countdown-text');
         const backBtn = document.getElementById('back-btn');
 
-        if (seconds <= 0) {
-            countdownText.style.display = 'none';
-            backBtn.classList.add('visible');
-            sessionStorage.removeItem(storageKey);
-        } else {
-            countdownEl.textContent = seconds;
-            const timer = setInterval(function() {
-                seconds--;
-                countdownEl.textContent = seconds;
-                if (seconds <= 0) {
-                    clearInterval(timer);
-                    countdownText.style.display = 'none';
-                    backBtn.classList.add('visible');
-                    sessionStorage.removeItem(storageKey);
-                }
-            }, 1000);
+        function tick() {
+            const remaining = Math.max(0, DEADLINE - Math.floor(Date.now() / 1000));
+            countdownEl.textContent = remaining;
+
+            if (remaining <= 0) {
+                countdownText.style.display = 'none';
+                backBtn.classList.add('visible');
+            } else {
+                setTimeout(tick, 1000);
+            }
         }
+
+        tick();
     </script>
 
 </body>
