@@ -132,25 +132,35 @@ async function openEditModal(btn) {
             const idField = document.getElementById('edit_customer_id');
             if (idField) idField.value = customer.id || "";
 
-            // Profile fields
-            document.getElementById('edit_first_name').value = customer.first_name || "";
-            document.getElementById('edit_last_name').value = customer.last_name || "";
-            document.getElementById('edit_contact_number').value = customer.contact_number || "";
-            document.getElementById('edit_home_address').value = customer.home_address || "";
-            document.getElementById('edit_birthday').value = customer.birthday || "";
+            // Profile fields with safe checks to prevent script crashes
+            const fNameField = document.getElementById('edit_first_name');
+            if (fNameField) fNameField.value = customer.first_name || "";
+            
+            const lNameField = document.getElementById('edit_last_name');
+            if (lNameField) lNameField.value = customer.last_name || "";
+            
+            const contactField = document.getElementById('edit_contact_number');
+            if (contactField) contactField.value = customer.contact_number || "";
+
+            const secContactField = document.getElementById('edit_secondary_contact_number');
+            if (secContactField) secContactField.value = customer.secondary_contact_number || "";
+            
+            const addressField = document.getElementById('edit_home_address');
+            if (addressField) addressField.value = customer.home_address || "";
 
             // Gender select
             const genderField = document.getElementById('edit_gender');
-            if (genderField) {
+            if (genderField && customer.gender) {
                 const genderValue = (customer.gender || "").toLowerCase();
                 genderField.value = genderValue;
-                const option = genderField.querySelector(`option[value="${genderValue}"]`);
-                if (option) option.textContent = genderValue.charAt(0).toUpperCase() + genderValue.slice(1);
             }
 
             // Primary / Secondary ID types
-            document.getElementById('edit_primary_id_type').value = customer.primary_id_type || "";
-            document.getElementById('edit_secondary_id_type').value = customer.secondary_id_type || "";
+            const pIdTypeField = document.getElementById('edit_primary_id_type');
+            if (pIdTypeField) pIdTypeField.value = customer.primary_id_type || "";
+            
+            const sIdTypeField = document.getElementById('edit_secondary_id_type');
+            if (sIdTypeField) sIdTypeField.value = customer.secondary_id_type || "";
 
             // Primary ID preview
             const previewImg = document.getElementById('edit-id-img-preview');
@@ -162,6 +172,13 @@ async function openEditModal(btn) {
                 if (dropzone) dropzone.classList.add('has-file');
                 const placeholder = dropzone.querySelector('#edit-id-placeholder-content');
                 if (placeholder) placeholder.style.display = 'none';
+            } else {
+                // Reset to default empty state if there is no path
+                if (previewImg) previewImg.src = '#';
+                if (previewContainer) previewContainer.style.display = 'none';
+                if (dropzone) dropzone.classList.remove('has-file');
+                const placeholder = dropzone.querySelector('#edit-id-placeholder-content');
+                if (placeholder) placeholder.style.display = 'block';
             }
 
             // Secondary ID preview
@@ -174,6 +191,13 @@ async function openEditModal(btn) {
                 if (docDropzone) docDropzone.classList.add('has-file');
                 const placeholder = docDropzone.querySelector('#edit-doc-placeholder-content');
                 if (placeholder) placeholder.style.display = 'none';
+            } else {
+                // Reset to default empty state if there is no path
+                if (docImg) docImg.src = '#';
+                if (docPreview) docPreview.style.display = 'none';
+                if (docDropzone) docDropzone.classList.remove('has-file');
+                const placeholder = docDropzone.querySelector('#edit-doc-placeholder-content');
+                if (placeholder) placeholder.style.display = 'block';
             }
 
             modal.classList.remove('hidden');
@@ -394,26 +418,27 @@ document.addEventListener('DOMContentLoaded', () => {
     enableDragAndDrop('edit-id-dropzone', 'edit-id-upload', 'edit-id-preview-text');
     enableDragAndDrop('edit-doc-dropzone', 'edit-doc-upload', 'edit-doc-preview-text');
 
-    // 8. TABLE CLICKS
+    // 8. ✅ TABLE CLICKS (FIXED FOR TARGET SELECTION COLLISIONS)
     const tableBody = document.getElementById('customerTableBody');
     if (tableBody) {
         tableBody.addEventListener('click', e => {
-            const btn = e.target.closest('button');
-            if (!btn) return;
-            if (btn.classList.contains('logs')) openProfileModal(btn);
-            if (btn.classList.contains('edit')) openEditModal(btn);
+            // Find the closest interactive actionable element
+            const targetElement = e.target.closest('.asset-action-btn');
+            if (!targetElement) return;
+
+            // The "logs" class logic has been removed so it no longer triggers a modal
+            if (targetElement.classList.contains('edit')) {
+                openEditModal(targetElement);
+            }
+            // If you have other buttons like 'logs' that should do nothing, 
+            // you can simply leave them out of this if/else block.
         });
     }
 });
 /*============= END OF SINGLE DOM READY BLOCK =============*/
 
 
-
-
-
-
 /*============= START OF PAGINATION =============*/
-
 document.addEventListener('DOMContentLoaded', function() {
 
     // --- 1. CORE LOGIC: Update URL based on UI State ---
@@ -483,6 +508,4 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
-
-
 /*============= END OF PAGINATION =============*/

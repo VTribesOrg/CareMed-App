@@ -65,12 +65,12 @@
                     <span>{{ customer.user.email if customer.user else 'No linked account' }}</span>
                 </div>
                 <div class="info-item">
-                    <label><span class="material-symbols-rounded">call</span> Phone</label>
+                    <label><span class="material-symbols-rounded">call</span> Primary Contact</label>
                     <span>{{ customer.contact_number or 'N/A' }}</span>
                 </div>
                 <div class="info-item">
-                    <label><span class="material-symbols-rounded">cake</span> Birthday</label>
-                    <span>{{ customer.birthday.strftime('%B %d, %Y') if customer.birthday else 'N/A' }}</span>
+                    <label><span class="material-symbols-rounded">phone_iphone</span> Secondary Contact</label>
+                    <span>{{ customer.secondary_contact_number or 'N/A' }}</span>
                 </div>
                 <div class="info-item">
                     <label><span class="material-symbols-rounded">location_on</span> Home Address</label>
@@ -154,7 +154,7 @@
                         <th>Date</th>
                         <th>Transaction ID</th>
                         <th>Description</th>
-                        <th>Amount</th>
+                        <th>Serial #</th> <th>Amount</th>
                         <th>Status</th>
                     </tr>
                 </thead>
@@ -169,6 +169,19 @@
                             </a>
                         </td>
                         <td>{{ transaction.description }}</td>
+                        <td>
+                            {% if transaction.rentals %}
+                                {% for rental in transaction.rentals %}
+                                    {% if rental.serial_number %}
+                                        <div style="font-size: 0.75rem; color: #64748b;">
+                                            {{ rental.serial_number }}
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                            {% else %}
+                                <span class="text-muted" style="font-size: 0.7rem;">N/A</span>
+                            {% endif %}
+                        </td>
                         <td class="font-bold">{{ transaction.display_amount | currency }}</td>
                         <td>
                             <span class="badge {{ transaction.status_badge }}">{{ transaction.status }}</span>
@@ -176,7 +189,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="5" class="text-center py-4 text-muted">No transactions found for this customer.</td>
+                        <td colspan="6" class="text-center py-4 text-muted">No transactions found for this customer.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
