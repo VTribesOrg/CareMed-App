@@ -572,9 +572,9 @@ body.ready .viewport-container {
 .content-area {
     padding: 24px;
     flex-grow: 1;
-    min-height: calc(96vh - 80px); 
+    min-height: 0;          
     overflow-y: auto;
-    background-color: #f8fafc; 
+    background-color: #f8fafc;
     display: flex;
     flex-direction: column;
 }

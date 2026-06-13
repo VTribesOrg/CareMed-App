@@ -320,6 +320,7 @@ class Expense(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     category = db.Column(db.String(50), nullable=False)
+    expense_title = db.Column(db.String(120), nullable=True) 
     amount = db.Column(db.Numeric(10, 2), nullable=False)
     description = db.Column(db.String(255))
     attachment_path = db.Column(db.String(255)) 
@@ -327,6 +328,8 @@ class Expense(db.Model):
     recorded_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     date_incurred = db.Column(db.Date, default=datetime.utcnow)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    recorded_by = db.relationship("User", foreign_keys=[recorded_by_id])
     
     
 class Cart(db.Model):

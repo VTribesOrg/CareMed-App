@@ -1,0 +1,650 @@
+{% extends "admin/nav_base.html" %}
+{% block title %}Expense Tracker{% endblock %}
+{% block page_title %}Expense Tracker{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/admin_expenses.css') }}">
+{% endblock %}
+
+{% block content %}
+
+{# ── Page header ── #}
+<div class="exp-page-header">
+    <div>
+        <h1 class="exp-page-title">Expense Tracker</h1>
+        <p class="exp-page-sub">Monitor costs and see your net profit at a glance.</p>
+    </div>
+    <button class="btn-add-expense" id="openAddExpense">
+        <span class="material-symbols-rounded">add_circle</span>
+        Add Expense
+    </button>
+</div>
+
+{# ── Period picker: Month/Year mode OR custom date range mode ── #}
+<div class="exp-period-toggle">
+    <button type="button" class="period-toggle-btn {{ 'active' if not use_range }}" data-mode="month">
+        <span class="material-symbols-rounded">calendar_month</span> By Month
+    </button>
+    <button type="button" class="period-toggle-btn {{ 'active' if use_range }}" data-mode="range">
+        <span class="material-symbols-rounded">date_range</span> Custom Range
+    </button>
+</div>
+
+{# Month/Year mode #}
+<form method="GET" action="{{ url_for('admin.expenses') }}" class="exp-period-bar" id="monthFilterForm" {{ 'style=display:none;' if use_range }}>
+    <select name="month" class="exp-select">
+        {% for num, name in months %}
+        <option value="{{ num }}" {{ 'selected' if num == current_month }}>{{ name }}</option>
+        {% endfor %}
+    </select>
+    <select name="year" class="exp-select">
+        {% for y in range(2024, 2030) %}
+        <option value="{{ y }}" {{ 'selected' if y == current_year }}>{{ y }}</option>
+        {% endfor %}
+    </select>
+    <select name="category" class="exp-select">
+        <option value="">All Categories</option>
+        {% for cat in all_categories %}
+        <option value="{{ cat }}" {{ 'selected' if cat == category_filter }}>{{ cat }}</option>
+        {% endfor %}
+    </select>
+    <button type="submit" class="btn-filter">
+        <span class="material-symbols-rounded">filter_alt</span> Apply
+    </button>
+    {% if category_filter or current_month != today.month or current_year != today.year %}
+    <a href="{{ url_for('admin.expenses') }}" class="btn-clear-filter">
+        <span class="material-symbols-rounded">close</span> Clear
+    </a>
+    {% endif %}
+</form>
+
+{# Custom date range mode #}
+<form method="GET" action="{{ url_for('admin.expenses') }}" class="exp-period-bar" id="rangeFilterForm" {{ '' if use_range else 'style=display:none;' }}>
+    <div class="exp-date-input-group">
+        <label>From</label>
+        <input type="date" name="start_date" class="exp-select"
+               value="{{ start_date.strftime('%Y-%m-%d') if start_date else '' }}">
+    </div>
+    <div class="exp-date-input-group">
+        <label>To</label>
+        <input type="date" name="end_date" class="exp-select"
+               value="{{ end_date.strftime('%Y-%m-%d') if end_date else '' }}">
+    </div>
+    <select name="category" class="exp-select">
+        <option value="">All Categories</option>
+        {% for cat in all_categories %}
+        <option value="{{ cat }}" {{ 'selected' if cat == category_filter }}>{{ cat }}</option>
+        {% endfor %}
+    </select>
+    <button type="submit" class="btn-filter">
+        <span class="material-symbols-rounded">filter_alt</span> Apply
+    </button>
+    {% if use_range %}
+    <a href="{{ url_for('admin.expenses') }}" class="btn-clear-filter">
+        <span class="material-symbols-rounded">close</span> Clear
+    </a>
+    {% endif %}
+
+    {# Quick presets #}
+    <div class="exp-quick-presets">
+        <button type="button" class="preset-btn" data-preset="first-half">1st – 15th</button>
+        <button type="button" class="preset-btn" data-preset="second-half">16th – End</button>
+        <button type="button" class="preset-btn" data-preset="last-7">Last 7 Days</button>
+        <button type="button" class="preset-btn" data-preset="last-30">Last 30 Days</button>
+    </div>
+</form>
+
+{# ── Summary cards ── #}
+<div class="exp-summary-grid">
+    <div class="exp-summary-card exp-card-red">
+        <div class="exp-card-icon">
+            <span class="material-symbols-rounded">payments</span>
+        </div>
+        <div class="exp-card-body">
+            <div class="exp-card-label">Total Expenses</div>
+            <div class="exp-card-value">₱{{ "{:,.2f}".format(total_this_month) }}</div>
+            <div class="exp-card-sub">
+                {% if use_range %}
+                    {{ start_date.strftime('%b %d') }} – {{ end_date.strftime('%b %d, %Y') }}
+                {% else %}
+                    {{ months[current_month - 1][1] }} {{ current_year }}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="exp-summary-card exp-card-green">
+        <div class="exp-card-icon">
+            <span class="material-symbols-rounded">trending_up</span>
+        </div>
+        <div class="exp-card-body">
+            <div class="exp-card-label">Total Revenue</div>
+            <div class="exp-card-value">₱{{ "{:,.2f}".format(revenue_this_month) }}</div>
+            <div class="exp-card-sub">Completed payments {{ 'in range' if use_range else 'this month' }}</div>
+        </div>
+    </div>
+    <div class="exp-summary-card {{ 'exp-card-green' if net_profit >= 0 else 'exp-card-red' }}">
+        <div class="exp-card-icon">
+            <span class="material-symbols-rounded">{{ 'thumb_up' if net_profit >= 0 else 'thumb_down' }}</span>
+        </div>
+        <div class="exp-card-body">
+            <div class="exp-card-label">Net Profit</div>
+            <div class="exp-card-value {{ 'value-profit' if net_profit >= 0 else 'value-loss' }}">
+                {{ '+ ₱' if net_profit >= 0 else '- ₱' }}{{ "{:,.2f}".format(net_profit|abs) }}
+            </div>
+            <div class="exp-card-sub">Revenue minus expenses</div>
+        </div>
+    </div>
+    <div class="exp-summary-card exp-card-blue">
+        <div class="exp-card-icon">
+            <span class="material-symbols-rounded">category</span>
+        </div>
+        <div class="exp-card-body">
+            <div class="exp-card-label">Expense Categories</div>
+            <div class="exp-card-value">{{ category_totals | length }}</div>
+            <div class="exp-card-sub">Active this month</div>
+        </div>
+    </div>
+</div>
+
+{# ── Tab bar ── #}
+<div class="exp-tab-bar">
+    <button class="exp-tab-btn active" data-tab="charts">
+        <span class="material-symbols-rounded">bar_chart</span>
+        Charts
+    </button>
+    <button class="exp-tab-btn" data-tab="table">
+        <span class="material-symbols-rounded">table_rows</span>
+        Expense Records
+        <span class="exp-count-badge">{{ expenses | length }} record{{ 's' if expenses | length != 1 }}</span>
+    </button>
+</div>
+
+{# ── Charts panel ── #}
+<div class="exp-tab-panel" id="tab-charts">
+    <div class="exp-charts-row">
+
+        {# Trend chart #}
+        <div class="exp-chart-card exp-chart-wide">
+            <div class="exp-chart-header">
+                <span class="material-symbols-rounded">bar_chart</span>
+                Revenue vs. Expenses — Last 6 Months
+            </div>
+            <div class="chart-canvas-wrap" style="height:280px;">
+                <canvas id="trendChart"></canvas>
+            </div>
+        </div>
+
+        {# Category breakdown #}
+        <div class="exp-chart-card">
+            <div class="exp-chart-header">
+                <span class="material-symbols-rounded">donut_large</span>
+                {{ 'Selected Period' if use_range else 'This Month' }} by Category
+            </div>
+            {% if category_totals %}
+            <div class="chart-canvas-wrap" style="height:220px;">
+                <canvas id="categoryChart"></canvas>
+            </div>
+            <div class="exp-legend" id="categoryLegend"></div>
+            {% else %}
+            <div class="exp-empty-mini">
+                <span class="material-symbols-rounded">receipt_long</span>
+                No expenses recorded for this month.
+            </div>
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+
+{# ── Table panel ── #}
+<div class="exp-tab-panel" id="tab-table" style="display:none;">
+    <div class="exp-table-card">
+        <div class="exp-table-header">
+            <span class="exp-table-title">
+                <span class="material-symbols-rounded">list_alt</span>
+                Expense Records
+            </span>
+            <span class="exp-count-badge">{{ expenses | length }} record{{ 's' if expenses | length != 1 }}</span>
+        </div>
+
+        {% if expenses %}
+        <div class="exp-table-scroll">
+            <table class="exp-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Category</th>
+                        <th>Expense Name</th>
+                        <th>Notes</th>
+                        <th>Receipt</th>
+                        <th>Amount</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for exp in expenses %}
+                    <tr>
+                        <td class="exp-date-cell">
+                            {{ exp.date_incurred.strftime('%b %d, %Y') if exp.date_incurred else '—' }}
+                        </td>
+                        <td>
+                            <span class="exp-category-pill">{{ exp.category }}</span>
+                        </td>
+                        <td style="font-weight:600; color:#1e293b;">{{ exp.expense_title or '—' }}</td>
+                        <td class="exp-desc-cell">{{ exp.description or '—' }}</td>
+                        <td>
+                            {% if exp.attachment_path %}
+                            <a href="{{ url_for('static', filename=exp.attachment_path) }}"
+                               target="_blank" class="exp-receipt-link">
+                                <span class="material-symbols-rounded">attach_file</span> View
+                            </a>
+                            {% else %}
+                            <span style="color:#cbd5e1; font-size:0.78rem;">None</span>
+                            {% endif %}
+                        </td>
+                        <td class="exp-amount-cell">₱{{ "{:,.2f}".format(exp.amount) }}</td>
+                        <td>
+                            <div style="display:flex;gap:6px;">
+                                <button class="btn-exp-action btn-edit-exp"
+                                        data-id="{{ exp.id }}"
+                                        data-category="{{ exp.category }}"
+                                        data-title="{{ exp.expense_title or '' }}"
+                                        data-amount="{{ exp.amount }}"
+                                        data-description="{{ exp.description or '' }}"
+                                        data-date="{{ exp.date_incurred.strftime('%Y-%m-%d') if exp.date_incurred else '' }}"
+                                        title="Edit">
+                                    <span class="material-symbols-rounded">edit</span>
+                                </button>
+                                <form action="{{ url_for('admin.delete_expense', expense_id=exp.id) }}"
+                                    method="POST"
+                                    onsubmit="return confirm('Delete this expense? This cannot be undone.')">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn-exp-action btn-del-exp" title="Delete">
+                                        <span class="material-symbols-rounded">delete</span>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                    <tfoot>
+                        <tr class="exp-total-row">
+                            <td colspan="4"></td>
+                            <td style="font-weight:700; color:#334155;">Total</td>
+                            <td style="font-weight:800; color:#002347;">
+                                ₱{{ "{:,.2f}".format(total_this_month) }}
+                            </td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+            </table>
+        </div>
+        {% else %}
+        <div class="exp-empty-state">
+            <span class="material-symbols-rounded">receipt_long</span>
+            <p>No expenses recorded for
+                {% if use_range %}
+                    <strong>{{ start_date.strftime('%b %d') }} – {{ end_date.strftime('%b %d, %Y') }}</strong>
+                {% else %}
+                    <strong>{{ months[current_month - 1][1] }} {{ current_year }}</strong>
+                {% endif %}
+                {% if category_filter %} in <strong>{{ category_filter }}</strong>{% endif %}.
+            </p>
+            <button class="btn-add-expense" id="openAddExpense2">
+                <span class="material-symbols-rounded">add_circle</span> Add First Expense
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════
+   ADD EXPENSE MODAL
+   ══════════════════════════════════════════════════════════ #}
+<div class="exp-modal-overlay" id="addExpenseModal">
+    <div class="exp-modal">
+        <div class="exp-modal-header">
+            <h3>
+                <span class="material-symbols-rounded">add_circle</span>
+                Add New Expense
+            </h3>
+            <button class="exp-modal-close" id="closeAddExpense">
+                <span class="material-symbols-rounded">close</span>
+            </button>
+        </div>
+        <form action="{{ url_for('admin.add_expense') }}" method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="year"  value="{{ current_year }}">
+            <input type="hidden" name="month" value="{{ current_month }}">
+            <div class="exp-modal-body">
+                <div class="exp-form-row">
+                    <div class="exp-form-group">
+                        <label class="exp-label">Category <span class="req">*</span></label>
+                        <select name="category" class="exp-input" required id="categorySelect">
+                            <option value="">Select a category…</option>
+                            <option value="Utilities">Utilities</option>
+                            <option value="Rent">Rent / Office Space</option>
+                            <option value="Salaries">Salaries & Wages</option>
+                            <option value="Maintenance">Maintenance & Repairs</option>
+                            <option value="Supplies">Supplies</option>
+                            <option value="Government Fees">Government Fees & Taxes</option>
+                            <option value="Insurance">Insurance</option>
+                            <option value="Oxygen Refill Cost">Oxygen Refill Cost</option>
+                            <option value="Equipment Purchase">Equipment Purchase</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="exp-form-group">
+                        <label class="exp-label">Expense Name <span class="req">*</span></label>
+                        <input type="text" name="expense_title" class="exp-input"
+                               placeholder="e.g. Electric Bill"
+                               maxlength="120" required>
+                    </div>
+                </div>
+                <div class="exp-form-row">
+                    <div class="exp-form-group">
+                        <label class="exp-label">Amount (₱) <span class="req">*</span></label>
+                        <input type="number" name="amount" class="exp-input"
+                               placeholder="0.00" step="0.01" min="0.01" required>
+                    </div>
+                    <div class="exp-form-group">
+                        <label class="exp-label">Date Incurred <span class="req">*</span></label>
+                        <input type="date" name="date_incurred" class="exp-input"
+                               required id="expDateInput">
+                    </div>
+                </div>
+                <div class="exp-form-row">
+                    <div class="exp-form-group">
+                        <label class="exp-label">Receipt / Attachment</label>
+                        <input type="file" name="attachment" class="exp-input"
+                               accept=".jpg,.jpeg,.png,.webp,.pdf">
+                        <small style="color:#94a3b8; font-size:0.72rem;">JPG, PNG, or PDF</small>
+                    </div>
+                    <div class="exp-form-group">
+                        <label class="exp-label">Notes</label>
+                        <input type="text" name="description" class="exp-input"
+                               placeholder="e.g. paid via GCash"
+                               maxlength="255">
+                    </div>
+                </div>
+            </div>
+            <div class="exp-modal-footer">
+                <button type="button" class="btn-cancel" id="cancelAddExpense">Cancel</button>
+                <button type="submit" class="btn-save-expense">
+                    <span class="material-symbols-rounded">save</span> Save Expense
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════
+   EDIT EXPENSE MODAL
+   ══════════════════════════════════════════════════════════ #}
+<div class="exp-modal-overlay" id="editExpenseModal">
+    <div class="exp-modal">
+        <div class="exp-modal-header">
+            <h3>
+                <span class="material-symbols-rounded">edit</span>
+                Edit Expense
+            </h3>
+            <button class="exp-modal-close" id="closeEditExpense">
+                <span class="material-symbols-rounded">close</span>
+            </button>
+        </div>
+        <form id="editExpenseForm" method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="exp-modal-body">
+                <div class="exp-form-row">
+                    <div class="exp-form-group">
+                        <label class="exp-label">Category</label>
+                        <select name="category" class="exp-input" id="editCategory">
+                            <option value="">Select a category…</option>
+                            <option value="Utilities">Utilities</option>
+                            <option value="Rent">Rent / Office Space</option>
+                            <option value="Salaries">Salaries & Wages</option>
+                            <option value="Maintenance">Maintenance & Repairs</option>
+                            <option value="Supplies">Supplies</option>
+                            <option value="Government Fees">Government Fees & Taxes</option>
+                            <option value="Insurance">Insurance</option>
+                            <option value="Oxygen Refill Cost">Oxygen Refill Cost</option>
+                            <option value="Equipment Purchase">Equipment Purchase</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="exp-form-group">
+                        <label class="exp-label">Expense Name</label>
+                        <input type="text" name="expense_title" class="exp-input" id="editTitle" maxlength="120">
+                    </div>
+                </div>
+                <div class="exp-form-row">
+                    <div class="exp-form-group">
+                        <label class="exp-label">Amount (₱)</label>
+                        <input type="number" name="amount" class="exp-input"
+                               step="0.01" min="0.01" id="editAmount">
+                    </div>
+                    <div class="exp-form-group">
+                        <label class="exp-label">Date Incurred</label>
+                        <input type="date" name="date_incurred" class="exp-input" id="editDate">
+                    </div>
+                </div>
+                <div class="exp-form-group">
+                    <label class="exp-label">Notes</label>
+                    <input type="text" name="description" class="exp-input"
+                        id="editDescription"
+                        placeholder="e.g. paid via GCash"
+                        maxlength="255">
+                </div>
+            </div>
+            <div class="exp-modal-footer">
+                <button type="button" class="btn-cancel" id="cancelEditExpense">Cancel</button>
+                <button type="submit" class="btn-save-expense">
+                    <span class="material-symbols-rounded">save</span> Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script nonce="{{ csp_nonce() }}">
+const TREND_LABELS  = {{ trend_labels  | tojson }};
+const TREND_EXP     = {{ trend_expense | tojson }};
+const TREND_REV     = {{ trend_revenue | tojson }};
+const CAT_LABELS    = {{ category_totals | map(attribute=0) | list | tojson }};
+const CAT_DATA      = {{ category_totals | map(attribute=1) | list | map('float') | list | tojson }};
+
+const PALETTE = [
+    '#002347','#1a7a2e','#e53935','#f59e0b',
+    '#3b82f6','#8b5cf6','#06b6d4','#10b981',
+    '#f97316','#ec4899'
+];
+
+// ── Trend bar chart ────────────────────────────────────────────────────
+const tCtx = document.getElementById('trendChart');
+if (tCtx) {
+    new Chart(tCtx, {
+        type: 'bar',
+        data: {
+            labels: TREND_LABELS,
+            datasets: [
+                {
+                    label: 'Revenue',
+                    data: TREND_REV,
+                    backgroundColor: 'rgba(26,122,46,0.75)',
+                    borderRadius: 4,
+                },
+                {
+                    label: 'Expenses',
+                    data: TREND_EXP,
+                    backgroundColor: 'rgba(229,57,53,0.75)',
+                    borderRadius: 4,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'top' } },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: v => '₱' + v.toLocaleString()
+                    }
+                }
+            }
+        }
+    });
+}
+
+// ── Category donut chart ────────────────────────────────────────────────
+const cCtx = document.getElementById('categoryChart');
+if (cCtx && CAT_DATA.length) {
+    new Chart(cCtx, {
+        type: 'doughnut',
+        data: {
+            labels: CAT_LABELS,
+            datasets: [{
+                data: CAT_DATA,
+                backgroundColor: PALETTE,
+                hoverOffset: 6,
+                borderWidth: 2,
+                borderColor: '#fff',
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '60%',
+            plugins: { legend: { display: false } }
+        }
+    });
+
+    // Build custom legend
+    const legend = document.getElementById('categoryLegend');
+    if (legend) {
+        const total = CAT_DATA.reduce((a, b) => a + b, 0);
+        legend.innerHTML = CAT_LABELS.map((label, i) => {
+            const pct = total > 0 ? ((CAT_DATA[i] / total) * 100).toFixed(1) : 0;
+            return `<div class="legend-item">
+                <span class="legend-dot" style="background:${PALETTE[i % PALETTE.length]}"></span>
+                <span class="legend-name">${label}</span>
+                <span class="legend-pct">${pct}%</span>
+            </div>`;
+        }).join('');
+    }
+}
+
+// ── Tab switching ──────────────────────────────────────────────────────
+const urlParams = new URLSearchParams(window.location.search);
+const activeTab = urlParams.get('tab') || 'charts';
+document.querySelectorAll('.exp-tab-panel').forEach(p => p.style.display = 'none');
+document.getElementById('tab-' + activeTab).style.display = '';
+document.querySelectorAll('.exp-tab-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === activeTab);
+});
+
+document.querySelectorAll('.exp-tab-btn').forEach(btn => {
+    btn.addEventListener('click', function () {
+        const target = this.dataset.tab;
+        // Update URL without page reload
+        const params = new URLSearchParams(window.location.search);
+        params.set('tab', target);
+        window.history.replaceState({}, '', '?' + params.toString());
+
+        document.querySelectorAll('.exp-tab-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        document.querySelectorAll('.exp-tab-panel').forEach(p => p.style.display = 'none');
+        document.getElementById('tab-' + target).style.display = '';
+    });
+});
+
+// ── Period toggle (Month vs Custom Range) ───────────────────────────────
+document.querySelectorAll('.period-toggle-btn').forEach(btn => {
+    btn.addEventListener('click', function () {
+        document.querySelectorAll('.period-toggle-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        const mode = this.dataset.mode;
+        document.getElementById('monthFilterForm').style.display = (mode === 'month') ? '' : 'none';
+        document.getElementById('rangeFilterForm').style.display = (mode === 'range') ? '' : 'none';
+    });
+});
+
+// ── Quick date-range presets ────────────────────────────────────────────
+function fmtDate(d) {
+    return d.toISOString().split('T')[0];
+}
+document.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.addEventListener('click', function () {
+        const preset = this.dataset.preset;
+        const now = new Date();
+        let start, end;
+
+        if (preset === 'first-half') {
+            start = new Date(now.getFullYear(), now.getMonth(), 1);
+            end   = new Date(now.getFullYear(), now.getMonth(), 15);
+        } else if (preset === 'second-half') {
+            start = new Date(now.getFullYear(), now.getMonth(), 16);
+            end   = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        } else if (preset === 'last-7') {
+            end   = now;
+            start = new Date(now);
+            start.setDate(start.getDate() - 6);
+        } else if (preset === 'last-30') {
+            end   = now;
+            start = new Date(now);
+            start.setDate(start.getDate() - 29);
+        }
+
+        const form = document.getElementById('rangeFilterForm');
+        form.querySelector('input[name="start_date"]').value = fmtDate(start);
+        form.querySelector('input[name="end_date"]').value   = fmtDate(end);
+    });
+});
+
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// Add modal
+document.getElementById('openAddExpense')?.addEventListener('click',  () => openModal('addExpenseModal'));
+document.getElementById('openAddExpense2')?.addEventListener('click', () => openModal('addExpenseModal'));
+document.getElementById('closeAddExpense')?.addEventListener('click', () => closeModal('addExpenseModal'));
+document.getElementById('cancelAddExpense')?.addEventListener('click',() => closeModal('addExpenseModal'));
+
+// Set today's date as default in the add form
+const expDateInput = document.getElementById('expDateInput');
+if (expDateInput) {
+    const today = new Date().toISOString().split('T')[0];
+    expDateInput.value = today;
+}
+
+// Edit modal
+document.getElementById('closeEditExpense')?.addEventListener('click',  () => closeModal('editExpenseModal'));
+document.getElementById('cancelEditExpense')?.addEventListener('click', () => closeModal('editExpenseModal'));
+
+document.querySelectorAll('.btn-edit-exp').forEach(btn => {
+    btn.addEventListener('click', function () {
+        const id   = this.dataset.id;
+        document.getElementById('editExpenseForm').action = `/admin/expenses/edit/${id}`;
+        document.getElementById('editCategory').value    = this.dataset.category;
+        document.getElementById('editTitle').value       = this.dataset.title;
+        document.getElementById('editAmount').value      = this.dataset.amount;
+        document.getElementById('editDescription').value = this.dataset.description;
+        document.getElementById('editDate').value        = this.dataset.date;
+        openModal('editExpenseModal');
+    });
+});
+
+// Close modal on backdrop click
+['addExpenseModal','editExpenseModal'].forEach(id => {
+    document.getElementById(id)?.addEventListener('click', function(e) {
+        if (e.target === this) closeModal(id);
+    });
+});
+</script>
+{% endblock %}

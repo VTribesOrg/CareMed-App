@@ -2238,6 +2238,272 @@ def reports():
         month_labels=sales_labels,
     )
 
+# Expenses ════════════════════════════════════════════════════════════════════════
+
+@admin_bp.route('/expenses')
+@login_required
+@administrator_required
+def expenses():
+    from sqlalchemy import extract
+    from datetime import date, datetime as dt
+ 
+    today = date.today()
+ 
+    # ── Date range mode (e.g. "1st - 15th of the month") ────────────────
+    start_date_str = request.args.get('start_date', '').strip()
+    end_date_str   = request.args.get('end_date', '').strip()
+    use_range = bool(start_date_str and end_date_str)
+ 
+    start_date = end_date = None
+    if use_range:
+        try:
+            start_date = dt.strptime(start_date_str, '%Y-%m-%d').date()
+            end_date   = dt.strptime(end_date_str, '%Y-%m-%d').date()
+            if start_date > end_date:
+                start_date, end_date = end_date, start_date
+        except ValueError:
+            use_range = False
+ 
+    # ── Month/Year mode (default) ───────────────────────────────────────
+    year  = request.args.get('year',  today.year,  type=int)
+    month = request.args.get('month', today.month, type=int)
+    category_filter = request.args.get('category', '')
+ 
+    query = Expense.query
+ 
+    if use_range:
+        query = query.filter(
+            Expense.date_incurred >= start_date,
+            Expense.date_incurred <= end_date,
+        )
+    else:
+        query = query.filter(
+            extract('year',  Expense.date_incurred) == year,
+            extract('month', Expense.date_incurred) == month,
+        )
+ 
+    if category_filter:
+        query = query.filter(Expense.category == category_filter)
+ 
+    expenses_list = query.order_by(Expense.date_incurred.desc()).all()
+ 
+    # ── Category totals (for the donut chart) ───────────────────────────
+    cat_query = db.session.query(
+        Expense.category,
+        func.sum(Expense.amount).label('total')
+    )
+    if use_range:
+        cat_query = cat_query.filter(
+            Expense.date_incurred >= start_date,
+            Expense.date_incurred <= end_date,
+        )
+    else:
+        cat_query = cat_query.filter(
+            extract('year',  Expense.date_incurred) == year,
+            extract('month', Expense.date_incurred) == month,
+        )
+    category_totals = cat_query.group_by(Expense.category)\
+        .order_by(func.sum(Expense.amount).desc()).all()
+ 
+    total_expenses = sum(row.total for row in category_totals) or 0
+ 
+    # ── Revenue for the same period ──────────────────────────────────────
+    rev_query = db.session.query(func.sum(Payment.amount)).join(Transaction).filter(
+        Payment.status == 'Completed'
+    )
+    if use_range:
+        rev_query = rev_query.filter(
+            Payment.created_at >= dt.combine(start_date, dt.min.time()),
+            Payment.created_at <= dt.combine(end_date, dt.max.time()),
+        )
+    else:
+        rev_query = rev_query.filter(
+            extract('year',  Payment.created_at) == year,
+            extract('month', Payment.created_at) == month,
+        )
+    total_revenue = rev_query.scalar() or 0
+ 
+    net_profit = float(total_revenue) - float(total_expenses)
+ 
+    # ── Last 6 months trend (always month-based, regardless of filter mode) ──
+    from dateutil.relativedelta import relativedelta as rd
+    trend_labels  = []
+    trend_expense = []
+    trend_revenue = []
+    for i in range(5, -1, -1):
+        target = today - rd(months=i)
+        exp = db.session.query(func.sum(Expense.amount)).filter(
+            extract('year',  Expense.date_incurred) == target.year,
+            extract('month', Expense.date_incurred) == target.month,
+        ).scalar() or 0
+        rev = db.session.query(func.sum(Payment.amount)).join(Transaction).filter(
+            Payment.status == 'Completed',
+            extract('year',  Payment.created_at) == target.year,
+            extract('month', Payment.created_at) == target.month,
+        ).scalar() or 0
+        trend_labels.append(target.strftime('%b %Y'))
+        trend_expense.append(float(exp))
+        trend_revenue.append(float(rev))
+ 
+    all_categories = [row[0] for row in db.session.query(Expense.category).distinct().all()]
+ 
+    months = [
+        (1,'January'),(2,'February'),(3,'March'),(4,'April'),
+        (5,'May'),(6,'June'),(7,'July'),(8,'August'),
+        (9,'September'),(10,'October'),(11,'November'),(12,'December')
+    ]
+ 
+    return render_template(
+        'admin/expenses.html',
+        expenses=expenses_list,
+        category_totals=category_totals,
+        total_this_month=total_expenses,
+        revenue_this_month=total_revenue,
+        net_profit=net_profit,
+        trend_labels=trend_labels,
+        trend_expense=trend_expense,
+        trend_revenue=trend_revenue,
+        all_categories=all_categories,
+        category_filter=category_filter,
+        months=months,
+        current_year=year,
+        current_month=month,
+        use_range=use_range,
+        start_date=start_date,
+        end_date=end_date,
+        today=today,
+    )
+ 
+ 
+@admin_bp.route('/expenses/add', methods=['POST'])
+@login_required
+@administrator_required
+def add_expense():
+    from datetime import datetime
+    try:
+        category    = request.form.get('category', '').strip()
+        expense_title = request.form.get('expense_title', '').strip()
+        amount_raw  = request.form.get('amount', '0').replace(',', '').strip()
+        description = request.form.get('description', '').strip()
+        date_str    = request.form.get('date_incurred', '').strip()
+ 
+        if not category or not amount_raw or not expense_title:
+            flash('Category, expense name, and amount are required.', 'error')
+            return redirect(request.referrer)
+ 
+        amount = Decimal(amount_raw)
+        if amount <= 0:
+            flash('Amount must be greater than zero.', 'error')
+            return redirect(request.referrer)
+ 
+        date_incurred = datetime.strptime(date_str, '%Y-%m-%d').date() if date_str else datetime.utcnow().date()
+ 
+        # Handle receipt attachment
+        attachment_path = None
+        file = request.files.get('attachment')
+        if file and file.filename:
+            ext = os.path.splitext(secure_filename(file.filename))[1].lower()
+            if ext not in ['.jpg', '.jpeg', '.png', '.webp', '.pdf']:
+                flash('Invalid file type. Use JPG, PNG, WebP, or PDF.', 'error')
+                return redirect(request.referrer)
+            filename = f"exp_{uuid.uuid4().hex[:12]}{ext}"
+            folder = os.path.join(current_app.root_path, 'static', 'uploads', 'expenses')
+            os.makedirs(folder, exist_ok=True)
+            file.save(os.path.join(folder, filename))
+            attachment_path = f'uploads/expenses/{filename}'
+ 
+        new_expense = Expense(
+            category=category,
+            expense_title=expense_title,
+            amount=amount,
+            description=description,
+            date_incurred=date_incurred,
+            attachment_path=attachment_path,
+            recorded_by_id=current_user.id,
+        )
+        db.session.add(new_expense)
+ 
+        log = InventoryLog(
+            action='Expense Recorded',
+            note=f'{expense_title} ({category}) — ₱{amount:,.2f}: {description[:80] if description else "No notes"}',
+            user_id=current_user.id,
+            user_name=current_user.full_name,
+        )
+        db.session.add(log)
+        db.session.commit()
+ 
+        flash(f'Expense of ₱{amount:,.2f} recorded successfully.', 'success')
+ 
+    except (InvalidOperation, ValueError):
+        db.session.rollback()
+        flash('Invalid amount format.', 'error')
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'ADD_EXPENSE_ERROR: {e}')
+        flash('An error occurred while saving the expense.', 'error')
+ 
+    return redirect(request.referrer or url_for('admin.expenses',
+                                             year=request.form.get('year', ''),
+                                             month=request.form.get('month', '')))
+ 
+ 
+@admin_bp.route('/expenses/delete/<int:expense_id>', methods=['POST'])
+@login_required
+@administrator_required
+def delete_expense(expense_id):
+    expense = Expense.query.get_or_404(expense_id)
+    try:
+        # Delete attachment file if it exists
+        if expense.attachment_path:
+            full_path = os.path.join(current_app.root_path, 'static', expense.attachment_path)
+            if os.path.exists(full_path):
+                os.remove(full_path)
+ 
+        log = InventoryLog(
+            action='Expense Deleted',
+            note=f'Deleted expense: {expense.category} — ₱{expense.amount:,.2f}',
+            user_id=current_user.id,
+            user_name=current_user.full_name,
+        )
+        db.session.add(log)
+        db.session.delete(expense)
+        db.session.commit()
+        flash('Expense deleted.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'DELETE_EXPENSE_ERROR: {e}')
+        flash('Failed to delete expense.', 'error')
+ 
+    return redirect(request.referrer or url_for('admin.expenses'))
+ 
+ 
+@admin_bp.route('/expenses/edit/<int:expense_id>', methods=['POST'])
+@login_required
+@administrator_required
+def edit_expense(expense_id):
+    from datetime import datetime
+    expense = Expense.query.get_or_404(expense_id)
+    try:
+        expense.category      = request.form.get('category', expense.category).strip()
+        expense.expense_title = request.form.get('expense_title', expense.expense_title).strip()
+        expense.description   = request.form.get('description', '').strip()
+        date_str = request.form.get('date_incurred', '')
+        if date_str:
+            expense.date_incurred = datetime.strptime(date_str, '%Y-%m-%d').date()
+ 
+        amount_raw = request.form.get('amount', '0').replace(',', '').strip()
+        expense.amount = Decimal(amount_raw)
+ 
+        db.session.commit()
+        flash('Expense updated.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'EDIT_EXPENSE_ERROR: {e}')
+        flash('Failed to update expense.', 'error')
+ 
+    return redirect(request.referrer or url_for('admin.expenses'))
+
+
 # ── Security Dashboard 
 @admin_bp.route('/security')
 @limiter.exempt

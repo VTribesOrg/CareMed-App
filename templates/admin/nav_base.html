@@ -171,6 +171,13 @@
                             <span class="nav-label">System Logs</span>
                         </a>
                     </li>
+                    <li class="nav-item" title="Expense Tracker">
+                        <a href="{{ url_for('admin.expenses') }}"
+                            class="nav-link {% if request.endpoint == 'admin.expenses' %}active{% endif %}">
+                            <span class="material-symbols-rounded">account_balance_wallet</span>
+                            <span class="nav-label">Expense Tracker</span>
+                        </a>
+                    </li>
                     <li class="nav-item" title="Backup Management">
                         <a href="{{ url_for('admin.backup_page') }}"
                             class="nav-link {% if request.endpoint == 'admin.backup_page' %}active{% endif %}">
