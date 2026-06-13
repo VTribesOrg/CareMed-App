@@ -199,13 +199,16 @@ window.openEditModal = function(productData) {
     // UPDATED: 'edit-model' changed to 'edit-name'
     const fields = {
         'edit-product-id': productData.id,
-        'edit-type': productData.type || '',
-        'edit-name': productData.name || '',
-        'edit-description': productData.description || '',
-        'edit-offer-type': productData.offer_type || 'both',
-        'edit-rent': String(productData.rent_price || 0),
-        'edit-rent-period': productData.rent_period || 'Monthly',
-        'edit-price': String(productData.sale_price || 0)
+        'edit-type': productData.type,
+        'edit-name': productData.name,
+        'edit-cost_price': productData.cost_price,
+        'edit-stock': productData.stock,
+        'edit-condition': productData.condition,
+        'edit-description': productData.description,
+        'edit-offer-type': productData.offer_type,
+        'edit-rent': productData.rent_price,
+        'edit-rent-period': productData.rent_period,
+        'edit-price': productData.sale_price
     };
 
     // Store these values to compare later
@@ -255,6 +258,9 @@ document.getElementById('editAssetForm')?.addEventListener('input', function() {
         'edit-product-id': document.getElementById('edit-product-id').value,
         'edit-type': document.getElementById('edit-type').value,
         'edit-name': document.getElementById('edit-name').value,
+        'edit-cost_price': document.getElementById('edit-cost_price').value,
+        'edit-stock': document.getElementById('edit-stock').value,
+        'edit-condition': document.getElementById('edit-condition').value,
         'edit-description': document.getElementById('edit-description').value,
         'edit-offer-type': document.getElementById('edit-offer-type').value,
         'edit-rent': document.getElementById('edit-rent').value,
@@ -494,15 +500,20 @@ document.getElementById('editAssetForm')?.addEventListener('submit', function() 
                 
                 const productData = {
                     id: editBtn.dataset.id,
-                    type: editBtn.dataset.type,
-                    model: editBtn.dataset.model,
-                    stock: editBtn.dataset.stock,
-                    offer_type: editBtn.dataset.offer || 'both', 
+                    type: editBtn.dataset.type || '',
+                    name: editBtn.dataset.name || '',
+                    cost_price: editBtn.dataset.costPrice || 0,
+                    stock: editBtn.dataset.stock || 0,
+                    condition: editBtn.dataset.condition || 'N/A',
+                    offer_type: editBtn.dataset.offer || '',
                     rent_period: editBtn.dataset.period || 'Monthly',
-                    rent_price: editBtn.dataset.rent || '0',
-                    sale_price: editBtn.dataset.price || '0',
-                    description: (rawDesc === "None" || !rawDesc) ? "" : rawDesc.trim(),
-                    image: editBtn.dataset.image
+                    rent_price: editBtn.dataset.rent || 0,
+                    sale_price: editBtn.dataset.price || 0,
+                    description: (
+                        editBtn.dataset.description === "None" ||
+                        !editBtn.dataset.description
+                    ) ? "" : editBtn.dataset.description.trim(),
+                    image: editBtn.dataset.image || ''
                 };
                 
                 // Now call the modal function with the object it expects

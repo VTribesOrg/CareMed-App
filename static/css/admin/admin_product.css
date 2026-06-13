@@ -615,51 +615,38 @@ body.ready .viewport-container {
     flex-grow: 1;
     background: white;
     border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    min-height: 350px;
     max-height: 70vh;
     margin-bottom: 0;
-    width: 100%;
-    min-height: 500px; 
     overflow-y: auto;
-    overflow-x: auto; 
+    overflow-x: auto;
     position: relative;
-    border-bottom: 1px solid #f1f5f9;
     -webkit-overflow-scrolling: touch;
 }
 
 @media (max-width: 768px) {
-.table-scroll-container {
-        flex-grow: 1;      
-        overflow-y: auto;   
+    .table-scroll-container {
         border-radius: 8px;
-        min-height: 460px; 
-        max-height: none;  
-        border: 1px solid #e2e8f0;
+        min-height: 200px;
+        max-height: 60vh;
     }
-}
-
-.table-scroll-container table {
-    min-width: 600px;
 }
 
 
 .medical-data-table thead th {
     position: sticky;
     top: 0;
-    z-index: 20;
-    background: #f8fafc;
-    padding: 12px 20px;
-    text-align: left;
-    font-size: 11px;
-    font-weight: 800;
-    color: #64748b;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    border-bottom: 2px solid #e2e8f0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis; 
+    background-color: #f8fafc; 
+    z-index: 10;
+    box-shadow: 0 1px 0 #e2e8f0; 
 }
 
+.asset-registry-card {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; 
+}
 
 .table-scroll-container::-webkit-scrollbar {
     width: 6px;  
@@ -697,6 +684,31 @@ body.ready .viewport-container {
     border-bottom: 2px solid #e2e8f0; 
 }
 
+.empty-state-container {
+        height: 591px; 
+        text-align: center;
+        vertical-align: middle;
+        background-color: #f9f9f9; 
+        border: 2px dashed #ddd;  
+    }
+
+    .empty-state-wrapper {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .empty-state-wrapper div {
+        font-size: 1.25rem;
+        font-weight: bold;
+        color: #555;
+    }
+
+    .empty-state-wrapper small {
+        color: #888;
+        margin-top: 8px;
+    }
 
 /*=================================== END OF TABLE ===================================*/
 
@@ -941,6 +953,7 @@ body.ready .viewport-container {
     height: fit-content;
     flex-direction: column;
     overflow: hidden;
+    height: 600px;
 }
 
 

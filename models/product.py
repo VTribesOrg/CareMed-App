@@ -13,34 +13,60 @@ class Product(db.Model):
     description = db.Column(db.Text, nullable=True) 
     stock = db.Column(db.Integer, default=0)
     
-    transaction_type = db.Column(db.String(20), nullable=True, default="both") 
-    rent_period = db.Column(db.String(20), nullable=True, default="Month")
+    transaction_type = db.Column(db.String(20), nullable=True, default="Sale")
+    cost_price = db.Column(db.Numeric(10, 2), nullable=True, default=0.00)
     sale_price = db.Column(db.Numeric(10, 2), nullable=True)
     rent_price = db.Column(db.Numeric(10, 2), nullable=True)
+    rent_period = db.Column(db.String(20), nullable=True, default="Monthly")
     
+    condition = db.Column(db.String(50), nullable=True, default="Brand New")
     image = db.Column(db.String(255))
     status = db.Column(db.String(50), default="Available")
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     
-    stock_empty = db.Column(db.Integer, default=0) 
     is_refillable = db.Column(db.Boolean, default=False) 
-    
-    category = db.Column(db.String(50), nullable=True) 
+    category = db.Column(db.String(50), nullable=True)
 
-    purchases = db.relationship("Purchase", back_populates="product")
-    rentals = db.relationship("Rental", back_populates="product")
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    archived_at = db.Column(db.DateTime, nullable=True)
+
+    purchases = db.relationship("Purchase", back_populates="product", passive_deletes=True)
+    rentals = db.relationship("Rental", back_populates="product", passive_deletes=True)
+    tank_status = db.relationship("TankStatus", back_populates="product", uselist=False, cascade="all, delete-orphan")
     inventory_logs = db.relationship("InventoryLog", back_populates="product", passive_deletes=True)
     
+    
+class TankStatus(db.Model):
+    __tablename__ = "tank_status"
 
+    id = db.Column(db.Integer, primary_key=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id', ondelete='CASCADE'), nullable=False)
+    
+    total_owned = db.Column(db.Integer, default=0)
+    rented_out = db.Column(db.Integer, default=0) 
+    full_in_stock = db.Column(db.Integer, default=0) 
+    empty_in_stock = db.Column(db.Integer, default=0) 
 
+    product = db.relationship("Product", back_populates="tank_status")
+
+    @property
+    def total_available(self):
+        return (self.full_in_stock or 0) + (self.empty_in_stock or 0)
 
 class Purchase(db.Model):
     __tablename__ = "purchase"
 
     id = db.Column(db.Integer, primary_key=True)
     transaction_id = db.Column(db.Integer, db.ForeignKey("transaction.id"), nullable=False)
-    product_id = db.Column(db.Integer, db.ForeignKey("product.id"), nullable=True)
+
+    product_id = db.Column(db.Integer, db.ForeignKey("product.id", ondelete="SET NULL"),nullable=True)
+
     customer_id = db.Column(db.Integer, db.ForeignKey("customer.id", ondelete="SET NULL"), nullable=True)
+
+    product_name = db.Column(db.String(100), nullable=False)
+    product_type = db.Column(db.String(100), nullable=True)
+    product_asset_tag = db.Column(db.String(20), nullable=True)
+    product_condition = db.Column(db.String(50), nullable=True)
 
     quantity = db.Column(db.Integer, nullable=False)
     unit_price = db.Column(db.Numeric(10, 2))
@@ -207,7 +233,6 @@ class PaymentProof(db.Model):
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
 
 
-
 class Rental(db.Model):
     __tablename__ = "rental"
 
@@ -216,7 +241,6 @@ class Rental(db.Model):
     product_id = db.Column(db.Integer, db.ForeignKey("product.id"))
     customer_id = db.Column(db.Integer, db.ForeignKey("customer.id"))
     
-
     start_date = db.Column(db.Date, nullable=False)
     expected_return_date = db.Column(db.Date, nullable=False) 
     actual_return_date = db.Column(db.Date, nullable=True) 
@@ -227,6 +251,8 @@ class Rental(db.Model):
     late_fees_incurred = db.Column(db.Numeric(10, 2), default=0.00)
 
     quantity = db.Column(db.Integer, nullable=False)
+    quantity_returned = db.Column(db.Integer, nullable=False, default=0)
+    serial_number = db.Column(db.String(100), nullable=True)
     
     status = db.Column(db.String(50), default="Active")
     return_condition_notes = db.Column(db.Text)
@@ -244,8 +270,12 @@ class Rental(db.Model):
     
     invoices = db.relationship("RentalInvoice", backref="rental", cascade="all, delete-orphan", lazy=True)
 
-    def generate_monthly_invoices(self):
+    @property
+    def remaining_to_return(self):
+        """Calculates the quantity still pending return."""
+        return max(0, self.quantity - self.quantity_returned)
 
+    def generate_monthly_invoices(self):
         current_period_start = self.start_date
         
         while current_period_start < self.expected_return_date:
@@ -263,8 +293,8 @@ class Rental(db.Model):
             db.session.add(new_invoice)
 
             current_period_start = next_period_start
-
-
+            
+            
 class RentalInvoice(db.Model):
     __tablename__ = "rental_invoice"
     

@@ -12,23 +12,50 @@
 </style>
 {% endblock %}
 
+{# Override flash block — this page uses toast-style flash messages #}
+{% block flash %}
+<div id="main-toast-container" class="toast-container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="medical-toast {{ category or 'info' }}" role="alert">
+                    <div class="toast-progress"></div>
+                    <span class="material-symbols-rounded toast-icon">
+                        {% if category == 'success' %}check_circle
+                        {% elif category == 'error' %}error
+                        {% elif category == 'warning' %}warning
+                        {% else %}info{% endif %}
+                    </span>
+                    <div class="toast-content">
+                        <span class="toast-title">{{ category|capitalize or 'Notice' }}</span>
+                        <span class="toast-message">{{ message|replace('\n', '<br>')|safe }}</span>
+                    </div>
+                    <button class="toast-close" onclick="this.parentElement.remove()">
+                        <span class="material-symbols-rounded">close</span>
+                    </button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+</div>
+ 
+<template id="toast-template">
+    <div class="medical-toast" role="alert">
+        <div class="toast-progress"></div>
+        <span class="material-symbols-rounded toast-icon"></span>
+        <div class="toast-content">
+            <span class="toast-title"></span>
+            <span class="toast-message"></span>
+        </div>
+        <button class="toast-close" onclick="this.parentElement.remove()">
+            <span class="material-symbols-rounded">close</span>
+        </button>
+    </div>
+</template>
+{% endblock %}
+
 {% block content %}
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-{% if messages %}
-    <div class="flash-container">
-    {% for category, message in messages %}
-        <div class="flash-message {{ category }}">
-            <span class="material-symbols-rounded">
-                {{ 'check_circle' if category == 'success' else 'error' if category == 'danger' else 'info' }}
-            </span>
-            <span class="message-text">{{ message }}</span>
-            <button class="flash-close" onclick="this.parentElement.style.display='none';">&times;</button>
-        </div>
-    {% endfor %}
-    </div>
-{% endif %}
-{% endwith %}
 
 <div class="asset-registry-card">
     <div class="registry-controls">
@@ -292,19 +319,13 @@
                         </div>
                     </div>
 
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-                        <div class="form-field">
-                            <label style="font-size:0.75rem; margin-bottom:2px; display:block;">Birthday</label>
-                            <input type="date" name="birthday" class="clinical-input" style="height:40px;" required>
-                        </div>
-                        <div class="form-field">
-                            <label style="font-size:0.75rem; margin-bottom:2px; display:block;">Gender</label>
-                            <select name="gender" class="clinical-input" style="height:40px;" required>
-                                <option value="" disabled selected>Select</option>
-                                <option value="male">Male</option>
-                                <option value="female">Female</option>
-                            </select>
-                        </div>
+                    <div class="form-field">
+                        <label style="font-size:0.75rem; margin-bottom:2px; display:block;">Gender</label>
+                        <select name="gender" class="clinical-input" style="height:40px;" required>
+                            <option value="" disabled selected>Select</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                        </select>
                     </div>
 
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
@@ -344,6 +365,11 @@
                                 <option value="TIN ID">TIN ID</option>
                             </select>
                         </div>
+                    </div>
+
+                    <div class="form-field">
+                        <label style="font-size:0.75rem; margin-bottom:2px; display:block;">Proof of Billing</label>
+                        <input type="file" name="proof_of_billing" class="clinical-input" style="height:30px; padding:6px 6px;" accept="image/*" required>
                     </div>
                 </div>
             </div>
@@ -477,34 +503,36 @@
                         </div>
                     </div>
 
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-                        <div class="form-field">
-                            <label style="font-size:0.75rem; margin-bottom:2px; display:block;">Birthday</label>
-                            <input type="date" name="birthday" id="edit_birthday" class="clinical-input" style="height:40px;" required>
-                        </div>
-                        <div class="form-field">
-                            <label style="font-size:0.75rem; margin-bottom:2px; display:block;">Gender</label>
-                            <select name="gender" id="edit_gender" class="clinical-input" style="height:40px;" required>
-                                <option value="male">Male</option>
-                                <option value="female">Female</option>
-                            </select>
-                        </div>
+                    <div class="form-field">
+                        <label style="font-size:0.75rem; margin-bottom:2px; display:block;">Gender</label>
+                        <select name="gender" id="edit_gender" class="clinical-input" style="height:40px;" required>
+                            <option value="" disabled>Select</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                        </select>
                     </div>
 
-                    <div class="form-field">
-                        <label style="font-size:0.75rem; margin-bottom:2px; display:block;">Phone Number</label>
-                        <input type="tel" name="contact_number" id="edit_contact_number" class="clinical-input" style="height:40px;" required>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                        <div class="form-field">
+                            <label style="font-size:0.75rem; margin-bottom:2px; display:block;">Primary Contact No.</label>
+                            <input type="tel" name="contact_number" id="edit_contact_number" class="clinical-input" placeholder="09XX XXX XXXX" style="height:40px;" required>
+                        </div>
+                        <div class="form-field">
+                            <label style="font-size:0.75rem; margin-bottom:2px; display:block;">Secondary Contact No.</label>
+                            <input type="tel" name="secondary_contact_number" id="edit_secondary_contact_number" class="clinical-input" placeholder="09XX XXX XXXX (Optional)" style="height:40px;">
+                        </div>
                     </div>
 
                     <div class="form-field">
                         <label style="font-size:0.75rem; margin-bottom:2px; display:block;">Home Address</label>
-                        <textarea name="home_address" id="edit_home_address" class="clinical-input" style="height:45px; padding-top:8px; resize:none;" required></textarea>
+                        <textarea name="home_address" id="edit_home_address" class="clinical-input" style="height:45px; padding-top:8px; resize:none;" placeholder="St., Brgy, City, Province" required></textarea>
                     </div>
 
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
                         <div class="form-field">
                             <label style="font-size:0.75rem; margin-bottom:2px; display:block;">Primary ID Type</label>
                             <select name="primary_id_type" id="edit_primary_id_type" class="clinical-input" style="height:40px;" required>
+                                <option value="" disabled>Select Type</option>
                                 <option value="National ID">National ID</option>
                                 <option value="Driver's License">Driver's License</option>
                                 <option value="Passport">Passport</option>
@@ -513,13 +541,19 @@
                         </div>
                         <div class="form-field">
                             <label style="font-size:0.75rem; margin-bottom:2px; display:block;">Secondary ID Type</label>
-                            <select id="edit_secondary_id_type" name="secondary_id_type" class="clinical-input" style="height:40px;" required>
+                            <select name="secondary_id_type" id="edit_secondary_id_type" class="clinical-input" style="height:40px;" required>
+                                <option value="" disabled>Select Type</option>
                                 <option value="PhilHealth">PhilHealth</option>
                                 <option value="Voter's ID">Voter's ID</option>
                                 <option value="Postal ID">Postal ID</option>
                                 <option value="TIN ID">TIN ID</option>
                             </select>
                         </div>
+                    </div>
+
+                    <div class="form-field">
+                        <label style="font-size:0.75rem; margin-bottom:2px; display:block;">Proof of Billing</label>
+                        <input type="file" name="proof_of_billing" id="edit_proof_of_billing" class="clinical-input" style="height:30px; padding:6px 6px;" accept="image/*">
                     </div>
                 </div>
             </div>

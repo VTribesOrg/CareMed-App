@@ -9,7 +9,6 @@ class Customer(db.Model):
 
     first_name = db.Column(db.String(100), nullable=False)
     last_name = db.Column(db.String(100), nullable=False)
-    birthday = db.Column(db.Date, nullable=True)
     gender = db.Column(db.String(20), nullable=True) 
 
     contact_number = db.Column(db.String(50), nullable=True)
@@ -18,8 +17,10 @@ class Customer(db.Model):
     
     primary_id_type = db.Column(db.String(50), nullable=True)
     secondary_id_type = db.Column(db.String(50), nullable=True)
+    
     valid_id_path = db.Column(db.String(255), nullable=True) 
     secondary_id_path = db.Column(db.String(255), nullable=True) 
+    proof_of_billing_path = db.Column(db.String(255), nullable=True)
     
     id_uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_id_verified = db.Column(db.Boolean, default=False, nullable=False)

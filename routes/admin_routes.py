@@ -5,7 +5,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy import func, or_, and_
 from flask_login import login_required
 from functools import wraps
-from models.product import Product, InventoryLog, Transaction, Purchase, Payment, Rental, RentalInvoice, Expense, PaymentProof
+from models.product import Product, InventoryLog, Transaction, Purchase, Payment, Rental, RentalInvoice, Expense, PaymentProof, TankStatus
 from models.customer import Customer
 from models.users import User, SecurityLog, BlockedIP
 from flask_mail import Message
@@ -52,32 +52,97 @@ def administrator_required(f):
     return decorated_function
 
 
+from sqlalchemy import func
+
 @admin_bp.route('/dashboard')
 @login_required
 @administrator_required
 def dashboard():
-    total_sales = db.session.query(func.sum(Transaction.amount_paid)).filter_by(transaction_type='Sale').scalar() or 0
-    total_rentals = db.session.query(func.sum(Payment.amount)).join(Transaction).filter(
+    total_sales = db.session.query(
+        func.sum(Transaction.amount_paid)
+    ).filter_by(transaction_type='Sale').scalar() or 0
+
+    total_rentals = db.session.query(
+        func.sum(Payment.amount)
+    ).join(Transaction).filter(
         Transaction.transaction_type == 'Rental',
         Payment.status == 'Completed'
     ).scalar() or 0
+
     active_rentals_count = Rental.query.filter_by(status='Active').count()
-    total_inventory = db.session.query(func.sum(Product.stock + Product.stock_empty)).scalar() or 0
-    low_stock_count = Product.query.filter(Product.stock <= 5).count()
 
-    recent_logs = InventoryLog.query.order_by(InventoryLog.created_at.desc()).limit(5).all()
+    product_inventory = db.session.query(
+        func.sum(Product.stock)
+    ).filter(Product.is_active == True).scalar() or 0
 
-    security_alerts = SecurityLog.query.order_by(SecurityLog.created_at.desc()).limit(3).all()
+    tank_inventory = db.session.query(
+        func.sum(TankStatus.full_in_stock + TankStatus.empty_in_stock)
+    ).join(Product).filter(Product.is_active == True).scalar() or 0
 
-    return render_template('admin/dashboard.html', 
-                           total_sales=total_sales,
-                           total_rentals=total_rentals,
-                           active_rentals_count=active_rentals_count,
-                           total_inventory=total_inventory,
-                           low_stock_count=low_stock_count,
-                           recent_logs=recent_logs,
-                           security_alerts=security_alerts)
+    total_inventory = product_inventory + tank_inventory
 
+    low_stock_count = Product.query.filter(
+        Product.is_active == True,
+        Product.is_refillable == False,
+        Product.stock <= 5
+    ).count()
+
+    tank_statuses = TankStatus.query.join(Product).filter(Product.is_active == True).all()
+
+    all_products = Product.query.filter_by(is_refillable=False, is_active=True).all()
+    
+    active_rented_units = db.session.query(
+        Rental.product_id,
+        func.sum(Rental.quantity - Rental.quantity_returned)
+    ).filter(Rental.status == 'Active').group_by(Rental.product_id).all()
+    
+    rented_map = {prod_id: count for prod_id, count in active_rented_units}
+
+    assets_aggregation = {}
+    for prod in all_products:
+        prod_name = prod.name
+        if prod_name not in assets_aggregation:
+            assets_aggregation[prod_name] = {
+                'name': prod_name,
+                'total_stock': 0,
+                'rented_count': 0,
+                'used_count': 0,
+                'brand_new_count': 0
+            }
+            
+        assets_aggregation[prod_name]['total_stock'] += (prod.stock or 0)
+        assets_aggregation[prod_name]['rented_count'] += rented_map.get(prod.id, 0)
+
+        condition_str = (prod.condition or "").lower()
+        if "brand new" in condition_str:
+            assets_aggregation[prod_name]['brand_new_count'] += (prod.stock or 0)
+        else:
+            assets_aggregation[prod_name]['used_count'] += (prod.stock or 0)
+
+    standard_assets = list(assets_aggregation.values())
+
+    recent_logs = InventoryLog.query.order_by(
+        InventoryLog.created_at.desc()
+    ).limit(5).all()
+
+    security_alerts = SecurityLog.query.order_by(
+        SecurityLog.created_at.desc()
+    ).limit(3).all()
+
+    return render_template(
+        'admin/dashboard.html',
+        total_sales=total_sales,
+        total_rentals=total_rentals,
+        active_rentals_count=active_rentals_count,
+        total_inventory=total_inventory,
+        low_stock_count=low_stock_count,
+        tank_statuses=tank_statuses,
+        standard_assets=standard_assets,
+        recent_logs=recent_logs,
+        security_alerts=security_alerts
+    )
+    
+    
 @admin_bp.route('/customers')
 @login_required
 @administrator_required
@@ -89,7 +154,6 @@ def customers():
  
     query = Customer.query
  
-    # text search
     if search_query:
         query = query.filter(or_(
             Customer.first_name.ilike(f"%{search_query}%"),
@@ -97,7 +161,6 @@ def customers():
             Customer.contact_number.ilike(f"%{search_query}%")
         ))
  
-    # ── filter deep-links from notifications ──────────────────────────────
     if filter_type == 'overdue_invoices':
         # Customers who have at least one unpaid invoice past its due date
         from models.product import RentalInvoice, Rental as RentalModel
@@ -121,7 +184,6 @@ def customers():
         )
  
     elif filter_type == 'inactive_open':
-        # Deactivated customers who still have open transactions
         open_txn_customer_ids = db.session.query(
             Transaction.customer_id
         ).filter(
@@ -132,7 +194,7 @@ def customers():
             Customer.is_active == False,
             Customer.id.in_(open_txn_customer_ids)
         )
-    # ─────────────────────────────────────────────────────────────────────
+    
  
     pagination = query.order_by(Customer.last_name.asc()).paginate(
         page=page,
@@ -164,7 +226,6 @@ def get_customer(id):
                 "message": "Customer record not found."
             }), 404
 
-
         profile_url = None
         if customer.user and customer.user.profile_path:
             if customer.user.profile_path.startswith(('http://', 'https://')):
@@ -176,24 +237,25 @@ def get_customer(id):
             "status": "success",
             "data": {
                 "id": customer.id,
-                "first_name": customer.first_name or "N/A",
-                "last_name": customer.last_name or "N/A",
-                "full_name": customer.full_name, 
+                "first_name": customer.first_name or "",
+                "last_name": customer.last_name or "",
+                "full_name": customer.full_name or "", 
                 
-                "contact_number": customer.contact_number or "N/A",
-                "home_address": customer.home_address or "N/A",
+                "contact_number": customer.contact_number or "",
+                "secondary_contact_number": customer.secondary_contact_number or "",
+                "home_address": customer.home_address or "",
                 
-                "birthday": customer.birthday.strftime('%Y-%m-%d') if customer.birthday else "N/A",
-                "gender": customer.gender or "N/A",
+                "gender": customer.gender or "",
                 
                 "is_active": customer.is_active,
-                
                 "is_id_verified": customer.is_id_verified,
-                "primary_id_type": customer.primary_id_type or "Not Set",
-                "secondary_id_type": customer.secondary_id_type or "Not Set",
+                
+                "primary_id_type": customer.primary_id_type or "",
+                "secondary_id_type": customer.secondary_id_type or "",
                 
                 "valid_id_path": url_for('static', filename=customer.valid_id_path) if customer.valid_id_path else None,
                 "secondary_id_path": url_for('static', filename=customer.secondary_id_path) if customer.secondary_id_path else None,
+                "proof_of_billing_path": url_for('static', filename=customer.proof_of_billing_path) if customer.proof_of_billing_path else None,
                 
                 "id_uploaded_at": customer.id_uploaded_at.strftime('%b %d, %Y %I:%M %p') if customer.id_uploaded_at else "Never",
                 
@@ -211,8 +273,8 @@ def get_customer(id):
             "status": "error",
             "message": "An internal server error occurred while retrieving customer data."
         }), 500
-
-
+        
+        
 @admin_bp.route('/customers/<int:id>')
 @login_required
 @administrator_required
@@ -261,6 +323,7 @@ def unverify_customer(id):
         
     return redirect(url_for('admin.customer_details', id=id))
 
+
 @admin_bp.route('/admin/add-customer', methods=['POST'])
 @login_required
 def add_customer():
@@ -277,29 +340,23 @@ def add_customer():
     secondary_contact_number = secondary_contact.strip() if secondary_contact else None
     
     home_address = request.form.get('home_address', '').strip()
-    birthday_str = request.form.get('birthday')
     gender = request.form.get('gender')
     primary_id_type = request.form.get('primary_id_type')
     secondary_id_type = request.form.get('secondary_id_type')
 
-    if not all([first_name, last_name, contact_number, birthday_str]):
-        flash("Basic details (Name, Primary Contact, Birthday) are required.", "error")
-        return redirect(request.referrer)
-
-    try:
-        birthday = datetime.strptime(birthday_str, '%Y-%m-%d').date()
-    except (ValueError, TypeError):
-        flash("Invalid birthday format. Please use YYYY-MM-DD.", "error")
-        return redirect(request.referrer)
+    if not all([first_name, last_name, contact_number]):
+        flash("Basic details (Name and Primary Contact) are required.", "error")
+        return redirect(request.referrer or url_for('admin.customers'))
 
     existing = Customer.query.filter_by(
         first_name=first_name, 
         last_name=last_name, 
-        birthday=birthday
+        contact_number=contact_number
     ).first()
+    
     if existing:
-        flash(f"A customer named {first_name} {last_name} with this birthday already exists.", "warning")
-        return redirect(request.referrer)
+        flash(f"A customer named {first_name} {last_name} with this contact number already exists.", "warning")
+        return redirect(request.referrer or url_for('admin.customers'))
 
     upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'ids')
     os.makedirs(upload_folder, exist_ok=True)
@@ -307,7 +364,6 @@ def add_customer():
     def save_id_file(file):
         if not file or file.filename == '':
             return None
-
         ext = os.path.splitext(file.filename)[1]
         filename = f"{uuid.uuid4().hex}{ext}"
         file_path = os.path.join(upload_folder, filename)
@@ -316,15 +372,16 @@ def add_customer():
 
     valid_id_file = request.files.get('valid_id')
     secondary_id_file = request.files.get('secondary_id')
+    proof_of_billing_file = request.files.get('proof_of_billing')
 
     valid_id_path = save_id_file(valid_id_file)
     secondary_id_path = save_id_file(secondary_id_file)
+    proof_of_billing_path = save_id_file(proof_of_billing_file)
 
     new_customer = Customer(
         user_id=None, 
         first_name=first_name,
         last_name=last_name,
-        birthday=birthday,
         gender=gender,
         contact_number=contact_number,
         secondary_contact_number=secondary_contact_number,
@@ -333,6 +390,7 @@ def add_customer():
         secondary_id_type=secondary_id_type,
         valid_id_path=valid_id_path,
         secondary_id_path=secondary_id_path,
+        proof_of_billing_path=proof_of_billing_path, 
         id_uploaded_at=datetime.utcnow(),
         is_id_verified=True if valid_id_path else False,
         created_by_id=current_user.id,
@@ -359,8 +417,6 @@ def add_customer():
 
     return redirect(url_for('admin.customers'))
 
-
-
 @admin_bp.route('/update-customer', methods=['POST'])
 @login_required
 @administrator_required
@@ -384,26 +440,19 @@ def update_customer():
 
     customer.home_address = request.form.get("home_address", "").strip().title()
     customer.contact_number = request.form.get("contact_number", "").strip()
+    customer.secondary_contact_number = request.form.get("secondary_contact_number", "").strip()
 
+    if "is_active" in request.form:
+        is_active_val = request.form.get("is_active") == "on"
+        if customer.is_active != is_active_val:
+            customer.is_active = is_active_val
+            if customer.user:
+                customer.user.is_active = is_active_val 
 
-    is_active_val = request.form.get("is_active") == "on"
-    if customer.is_active != is_active_val:
-        customer.is_active = is_active_val
-        if customer.user:
-            customer.user.is_active = is_active_val 
-
-    birthday_str = request.form.get("birthday")
-    if birthday_str:
-        try:
-            customer.birthday = datetime.strptime(birthday_str, "%Y-%m-%d").date()
-        except (ValueError, TypeError):
-            flash("Invalid birthday format.", "error")
-            return redirect(request.referrer)
-
-    def handle_id(file_key, path_attr, remove_flag_name):
-        remove_flag = request.form.get(remove_flag_name)
+    def handle_id(file_key, path_attr, remove_flag_name=None, subfolder="ids", prefix="ID"):
+        remove_flag = request.form.get(remove_flag_name) if remove_flag_name else None
         image_file = request.files.get(file_key)
-        old_path = getattr(customer, path_attr)
+        old_path = getattr(customer, path_attr, None)
 
         if remove_flag == "true" and old_path:
             full_path = os.path.join(current_app.root_path, 'static', old_path)
@@ -413,9 +462,9 @@ def update_customer():
 
         elif image_file and image_file.filename:
             ext = os.path.splitext(image_file.filename)[1].lower()
-            filename = f"ID_{uuid.uuid4().hex[:12]}{ext}"
-            relative_path = f"uploads/ids/{filename}"
-            absolute_path = os.path.join(current_app.root_path, 'static', 'uploads', 'ids')
+            filename = f"{prefix}_{uuid.uuid4().hex[:12]}{ext}"
+            relative_path = f"uploads/{subfolder}/{filename}"
+            absolute_path = os.path.join(current_app.root_path, 'static', 'uploads', subfolder)
             
             os.makedirs(absolute_path, exist_ok=True)
             
@@ -429,13 +478,15 @@ def update_customer():
             if file_key == "valid_id":
                 customer.id_uploaded_at = datetime.utcnow()
 
-    handle_id("valid_id", "valid_id_path", "remove_valid_id")
-    handle_id("secondary_id", "secondary_id_path", "remove_secondary_id")
+    handle_id("valid_id", "valid_id_path", "remove_valid_id", "ids", "ID")
+    handle_id("secondary_id", "secondary_id_path", "remove_secondary_id", "ids", "ID")
+    handle_id("proof_of_billing", "proof_of_billing_path", None, "billing", "BILLING")
 
     customer.primary_id_type = request.form.get("primary_id_type", "").strip()
     customer.secondary_id_type = request.form.get("secondary_id_type", "").strip()
 
-    customer.is_id_verified = request.form.get("is_id_verified") == "on"
+    if "is_id_verified" in request.form:
+        customer.is_id_verified = request.form.get("is_id_verified") == "on"
 
     try:
         audit_log = InventoryLog(
@@ -534,28 +585,32 @@ def add_product():
     name = request.form.get("name", "").strip().title()
     description = request.form.get("description", "").strip()
     
-    transaction_type = request.form.get("offer_type", "Both").strip().title()
-    rent_period = request.form.get("rent_period", "Monthly").strip().title()
+    is_refillable = True if request.form.get("is_refillable") == "on" else False
+    
 
-    raw_tag = request.form.get("asset_tag", "").strip().upper()
-    asset_tag = raw_tag if raw_tag != "" else None
+    if "oxygen" in equipment_type.lower() or "oxygen" in name.lower():
+        is_refillable = True
+    
+    transaction_type = request.form.get("offer_type", "Sale").strip().title()
+    rent_period = request.form.get("rent_period", "Monthly").strip().title()
+    
+    condition = request.form.get("condition", "Brand New").strip()
 
     try:
         stock = int(request.form.get("stock", 0))
         rent_price_raw = request.form.get("rent_price", "").strip()
         sale_price_raw = request.form.get("sale_price", "").strip()
+        cost_price_raw = request.form.get("cost_price", "").strip()
         
         rent_price = Decimal(rent_price_raw) if rent_price_raw else Decimal("0.00")
         sale_price = Decimal(sale_price_raw) if sale_price_raw else Decimal("0.00")
+        cost_price = Decimal(cost_price_raw) if cost_price_raw else Decimal("0.00")
         
         if transaction_type == 'Rent' and rent_price <= 0:
             flash("Please provide a valid rent price for 'Rent Only' items.", "error")
             return redirect(request.referrer)
         if transaction_type == 'Sale' and sale_price <= 0:
             flash("Please provide a valid sale price for 'Sale Only' items.", "error")
-            return redirect(request.referrer)
-        if transaction_type == 'Both' and (rent_price <= 0 or sale_price <= 0):
-            flash("Please provide both rent and sale prices for 'Both' mode.", "error")
             return redirect(request.referrer)
         
         if stock < 0:
@@ -566,7 +621,7 @@ def add_product():
         return redirect(request.referrer)
 
     if not equipment_type:
-        flash("Equipment Type are required.", "error")
+        flash("Equipment Type is required.", "error")
         return redirect(request.referrer)
 
     image_file = request.files.get("image")
@@ -593,36 +648,40 @@ def add_product():
             return redirect(request.referrer)
 
     try:
-        if asset_tag:
-            existing_tag = Product.query.filter_by(asset_tag=asset_tag).first()
-            if existing_tag:
-                if image_path:
-                    os.remove(os.path.join(current_app.root_path, "static", image_path))
-                flash(f"Asset Tag '{asset_tag}' is already assigned to {existing_tag.name}.", "error")
-                return redirect(request.referrer)
-
         new_product = Product(
-            asset_tag=asset_tag, 
             equipment_type=equipment_type,
             name=name,
             description=description, 
             stock=stock,
-            transaction_type=transaction_type,     
+            is_refillable=is_refillable,
+            transaction_type=transaction_type,    
             rent_period=rent_period,    
             rent_price=rent_price,
             sale_price=sale_price,
+            cost_price=cost_price, 
+            condition=condition,   
             image=image_path,
             status="Available" if stock > 0 else "Out of Stock"
         )
         
         db.session.add(new_product)
-        db.session.flush()
+        db.session.flush() 
+
+        if is_refillable:
+            new_tank_status = TankStatus(
+                product_id=new_product.id,
+                total_owned=stock,
+                full_in_stock=stock, 
+                empty_in_stock=0,
+                rented_out=0
+            )
+            db.session.add(new_tank_status)
 
         log = InventoryLog(
             product_id=new_product.id,
             action="Initial Stock Entry",
             quantity=stock,
-            note=f"Registered {name}. Mode: {transaction_type}. Tag: {asset_tag or 'None'}",
+            note=f"Registered {name}. Mode: {transaction_type}. Refillable: {is_refillable}. Condition: {condition}. Cost: {cost_price}",
             user_id=current_user.id,
             user_name=current_user.full_name 
         )
@@ -653,14 +712,13 @@ def edit_product(product_id):
     new_type = request.form.get("equipment_type", "").strip().title()
     new_name = request.form.get("name", "").strip().title()
     new_description = request.form.get("description", "").strip()
+    new_condition = request.form.get("condition", "").strip()
     
-    raw_tag = request.form.get("asset_tag", "").strip().upper()
-    
-    new_offer_type = request.form.get("offer_type", "Both").strip().title()
+    new_offer_type = request.form.get("offer_type", "Rent").strip().title()
     new_rent_period = request.form.get("rent_period", "Monthly").strip().title()
     
-    if not new_type:
-        flash("Equipment Type are required.", "error")
+    if not new_type or not new_name:
+        flash("Equipment Type and Product Name are required fields.", "error")
         return redirect(url_for('admin.products'))
 
     changes = []
@@ -669,6 +727,7 @@ def edit_product(product_id):
         stock_input = request.form.get("stock")
         new_stock = int(stock_input) if stock_input not in [None, ""] else product.stock
         
+        raw_cost = Decimal(request.form.get("cost_price") or "0.00")
         raw_rent = Decimal(request.form.get("rent_price") or "0.00")
         raw_sale = Decimal(request.form.get("sale_price") or "0.00")
 
@@ -676,40 +735,48 @@ def edit_product(product_id):
         new_sale = raw_sale if new_offer_type in ['Both', 'Sale'] else Decimal("0.00")
 
         if product.transaction_type != new_offer_type:
-            changes.append(f"Mode: {product.transaction_type} → {new_offer_type}")
+            changes.append(f"Changed transaction type from '{product.transaction_type}' to '{new_offer_type}'")
             product.transaction_type = new_offer_type
 
         if product.rent_period != new_rent_period:
-            changes.append(f"Period: {product.rent_period} → {new_rent_period}")
+            changes.append(f"Updated rental period from '{product.rent_period}' to '{new_rent_period}'")
             product.rent_period = new_rent_period
 
         if product.equipment_type != new_type:
-            changes.append(f"Type: {product.equipment_type} → {new_type}")
+            changes.append(f"Updated equipment type from '{product.equipment_type}' to '{new_type}'")
             product.equipment_type = new_type
 
         if (product.name or "") != new_name:
-            changes.append(f"Name: {product.name or 'N/A'} → {new_name}")
+            changes.append(f"Renamed product from '{product.name or 'Untitled'}' to '{new_name}'")
             product.name = new_name
 
         if (product.description or "").strip() != new_description:
-            changes.append("Description updated")
+            changes.append("Updated product description")
             product.description = new_description
 
+        if product.condition != new_condition:
+            changes.append(f"Changed condition status from '{product.condition or 'N/A'}' to '{new_condition}'")
+            product.condition = new_condition
+
         if product.stock != new_stock:
-            changes.append(f"Stock: {product.stock} → {new_stock}")
+            changes.append(f"Adjusted stock quantity from {product.stock} to {new_stock}")
             product.stock = new_stock
             product.status = "Available" if new_stock > 0 else "Out of Stock"
 
+        if product.cost_price != raw_cost:
+            changes.append(f"Updated investment cost from ₱{product.cost_price} to ₱{raw_cost}")
+            product.cost_price = raw_cost
+
         if product.rent_price != new_rent:
-            changes.append(f"Rent: ₱{product.rent_price} → ₱{new_rent}")
+            changes.append(f"Changed rental rate from ₱{product.rent_price} to ₱{new_rent}")
             product.rent_price = new_rent
 
         if product.sale_price != new_sale:
-            changes.append(f"Price: ₱{product.sale_price} → ₱{new_sale}")
+            changes.append(f"Changed sale price from ₱{product.sale_price} to ₱{new_sale}")
             product.sale_price = new_sale
 
     except (ValueError, InvalidOperation):
-        flash("Invalid numeric value provided for stock or price.", "error")
+        flash("Please enter valid numeric amounts for the stock, cost, or pricing fields.", "error")
         return redirect(url_for('admin.products'))
 
     image_file = request.files.get("image")
@@ -731,7 +798,7 @@ def edit_product(product_id):
         image_file.save(os.path.join(upload_folder, random_name))
         
         product.image = new_rel_path
-        changes.append("Image updated")
+        changes.append("Uploaded a new product image")
 
     try:
         if changes:
@@ -746,17 +813,16 @@ def edit_product(product_id):
             )
             db.session.add(inventory_log)
             db.session.commit()
-            flash(f"Updated {product.name} successfully!", "success")
+            flash(f"Successfully updated the details for {product.name}!", "success")
         else:
-            flash("No changes detected.", "info")
+            flash("No changes were made to the record.", "info")
 
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Product Update Error: {e}")
-        flash("An error occurred while updating the product database.", "error")
+        flash("An unexpected database error occurred while updating the product. Please try again.", "error")
 
     return redirect(url_for('admin.products'))
-
 
 @admin_bp.route('/update_stock/<int:product_id>', methods=['POST'])
 @login_required
@@ -837,37 +903,43 @@ def delete_product(product_id):
     product = Product.query.get_or_404(product_id)
 
     try:
-        active_rentals = [r for r in product.rentals if r.status in ['Active', 'Overdue']]
-        if active_rentals:
-            flash(f"Cannot delete '{product.model}' because it is currently rented out.", "warning")
+        has_active_rentals = Rental.query.filter(
+            Rental.product_id == product.id,
+            Rental.status.in_(["Active", "Overdue"])
+        ).first()
+
+        if has_active_rentals:
+            flash(f"Cannot archive '{product.name}' due to active rentals.", "warning")
             return redirect(url_for('admin.products'))
 
-
         product.status = "Archived"
-        product.stock = 0  
-        
-        log_note = f"Product Archived by {current_user.full_name}. Final stock was {product.stock}."
-        inventory_log = InventoryLog(
-            product_id=product.id,           
-            action="Archived Product",      
-            quantity=0,          
-            note=log_note[:255],                   
+        product.stock = 0
+
+        if hasattr(product, "is_active"):
+            product.is_active = False
+
+        if hasattr(product, "archived_at"):
+            product.archived_at = datetime.utcnow()
+
+        db.session.add(InventoryLog(
+            product_id=product.id,
+            action="ARCHIVE",
+            quantity=0,
+            note=f"Archived by {current_user.full_name}",
             user_id=current_user.id,
             user_name=current_user.full_name
-        )
-        db.session.add(inventory_log)
+        ))
 
-        db.session.commit()  
+        db.session.commit()
 
-        flash(f"Product '{product.model}' has been archived and removed from the shop.", "success")
+        flash(f"Product '{product.name}' archived successfully.", "success")
 
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Archive Error for Product {product_id}: {e}")
-        flash("An error occurred while archiving the product.", "error")
+        current_app.logger.error(f"ARCHIVE_ERROR: {str(e)}")
+        flash("Failed to archive product.", "danger")
 
     return redirect(url_for('admin.products'))
-
 
 @admin_bp.route('/process-purchase', methods=['POST'])
 @login_required
@@ -883,311 +955,232 @@ def process_purchase():
             unit_price = Decimal(str(data.get('unit_price', '0.00')))
             amount_paid = Decimal(str(data.get('amount_paid', '0.00')))
         except (ValueError, TypeError, InvalidOperation):
-            return jsonify({"success": False, "message": "Check the amount and quantity formats."}), 400
+            return jsonify({"success": False, "message": "Invalid numeric input."}), 400
 
         if quantity <= 0:
-            return jsonify({"success": False, "message": "Quantity must be 1 or more."}), 400
+            return jsonify({"success": False, "message": "Quantity must be at least 1."}), 400
 
         product = Product.query.with_for_update().get(product_id)
         customer = Customer.query.get(customer_id)
 
-        if not product or product.status == 'Archived':
+        if not product or product.status == "Archived":
             db.session.rollback()
-            return jsonify({"success": False, "message": "Item is no longer available in the catalog."}), 404
-        
+            return jsonify({"success": False, "message": "Product not available."}), 404
+
         if not customer or not customer.is_active:
             db.session.rollback()
-            return jsonify({"success": False, "message": "Selected customer account is inactive."}), 403
+            return jsonify({"success": False, "message": "Inactive customer."}), 403
 
         if product.stock < quantity:
             db.session.rollback()
-            return jsonify({"success": False, "message": f"Only {product.stock} units left in stock."}), 400
+            return jsonify({"success": False, "message": f"Only {product.stock} left in stock."}), 400
 
-        total_price = (unit_price * quantity).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        total_price = (unit_price * quantity).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         balance_due = total_price - amount_paid
-        
-        payment_status = 'Paid' if balance_due <= 0 else 'Partial' if amount_paid > 0 else 'Unpaid'
-        
-        
-        transaction_type = data.get('transaction_type', 'Purchase')
-        prefix = "RNT" if transaction_type == "Rental" else "PUR"
-                
+
+        payment_status = "Paid" if balance_due <= 0 else "Partial" if amount_paid > 0 else "Unpaid"
+
         now = datetime.now()
-        date_part = now.strftime("%m%d%Y")
-        time_part = now.strftime("%H%M%S")
-        random_str = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
-        
-        ref_no = f"{prefix}-{date_part}-{time_part}-{random_str}"
-        
-        fulfillment = data.get('fulfillment_type', 'Pickup')
-        
+        ref_no = f"PUR-{now:%m%d%Y}-{now:%H%M%S}-{''.join(random.choices(string.ascii_uppercase + string.digits, k=4))}"
+
+        fulfillment = data.get("fulfillment_type", "Pickup")
+
         new_transaction = Transaction(
             reference_no=ref_no,
             customer_id=customer_id,
             customer_name=f"{customer.first_name} {customer.last_name}",
             processed_by=current_user.id,
-            transaction_type='Sale',
+            transaction_type="Sale",
             total_amount=total_price,
             fulfillment_type=fulfillment,
-            delivery_address=data.get('delivery_address') if fulfillment == 'Delivery' else None,
-            landmark=data.get('landmark') if fulfillment == 'Delivery' else None,
-            delivery_status='Pending' if fulfillment == 'Delivery' else 'N/A',
-            status='Open' 
+            delivery_address=data.get("delivery_address") if fulfillment == "Delivery" else None,
+            landmark=data.get("landmark") if fulfillment == "Delivery" else None,
+            delivery_status="Pending" if fulfillment == "Delivery" else "N/A",
+            status="Open"
         )
+
         db.session.add(new_transaction)
         db.session.flush()
 
         if amount_paid > 0:
-            new_payment = Payment(
+            db.session.add(Payment(
                 transaction_id=new_transaction.id,
                 amount=amount_paid,
-                payment_method=data.get('payment_method', 'Cash'),
-                reference_number=data.get('reference_number'),
-                status='Completed',
+                payment_method=data.get("payment_method", "Cash"),
+                reference_number=data.get("reference_number"),
+                status="Completed",
                 verified_by_id=current_user.id,
                 verified_at=datetime.utcnow()
-            )
-            db.session.add(new_payment)
+            ))
 
-        new_purchase = Purchase(
+        db.session.add(Purchase(
             transaction_id=new_transaction.id,
             product_id=product.id,
             customer_id=customer_id,
             quantity=quantity,
             unit_price=unit_price,
             total_price=total_price,
-            warranty_or_notes=data.get('warranty_or_notes', '').strip()
-        )
-        db.session.add(new_purchase)
+            warranty_or_notes=data.get("warranty_or_notes", "").strip(),
+
+            product_name=product.name,
+            product_asset_tag=product.asset_tag,
+            product_type=product.equipment_type,
+            product_description=product.description,
+            product_image=product.image,
+            product_condition=product.condition,
+            product_category=product.category,
+            product_cost_price=product.cost_price,
+            product_sale_price=product.sale_price,
+            product_rent_price=product.rent_price,
+            product_rent_period=product.rent_period
+        ))
 
         product.stock -= quantity
         if product.stock <= 0:
             product.status = "Out of Stock"
 
-        log_note = f"Sold {quantity} unit(s) - Ref: {ref_no}"
-        inventory_log = InventoryLog(
+        db.session.add(InventoryLog(
             product_id=product.id,
-            action="Sale",
+            action="SALE",
             quantity=-quantity,
-            note=log_note,
+            note=f"Sold {quantity} via {ref_no}",
             user_id=current_user.id,
-            user_name=f"{current_user.first_name} {current_user.last_name}"
-        )
-        
-        db.session.add(inventory_log)
+            user_name=current_user.full_name
+        ))
+
         new_transaction.update_totals()
         db.session.commit()
-        
-        flash(f"Purchase processed successfully! \n Ref: {ref_no}", "success")
-        
+
         return jsonify({
-            "success": True, 
-            "message": "Purchase processed successfully.",
-            "reference_no": ref_no
+            "success": True,
+            "message": "Purchase completed.",
+            "reference_no": ref_no,
+            "payment_status": payment_status
         })
 
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Purchase Transaction Failed: {str(e)}")
-        return jsonify({"success": False, "message": "An error occurred while processing the sale. Please try again or contact support."})
-    
-    
+        current_app.logger.error(f"PURCHASE_ERROR: {str(e)}")
+        return jsonify({"success": False, "message": "Server error occurred."}), 500
+          
 @admin_bp.route('/process-rental', methods=['POST'])
 @login_required
 @administrator_required
 def process_rental():
-
-    product_ids = request.form.getlist('product_id[]') or request.form.getlist('product_id')
-    quantities = request.form.getlist('quantity[]') or request.form.getlist('quantity')
-    unit_prices = request.form.getlist('unit_price[]') or request.form.getlist('unit_price')
-
-    if not product_ids and request.form.get('product_id'):
-        product_ids = [request.form.get('product_id')]
-        quantities = [request.form.get('quantity', 1)]
-        unit_prices = [request.form.get('unit_price', '0')]
-
-    if not product_ids or len(product_ids) == 0:
-        flash("No products were selected in your equipment basket. Please restart the transaction.", "danger")
-        return redirect(request.referrer)
-
-    # Fulfillment parsing and Delivery Fee assignment logic
-    fulfillment_type = request.form.get('fulfillment_type', 'Walk-In')
-    delivery_fee = Decimal("0.00")
-
     try:
-        raw_amount_paid = request.form.get('amount_paid', '0').replace(',', '').strip() or '0'
-        amount_paid = Decimal(raw_amount_paid)
+        product_ids = request.form.getlist('product_id[]') or request.form.getlist('product_id')
+        quantities = request.form.getlist('quantity[]') or request.form.getlist('quantity')
+        unit_prices = request.form.getlist('unit_price[]') or request.form.getlist('unit_price')
 
-        if amount_paid < 0:
-            flash("Initial payment cannot be negative.", "warning")
+        serial_number = request.form.get('serial_number')
+
+        if not product_ids:
+            flash("No products selected.", "danger")
             return redirect(request.referrer)
 
-        # Only process delivery fees if fulfillment type explicitly says Delivery
-        if fulfillment_type == "Delivery":
-            raw_delivery_fee = request.form.get('delivery_fee', '0').replace(',', '').strip() or '0'
-            delivery_fee = Decimal(raw_delivery_fee)
+        fulfillment_type = request.form.get('fulfillment_type', 'Walk-In')
+        amount_paid = Decimal(request.form.get('amount_paid', '0').replace(',', '') or '0')
 
-            if delivery_fee < 0:
-                flash("Delivery fee cannot be negative.", "warning")
-                return redirect(request.referrer)
-
-    except Exception:
-        flash("Invalid numeric values provided for calculations.", "danger")
-        return redirect(request.referrer)
-
-    method = request.form.get('payment_method')
-    user_ref_no = request.form.get('reference_number', '').strip()
-
-    digital_methods = ["GCash", "Bank Transfer", "Check"]
-
-    if amount_paid > 0 and method in digital_methods and not user_ref_no:
-        flash(f"A reference number is required for {method} payments.", "warning")
-        return redirect(request.referrer)
-
-    try:
-        transaction_type = request.form.get('transaction_type', 'Rental')
-        prefix = "RNT" if transaction_type == "Rental" else "PUR"
-
-        now = datetime.now()
-        date_part = now.strftime("%m%d%Y")
-        time_part = now.strftime("%H%M%S")
-        random_str = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
-        ref_no = f"{prefix}-{date_part}-{time_part}-{random_str}"
-
-        start_date = datetime.strptime(request.form.get('start_date'), '%Y-%m-%d').date()
-        expected_return = datetime.strptime(request.form.get('return_date'), '%Y-%m-%d').date()
+        start_date = datetime.strptime(request.form.get('start_date'), "%Y-%m-%d").date()
+        expected_return = datetime.strptime(request.form.get('return_date'), "%Y-%m-%d").date()
 
         if expected_return < start_date:
-            flash("Return date cannot be earlier than start date.", "danger")
+            flash("Invalid return date.", "danger")
             return redirect(request.referrer)
+
+        ref_no = f"RNT-{datetime.now():%m%d%Y-%H%M%S}-{''.join(random.choices(string.ascii_uppercase+string.digits, k=4))}"
 
         new_txn = Transaction(
             reference_no=ref_no,
             customer_id=request.form.get('customer_id'),
-            transaction_type=transaction_type,
-            total_amount=Decimal("0.00"),  
+            transaction_type="Rental",
+            total_amount=Decimal("0.00"),
             fulfillment_type=fulfillment_type,
-            delivery_address=request.form.get('delivery_address'),
-            landmark=request.form.get('landmark'),
             status="Open"
         )
+
         db.session.add(new_txn)
         db.session.flush()
 
-        created_rentals = []
+        rentals = []
 
-        for index, p_id in enumerate(product_ids):
-            product = Product.query.get_or_404(p_id)
-            
-            qty = int(quantities[index]) if index < len(quantities) else 1
-            raw_price = unit_prices[index].replace(',', '').strip() if index < len(unit_prices) else '0'
-            u_price = Decimal(raw_price)
+        for i, pid in enumerate(product_ids):
+            product = Product.query.get_or_404(pid)
+            qty = int(quantities[i])
+            price = Decimal(unit_prices[i])
 
             if qty <= 0:
                 db.session.rollback()
-                flash(f"Quantity for product '{product.name}' must be at least 1.", "warning")
+                flash(f"Invalid quantity for {product.name}", "danger")
                 return redirect(request.referrer)
 
-            if product.stock < qty:
-                db.session.rollback()
-                flash(f"Insufficient stock for '{product.name}'. Only {product.stock} units available.", "danger")
-                return redirect(request.referrer)
+            if product.is_refillable:
+                if not product.tank_status:
+                    db.session.rollback()
+                    flash(f"Tank status not configured for {product.name}", "danger")
+                    return redirect(request.referrer)
 
-            new_rental = Rental(
+                available = product.tank_status.full_in_stock or 0
+                if available < qty:
+                    db.session.rollback()
+                    flash(f"Not enough available tanks for {product.name}. Available: {available}", "danger")
+                    return redirect(request.referrer)
+
+                product.tank_status.rented_out = (product.tank_status.rented_out or 0) + qty
+                product.tank_status.full_in_stock = max((product.tank_status.full_in_stock or 0) - qty, 0)
+                log_note = f"Rental created (Tank metrics updated) {ref_no}"
+            else:
+                if hasattr(product, 'stock') and product.stock is not None:
+                    if product.stock < qty:
+                        db.session.rollback()
+                        flash(f"Not enough stock available for {product.name}. Available: {product.stock}", "danger")
+                        return redirect(request.referrer)
+                    
+                    product.stock -= qty
+                log_note = f"Rental created (Standard asset stock deducted) {ref_no}"
+
+            rental = Rental(
                 transaction_id=new_txn.id,
-                product_id=p_id,
+                product_id=product.id,
                 customer_id=new_txn.customer_id,
                 start_date=start_date,
                 expected_return_date=expected_return,
-                monthly_rate=u_price,  
-                quantity=qty,        
-                deposit_amount=Decimal("0.00"),
-                delivery_fee=delivery_fee, # Propagated delivery fee tracking down onto model items
+                monthly_rate=price,
+                quantity=qty,
+                serial_number=serial_number,
                 status="Active"
             )
-            db.session.add(new_rental)
-            created_rentals.append(new_rental)
 
-            product.stock -= qty
-            
-            new_log = InventoryLog(
+            db.session.add(rental)
+            rentals.append(rental)
+
+            db.session.add(InventoryLog(
                 product_id=product.id,
-                action="Rental",
-                quantity=-qty,
-                note=f"Rental Transaction: {ref_no}",
+                action="RENTAL",
+                quantity=qty if not product.is_refillable else 0,  
+                note=log_note,
                 user_id=current_user.id,
-                user_name=current_user.full_name,
-                created_at=datetime.now()
-            )
-            db.session.add(new_log)
-
-            if product.stock <= 0:
-                product.status = "Out of Stock"
+                user_name=current_user.full_name
+            ))
 
         db.session.flush()
 
-        for rental_item in created_rentals:
-            rental_item.generate_monthly_invoices()
-        
-        db.session.flush()
-
-        if amount_paid > 0:
-            final_payment_ref = user_ref_no if user_ref_no else f"PAY-{ref_no}"
-
-            if user_ref_no and Payment.query.filter_by(reference_number=user_ref_no).first():
-                db.session.rollback()
-                flash(f"The reference number '{user_ref_no}' has already been used.", "danger")
-                return redirect(request.referrer)
-
-            rental_ids = [r.id for r in created_rentals]
-            invoices = RentalInvoice.query.filter(RentalInvoice.rental_id.in_(rental_ids))\
-                .order_by(RentalInvoice.service_period_start).all()
-            
-            remaining_payment = amount_paid
-
-            for invoice in invoices:
-                if remaining_payment <= 0:
-                    break
-
-                invoice_balance = invoice.remaining_balance
-                if invoice_balance <= 0:
-                    continue
-
-                payment_amount = min(remaining_payment, invoice_balance)
-
-                new_payment = Payment(
-                    transaction_id=new_txn.id,
-                    invoice_id=invoice.id,
-                    amount=payment_amount,
-                    payment_method=method,
-                    reference_number=final_payment_ref,
-                    status="Completed",
-                    created_at=now,
-                    verified_by_id=current_user.id
-                )
-                db.session.add(new_payment)
-
-                if payment_amount >= invoice_balance:
-                    invoice.status = "Paid"
-                else:
-                    invoice.status = "Partially Paid"
-
-                remaining_payment -= payment_amount
+        for r in rentals:
+            r.generate_monthly_invoices()
 
         new_txn.update_totals()
         db.session.commit()
-        
-        total_qty_sum = sum(int(q) for q in quantities)
-        flash(f"Rental confirmed for {total_qty_sum} unit(s) across {len(product_ids)} unique item type(s)! Ref: {ref_no}", "success")
+
+        flash(f"Rental created: {ref_no}", "success")
+        return redirect(url_for("admin.transactions"))
 
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"RENTAL_PROCESS_ERROR: {str(e)}")
-        flash(f"Error processing contract basket: {str(e)}", "danger")
-        
-    return redirect(url_for('admin.transactions'))
-
-
+        current_app.logger.error(f"RENTAL_ERROR: {str(e)}")
+        flash("Rental processing failed.", "danger")
+        return redirect(request.referrer)
+    
+     
 @admin_bp.route('/product/<int:product_id>/history')
 @login_required
 @administrator_required
@@ -1730,91 +1723,104 @@ def confirm_payment_proof(proof_id):
     return redirect(url_for('admin.transaction_details', id=txn.id))
 
 
-
 @admin_bp.route('/transaction/<int:txn_id>/return', methods=['POST'])
 @login_required
 @administrator_required
 def process_return(txn_id):
     txn = Transaction.query.get_or_404(txn_id)
-
+    returned_item_ids = request.form.getlist('returned_items')
     return_notes = request.form.get('return_notes', '').strip()
     raw_late_fees = request.form.get('late_fees', '0')
 
+    if not returned_item_ids:
+        flash("No items were selected to return.", "warning")
+        return redirect(url_for('admin.transaction_details', id=txn.id))
+
     try:
-        late_fees = Decimal(raw_late_fees)
+        late_fees = Decimal(str(raw_late_fees))
     except (InvalidOperation, ValueError, TypeError):
         late_fees = Decimal('0.00')
 
     try:
-        # ── Fix: use full name, not .username ──────────────
         user_display_name = f"{current_user.first_name} {current_user.last_name}"
+        items_processed = 0
 
-        if txn.rentals:
-            for rental in txn.rentals:
-                rental.status = 'Returned'
-                rental.actual_return_date = datetime.utcnow().date()
-                rental.return_condition_notes = return_notes
-                rental.late_fees_incurred = late_fees
+        for item_id in returned_item_ids:
+            rental = Rental.query.get(item_id)
+            if not rental or rental.transaction_id != txn.id:
+                continue
 
-                # Apply late fee to the last unpaid invoice
-                if late_fees > 0:
-                    last_invoice = sorted(
-                        rental.invoices,
-                        key=lambda inv: inv.service_period_start
-                    )[-1] if rental.invoices else None
-
-                    if last_invoice:
-                        last_invoice.late_fee = (
-                            Decimal(str(last_invoice.late_fee or 0)) + late_fees
-                        )
-
-                if rental.product:
-                    equipment_name = rental.product.equipment_type or ""
-
-                    if "Tank" in equipment_name:
-                        rental.product.status = 'Empty'
-                        rental.product.stock_empty = (
-                            rental.product.stock_empty or 0
-                        ) + rental.quantity
+            qty_input = request.form.get(f'qty_{item_id}', '0')
+            qty_to_return = int(qty_input) if qty_input.isdigit() else 0
+            
+            if qty_to_return > rental.remaining_to_return:
+                qty_to_return = rental.remaining_to_return
+            
+            if qty_to_return > 0:
+                rental.quantity_returned = (rental.quantity_returned or 0) + qty_to_return
+                if rental.quantity_returned >= rental.quantity:
+                    rental.status = 'Returned'
+                    rental.actual_return_date = datetime.utcnow().date()
+                else:
+                    rental.status = 'Partially Returned'
+                
+                return_status = request.form.get(f'status_{item_id}', 'Full')
+                
+                # --- REFILLABLE TANK RETURN LOGIC ---
+                if rental.product.tank_status:
+                    tank_info = rental.product.tank_status
+                    
+                    # 1. Bring back the tank from the field
+                    tank_info.rented_out = max(0, (tank_info.rented_out or 0) - qty_to_return)
+                    
+                    # 2. Sort into either empty or full stock tiers
+                    if return_status == 'Empty':
+                        tank_info.empty_in_stock = (tank_info.empty_in_stock or 0) + qty_to_return
+                        # Note: core product.stock is NOT increased because an empty tank can't be rented yet
                     else:
-                        rental.product.status = 'Available'
-                        rental.product.stock = (
-                            rental.product.stock or 0
-                        ) + rental.quantity
+                        tank_info.full_in_stock = (tank_info.full_in_stock or 0) + qty_to_return
+                        # Core product.stock increases because a full tank is ready to go out again
+                        rental.product.stock = (rental.product.stock or 0) + qty_to_return
+                    
+                    # Clean up product availability status dynamically
+                    if rental.product.stock > 0:
+                        rental.product.status = "Available"
+                        
+                    db.session.add(tank_info)
+                    db.session.add(rental.product)
+                
+                # --- STANDARD NON-REFILLABLE EQUIPMENT RETURN LOGIC ---
+                else:
+                    rental.product.stock = (rental.product.stock or 0) + qty_to_return
+                    if rental.product.stock > 0:
+                        rental.product.status = "Available"
+                    db.session.add(rental.product)
 
-                    new_log = InventoryLog(
-                        product_id=rental.product.id,
-                        action="Equipment Return",
-                        quantity=rental.quantity,
-                        note=(
-                            f"Returned from Txn {txn.reference_no}. "
-                            f"Condition: {return_notes if return_notes else 'Good'}"
-                        ),
-                        user_id=current_user.id,
-                        user_name=user_display_name
-                    )
-                    db.session.add(new_log)
+                db.session.add(InventoryLog(
+                    product_id=rental.product.id,
+                    action="Equipment Return",
+                    quantity=qty_to_return,
+                    note=f"Txn {txn.reference_no} Return. Status: {return_status}. {return_notes}",
+                    user_id=current_user.id,
+                    user_name=user_display_name
+                ))
+                items_processed += 1
 
-        # ── Fix: let update_totals() set the status correctly ──
-        db.session.flush()
-        db.session.expire(txn, ['payments', 'rentals'])
-        txn.update_totals()
+        if late_fees > 0:
+            txn.total_late_fees = (Decimal(str(txn.total_late_fees or 0)) + late_fees)
+        
+        if all(r.status == 'Returned' for r in txn.rentals):
+            txn.status = 'Closed'
+
         db.session.commit()
-
-        flash(
-            f"Equipment return processed for {txn.reference_no}. "
-            f"Stock levels and logs updated.",
-            "success"
-        )
+        flash(f"Successfully processed return for {items_processed} item(s).", "success")
 
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"RETURN_ERROR | TXN: {txn_id} | {str(e)}")
-        flash("An error occurred while processing the return. Please try again.", "danger")
+        flash("An error occurred while saving the return.", "danger")
 
     return redirect(url_for('admin.transaction_details', id=txn.id))
-
-
 
 from flask import request
 
