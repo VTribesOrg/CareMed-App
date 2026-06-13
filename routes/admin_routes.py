@@ -1833,29 +1833,73 @@ def system_logs():
     limit = request.args.get('limit', 10, type=int)
     search_query = request.args.get('q', '')
     current_type = request.args.get('type', '')
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
 
     query = InventoryLog.query
 
     if search_query:
-        query = query.filter(InventoryLog.action.ilike(f'%{search_query}%'))
+        from sqlalchemy import func
+        query = query.filter(or_(
+            InventoryLog.action.ilike(f'%{search_query}%'),
+            InventoryLog.user_name.ilike(f'%{search_query}%'),
+            InventoryLog.note.ilike(f'%{search_query}%'),
+            func.date_format(InventoryLog.created_at, '%b %d, %Y').ilike(f'%{search_query}%'),
+            func.date_format(InventoryLog.created_at, '%M %d, %Y').ilike(f'%{search_query}%'),
+            func.date_format(InventoryLog.created_at, '%b %Y').ilike(f'%{search_query}%'),
+        ))
+
     if current_type:
         query = query.filter(InventoryLog.action == current_type)
 
+    if date_from:
+        try:
+            from datetime import datetime
+            date_from_dt = datetime.strptime(date_from, '%Y-%m-%d')
+            query = query.filter(InventoryLog.created_at >= date_from_dt)
+        except ValueError:
+            pass
+
+    if date_to:
+        try:
+            from datetime import datetime
+            date_to_dt = datetime.strptime(date_to, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
+            query = query.filter(InventoryLog.created_at <= date_to_dt)
+        except ValueError:
+            pass
+
     pagination = query.order_by(InventoryLog.created_at.desc()).paginate(
-        page=page, 
-        per_page=limit, 
+        page=page,
+        per_page=limit,
         error_out=False
     )
 
     return render_template(
-        'admin/system_logs.html', 
-        all_logs=pagination.items, 
-        pagination=pagination, 
+        'admin/system_logs.html',
+        all_logs=pagination.items,
+        pagination=pagination,
         current_limit=limit,
         search_query=search_query,
-        current_type=current_type
+        current_type=current_type,
+        date_from=date_from,
+        date_to=date_to,
     )
 
+@admin_bp.route('/logs/<int:log_id>/detail')
+@login_required
+@administrator_required
+def log_detail(log_id):
+    log = InventoryLog.query.get_or_404(log_id)
+    return jsonify({
+        'status':   'success',
+        'action':   log.action,
+        'user':     log.user_name or 'System',
+        'product':  log.product.name if log.product else 'N/A',
+        'asset':    log.product.asset_tag if log.product else '—',
+        'quantity': log.quantity or 0,
+        'note':     log.note or 'No notes.',
+        'date':     log.created_at.strftime('%b %d, %Y %I:%M %p') if log.created_at else '—',
+    })
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'webp'}

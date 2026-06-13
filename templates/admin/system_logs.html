@@ -17,27 +17,65 @@
 
     <div class="audit-trail-card">
         <div class="log-table-controls">
+
+            {# ── Keyword search ── #}
             <div class="log-search-wrapper">
                 <span class="material-symbols-rounded search-icon">search</span>
-                <input type="text" id="log-entry-search" placeholder="Search by asset ID, user, or action..." value="{{ search_query or '' }}">
+                <input type="text" id="log-entry-search"
+                       placeholder="Search action, personnel, or notes..."
+                       value="{{ search_query or '' }}">
             </div>
 
             <div class="log-filter-stack">
+
+                {# ── Category filter ── #}
                 <div class="filter-group">
                     <select id="action-category-filter" class="medical-select">
                         <option value="">All Activities</option>
-                        <option value="Restock" {{ 'selected' if current_type == 'Restock' }}>Restocks</option>
-                        <option value="Dispensed" {{ 'selected' if current_type == 'Dispensed' }}>Dispensed</option>
-                        <option value="Adjustment" {{ 'selected' if current_type == 'Adjustment' }}>Adjustments</option>
+                        <optgroup label="Inventory">
+                            <option value="Initial Stock Entry" {{ 'selected' if current_type == 'Initial Stock Entry' }}>Initial Stock Entry</option>
+                            <option value="Restock"             {{ 'selected' if current_type == 'Restock' }}>Restock</option>
+                            <option value="Product Edited"      {{ 'selected' if current_type == 'Product Edited' }}>Product Edited</option>
+                            <option value="ARCHIVE"             {{ 'selected' if current_type == 'ARCHIVE' }}>Archived</option>
+                        </optgroup>
+                        <optgroup label="Transactions">
+                            <option value="SALE"             {{ 'selected' if current_type == 'SALE' }}>Sales</option>
+                            <option value="RENTAL"           {{ 'selected' if current_type == 'RENTAL' }}>Rentals</option>
+                            <option value="Equipment Return" {{ 'selected' if current_type == 'Equipment Return' }}>Equipment Returns</option>
+                        </optgroup>
+                        <optgroup label="Customers">
+                            <option value="Admin Created Customer" {{ 'selected' if current_type == 'Admin Created Customer' }}>Customer Created</option>
+                            <option value="Admin Updated Customer" {{ 'selected' if current_type == 'Admin Updated Customer' }}>Customer Updated</option>
+                        </optgroup>
+                        <optgroup label="Expenses">
+                            <option value="Expense Recorded" {{ 'selected' if current_type == 'Expense Recorded' }}>Expense Recorded</option>
+                            <option value="Expense Deleted"  {{ 'selected' if current_type == 'Expense Deleted' }}>Expense Deleted</option>
+                        </optgroup>
                     </select>
                 </div>
 
-                {% if search_query or current_type %}
+                {# ── Date range ── #}
+                <div class="log-date-group">
+                    <label class="log-date-label">From</label>
+                    <input type="date" id="log-date-from" class="medical-select log-date-input"
+                           value="{{ date_from or '' }}">
+                    <label class="log-date-label">To</label>
+                    <input type="date" id="log-date-to" class="medical-select log-date-input"
+                           value="{{ date_to or '' }}">
+                    <button id="apply-date-filter" class="btn-apply-date">
+                        <span class="material-symbols-rounded" style="font-size:16px;">filter_alt</span>
+                        Apply
+                    </button>
+                </div>
+
+                {# ── Clear filters ── #}
+                {% if search_query or current_type or date_from or date_to %}
                 <button type="button" id="reset-log-filters" class="btn-clear">
                     <span class="material-symbols-rounded">filter_alt_off</span>
-                    <span>Clear Filters</span>
+                    <span>Clear</span>
                 </button>
                 {% endif %}
+
             </div>
         </div>
 
@@ -51,12 +89,13 @@
                         <th class="col-product">Equipment Details</th>
                         <th class="col-qty">Change</th>
                         <th class="col-notes">Internal Notes</th>
-                        <th class="col-audit text-end">Audit</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for log in all_logs %}
                     <tr class="log-row">
+
+                        {# ── Timestamp ── #}
                         <td>
                             <div class="timestamp-cell">
                                 <span class="log-date">{{ log.created_at.strftime('%b %d, %Y') }}</span>
@@ -64,6 +103,7 @@
                             </div>
                         </td>
 
+                        {# ── Personnel ── #}
                         <td>
                             <div class="user-cell">
                                 <div class="user-avatar-mini">
@@ -76,16 +116,26 @@
                             </div>
                         </td>
 
+                        {# ── Action ── #}
                         <td>
-                            {% set action_type = 'success' if 'Added' in log.action or 'In' in log.action 
-                                            else 'danger' if 'Removed' in log.action or 'Out' in log.action 
-                                            else 'info' %}
+                            {% if log.action == 'Expense Deleted' or log.action == 'ARCHIVE' %}
+                                {% set action_type = 'danger' %}
+                            {% elif log.action in ['SALE', 'Expense Recorded'] %}
+                                {% set action_type = 'info' %}
+                            {% elif log.action in ['RENTAL', 'Equipment Return'] %}
+                                {% set action_type = 'info' %}
+                            {% elif log.action in ['Restock', 'Initial Stock Entry'] %}
+                                {% set action_type = 'success' %}
+                            {% else %}
+                                {% set action_type = 'info' %}
+                            {% endif %}
                             <div class="status-indicator status-{{ action_type }}">
                                 <span class="indicator-dot"></span>
                                 <span class="status-text">{{ log.action }}</span>
                             </div>
                         </td>
 
+                        {# ── Equipment ── #}
                         <td>
                             <div class="product-cell">
                                 <span class="product-name">{{ log.product.name if log.product else "N/A" }}</span>
@@ -93,30 +143,31 @@
                             </div>
                         </td>
 
+                        {# ── Qty change ── #}
                         <td>
-                            <div class="qty-cell {{ 'pos' if 'Added' in log.action else 'neg' if 'Removed' in log.action }}">
-                                {{ '+' if 'Added' in log.action }}{{ log.quantity or '0' }}
+                            <div class="qty-cell {{ 'pos' if log.quantity and log.quantity > 0 else 'neg' if log.quantity and log.quantity < 0 else '' }}">
+                                {% if log.quantity and log.quantity > 0 %}+{% endif %}{{ log.quantity or '0' }}
                             </div>
                         </td>
 
+                        {# ── Notes ── #}
                         <td>
-                            <div class="note-tooltip-wrapper">
-                                <p class="log-note-text">{{ log.note or '—' }}</p>
-                            </div>
-                        </td>
-
-                        <td class="text-end">
-                            <button class="btn-icon-outline view-log-trigger" data-log-id="{{ log.id }}">
-                                <span class="material-symbols-rounded">pageview</span>
-                            </button>
+                            <p class="log-note-text" title="{{ log.note or '—' }}">{{ log.note or '—' }}</p>
                         </td>
                     </tr>
                     {% else %}
+                    <tr>
+                        <td colspan="6" class="log-empty-state">
+                            <span class="material-symbols-rounded">search_off</span>
+                            No log entries found for the current filters.
+                        </td>
+                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
 
+        {# ── Pagination ── #}
         <div class="pagination-footer">
             <div class="table-limit-control">
                 <span class="limit-label">Show</span>
@@ -136,7 +187,7 @@
 
             <div class="pagination-controls">
                 {% if pagination.has_prev %}
-                <a href="{{ url_for('admin.system_logs', page=pagination.prev_num, limit=current_limit, q=search_query, type=current_type) }}" class="pag-btn">
+                <a href="{{ url_for('admin.system_logs', page=pagination.prev_num, limit=current_limit, q=search_query, type=current_type, date_from=date_from, date_to=date_to) }}" class="pag-btn">
                     <span class="material-symbols-rounded">chevron_left</span>
                 </a>
                 {% else %}
@@ -148,7 +199,7 @@
                 </span>
 
                 {% if pagination.has_next %}
-                <a href="{{ url_for('admin.system_logs', page=pagination.next_num, limit=current_limit, q=search_query, type=current_type) }}" class="pag-btn">
+                <a href="{{ url_for('admin.system_logs', page=pagination.next_num, limit=current_limit, q=search_query, type=current_type, date_from=date_from, date_to=date_to) }}" class="pag-btn">
                     <span class="material-symbols-rounded">chevron_right</span>
                 </a>
                 {% else %}
@@ -167,5 +218,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/admin/admin_logs.js') }}"></script>
+<script src="{{ url_for('static', filename='js/admin/admin_logs.js') }}" nonce="{{ csp_nonce() }}"></script>
 {% endblock %}
