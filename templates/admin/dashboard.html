@@ -4,86 +4,7 @@
 {% block page_title %}Dashboard & Overview{% endblock %}
 
 {% block extra_css %}
-<style>
-    .medical-sidebar, .viewport-container, .nav-label, .logo-text {
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    /* Custom Pure CSS Tabs Component */
-    .inventory-tracking-container {
-        background: #ffffff;
-        padding: 24px;
-        border-radius: 16px;
-        border: 1px solid #f1f5f9;
-        height: 600px; 
-        display: flex;
-        flex-direction: column;
-        box-sizing: border-box;
-    }
-
-    .tab-navigation-bar {
-        display: flex;
-        gap: 16px;
-        border-bottom: 1px solid #e2e8f0;
-        margin-bottom: 20px;
-        padding-bottom: 4px;
-        flex-shrink: 0;
-    }
-
-    .custom-tab-trigger {
-        background: transparent;
-        border: none;
-        padding: 10px 16px;
-        font-size: 0.9rem;
-        font-weight: 600;
-        color: #64748b;
-        cursor: pointer;
-        border-bottom: 2px solid transparent;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        transition: all 0.2s ease;
-    }
-
-    .custom-tab-trigger:hover {
-        color: #0284c7;
-    }
-
-    .custom-tab-trigger.is-active {
-        color: #0284c7;
-        border-bottom-color: #0284c7;
-    }
-
-    .inventory-data-panel {
-        display: none;
-    }
-
-    .inventory-data-panel.is-active {
-        display: block;
-        overflow-y: auto; /* Activates internal scrollbar for massive amounts of products */
-        flex-grow: 1;
-        padding-right: 4px; /* Space for the scrollbar aesthetic */
-        animation: panelFadeIn 0.2s ease-out;
-    }
-
-    .medical-data-table thead tr {
-        position: sticky;
-        top: 0;
-        background: #ffffff;
-        z-index: 10;
-        box-shadow: inset 0 -1px 0 #f1f5f9;
-    }
-
-    .pill-orange { padding: 3px 8px; border-radius: 6px; background: #fff7ed; color: #c2410c; font-weight: 600; }
-    .pill-green  { padding: 3px 8px; border-radius: 6px; background: #f0fdf4; color: #16a34a; font-weight: 600; }
-    .pill-blue   { padding: 3px 8px; border-radius: 6px; background: #e0f2fe; color: #0369a1; font-weight: 600; }
-    .pill-gray   { padding: 3px 8px; border-radius: 6px; background: #f1f5f9; color: #475569; }
-
-    @keyframes panelFadeIn {
-        from { opacity: 0; transform: translateY(2px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/dashboard_page.css') }}">
 {% endblock %}
 
 
@@ -102,6 +23,19 @@
         <div class="stat-info">
             <span class="stat-label">Total Rentals</span>
             <span class="stat-value">₱{{ "{:,.0f}".format(total_rentals) }}</span>
+        </div>
+    </div>
+        <div class="stat-card">
+        <div class="stat-icon orange"><span class="material-symbols-rounded">receipt_long</span></div>
+        <div class="stat-info">
+            <span class="stat-label">Total Expenses</span>
+            <span class="stat-value">₱{{ "{:,.0f}".format(total_expenses) }}</span>
+            {% set net = total_sales + total_rentals - total_expenses %}
+            {% if net >= 0 %}
+                <small style="color:#10b981;">Net ₱{{ "{:,.0f}".format(net) }}</small>
+            {% else %}
+                <small style="color:#ef4444;">Net −₱{{ "{:,.0f}".format(net | abs) }}</small>
+            {% endif %}
         </div>
     </div>
     <div class="stat-card">
@@ -128,183 +62,81 @@
 <div class="inventory-tracking-container">
     <div class="tab-navigation-bar">
         <button class="custom-tab-trigger is-active" data-target="oxygen-tanks-panel">
-            <span class="material-symbols-rounded" style="font-size: 18px;">pulmonology</span>
+            <span class="material-symbols-rounded">pulmonology</span>
             <span>Oxygen Tank Tracking</span>
         </button>
-        
+
         <button class="custom-tab-trigger" data-target="standard-assets-panel">
-            <span class="material-symbols-rounded" style="font-size: 18px;">bedroom_child</span>
+            <span class="material-symbols-rounded">bedroom_child</span>
             <span>Standard Equipment</span>
         </button>
     </div>
 
     <div id="oxygen-tanks-panel" class="inventory-data-panel is-active">
-        <table class="medical-data-table" style="width: 100%; border-collapse: collapse;">
-            <thead>
-                <tr style="text-align: left; color: #64748b; font-size: 0.85rem;">
-                    <th style="padding: 12px 8px;">Product/Tank Variant</th>
-                    <th style="padding: 12px 8px; text-align: center;">Total Owned</th>
-                    <th style="padding: 12px 8px; text-align: center;">Rented Out</th>
-                    <th style="padding: 12px 8px; text-align: center;">Full (In Stock)</th>
-                    <th style="padding: 12px 8px; text-align: center;">Empty (In Stock)</th>
-                </tr>
-            </thead>
-            <tbody style="font-size: 0.9rem;">
-                {% for tank in tank_statuses %}
-                <tr style="border-bottom: 1px solid #f8fafc;">
-                    <td style="padding: 14px 8px; font-weight: 600; color: #1e293b;">{{ tank.product.name }}</td>
-                    <td style="padding: 14px 8px; text-align: center; font-weight: 500;">{{ tank.total_owned }}</td>
-                    <td style="padding: 14px 8px; text-align: center;">
-                        <span class="pill-orange">{{ tank.rented_out }}</span>
-                    </td>
-                    <td style="padding: 14px 8px; text-align: center;">
-                        <span class="pill-green">{{ tank.full_in_stock }}</span>
-                    </td>
-                    <td style="padding: 14px 8px; text-align: center;">
-                        <span class="pill-gray">{{ tank.empty_in_stock }}</span>
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="5" style="text-align: center; padding: 30px; color: #94a3b8;">No oxygen tank metrics configured.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <div class="table-scroll-wrapper">
+            <table class="medical-data-table">
+                <thead>
+                    <tr>
+                        <th>Product/Tank Variant</th>
+                        <th style="text-align: center;">Total Owned</th>
+                        <th style="text-align: center;">Rented Out</th>
+                        <th style="text-align: center;">Full (In Stock)</th>
+                        <th style="text-align: center;">Empty (In Stock)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tank in tank_statuses %}
+                    <tr>
+                        <td style="font-weight: 600;">{{ tank.product.name }}</td>
+                        <td style="text-align: center; font-weight: 500;">{{ tank.total_owned }}</td>
+                        <td style="text-align: center;"><span class="pill-orange">{{ tank.rented_out }}</span></td>
+                        <td style="text-align: center;"><span class="pill-green">{{ tank.full_in_stock }}</span></td>
+                        <td style="text-align: center;"><span class="pill-gray">{{ tank.empty_in_stock }}</span></td>
+                    </tr>
+                    {% else %}
+                    <tr class="table-empty-row">
+                        <td colspan="5">No oxygen tank metrics configured.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <div id="standard-assets-panel" class="inventory-data-panel">
-        <table class="medical-data-table" style="width: 100%; border-collapse: collapse;">
-            <thead>
-                <tr style="text-align: left; color: #64748b; font-size: 0.85rem;">
-                    <th style="padding: 12px 8px;">Item Name</th>
-                    <th style="padding: 12px 8px; text-align: center;">Total Units</th>
-                    <th style="padding: 12px 8px; text-align: center;">Rented Out</th>
-                    <th style="padding: 12px 8px; text-align: center;">Used</th>
-                    <th style="padding: 12px 8px; text-align: center;">Brand New</th>
-                </tr>
-            </thead>
-            <tbody style="font-size: 0.9rem;">
-                {% for asset in standard_assets %}
-                <tr style="border-bottom: 1px solid #f8fafc;">
-                    <td style="padding: 14px 8px; font-weight: 600; color: #1e293b;">{{ asset.name }}</td>
-                    <td style="padding: 14px 8px; text-align: center; font-weight: 500;">{{ asset.total_stock }}</td>
-                    <td style="padding: 14px 8px; text-align: center;">
-                        <span class="pill-blue">{{ asset.rented_count }}</span>
-                    </td>
-                    <td style="padding: 14px 8px; text-align: center; color: #64748b;">{{ asset.used_count }}</td>
-                    <td style="padding: 14px 8px; text-align: center;">
-                        <span class="pill-green">{{ asset.brand_new_count }}</span>
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="5" style="text-align: center; padding: 30px; color: #94a3b8;">No standard asset records found.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<div class="dashboard-split" style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-top: 24px;">
-
-    <div class="activity-section" style="background: #fff; padding: 24px; border-radius: 16px; border: 1px solid #f1f5f9;">
-        <div class="registry-controls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h3 class="registry-title" style="margin: 0; font-size: 1.1rem;">Recent Activity Logs</h3>
-            <a href="{{ url_for('admin.system_logs') }}" class="register-asset-btn"
-               style="text-decoration: none; background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0;
-                      padding: 2px 10px; border-radius: 8px; display: flex; align-items: center; gap: 8px;">
-                <span class="material-symbols-rounded" style="font-size: 18px;">history</span>
-                <span>View All</span>
-            </a>
+        <div class="table-scroll-wrapper">
+            <table class="medical-data-table">
+                <thead>
+                    <tr>
+                        <th>Item Name</th>
+                        <th style="text-align: center;">Total Units</th>
+                        <th style="text-align: center;">Rented Out</th>
+                        <th style="text-align: center;">Used</th>
+                        <th style="text-align: center;">Brand New</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for asset in standard_assets %}
+                    <tr>
+                        <td style="font-weight: 600;">{{ asset.name }}</td>
+                        <td style="text-align: center; font-weight: 500;">{{ asset.total_stock }}</td>
+                        <td style="text-align: center;"><span class="pill-blue">{{ asset.rented_count }}</span></td>
+                        <td style="text-align: center; color: #64748b;">{{ asset.used_count }}</td>
+                        <td style="text-align: center;"><span class="pill-green">{{ asset.brand_new_count }}</span></td>
+                    </tr>
+                    {% else %}
+                    <tr class="table-empty-row">
+                        <td colspan="5">No standard asset records found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
-        <table class="medical-data-table" style="width: 100%; border-collapse: collapse;">
-            <thead>
-                <tr style="text-align: left; border-bottom: 1px solid #f1f5f9; color: #64748b; font-size: 0.85rem;">
-                    <th style="padding: 12px 0;">User</th>
-                    <th style="padding: 12px 0;">Action</th>
-                    <th style="padding: 12px 0;">Timestamp</th>
-                    <th style="padding: 12px 0;">Status</th>
-                </tr>
-            </thead>
-            <tbody style="font-size: 0.9rem;">
-                {% for log in recent_logs %}
-                <tr style="border-bottom: 1px solid #f8fafc;">
-                    <td style="padding: 16px 0; font-weight: 600;">{{ log.user_name }}</td>
-                    <td style="padding: 16px 0;">{{ log.action }}</td>
-                    <td style="padding: 16px 0; color: #94a3b8;">{{ log.created_at.strftime('%I:%M %p') }}</td>
-                    <td style="padding: 16px 0;">
-                        <span style="padding: 4px 8px; border-radius: 6px; background: #f0fdf4; color: #16a34a; font-size: 0.75rem;">Success</span>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-
-    <div class="security-section" style="background: #fff; padding: 24px; border-radius: 16px; border: 1px solid #f1f5f9;">
-        <h3 class="registry-title" style="margin: 0 0 20px 0; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
-            <span class="material-symbols-rounded" style="color: #ef4444;">security</span>
-            Security Alerts
-        </h3>
-        <div class="alert-list" style="display: flex; flex-direction: column; gap: 16px;">
-            {% for alert in security_alerts %}
-            <div class="alert-item"
-                 style="padding: 10px; border-radius: 8px; background: {% if alert.severity in ['High','Critical'] %}#fef2f2{% else %}#fff7ed{% endif %};">
-                <p style="margin: 0; font-weight: 700; font-size: 0.85rem;
-                          color: {% if alert.severity in ['High','Critical'] %}#991b1b{% else %}#9a3412{% endif %};">
-                    {{ alert.event_type }}
-                </p>
-                <small style="color: {% if alert.severity in ['High','Critical'] %}#b91c1c{% else %}#c2410c{% endif %};">
-                    IP: {{ alert.ip_address }} • {{ alert.created_at.strftime('%I:%M %p') }}
-                </small>
-            </div>
-            {% endfor %}
-            {% if not security_alerts %}
-            <p style="text-align: center; color: #94a3b8; font-size: 0.85rem;">No recent security alerts.</p>
-            {% endif %}
-        </div>
-        <a href="{{ url_for('admin.security_dashboard') }}"
-           style="display: block; text-align: center; text-decoration: none; width: 100%; margin-top: 20px;
-                  padding: 10px; border-radius: 8px; background: #f1f5f9; color: #475569; font-weight: 600;">
-            Access Security Center
-        </a>
     </div>
 </div>
 
 {% endblock %}
 
 {% block extra_js %}
-<script nonce="{{ csp_nonce() }}">
-    document.addEventListener('DOMContentLoaded', () => {
-        const tabButtons = document.querySelectorAll('.custom-tab-trigger');
-
-        tabButtons.forEach(button => {
-            button.addEventListener('click', function() {
-                const targetId = this.getAttribute('data-target');
-                const sectionContainer = this.closest('.inventory-tracking-container');
-                
-                if (!sectionContainer) return;
-
-                // Hide all panels
-                sectionContainer.querySelectorAll('.inventory-data-panel').forEach(panel => {
-                    panel.classList.remove('is-active');
-                });
-                
-                // Deactivate all buttons
-                sectionContainer.querySelectorAll('.custom-tab-trigger').forEach(btn => {
-                    btn.classList.remove('is-active');
-                });
-                
-                // Show selected panel and activate button
-                const targetPanel = document.getElementById(targetId);
-                if (targetPanel) {
-                    targetPanel.classList.add('is-active');
-                }
-                this.classList.add('is-active');
-            });
-        });
-    });
-</script>
+<script src="{{ url_for('static', filename='js/admin/admin_dashboard.js') }}" nonce="{{ csp_nonce() }}"></script>
 {% endblock %}

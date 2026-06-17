@@ -7,15 +7,11 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/admin/admin_report.css') }}">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
-    .report-toolbar { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:20px; }
+    .report-toolbar { display:flex; align-items:center; margin-bottom:20px; }
     .tab-group { display:flex; background:#fff; border:1px solid #dbe2e1; border-radius:10px; padding:4px; gap:2px; }
     .tab-btn { padding:8px 16px; border:none; background:transparent; border-radius:7px; font-family:'Plus Jakarta Sans',sans-serif; font-size:.82rem; font-weight:600; color:#64748b; cursor:pointer; transition:all .2s; white-space:nowrap; }
     .tab-btn.active { background:#52B788; color:#fff; }
     .tab-btn:hover:not(.active) { background:#f1f5f9; color:#002347; }
-    .toolbar-right { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-    .print-btn { display:flex; align-items:center; gap:6px; padding:8px 16px; border-radius:8px; border:none; background:#52B788; font-family:'Plus Jakarta Sans',sans-serif; font-size:.82rem; font-weight:700; color:#fff; cursor:pointer; transition:all .2s; }
-    .print-btn:hover { background:#3d9e71; }
-    .print-btn .material-symbols-rounded { font-size:18px; }
     .report-panel { display:none; flex-direction:column; gap:20px; }
     .report-panel.active { display:flex; }
     .stat-icon.green  { background:#f0fdf4; color:#52B788; }
@@ -23,15 +19,20 @@
     .stat-icon.amber  { background:#fffbeb; color:#d97706; }
     .stat-icon.red    { background:#fef2f2; color:#ef4444; }
     .stat-icon.purple { background:#f5f3ff; color:#7c3aed; }
+    .stat-icon.orange { background:#fff7ed; color:#ea580c; }
+    .stat-icon.teal   { background:#f0fdfa; color:#0d9488; }
     .stat-value { font-size:1.4rem; font-weight:800; color:#002347; line-height:1; }
     .stat-label { font-size:.78rem; color:#64748b; font-weight:600; margin-top:3px; }
+    .stat-sub   { font-size:.72rem; color:#94a3b8; margin-top:2px; }
     .charts-row { display:grid; grid-template-columns:2fr 1fr; gap:16px; }
     .charts-row.equal { grid-template-columns:1fr 1fr; }
+    .charts-row.three { grid-template-columns:1fr 1fr 1fr; gap:16px; }
     .card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
     .card-title { font-size:.95rem; font-weight:800; color:#002347; }
     .card-sub   { font-size:.78rem; color:#64748b; font-weight:600; margin-top:2px; }
     .chart-h-280 { height:280px; }
     .chart-h-240 { height:240px; }
+    .chart-h-200 { height:200px; }
     .chart-legend { display:flex; flex-wrap:wrap; gap:12px; margin-top:10px; }
     .legend-item  { display:flex; align-items:center; gap:5px; font-size:.75rem; font-weight:600; color:#64748b; }
     .legend-dot   { width:10px; height:10px; border-radius:3px; flex-shrink:0; }
@@ -57,13 +58,84 @@
     .alert-row.amber .alert-text { color:#78350f; }
     .empty-state { text-align:center; padding:40px; color:#94a3b8; }
     .empty-state .material-symbols-rounded { font-size:40px; display:block; margin-bottom:8px; }
-    @media print { .report-toolbar,.medical-sidebar,.system-header{display:none!important} .content-area{padding:0} }
+
+    /* ── Financial tab specific ── */
+    .fin-stats-grid {
+        display:grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap:14px;
+    }
+    @media (max-width:1100px) { .fin-stats-grid { grid-template-columns: repeat(2,1fr); } }
+    @media (max-width:640px)  { .fin-stats-grid { grid-template-columns: 1fr; } }
+
+    .fin-stat-card {
+        background:#fff;
+        border-radius:12px;
+        padding:16px 18px;
+        display:flex;
+        align-items:center;
+        gap:14px;
+        box-shadow:0 1px 4px rgba(0,0,0,0.06);
+        border-left:4px solid transparent;
+    }
+    .fin-stat-card.border-green  { border-left-color:#16a34a; }
+    .fin-stat-card.border-orange { border-left-color:#ea580c; }
+    .fin-stat-card.border-teal   { border-left-color:#0d9488; }
+    .fin-stat-card.border-blue   { border-left-color:#0284c7; }
+    .fin-stat-card.border-profit { border-left-color:#7c3aed; }
+    .fin-stat-card.border-amber  { border-left-color:#d97706; }
+    .fin-stat-card.border-loss   { border-left-color:#dc2626; }
+
+    .fin-divider {
+        grid-column: 1 / -1;
+        height:1px;
+        background:#e2e8f0;
+        margin:4px 0;
+    }
+
+    /* income statement waterfall labels */
+    .fin-label-row {
+        font-size:0.72rem;
+        font-weight:700;
+        color:#94a3b8;
+        text-transform:uppercase;
+        letter-spacing:0.06em;
+        grid-column:1 / -1;
+        padding:4px 0 0;
+    }
+
+    /* breakdown table */
+    .breakdown-table { width:100%; border-collapse:collapse; font-size:0.83rem; }
+    .breakdown-table th {
+        text-align:left; font-size:0.72rem; font-weight:700;
+        color:#94a3b8; text-transform:uppercase; letter-spacing:.04em;
+        padding:8px 10px; background:#f8fafc; border-bottom:1px solid #e2e8f0;
+    }
+    .breakdown-table td { padding:9px 10px; border-bottom:1px solid #f1f5f9; color:#374151; }
+    .breakdown-table tr:last-child td { border-bottom:none; }
+    .breakdown-table .bar-cell { width:120px; }
+    .breakdown-bar-wrap { background:#f1f5f9; border-radius:3px; height:5px; }
+    .breakdown-bar { height:5px; border-radius:3px; }
+    .bar-blue   { background:#3b82f6; }
+    .bar-orange { background:#ea580c; }
+
+    .net-positive { color:#16a34a !important; }
+    .net-negative { color:#dc2626 !important; }
+
+    /* profit indicator badge */
+    .profit-badge {
+        display:inline-flex; align-items:center; gap:4px;
+        padding:3px 10px; border-radius:99px;
+        font-size:0.72rem; font-weight:700;
+    }
+    .profit-badge.positive { background:#f0fdf4; color:#16a34a; }
+    .profit-badge.negative { background:#fef2f2; color:#dc2626; }
 </style>
 {% endblock %}
 
 {% block content %}
 
-<!-- TOOLBAR -->
+{# ── Toolbar ── #}
 <div class="report-toolbar">
     <div class="tab-group">
         <button class="tab-btn active" data-tab="sales">Sales</button>
@@ -72,14 +144,11 @@
         <button class="tab-btn" data-tab="customers">Customers</button>
         <button class="tab-btn" data-tab="financial">Financial</button>
     </div>
-    <div class="toolbar-right">
-        <button class="print-btn" onclick="window.print()">
-            <span class="material-symbols-rounded">print</span> Print
-        </button>
-    </div>
 </div>
 
-<!-- ═══════════════════════════════════ SALES ═══ -->
+{# ══════════════════════════════════════════════════════════
+   SALES
+   ══════════════════════════════════════════════════════════ #}
 <div class="report-panel active" id="panel-sales">
     <div class="stats-grid">
         <div class="stat-card">
@@ -176,7 +245,9 @@
     </div>
 </div>
 
-<!-- ═══════════════════════════════════ RENTALS ═══ -->
+{# ══════════════════════════════════════════════════════════
+   RENTALS
+   ══════════════════════════════════════════════════════════ #}
 <div class="report-panel" id="panel-rentals">
     <div class="stats-grid">
         <div class="stat-card">
@@ -209,26 +280,14 @@
         </div>
     </div>
 
-    <div class="charts-row equal">
-        <div class="report-card">
-            <div class="card-header">
-                <div>
-                    <div class="card-title">Rental volume per month</div>
-                    <div class="card-sub">Last 6 months</div>
-                </div>
+    <div class="report-card">
+        <div class="card-header">
+            <div>
+                <div class="card-title">Rental volume per month</div>
+                <div class="card-sub">Last 6 months</div>
             </div>
-            <div class="chart-wrapper chart-h-240"><canvas id="chart-rental-volume"></canvas></div>
         </div>
-        <div class="report-card">
-            <div class="card-header">
-                <div>
-                    <div class="card-title">Rental status breakdown</div>
-                    <div class="card-sub">Current snapshot</div>
-                </div>
-            </div>
-            <div class="chart-wrapper chart-h-240"><canvas id="chart-rental-status"></canvas></div>
-            <div class="chart-legend" id="legend-rental-status"></div>
-        </div>
+        <div class="chart-wrapper chart-h-280"><canvas id="chart-rental-volume"></canvas></div>
     </div>
 
     <div class="report-table-card">
@@ -248,14 +307,8 @@
                 {% set days_late = (today - r.expected_return_date).days %}
                 <tr>
                     <td>#{{ r.id }}</td>
-                    <td>
-                        {% if r.customer %}
-                            {{ r.customer.first_name }} {{ r.customer.last_name }}
-                        {% else %}—{% endif %}
-                    </td>
-                    <td>
-                        {% if r.product %}{{ r.product.name }}{% else %}—{% endif %}
-                    </td>
+                    <td>{% if r.customer %}{{ r.customer.first_name }} {{ r.customer.last_name }}{% else %}—{% endif %}</td>
+                    <td>{% if r.product %}{{ r.product.name }}{% else %}—{% endif %}</td>
                     <td>{{ r.expected_return_date.strftime('%b %d, %Y') }}</td>
                     <td style="color:#dc2626; font-weight:700;">{{ days_late }} days</td>
                     <td><span class="status-tag tag-danger">Overdue</span></td>
@@ -272,7 +325,9 @@
     </div>
 </div>
 
-<!-- ═══════════════════════════════════ INVENTORY ═══ -->
+{# ══════════════════════════════════════════════════════════
+   INVENTORY
+   ══════════════════════════════════════════════════════════ #}
 <div class="report-panel" id="panel-inventory">
     <div class="stats-grid">
         <div class="stat-card">
@@ -324,7 +379,7 @@
             </div>
             {% if low_stock_products %}
                 {% for p in low_stock_products %}
-                <div class="alert-row {% if p.stock <= 2 %}{% else %}amber{% endif %}">
+                <div class="alert-row {% if p.stock > 2 %}amber{% endif %}">
                     <span class="material-symbols-rounded">{% if p.stock <= 2 %}warning{% else %}info{% endif %}</span>
                     <span class="alert-text">{{ p.name }} — only {{ p.stock }} unit{{ 's' if p.stock != 1 else '' }} left</span>
                 </div>
@@ -367,7 +422,9 @@
     </div>
 </div>
 
-<!-- ═══════════════════════════════════ CUSTOMERS ═══ -->
+{# ══════════════════════════════════════════════════════════
+   CUSTOMERS
+   ══════════════════════════════════════════════════════════ #}
 <div class="report-panel" id="panel-customers">
     <div class="stats-grid">
         <div class="stat-card">
@@ -400,26 +457,14 @@
         </div>
     </div>
 
-    <div class="charts-row equal">
-        <div class="report-card">
-            <div class="card-header">
-                <div>
-                    <div class="card-title">Customer growth</div>
-                    <div class="card-sub">New registrations — last 6 months</div>
-                </div>
+    <div class="report-card">
+        <div class="card-header">
+            <div>
+                <div class="card-title">Customer growth</div>
+                <div class="card-sub">New registrations — last 6 months</div>
             </div>
-            <div class="chart-wrapper chart-h-240"><canvas id="chart-customer-growth"></canvas></div>
         </div>
-        <div class="report-card">
-            <div class="card-header">
-                <div>
-                    <div class="card-title">New vs returning</div>
-                    <div class="card-sub">Customer type split</div>
-                </div>
-            </div>
-            <div class="chart-wrapper chart-h-240"><canvas id="chart-customer-type"></canvas></div>
-            <div class="chart-legend" id="legend-customer-type"></div>
-        </div>
+        <div class="chart-wrapper chart-h-280"><canvas id="chart-customer-growth"></canvas></div>
     </div>
 
     <div class="report-table-card">
@@ -454,61 +499,227 @@
     </div>
 </div>
 
-<!-- ═══════════════════════════════════ FINANCIAL ═══ -->
+{# ══════════════════════════════════════════════════════════
+   FINANCIAL
+   ══════════════════════════════════════════════════════════ #}
 <div class="report-panel" id="panel-financial">
-    <div class="stats-grid">
-        <div class="stat-card">
+
+    {# ── Income Statement Cards ── #}
+    <div class="fin-stats-grid">
+
+        {# Gross Revenue #}
+        <div class="fin-stat-card border-green">
             <div class="stat-icon green"><span class="material-symbols-rounded">account_balance</span></div>
             <div>
                 <div class="stat-value">₱{{ "{:,.0f}".format(gross_revenue) }}</div>
                 <div class="stat-label">Gross Revenue</div>
+                <div class="stat-sub">Completed sales + rental payments</div>
             </div>
         </div>
-        <div class="stat-card">
-            <div class="stat-icon red"><span class="material-symbols-rounded">trending_down</span></div>
+
+        {# Cost of Sales #}
+        <div class="fin-stat-card border-orange">
+            <div class="stat-icon orange"><span class="material-symbols-rounded">shopping_cart</span></div>
             <div>
-                <div class="stat-value">₱{{ "{:,.0f}".format(total_expenses) }}</div>
-                <div class="stat-label">Total Expenses</div>
+                <div class="stat-value" style="color:#ea580c;">₱{{ "{:,.0f}".format(cost_of_sales) }}</div>
+                <div class="stat-label">Cost of Sales</div>
+                <div class="stat-sub">Oxygen, equipment & supply purchases</div>
             </div>
         </div>
-        <div class="stat-card">
-            <div class="stat-icon purple"><span class="material-symbols-rounded">savings</span></div>
+
+        {# Gross Profit #}
+        <div class="fin-stat-card border-teal">
+            <div class="stat-icon teal"><span class="material-symbols-rounded">show_chart</span></div>
             <div>
-                <div class="stat-value">₱{{ "{:,.0f}".format(net_profit) }}</div>
+                <div class="stat-value {{ 'net-positive' if gross_profit >= 0 else 'net-negative' }}">
+                    {{ '+ ₱' if gross_profit >= 0 else '- ₱' }}{{ "{:,.0f}".format(gross_profit|abs) }}
+                </div>
+                <div class="stat-label">Gross Profit</div>
+                <div class="stat-sub">Revenue − Cost of Sales</div>
+            </div>
+        </div>
+
+        {# Operating Expenses #}
+        <div class="fin-stat-card border-blue">
+            <div class="stat-icon blue"><span class="material-symbols-rounded">receipt_long</span></div>
+            <div>
+                <div class="stat-value" style="color:#0284c7;">₱{{ "{:,.0f}".format(operating_expenses) }}</div>
+                <div class="stat-label">Operating Expenses</div>
+                <div class="stat-sub">Utilities, salaries, rent & more</div>
+            </div>
+        </div>
+
+        {# Net Profit #}
+        <div class="fin-stat-card {{ 'border-profit' if net_profit >= 0 else 'border-loss' }}">
+            <div class="stat-icon {{ 'purple' if net_profit >= 0 else 'red' }}">
+                <span class="material-symbols-rounded">{{ 'savings' if net_profit >= 0 else 'money_off' }}</span>
+            </div>
+            <div>
+                <div class="stat-value {{ 'net-positive' if net_profit >= 0 else 'net-negative' }}"
+                     id="net-profit-value" data-value="{{ net_profit }}">
+                    {{ '+ ₱' if net_profit >= 0 else '- ₱' }}{{ "{:,.0f}".format(net_profit|abs) }}
+                </div>
                 <div class="stat-label">Net Profit</div>
+                <div class="stat-sub">Gross Profit − Operating Expenses</div>
             </div>
         </div>
-        <div class="stat-card">
+
+        {# Profit Margin #}
+        <div class="fin-stat-card border-amber">
             <div class="stat-icon amber"><span class="material-symbols-rounded">percent</span></div>
             <div>
                 <div class="stat-value">{{ profit_margin }}%</div>
                 <div class="stat-label">Profit Margin</div>
+                <div class="stat-sub">
+                    {% if net_profit >= 0 %}
+                    <span class="profit-badge positive">
+                        <span class="material-symbols-rounded" style="font-size:13px;">trending_up</span>
+                        Profitable
+                    </span>
+                    {% else %}
+                    <span class="profit-badge negative">
+                        <span class="material-symbols-rounded" style="font-size:13px;">trending_down</span>
+                        Loss
+                    </span>
+                    {% endif %}
+                </div>
             </div>
+        </div>
+
+    </div>
+
+    {# ── Charts Row 1: Revenue vs COS | Revenue vs OPEX | Monthly Net Profit ── #}
+    <div class="charts-row three">
+        <div class="report-card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Revenue vs Cost of Sales</div>
+                    <div class="card-sub">Last 6 months</div>
+                </div>
+            </div>
+            <div class="chart-wrapper chart-h-240"><canvas id="chart-rev-cos"></canvas></div>
+        </div>
+        <div class="report-card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Revenue vs Operating Expenses</div>
+                    <div class="card-sub">Last 6 months</div>
+                </div>
+            </div>
+            <div class="chart-wrapper chart-h-240"><canvas id="chart-rev-opex"></canvas></div>
+        </div>
+        <div class="report-card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Monthly Net Profit Trend</div>
+                    <div class="card-sub">Last 6 months</div>
+                </div>
+            </div>
+            <div class="chart-wrapper chart-h-240"><canvas id="chart-net-profit"></canvas></div>
         </div>
     </div>
 
-    <div class="charts-row">
+    {# ── Charts Row 2: Expense Breakdown | COS vs OPEX ── #}
+    <div class="charts-row equal">
         <div class="report-card">
             <div class="card-header">
                 <div>
-                    <div class="card-title">Revenue vs Expenses</div>
-                    <div class="card-sub">Monthly cash flow — last 6 months</div>
+                    <div class="card-title">Expense Breakdown by Category</div>
+                    <div class="card-sub">All time — by category</div>
                 </div>
             </div>
-            <div class="chart-wrapper chart-h-280"><canvas id="chart-cashflow"></canvas></div>
-        </div>
-        <div class="report-card">
-            <div class="card-header">
-                <div>
-                    <div class="card-title">Expense breakdown</div>
-                    <div class="card-sub">By category</div>
-                </div>
-            </div>
-            <div class="chart-wrapper chart-h-280"><canvas id="chart-expenses"></canvas></div>
+            <div class="chart-wrapper chart-h-240"><canvas id="chart-expenses"></canvas></div>
             <div class="chart-legend" id="legend-expenses"></div>
         </div>
+        <div class="report-card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Cost of Sales vs Operating Expenses</div>
+                    <div class="card-sub">All time — stacked by month</div>
+                </div>
+            </div>
+            <div class="chart-wrapper chart-h-240"><canvas id="chart-cos-opex"></canvas></div>
+        </div>
     </div>
 
+    {# ── Operating Expense Breakdown Table ── #}
+    {% if opex_breakdown_list or cos_breakdown_list %}
+    <div class="charts-row equal">
+
+        {% if cos_breakdown_list %}
+        <div class="report-table-card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Cost of Sales Breakdown</div>
+                    <div class="card-sub">Direct cost categories — all time</div>
+                </div>
+            </div>
+            <table class="breakdown-table">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Amount</th>
+                        <th class="bar-cell">Share</th>
+                        <th>%</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in cos_breakdown_list %}
+                    <tr>
+                        <td style="font-weight:600;">{{ row.category }}</td>
+                        <td style="color:#ea580c; font-weight:700;">₱{{ "{:,.2f}".format(row.amount) }}</td>
+                        <td class="bar-cell">
+                            <div class="breakdown-bar-wrap">
+                                <div class="breakdown-bar bar-orange" style="width:{{ row.pct }}%;"></div>
+                            </div>
+                        </td>
+                        <td style="color:#64748b; font-weight:600;">{{ row.pct }}%</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        {% if opex_breakdown_list %}
+        <div class="report-table-card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Operating Expense Breakdown</div>
+                    <div class="card-sub">Overhead categories — all time</div>
+                </div>
+            </div>
+            <table class="breakdown-table">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Amount</th>
+                        <th class="bar-cell">Share</th>
+                        <th>%</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in opex_breakdown_list %}
+                    <tr>
+                        <td style="font-weight:600;">{{ row.category }}</td>
+                        <td style="color:#0284c7; font-weight:700;">₱{{ "{:,.2f}".format(row.amount) }}</td>
+                        <td class="bar-cell">
+                            <div class="breakdown-bar-wrap">
+                                <div class="breakdown-bar bar-blue" style="width:{{ row.pct }}%;"></div>
+                            </div>
+                        </td>
+                        <td style="color:#64748b; font-weight:600;">{{ row.pct }}%</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+    </div>
+    {% endif %}
+
+    {# ── Recent Transactions ── #}
     <div class="report-table-card">
         <div class="card-header">
             <div>
@@ -529,9 +740,9 @@
                     <td>{{ t.transaction_type }}</td>
                     <td style="font-weight:700; color:#16a34a;">₱{{ "{:,.2f}".format(t.amount_paid) }}</td>
                     <td>
-                        {% if t.payment_status == 'Paid' %}
+                        {% if t.payment_status == 'Fully Paid' %}
                             <span class="status-tag tag-success">Paid</span>
-                        {% elif t.payment_status == 'Partial' %}
+                        {% elif t.payment_status == 'Partially Paid' %}
                             <span class="status-tag tag-warning">Partial</span>
                         {% else %}
                             <span class="status-tag tag-danger">Unpaid</span>
@@ -548,180 +759,36 @@
         </div>
         {% endif %}
     </div>
+
 </div>
 
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/admin/admin_report.js') }}"></script>
 <script nonce="{{ csp_nonce() }}">
-
-// Real data from Flask
-const LABELS  = {{ month_labels | tojson }};
-const SALES   = {{ sales_by_month | tojson }};
-const RENTALS = {{ rentals_by_month | tojson }};
-const REVENUE = {{ revenue_by_month | tojson }};
-const EXPENSES_M = {{ expenses_by_month | tojson }};
-const CUST_GROWTH = {{ customer_growth | tojson }};
-
-const CAT_LABELS = {{ sales_by_category | map(attribute=0) | list | tojson }};
-const CAT_DATA   = {{ sales_by_category | map(attribute=1) | list | map('float') | list | tojson }};
-
+const LABELS       = {{ month_labels | tojson }};
+const SALES        = {{ sales_by_month | tojson }};
+const RENTALS      = {{ rentals_by_month | tojson }};
+const REVENUE      = {{ revenue_by_month | tojson }};
+const EXPENSES_M   = {{ expenses_by_month | tojson }};
+const COS_M        = {{ cos_by_month | tojson }};
+const OPEX_M       = {{ opex_by_month | tojson }};
+const NET_M        = {{ net_profit_by_month | tojson }};
+const CUST_GROWTH  = {{ customer_growth | tojson }};
+const CAT_LABELS   = {{ sales_by_category | map(attribute=0) | list | tojson }};
+const CAT_DATA     = {{ sales_by_category | map(attribute=1) | list | map('float') | list | tojson }};
 const STOCK_LABELS = {{ stock_by_category | map(attribute=0) | list | tojson }};
 const STOCK_DATA   = {{ stock_by_category | map(attribute=1) | list | map('int') | list | tojson }};
-
-const EXP_LABELS = {{ expense_by_category | map(attribute=0) | list | tojson }};
-const EXP_DATA   = {{ expense_by_category | map(attribute=1) | list | map('float') | list | tojson }};
-
-const ACTIVE_R   = {{ active_rentals }};
-const OVERDUE_R  = {{ overdue_rentals | length }};
-const RETURNED_R = {{ returned_rentals }};
-const TOTAL_CUST = {{ total_customers }};
-const RETURNING  = {{ returning_count }};
-
-const G='#52B788', T='#00a8cc', A='#f59e0b', R='#ef4444', P='#7c3aed', S='#94a3b8';
-const COLORS = [G, T, A, R, P, S, '#06b6d4', '#8b5cf6'];
-const ch = {};
-
-function kill(id){ if(ch[id]){ ch[id].destroy(); delete ch[id]; } }
-
-function leg(id, labels, data, colors){
-    const el = document.getElementById(id);
-    if(!el) return;
-    const total = data.reduce((a,b) => a+b, 0);
-    el.innerHTML = labels.map((l,i) => {
-        const pct = total > 0 ? Math.round(data[i]/total*100) : 0;
-        return `<span class="legend-item">
-            <span class="legend-dot" style="background:${colors[i]}"></span>
-            ${l} (${pct}%)
-        </span>`;
-    }).join('');
-}
-
-function renderCharts(){
-    const activeBtn = document.querySelector('.tab-btn.active');
-    if(!activeBtn) return;
-    const tab = activeBtn.dataset.tab;
-
-    if(tab === 'sales'){
-        kill('revenue'); kill('category');
-        ch['revenue'] = new Chart(document.getElementById('chart-revenue'), {
-            type: 'bar',
-            data: {
-                labels: LABELS,
-                datasets: [
-                    { label: 'Sales', data: SALES, backgroundColor: G+'CC', borderRadius: 6 }
-                ]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { y: { ticks: { callback: v => '₱' + (v/1000).toFixed(0) + 'k' } } }
-            }
-        });
-
-        if(CAT_DATA.length > 0){
-            const catColors = CAT_LABELS.map((_, i) => COLORS[i % COLORS.length]);
-            ch['category'] = new Chart(document.getElementById('chart-category'), {
-                type: 'doughnut',
-                data: { labels: CAT_LABELS, datasets: [{ data: CAT_DATA, backgroundColor: catColors, borderWidth: 0 }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '65%' }
-            });
-            leg('legend-category', CAT_LABELS, CAT_DATA, catColors);
-        }
-    }
-
-    if(tab === 'rentals'){
-        kill('rental-volume'); kill('rental-status');
-        ch['rental-volume'] = new Chart(document.getElementById('chart-rental-volume'), {
-            type: 'bar',
-            data: { labels: LABELS, datasets: [{ label: 'Rentals', data: RENTALS, backgroundColor: T+'CC', borderRadius: 6 }] },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-        });
-        const rD = [ACTIVE_R, OVERDUE_R, RETURNED_R];
-        const rC = [G, R, A];
-        const rL = ['Active', 'Overdue', 'Returned'];
-        ch['rental-status'] = new Chart(document.getElementById('chart-rental-status'), {
-            type: 'doughnut',
-            data: { labels: rL, datasets: [{ data: rD, backgroundColor: rC, borderWidth: 0 }] },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '65%' }
-        });
-        leg('legend-rental-status', rL, rD, rC);
-    }
-
-    if(tab === 'inventory'){
-        kill('stock');
-        if(STOCK_DATA.length > 0){
-            ch['stock'] = new Chart(document.getElementById('chart-stock'), {
-                type: 'bar',
-                data: {
-                    labels: STOCK_LABELS,
-                    datasets: [{ label: 'Stock', data: STOCK_DATA, backgroundColor: G+'CC', borderRadius: 6 }]
-                },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
-        }
-    }
-
-    if(tab === 'customers'){
-        kill('customer-growth'); kill('customer-type');
-        ch['customer-growth'] = new Chart(document.getElementById('chart-customer-growth'), {
-            type: 'line',
-            data: {
-                labels: LABELS,
-                datasets: [{ label: 'New Customers', data: CUST_GROWTH, borderColor: G, backgroundColor: G+'22', fill: true, tension: 0.4 }]
-            },
-            options: { responsive: true, maintainAspectRatio: false }
-        });
-        const ctD = [RETURNING, TOTAL_CUST - RETURNING];
-        const ctC = [G, T];
-        const ctL = ['Returning', 'New'];
-        ch['customer-type'] = new Chart(document.getElementById('chart-customer-type'), {
-            type: 'doughnut',
-            data: { labels: ctL, datasets: [{ data: ctD, backgroundColor: ctC, borderWidth: 0 }] },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '65%' }
-        });
-        leg('legend-customer-type', ctL, ctD, ctC);
-    }
-
-    if(tab === 'financial'){
-        kill('cashflow'); kill('expenses');
-        ch['cashflow'] = new Chart(document.getElementById('chart-cashflow'), {
-            type: 'bar',
-            data: {
-                labels: LABELS,
-                datasets: [
-                    { label: 'Revenue', data: REVENUE, backgroundColor: G+'BB', borderRadius: 6 },
-                    { label: 'Expenses', data: EXPENSES_M, backgroundColor: R+'BB', borderRadius: 6 }
-                ]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                scales: { y: { ticks: { callback: v => '₱' + (v/1000).toFixed(0) + 'k' } } }
-            }
-        });
-        if(EXP_DATA.length > 0){
-            const expColors = EXP_LABELS.map((_, i) => COLORS[i % COLORS.length]);
-            ch['expenses'] = new Chart(document.getElementById('chart-expenses'), {
-                type: 'doughnut',
-                data: { labels: EXP_LABELS, datasets: [{ data: EXP_DATA, backgroundColor: expColors, borderWidth: 0 }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '65%' }
-            });
-            leg('legend-expenses', EXP_LABELS, EXP_DATA, expColors);
-        }
-    }
-}
-
-document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.report-panel').forEach(p => p.classList.remove('active'));
-        btn.classList.add('active');
-        const panel = document.getElementById('panel-' + btn.dataset.tab);
-        if(panel){ panel.classList.add('active'); setTimeout(renderCharts, 50); }
-    });
-});
-
-document.addEventListener('DOMContentLoaded', renderCharts);
+const EXP_LABELS   = {{ expense_by_category | map(attribute=0) | list | tojson }};
+const EXP_DATA     = {{ expense_by_category | map(attribute=1) | list | map('float') | list | tojson }};
+const COS_OPEX_LABELS = {{ cos_vs_opex_labels | tojson }};
+const COS_OPEX_DATA   = {{ cos_vs_opex_data | tojson }};
+const ACTIVE_R     = {{ active_rentals }};
+const OVERDUE_R    = {{ overdue_rentals | length }};
+const RETURNED_R   = {{ returned_rentals }};
+const TOTAL_CUST   = {{ total_customers }};
+const RETURNING    = {{ returning_count }};
 </script>
+
+<script src="{{ url_for('static', filename='js/admin/admin_report.js') }}" nonce="{{ csp_nonce() }}"></script>
 {% endblock %}

@@ -54,6 +54,43 @@ def administrator_required(f):
 
 from sqlalchemy import func
 
+COST_OF_SALES_CATEGORIES = {
+    'Oxygen Refill Cost',
+    'Equipment Purchase',
+    'Medical Supplies Purchase',
+    'Inventory Purchase',
+}
+ 
+OPERATING_EXPENSE_CATEGORIES = {
+    'Utilities',
+    'Rent',
+    'Salaries',
+    'Maintenance',
+    'Government Fees',
+    'Insurance',
+    'Transportation',
+    'Office Supplies',
+    'Other',
+}
+
+ALL_EXPENSE_CATEGORIES_ORDERED = [
+    # Cost of Sales
+    'Oxygen Refill Cost',
+    'Equipment Purchase',
+    'Medical Supplies Purchase',
+    'Inventory Purchase',
+    # Operating Expenses
+    'Utilities',
+    'Rent',
+    'Salaries',
+    'Maintenance',
+    'Government Fees',
+    'Insurance',
+    'Transportation',
+    'Office Supplies',
+    'Other',
+]
+
 @admin_bp.route('/dashboard')
 @login_required
 @administrator_required
@@ -70,6 +107,10 @@ def dashboard():
     ).scalar() or 0
 
     active_rentals_count = Rental.query.filter_by(status='Active').count()
+    
+    total_expenses = db.session.query(
+        func.sum(Expense.amount)
+    ).scalar() or 0
 
     product_inventory = db.session.query(
         func.sum(Product.stock)
@@ -139,7 +180,8 @@ def dashboard():
         tank_statuses=tank_statuses,
         standard_assets=standard_assets,
         recent_logs=recent_logs,
-        security_alerts=security_alerts
+        security_alerts=security_alerts,
+        total_expenses=total_expenses,
     )
     
     
@@ -2015,28 +2057,28 @@ def serve_profile_pic(filename):
 def reports():
     from datetime import date
     from sqlalchemy import extract
-
+ 
     today = date.today()
     current_year = today.year
     current_month = today.month
-
-    # ── SALES ──────────────────────────────────────────────
+ 
+    # ── SALES ──────────────────────────────────────────────────────────────
     total_sales_revenue = db.session.query(
         func.sum(Transaction.amount_paid)
     ).filter(Transaction.transaction_type == 'Sale').scalar() or 0
-
+ 
     total_sale_transactions = Transaction.query.filter_by(
         transaction_type='Sale'
     ).count()
-
+ 
     cancelled_orders = Transaction.query.filter_by(
         status='Cancelled'
     ).count()
-
+ 
     avg_transaction_value = round(
         float(total_sales_revenue) / total_sale_transactions, 2
     ) if total_sale_transactions > 0 else 0
-
+ 
     # Sales per month (last 6 months)
     sales_by_month = []
     sales_labels = []
@@ -2052,7 +2094,7 @@ def reports():
         ).scalar() or 0
         sales_by_month.append(float(month_total))
         sales_labels.append(target.strftime('%b'))
-
+ 
     # Top selling products by revenue
     top_products = db.session.query(
         Product.name,
@@ -2064,7 +2106,7 @@ def reports():
      .group_by(Product.id)\
      .order_by(func.sum(Purchase.total_price).desc())\
      .limit(5).all()
-
+ 
     # Sales by equipment type (for donut chart)
     sales_by_category = db.session.query(
         Product.equipment_type,
@@ -2073,24 +2115,24 @@ def reports():
      .group_by(Product.equipment_type)\
      .order_by(func.sum(Purchase.total_price).desc())\
      .limit(5).all()
-
-    # ── RENTALS ────────────────────────────────────────────
+ 
+    # ── RENTALS ────────────────────────────────────────────────────────────
     active_rentals = Rental.query.filter_by(status='Active').count()
-
+ 
     rental_revenue = db.session.query(
         func.sum(Payment.amount)
     ).join(Transaction).filter(
         Transaction.transaction_type == 'Rental',
         Payment.status == 'Completed'
     ).scalar() or 0
-
+ 
     overdue_rentals = Rental.query.filter(
         Rental.status == 'Active',
         Rental.expected_return_date < today
     ).all()
-
+ 
     returned_rentals = Rental.query.filter_by(status='Returned').count()
-
+ 
     # Rentals per month (last 6 months)
     rentals_by_month = []
     for i in range(5, -1, -1):
@@ -2100,23 +2142,23 @@ def reports():
             extract('month', Rental.created_at) == target.month
         ).count()
         rentals_by_month.append(month_count)
-
-    # ── INVENTORY ──────────────────────────────────────────
+ 
+    # ── INVENTORY ──────────────────────────────────────────────────────────
     total_inventory = db.session.query(
         func.sum(Product.stock)
     ).scalar() or 0
-
+ 
     low_stock_products = Product.query.filter(
         Product.stock <= 5,
         Product.stock > 0
     ).order_by(Product.stock.asc()).all()
-
+ 
     out_of_stock_count = Product.query.filter_by(stock=0).count()
-
+ 
     stock_health = round(
         (1 - (out_of_stock_count / total_inventory)) * 100, 1
     ) if total_inventory > 0 else 100
-
+ 
     # Stock by category
     stock_by_category = db.session.query(
         Product.equipment_type,
@@ -2124,8 +2166,8 @@ def reports():
     ).group_by(Product.equipment_type)\
      .order_by(func.sum(Product.stock).desc())\
      .limit(6).all()
-
-    # Most used items (by purchase + rental count)
+ 
+    # Most used items (by purchase count)
     most_used = db.session.query(
         Product.name,
         func.count(Purchase.id).label('use_count')
@@ -2133,25 +2175,25 @@ def reports():
      .group_by(Product.id)\
      .order_by(func.count(Purchase.id).desc())\
      .limit(5).all()
-
+ 
     max_use = most_used[0].use_count if most_used else 1
-
-    # ── CUSTOMERS ──────────────────────────────────────────
+ 
+    # ── CUSTOMERS ──────────────────────────────────────────────────────────
     from models.customer import Customer as CustomerModel
     total_customers = CustomerModel.query.count()
-
+ 
     new_customers_this_month = CustomerModel.query.filter(
         extract('year', CustomerModel.created_at) == current_year,
         extract('month', CustomerModel.created_at) == current_month
     ).count()
-
+ 
     customers_with_overdue = db.session.query(
         func.count(func.distinct(Rental.customer_id))
     ).filter(
         Rental.status == 'Active',
         Rental.expected_return_date < today
     ).scalar() or 0
-
+ 
     # Customer growth per month
     customer_growth = []
     for i in range(5, -1, -1):
@@ -2161,7 +2203,7 @@ def reports():
             extract('month', CustomerModel.created_at) == target.month
         ).count()
         customer_growth.append(count)
-
+ 
     # Top customers by spending
     top_customers = db.session.query(
         CustomerModel.first_name,
@@ -2173,7 +2215,7 @@ def reports():
      .group_by(CustomerModel.id)\
      .order_by(func.sum(Transaction.amount_paid).desc())\
      .limit(5).all()
-
+ 
     # Returning customers (transacted more than once)
     returning_count = db.session.query(
         func.count()
@@ -2183,62 +2225,140 @@ def reports():
         .having(func.count(Transaction.id) > 1)
         .subquery()
     ).scalar() or 0
-
+ 
     returning_rate = round(
         (returning_count / total_customers) * 100, 1
     ) if total_customers > 0 else 0
-
-    # ── FINANCIAL ──────────────────────────────────────────
-    gross_revenue = db.session.query(
-        func.sum(Transaction.amount_paid)
-    ).scalar() or 0
-
-    total_expenses = db.session.query(
-        func.sum(Expense.amount)
-    ).scalar() or 0
-
-    net_profit = float(gross_revenue) - float(total_expenses)
-
+ 
+    # ── FINANCIAL ──────────────────────────────────────────────────────────
+    # Gross Revenue = completed sales revenue + completed rental revenue
+    sales_revenue_total = db.session.query(
+        func.sum(Payment.amount)
+    ).join(Transaction).filter(
+        Transaction.transaction_type == 'Sale',
+        Payment.status == 'Completed'
+    ).scalar() or Decimal('0')
+ 
+    rental_revenue_total = db.session.query(
+        func.sum(Payment.amount)
+    ).join(Transaction).filter(
+        Transaction.transaction_type == 'Rental',
+        Payment.status == 'Completed'
+    ).scalar() or Decimal('0')
+ 
+    gross_revenue = float(sales_revenue_total) + float(rental_revenue_total)
+ 
+    # Cost of Sales = expenses in COST_OF_SALES_CATEGORIES
+    cos_rows = db.session.query(
+        Expense.category,
+        func.sum(Expense.amount).label('total')
+    ).filter(
+        Expense.category.in_(list(COST_OF_SALES_CATEGORIES))
+    ).group_by(Expense.category)\
+     .order_by(func.sum(Expense.amount).desc()).all()
+ 
+    cost_of_sales = float(sum(row.total for row in cos_rows) or 0)
+ 
+    # Gross Profit
+    gross_profit = gross_revenue - cost_of_sales
+ 
+    # Operating Expenses = expenses in OPERATING_EXPENSE_CATEGORIES
+    opex_rows = db.session.query(
+        Expense.category,
+        func.sum(Expense.amount).label('total')
+    ).filter(
+        Expense.category.in_(list(OPERATING_EXPENSE_CATEGORIES))
+    ).group_by(Expense.category)\
+     .order_by(func.sum(Expense.amount).desc()).all()
+ 
+    operating_expenses = float(sum(row.total for row in opex_rows) or 0)
+ 
+    # Net Profit and Profit Margin
+    net_profit = gross_profit - operating_expenses
+ 
     profit_margin = round(
-        (net_profit / float(gross_revenue)) * 100, 1
-    ) if float(gross_revenue) > 0 else 0
-
-    # Revenue vs expenses per month
-    revenue_by_month = []
-    expenses_by_month = []
+        (net_profit / gross_revenue) * 100, 1
+    ) if gross_revenue > 0 else 0
+ 
+    # Operating Expense breakdown dict for the table
+    opex_breakdown = {row.category: float(row.total) for row in opex_rows}
+    opex_total = operating_expenses if operating_expenses > 0 else 1  
+ 
+    opex_breakdown_list = []
+    for row in opex_rows:
+        opex_breakdown_list.append({
+            'category': row.category,
+            'amount': float(row.total),
+            'pct': round(float(row.total) / opex_total * 100, 1)
+        })
+ 
+    # Cost of Sales breakdown
+    cos_breakdown_list = []
+    cos_total = cost_of_sales if cost_of_sales > 0 else 1
+    for row in cos_rows:
+        cos_breakdown_list.append({
+            'category': row.category,
+            'amount': float(row.total),
+            'pct': round(float(row.total) / cos_total * 100, 1)
+        })
+ 
+    # ── CHART DATA ─────────────────────────────────────────────────────────
+    # Monthly: Revenue, Cost of Sales, Operating Expenses, Net Profit (last 6 months)
+    revenue_by_month    = []
+    cos_by_month        = []
+    opex_by_month       = []
+    net_profit_by_month = []
+    expenses_by_month   = []   
+ 
     for i in range(5, -1, -1):
         target = today - rd(months=i)
-        rev = db.session.query(
-            func.sum(Transaction.amount_paid)
-        ).filter(
-            extract('year', Transaction.created_at) == target.year,
-            extract('month', Transaction.created_at) == target.month
+ 
+        rev_m = db.session.query(func.sum(Payment.amount)).join(Transaction).filter(
+            Payment.status == 'Completed',
+            extract('year',  Payment.created_at) == target.year,
+            extract('month', Payment.created_at) == target.month,
         ).scalar() or 0
-        exp = db.session.query(
-            func.sum(Expense.amount)
-        ).filter(
-            extract('year', Expense.date_incurred) == target.year,
-            extract('month', Expense.date_incurred) == target.month
+ 
+        cos_m = db.session.query(func.sum(Expense.amount)).filter(
+            Expense.category.in_(list(COST_OF_SALES_CATEGORIES)),
+            extract('year',  Expense.date_incurred) == target.year,
+            extract('month', Expense.date_incurred) == target.month,
         ).scalar() or 0
-        revenue_by_month.append(float(rev))
-        expenses_by_month.append(float(exp))
-
-    # Expense breakdown by category
+ 
+        opex_m = db.session.query(func.sum(Expense.amount)).filter(
+            Expense.category.in_(list(OPERATING_EXPENSE_CATEGORIES)),
+            extract('year',  Expense.date_incurred) == target.year,
+            extract('month', Expense.date_incurred) == target.month,
+        ).scalar() or 0
+ 
+        exp_m = float(cos_m) + float(opex_m)
+ 
+        revenue_by_month.append(float(rev_m))
+        cos_by_month.append(float(cos_m))
+        opex_by_month.append(float(opex_m))
+        net_profit_by_month.append(round(float(rev_m) - exp_m, 2))
+        expenses_by_month.append(exp_m)
+ 
+    # Expense breakdown by category (all categories, for donut)
     expense_by_category = db.session.query(
         Expense.category,
         func.sum(Expense.amount).label('total')
     ).group_by(Expense.category)\
      .order_by(func.sum(Expense.amount).desc())\
      .all()
-
+ 
+    # COS vs OPEX for stacked/grouped chart
+    cos_vs_opex_labels  = ['Cost of Sales', 'Operating Expenses']
+    cos_vs_opex_data    = [cost_of_sales, operating_expenses]
+ 
     # Recent transactions for financial tab
     recent_transactions = Transaction.query.order_by(
         Transaction.created_at.desc()
     ).limit(5).all()
-
+ 
     return render_template(
         "admin/reports.html",
-
+ 
         # Sales
         total_sales_revenue=total_sales_revenue,
         total_sale_transactions=total_sale_transactions,
@@ -2248,14 +2368,14 @@ def reports():
         sales_labels=sales_labels,
         top_products=top_products,
         sales_by_category=sales_by_category,
-
+ 
         # Rentals
         active_rentals=active_rentals,
         rental_revenue=rental_revenue,
         overdue_rentals=overdue_rentals,
         returned_rentals=returned_rentals,
         rentals_by_month=rentals_by_month,
-
+ 
         # Inventory
         total_inventory=total_inventory,
         low_stock_products=low_stock_products,
@@ -2264,7 +2384,7 @@ def reports():
         stock_by_category=stock_by_category,
         most_used=most_used,
         max_use=max_use,
-
+ 
         # Customers
         total_customers=total_customers,
         new_customers_this_month=new_customers_this_month,
@@ -2273,19 +2393,36 @@ def reports():
         customer_growth=customer_growth,
         top_customers=top_customers,
         returning_count=returning_count,
-
-        # Financial
+ 
+        # Financial — summary
         gross_revenue=gross_revenue,
-        total_expenses=total_expenses,
+        cost_of_sales=cost_of_sales,
+        gross_profit=gross_profit,
+        operating_expenses=operating_expenses,
         net_profit=net_profit,
         profit_margin=profit_margin,
+ 
+        # Financial — breakdowns
+        opex_breakdown_list=opex_breakdown_list,
+        cos_breakdown_list=cos_breakdown_list,
+ 
+        # Financial — charts
         revenue_by_month=revenue_by_month,
+        cos_by_month=cos_by_month,
+        opex_by_month=opex_by_month,
+        net_profit_by_month=net_profit_by_month,
         expenses_by_month=expenses_by_month,
         expense_by_category=expense_by_category,
-        recent_transactions=recent_transactions,
-
+        cos_vs_opex_labels=cos_vs_opex_labels,
+        cos_vs_opex_data=cos_vs_opex_data,
+ 
         # Shared
+        recent_transactions=recent_transactions,
         month_labels=sales_labels,
+        total_expenses=cost_of_sales + operating_expenses,  # kept for compat
+ 
+        # Chart datasets serialisable
+        sales_by_month_json=sales_by_month,
     )
 
 # Expenses ════════════════════════════════════════════════════════════════════════
@@ -2299,7 +2436,7 @@ def expenses():
  
     today = date.today()
  
-    # ── Date range mode (e.g. "1st - 15th of the month") ────────────────
+    # ── Date range mode ─────────────────────────────────────────────────────
     start_date_str = request.args.get('start_date', '').strip()
     end_date_str   = request.args.get('end_date', '').strip()
     use_range = bool(start_date_str and end_date_str)
@@ -2314,11 +2451,12 @@ def expenses():
         except ValueError:
             use_range = False
  
-    # ── Month/Year mode (default) ───────────────────────────────────────
+    # ── Month/Year mode (default) ───────────────────────────────────────────
     year  = request.args.get('year',  today.year,  type=int)
     month = request.args.get('month', today.month, type=int)
     category_filter = request.args.get('category', '')
  
+    # ── Build expense query ─────────────────────────────────────────────────
     query = Expense.query
  
     if use_range:
@@ -2337,27 +2475,48 @@ def expenses():
  
     expenses_list = query.order_by(Expense.date_incurred.desc()).all()
  
-    # ── Category totals (for the donut chart) ───────────────────────────
-    cat_query = db.session.query(
-        Expense.category,
-        func.sum(Expense.amount).label('total')
-    )
-    if use_range:
-        cat_query = cat_query.filter(
-            Expense.date_incurred >= start_date,
-            Expense.date_incurred <= end_date,
-        )
-    else:
-        cat_query = cat_query.filter(
+    # ── Category totals (for charts) ────────────────────────────────────────
+    def _period_filter(q):
+        if use_range:
+            return q.filter(
+                Expense.date_incurred >= start_date,
+                Expense.date_incurred <= end_date,
+            )
+        return q.filter(
             extract('year',  Expense.date_incurred) == year,
             extract('month', Expense.date_incurred) == month,
         )
-    category_totals = cat_query.group_by(Expense.category)\
-        .order_by(func.sum(Expense.amount).desc()).all()
  
-    total_expenses = sum(row.total for row in category_totals) or 0
+    cat_query = _period_filter(
+        db.session.query(
+            Expense.category,
+            func.sum(Expense.amount).label('total')
+        )
+    ).group_by(Expense.category)\
+     .order_by(func.sum(Expense.amount).desc())
  
-    # ── Revenue for the same period ──────────────────────────────────────
+    category_totals = cat_query.all()
+ 
+    # ── Financial metrics for the period ────────────────────────────────────
+    # Cost of Sales
+    cos_total = float(
+        _period_filter(
+            db.session.query(func.sum(Expense.amount))
+            .filter(Expense.category.in_(list(COST_OF_SALES_CATEGORIES)))
+        ).scalar() or 0
+    )
+ 
+    # Operating Expenses
+    opex_total = float(
+        _period_filter(
+            db.session.query(func.sum(Expense.amount))
+            .filter(Expense.category.in_(list(OPERATING_EXPENSE_CATEGORIES)))
+        ).scalar() or 0
+    )
+ 
+    total_expenses = cos_total + opex_total
+ 
+    # Gross Revenue for the period (completed payments)
     rev_query = db.session.query(func.sum(Payment.amount)).join(Transaction).filter(
         Payment.status == 'Completed'
     )
@@ -2371,31 +2530,56 @@ def expenses():
             extract('year',  Payment.created_at) == year,
             extract('month', Payment.created_at) == month,
         )
-    total_revenue = rev_query.scalar() or 0
+    gross_revenue = float(rev_query.scalar() or 0)
  
-    net_profit = float(total_revenue) - float(total_expenses)
+    gross_profit     = gross_revenue - cos_total
+    net_profit       = gross_profit  - opex_total
+    profit_margin    = round((net_profit / gross_revenue) * 100, 1) if gross_revenue > 0 else 0
  
-    # ── Last 6 months trend (always month-based, regardless of filter mode) ──
+    # ── Last 6-month trend (always month-based) ─────────────────────────────
     from dateutil.relativedelta import relativedelta as rd
-    trend_labels  = []
-    trend_expense = []
-    trend_revenue = []
+    trend_labels   = []
+    trend_expense  = []   # total expenses (COS + OPEX)
+    trend_cos      = []
+    trend_opex     = []
+    trend_revenue  = []
+    trend_net      = []
+ 
     for i in range(5, -1, -1):
         target = today - rd(months=i)
-        exp = db.session.query(func.sum(Expense.amount)).filter(
+        exp = float(db.session.query(func.sum(Expense.amount)).filter(
             extract('year',  Expense.date_incurred) == target.year,
             extract('month', Expense.date_incurred) == target.month,
-        ).scalar() or 0
-        rev = db.session.query(func.sum(Payment.amount)).join(Transaction).filter(
+        ).scalar() or 0)
+        cos_m = float(db.session.query(func.sum(Expense.amount)).filter(
+            Expense.category.in_(list(COST_OF_SALES_CATEGORIES)),
+            extract('year',  Expense.date_incurred) == target.year,
+            extract('month', Expense.date_incurred) == target.month,
+        ).scalar() or 0)
+        opex_m = float(db.session.query(func.sum(Expense.amount)).filter(
+            Expense.category.in_(list(OPERATING_EXPENSE_CATEGORIES)),
+            extract('year',  Expense.date_incurred) == target.year,
+            extract('month', Expense.date_incurred) == target.month,
+        ).scalar() or 0)
+        rev = float(db.session.query(func.sum(Payment.amount)).join(Transaction).filter(
             Payment.status == 'Completed',
             extract('year',  Payment.created_at) == target.year,
             extract('month', Payment.created_at) == target.month,
-        ).scalar() or 0
+        ).scalar() or 0)
         trend_labels.append(target.strftime('%b %Y'))
-        trend_expense.append(float(exp))
-        trend_revenue.append(float(rev))
+        trend_expense.append(exp)
+        trend_cos.append(cos_m)
+        trend_opex.append(opex_m)
+        trend_revenue.append(rev)
+        trend_net.append(round(rev - exp, 2))
  
-    all_categories = [row[0] for row in db.session.query(Expense.category).distinct().all()]
+    # ── Category type lookup (for table badges) ─────────────────────────────
+    def category_type(cat):
+        if cat in COST_OF_SALES_CATEGORIES:
+            return 'cos'
+        if cat in OPERATING_EXPENSE_CATEGORIES:
+            return 'opex'
+        return 'other'
  
     months = [
         (1,'January'),(2,'February'),(3,'March'),(4,'April'),
@@ -2405,15 +2589,33 @@ def expenses():
  
     return render_template(
         'admin/expenses.html',
+        # Expense records
         expenses=expenses_list,
         category_totals=category_totals,
+        category_type=category_type,
+ 
+        # Period totals
         total_this_month=total_expenses,
-        revenue_this_month=total_revenue,
+        revenue_this_month=gross_revenue,
+ 
+        # Financial summary
+        gross_revenue=gross_revenue,
+        cost_of_sales=cos_total,
+        gross_profit=gross_profit,
+        operating_expenses=opex_total,
         net_profit=net_profit,
+        profit_margin=profit_margin,
+ 
+        # Trend charts
         trend_labels=trend_labels,
         trend_expense=trend_expense,
+        trend_cos=trend_cos,
+        trend_opex=trend_opex,
         trend_revenue=trend_revenue,
-        all_categories=all_categories,
+        trend_net=trend_net,
+ 
+        # Filter state
+        all_categories=ALL_EXPENSE_CATEGORIES_ORDERED,
         category_filter=category_filter,
         months=months,
         current_year=year,
@@ -2422,9 +2624,12 @@ def expenses():
         start_date=start_date,
         end_date=end_date,
         today=today,
+ 
+        # Sets for Jinja checks
+        cos_categories=COST_OF_SALES_CATEGORIES,
+        opex_categories=OPERATING_EXPENSE_CATEGORIES,
     )
- 
- 
+
 @admin_bp.route('/expenses/add', methods=['POST'])
 @login_required
 @administrator_required

@@ -1,0 +1,282 @@
+
+.dashboard-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+@media (max-width: 1400px) {
+    .dashboard-stats-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 900px) {
+    .dashboard-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .dashboard-stats-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.stat-card {
+    background: #ffffff;
+    border: 1px solid #dbe2e1;
+    border-radius: 16px;
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    min-width: 0;
+}
+
+.stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px -4px rgba(0, 35, 71, 0.09);
+}
+
+.stat-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+}
+
+.stat-icon.blue   { background: #e0f2fe; color: #00a8cc; }
+.stat-icon.green  { background: #f0fdf4; color: #52B788; }
+.stat-icon.orange { background: #fff7ed; color: #f97316; }
+.stat-icon.red    { background: #fef2f2; color: #ef4444; }
+
+.stat-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.stat-label {
+    font-size: 0.78rem;
+    color: #64748b;
+    font-weight: 600;
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.stat-value {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #002347;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.stat-info small {
+    font-size: 0.73rem;
+    font-weight: 700;
+    margin-top: 3px;
+    white-space: nowrap;
+}
+
+
+/* ============================================================
+   INVENTORY TRACKING CONTAINER
+   ============================================================ */
+.inventory-tracking-container {
+    background: #ffffff;
+    padding: 22px 24px;
+    border-radius: 16px;
+    border: 1px solid #dbe2e1;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    min-width: 0;
+}
+
+/* ── Tab Navigation Bar ─────────────────────────────────────── */
+.tab-navigation-bar {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid #e2e8f0;
+    margin-bottom: 20px;
+    flex-shrink: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+
+.tab-navigation-bar::-webkit-scrollbar {
+    display: none;
+}
+
+.custom-tab-trigger {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    padding: 10px 16px;
+    font-size: 0.875rem;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    white-space: nowrap;
+    transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.custom-tab-trigger:hover {
+    color: #0284c7;
+}
+
+.custom-tab-trigger.is-active {
+    color: #0284c7;
+    border-bottom-color: #0284c7;
+}
+
+.custom-tab-trigger .material-symbols-rounded {
+    font-size: 18px;
+}
+
+/* ── Inventory Data Panels ──────────────────────────────────── */
+.inventory-data-panel {
+    display: none;
+}
+
+.inventory-data-panel.is-active {
+    display: block;
+    animation: panelFadeIn 0.2s ease-out;
+}
+
+/* Scrollable table wrapper so narrow screens get a scrollbar */
+.table-scroll-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 6px;
+}
+
+/* ── Medical Data Table ─────────────────────────────────────── */
+.medical-data-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 480px;
+}
+
+.medical-data-table thead th {
+    text-align: left;
+    padding: 11px 10px;
+    color: #64748b;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    border-bottom: 1px solid #f1f5f9;
+    background: #ffffff;
+    white-space: nowrap;
+}
+
+.medical-data-table tbody td {
+    padding: 13px 10px;
+    border-bottom: 1px solid #f8fafc;
+    font-size: 0.875rem;
+    color: #1e293b;
+    vertical-align: middle;
+}
+
+.medical-data-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.medical-data-table tbody tr:hover td {
+    background: #f8fafc;
+}
+
+.table-empty-row td {
+    text-align: center;
+    padding: 40px 10px !important;
+    color: #94a3b8;
+    font-size: 0.875rem;
+}
+
+
+/* ============================================================
+   STATUS PILLS
+   ============================================================ */
+.pill-orange { padding: 3px 9px; border-radius: 6px; background: #fff7ed; color: #c2410c; font-weight: 700; font-size: 0.8rem; display: inline-block; }
+.pill-green  { padding: 3px 9px; border-radius: 6px; background: #f0fdf4; color: #16a34a; font-weight: 700; font-size: 0.8rem; display: inline-block; }
+.pill-blue   { padding: 3px 9px; border-radius: 6px; background: #e0f2fe; color: #0369a1; font-weight: 700; font-size: 0.8rem; display: inline-block; }
+.pill-gray   { padding: 3px 9px; border-radius: 6px; background: #f1f5f9; color: #475569; font-weight: 600; font-size: 0.8rem; display: inline-block; }
+.pill-red    { padding: 3px 9px; border-radius: 6px; background: #fef2f2; color: #dc2626; font-weight: 700; font-size: 0.8rem; display: inline-block; }
+
+
+/* ============================================================
+   RESPONSIVE OVERRIDES
+   ============================================================ */
+@media (max-width: 640px) {
+    .dashboard-stats-grid {
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+
+    .stat-card {
+        padding: 14px 16px;
+        border-radius: 12px;
+    }
+
+    .stat-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 20px;
+        border-radius: 10px;
+    }
+
+    .stat-value {
+        font-size: 1.1rem;
+    }
+
+    .inventory-tracking-container {
+        padding: 16px;
+        border-radius: 12px;
+    }
+
+    .custom-tab-trigger {
+        padding: 8px 12px;
+        font-size: 0.82rem;
+    }
+}
+
+@media (max-width: 380px) {
+    .dashboard-stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .stat-value {
+        font-size: 1rem;
+    }
+
+    .stat-label {
+        font-size: 0.72rem;
+    }
+}
+
+
+/* ============================================================
+   ANIMATIONS
+   ============================================================ */
+@keyframes panelFadeIn {
+    from { opacity: 0; transform: translateY(3px); }
+    to   { opacity: 1; transform: translateY(0);   }
+}
