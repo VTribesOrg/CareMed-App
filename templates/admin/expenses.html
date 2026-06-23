@@ -12,7 +12,7 @@
 <div class="exp-page-header">
     <div>
         <h1 class="exp-page-title">Expense Tracker</h1>
-        <p class="exp-page-sub">Monitor costs and see your net profit at a glance.</p>
+        <p class="exp-page-sub">Record costs and monitor your financial performance at a glance.</p>
     </div>
     <button class="btn-add-expense" id="openAddExpense">
         <span class="material-symbols-rounded">add_circle</span>
@@ -20,7 +20,7 @@
     </button>
 </div>
 
-{# ── Period picker: Month/Year mode OR custom date range mode ── #}
+{# ── Period picker ── #}
 <div class="exp-period-toggle">
     <button type="button" class="period-toggle-btn {{ 'active' if not use_range }}" data-mode="month">
         <span class="material-symbols-rounded">calendar_month</span> By Month
@@ -30,7 +30,6 @@
     </button>
 </div>
 
-{# Month/Year mode #}
 <form method="GET" action="{{ url_for('admin.expenses') }}" class="exp-period-bar" id="monthFilterForm" {{ 'style=display:none;' if use_range }}>
     <select name="month" class="exp-select">
         {% for num, name in months %}
@@ -44,9 +43,16 @@
     </select>
     <select name="category" class="exp-select">
         <option value="">All Categories</option>
-        {% for cat in all_categories %}
-        <option value="{{ cat }}" {{ 'selected' if cat == category_filter }}>{{ cat }}</option>
-        {% endfor %}
+        <optgroup label="── Cost of Sales">
+            {% for cat in ['Oxygen Refill Cost','Equipment Purchase','Medical Supplies Purchase','Inventory Purchase'] %}
+            <option value="{{ cat }}" {{ 'selected' if cat == category_filter }}>{{ cat }}</option>
+            {% endfor %}
+        </optgroup>
+        <optgroup label="── Operating Expenses">
+            {% for cat in ['Utilities','Rent','Salaries','Maintenance','Government Fees','Insurance','Transportation','Office Supplies','Other'] %}
+            <option value="{{ cat }}" {{ 'selected' if cat == category_filter }}>{{ cat }}</option>
+            {% endfor %}
+        </optgroup>
     </select>
     <button type="submit" class="btn-filter">
         <span class="material-symbols-rounded">filter_alt</span> Apply
@@ -58,7 +64,6 @@
     {% endif %}
 </form>
 
-{# Custom date range mode #}
 <form method="GET" action="{{ url_for('admin.expenses') }}" class="exp-period-bar" id="rangeFilterForm" {{ '' if use_range else 'style=display:none;' }}>
     <div class="exp-date-input-group">
         <label>From</label>
@@ -72,9 +77,16 @@
     </div>
     <select name="category" class="exp-select">
         <option value="">All Categories</option>
-        {% for cat in all_categories %}
-        <option value="{{ cat }}" {{ 'selected' if cat == category_filter }}>{{ cat }}</option>
-        {% endfor %}
+        <optgroup label="── Cost of Sales">
+            {% for cat in ['Oxygen Refill Cost','Equipment Purchase','Medical Supplies Purchase','Inventory Purchase'] %}
+            <option value="{{ cat }}" {{ 'selected' if cat == category_filter }}>{{ cat }}</option>
+            {% endfor %}
+        </optgroup>
+        <optgroup label="── Operating Expenses">
+            {% for cat in ['Utilities','Rent','Salaries','Maintenance','Government Fees','Insurance','Transportation','Office Supplies','Other'] %}
+            <option value="{{ cat }}" {{ 'selected' if cat == category_filter }}>{{ cat }}</option>
+            {% endfor %}
+        </optgroup>
     </select>
     <button type="submit" class="btn-filter">
         <span class="material-symbols-rounded">filter_alt</span> Apply
@@ -84,8 +96,6 @@
         <span class="material-symbols-rounded">close</span> Clear
     </a>
     {% endif %}
-
-    {# Quick presets #}
     <div class="exp-quick-presets">
         <button type="button" class="preset-btn" data-preset="first-half">1st – 15th</button>
         <button type="button" class="preset-btn" data-preset="second-half">16th – End</button>
@@ -96,54 +106,59 @@
 
 {# ── Summary cards ── #}
 <div class="exp-summary-grid">
-    <div class="exp-summary-card exp-card-red">
-        <div class="exp-card-icon">
-            <span class="material-symbols-rounded">payments</span>
-        </div>
-        <div class="exp-card-body">
-            <div class="exp-card-label">Total Expenses</div>
-            <div class="exp-card-value">₱{{ "{:,.2f}".format(total_this_month) }}</div>
-            <div class="exp-card-sub">
-                {% if use_range %}
-                    {{ start_date.strftime('%b %d') }} – {{ end_date.strftime('%b %d, %Y') }}
-                {% else %}
-                    {{ months[current_month - 1][1] }} {{ current_year }}
-                {% endif %}
-            </div>
-        </div>
-    </div>
+
+    {# Gross Revenue #}
     <div class="exp-summary-card exp-card-green">
         <div class="exp-card-icon">
-            <span class="material-symbols-rounded">trending_up</span>
+            <span class="material-symbols-rounded">account_balance</span>
         </div>
         <div class="exp-card-body">
-            <div class="exp-card-label">Total Revenue</div>
-            <div class="exp-card-value">₱{{ "{:,.2f}".format(revenue_this_month) }}</div>
-            <div class="exp-card-sub">Completed payments {{ 'in range' if use_range else 'this month' }}</div>
+            <div class="exp-card-label">Gross Revenue</div>
+            <div class="exp-card-value">₱{{ "{:,.2f}".format(gross_revenue) }}</div>
+            <div class="exp-card-sub">Completed sales & rental payments</div>
         </div>
     </div>
-    <div class="exp-summary-card {{ 'exp-card-green' if net_profit >= 0 else 'exp-card-red' }}">
+
+    {# Cost of Sales #}
+    <div class="exp-summary-card exp-card-orange">
         <div class="exp-card-icon">
-            <span class="material-symbols-rounded">{{ 'thumb_up' if net_profit >= 0 else 'thumb_down' }}</span>
+            <span class="material-symbols-rounded">shopping_cart</span>
+        </div>
+        <div class="exp-card-body">
+            <div class="exp-card-label">Cost of Sales</div>
+            <div class="exp-card-value">₱{{ "{:,.2f}".format(cost_of_sales) }}</div>
+            <div class="exp-card-sub">Oxygen, equipment & supply purchases</div>
+        </div>
+    </div>
+
+    {# Operating Expenses #}
+    <div class="exp-summary-card exp-card-blue">
+        <div class="exp-card-icon">
+            <span class="material-symbols-rounded">receipt_long</span>
+        </div>
+        <div class="exp-card-body">
+            <div class="exp-card-label">Operating Expenses</div>
+            <div class="exp-card-value">₱{{ "{:,.2f}".format(operating_expenses) }}</div>
+            <div class="exp-card-sub">Utilities, salaries, rent & more</div>
+        </div>
+    </div>
+
+    {# Net Profit #}
+    <div class="exp-summary-card {{ 'exp-card-profit' if net_profit >= 0 else 'exp-card-loss' }}">
+        <div class="exp-card-icon">
+            <span class="material-symbols-rounded">{{ 'trending_up' if net_profit >= 0 else 'trending_down' }}</span>
         </div>
         <div class="exp-card-body">
             <div class="exp-card-label">Net Profit</div>
             <div class="exp-card-value {{ 'value-profit' if net_profit >= 0 else 'value-loss' }}">
                 {{ '+ ₱' if net_profit >= 0 else '- ₱' }}{{ "{:,.2f}".format(net_profit|abs) }}
             </div>
-            <div class="exp-card-sub">Revenue minus expenses</div>
+            <div class="exp-card-sub">
+                {{ 'Margin: ' ~ profit_margin ~ '%' if gross_revenue > 0 else 'No revenue recorded' }}
+            </div>
         </div>
     </div>
-    <div class="exp-summary-card exp-card-blue">
-        <div class="exp-card-icon">
-            <span class="material-symbols-rounded">category</span>
-        </div>
-        <div class="exp-card-body">
-            <div class="exp-card-label">Expense Categories</div>
-            <div class="exp-card-value">{{ category_totals | length }}</div>
-            <div class="exp-card-sub">Active this month</div>
-        </div>
-    </div>
+
 </div>
 
 {# ── Tab bar ── #}
@@ -161,39 +176,84 @@
 
 {# ── Charts panel ── #}
 <div class="exp-tab-panel" id="tab-charts">
-    <div class="exp-charts-row">
 
-        {# Trend chart #}
-        <div class="exp-chart-card exp-chart-wide">
+    {# Row 1: Revenue vs Cost of Sales  |  Revenue vs Operating Expenses #}
+    <div class="exp-charts-row exp-charts-3col">
+
+        <div class="exp-chart-card">
             <div class="exp-chart-header">
                 <span class="material-symbols-rounded">bar_chart</span>
-                Revenue vs. Expenses — Last 6 Months
+                Revenue vs Expenses — Last 6 Months
             </div>
-            <div class="chart-canvas-wrap" style="height:280px;">
+            <div class="chart-canvas-wrap" style="height:260px;">
                 <canvas id="trendChart"></canvas>
             </div>
         </div>
 
-        {# Category breakdown #}
+        <div class="exp-chart-card">
+            <div class="exp-chart-header">
+                <span class="material-symbols-rounded">show_chart</span>
+                Monthly Net Profit Trend
+            </div>
+            <div class="chart-canvas-wrap" style="height:260px;">
+                <canvas id="netProfitChart"></canvas>
+            </div>
+        </div>
+
         <div class="exp-chart-card">
             <div class="exp-chart-header">
                 <span class="material-symbols-rounded">donut_large</span>
-                {{ 'Selected Period' if use_range else 'This Month' }} by Category
+                {{ 'Selected Period' if use_range else 'This Month' }} — Expense Split
             </div>
             {% if category_totals %}
-            <div class="chart-canvas-wrap" style="height:220px;">
+            <div class="chart-canvas-wrap" style="height:200px;">
                 <canvas id="categoryChart"></canvas>
             </div>
             <div class="exp-legend" id="categoryLegend"></div>
             {% else %}
             <div class="exp-empty-mini">
                 <span class="material-symbols-rounded">receipt_long</span>
-                No expenses recorded for this month.
+                No expenses recorded for this period.
             </div>
             {% endif %}
         </div>
 
     </div>
+
+    {# Row 2: COS vs OPEX stacked bar #}
+    <div class="exp-charts-row" style="grid-template-columns: 1fr 1fr; margin-top: 0;">
+        <div class="exp-chart-card">
+            <div class="exp-chart-header">
+                <span class="material-symbols-rounded">stacked_bar_chart</span>
+                Cost of Sales vs Operating Expenses — Last 6 Months
+            </div>
+            <div class="chart-canvas-wrap" style="height:240px;">
+                <canvas id="cosVsOpexChart"></canvas>
+            </div>
+        </div>
+        <div class="exp-chart-card">
+            <div class="exp-chart-header">
+                <span class="material-symbols-rounded">pie_chart</span>
+                {{ 'Selected Period' if use_range else 'This Month' }} — COS vs OPEX
+            </div>
+            <div class="chart-canvas-wrap" style="height:180px;">
+                <canvas id="cosOpexDonut"></canvas>
+            </div>
+            <div class="exp-cos-opex-legend">
+                <div class="cos-opex-row">
+                    <span class="cos-dot"></span>
+                    <span class="cos-opex-label">Cost of Sales</span>
+                    <span class="cos-opex-val">₱{{ "{:,.2f}".format(cost_of_sales) }}</span>
+                </div>
+                <div class="cos-opex-row">
+                    <span class="opex-dot"></span>
+                    <span class="cos-opex-label">Operating Expenses</span>
+                    <span class="cos-opex-val">₱{{ "{:,.2f}".format(operating_expenses) }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 {# ── Table panel ── #}
@@ -213,6 +273,7 @@
                 <thead>
                     <tr>
                         <th>Date</th>
+                        <th>Type</th>
                         <th>Category</th>
                         <th>Expense Name</th>
                         <th>Notes</th>
@@ -226,6 +287,15 @@
                     <tr>
                         <td class="exp-date-cell">
                             {{ exp.date_incurred.strftime('%b %d, %Y') if exp.date_incurred else '—' }}
+                        </td>
+                        <td>
+                            {% if exp.category in cos_categories %}
+                            <span class="exp-type-pill exp-type-cos">Cost of Sales</span>
+                            {% elif exp.category in opex_categories %}
+                            <span class="exp-type-pill exp-type-opex">Operating</span>
+                            {% else %}
+                            <span class="exp-type-pill exp-type-other">Other</span>
+                            {% endif %}
                         </td>
                         <td>
                             <span class="exp-category-pill">{{ exp.category }}</span>
@@ -268,16 +338,16 @@
                     </tr>
                     {% endfor %}
                 </tbody>
-                    <tfoot>
-                        <tr class="exp-total-row">
-                            <td colspan="4"></td>
-                            <td style="font-weight:700; color:#334155;">Total</td>
-                            <td style="font-weight:800; color:#002347;">
-                                ₱{{ "{:,.2f}".format(total_this_month) }}
-                            </td>
-                            <td></td>
-                        </tr>
-                    </tfoot>
+                <tfoot>
+                    <tr class="exp-total-row">
+                        <td colspan="5"></td>
+                        <td style="font-weight:700; color:#334155;">Total</td>
+                        <td style="font-weight:800; color:#002347;">
+                            ₱{{ "{:,.2f}".format(total_this_month) }}
+                        </td>
+                        <td></td>
+                    </tr>
+                </tfoot>
             </table>
         </div>
         {% else %}
@@ -323,16 +393,23 @@
                         <label class="exp-label">Category <span class="req">*</span></label>
                         <select name="category" class="exp-input" required id="categorySelect">
                             <option value="">Select a category…</option>
-                            <option value="Utilities">Utilities</option>
-                            <option value="Rent">Rent / Office Space</option>
-                            <option value="Salaries">Salaries & Wages</option>
-                            <option value="Maintenance">Maintenance & Repairs</option>
-                            <option value="Supplies">Supplies</option>
-                            <option value="Government Fees">Government Fees & Taxes</option>
-                            <option value="Insurance">Insurance</option>
-                            <option value="Oxygen Refill Cost">Oxygen Refill Cost</option>
-                            <option value="Equipment Purchase">Equipment Purchase</option>
-                            <option value="Other">Other</option>
+                            <optgroup label="Cost of Sales">
+                                <option value="Oxygen Refill Cost">Oxygen Refill Cost</option>
+                                <option value="Equipment Purchase">Equipment Purchase</option>
+                                <option value="Medical Supplies Purchase">Medical Supplies Purchase</option>
+                                <option value="Inventory Purchase">Inventory Purchase</option>
+                            </optgroup>
+                            <optgroup label="Operating Expenses">
+                                <option value="Utilities">Utilities</option>
+                                <option value="Rent">Rent / Office Space</option>
+                                <option value="Salaries">Salaries & Wages</option>
+                                <option value="Maintenance">Maintenance & Repairs</option>
+                                <option value="Government Fees">Government Fees & Taxes</option>
+                                <option value="Insurance">Insurance</option>
+                                <option value="Transportation">Transportation / Fuel</option>
+                                <option value="Office Supplies">Office Supplies</option>
+                                <option value="Other">Other</option>
+                            </optgroup>
                         </select>
                     </div>
                     <div class="exp-form-group">
@@ -368,6 +445,8 @@
                                maxlength="255">
                     </div>
                 </div>
+                {# Category type hint #}
+                <div id="categoryHint" class="exp-category-hint" style="display:none;"></div>
             </div>
             <div class="exp-modal-footer">
                 <button type="button" class="btn-cancel" id="cancelAddExpense">Cancel</button>
@@ -401,16 +480,23 @@
                         <label class="exp-label">Category</label>
                         <select name="category" class="exp-input" id="editCategory">
                             <option value="">Select a category…</option>
-                            <option value="Utilities">Utilities</option>
-                            <option value="Rent">Rent / Office Space</option>
-                            <option value="Salaries">Salaries & Wages</option>
-                            <option value="Maintenance">Maintenance & Repairs</option>
-                            <option value="Supplies">Supplies</option>
-                            <option value="Government Fees">Government Fees & Taxes</option>
-                            <option value="Insurance">Insurance</option>
-                            <option value="Oxygen Refill Cost">Oxygen Refill Cost</option>
-                            <option value="Equipment Purchase">Equipment Purchase</option>
-                            <option value="Other">Other</option>
+                            <optgroup label="Cost of Sales">
+                                <option value="Oxygen Refill Cost">Oxygen Refill Cost</option>
+                                <option value="Equipment Purchase">Equipment Purchase</option>
+                                <option value="Medical Supplies Purchase">Medical Supplies Purchase</option>
+                                <option value="Inventory Purchase">Inventory Purchase</option>
+                            </optgroup>
+                            <optgroup label="Operating Expenses">
+                                <option value="Utilities">Utilities</option>
+                                <option value="Rent">Rent / Office Space</option>
+                                <option value="Salaries">Salaries & Wages</option>
+                                <option value="Maintenance">Maintenance & Repairs</option>
+                                <option value="Government Fees">Government Fees & Taxes</option>
+                                <option value="Insurance">Insurance</option>
+                                <option value="Transportation">Transportation / Fuel</option>
+                                <option value="Office Supplies">Office Supplies</option>
+                                <option value="Other">Other</option>
+                            </optgroup>
                         </select>
                     </div>
                     <div class="exp-form-group">
@@ -452,11 +538,19 @@
 {% block extra_js %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script nonce="{{ csp_nonce() }}">
-const TREND_LABELS  = {{ trend_labels  | tojson }};
-const TREND_EXP     = {{ trend_expense | tojson }};
-const TREND_REV     = {{ trend_revenue | tojson }};
-const CAT_LABELS    = {{ category_totals | map(attribute=0) | list | tojson }};
-const CAT_DATA      = {{ category_totals | map(attribute=1) | list | map('float') | list | tojson }};
+// ── Data from Flask ──────────────────────────────────────────────────────────
+const TREND_LABELS   = {{ trend_labels   | tojson }};
+const TREND_EXP      = {{ trend_expense  | tojson }};
+const TREND_REV      = {{ trend_revenue  | tojson }};
+const TREND_COS      = {{ trend_cos      | tojson }};
+const TREND_OPEX     = {{ trend_opex     | tojson }};
+const TREND_NET      = {{ trend_net      | tojson }};
+const CAT_LABELS     = {{ category_totals | map(attribute=0) | list | tojson }};
+const CAT_DATA       = {{ category_totals | map(attribute=1) | list | map('float') | list | tojson }};
+const COS_TOTAL      = {{ cost_of_sales      | float }};
+const OPEX_TOTAL     = {{ operating_expenses | float }};
+
+const COS_CATS = {{ cos_categories | list | tojson }};
 
 const PALETTE = [
     '#002347','#1a7a2e','#e53935','#f59e0b',
@@ -464,7 +558,10 @@ const PALETTE = [
     '#f97316','#ec4899'
 ];
 
-// ── Trend bar chart ────────────────────────────────────────────────────
+// Helper: format peso
+function peso(v) { return '₱' + Number(v).toLocaleString('en-PH', {minimumFractionDigits:0, maximumFractionDigits:0}); }
+
+// ── 1. Revenue vs Total Expenses trend ──────────────────────────────────────
 const tCtx = document.getElementById('trendChart');
 if (tCtx) {
     new Chart(tCtx, {
@@ -472,37 +569,90 @@ if (tCtx) {
         data: {
             labels: TREND_LABELS,
             datasets: [
-                {
-                    label: 'Revenue',
-                    data: TREND_REV,
-                    backgroundColor: 'rgba(26,122,46,0.75)',
-                    borderRadius: 4,
-                },
-                {
-                    label: 'Expenses',
-                    data: TREND_EXP,
-                    backgroundColor: 'rgba(229,57,53,0.75)',
-                    borderRadius: 4,
-                }
+                { label: 'Revenue',    data: TREND_REV,  backgroundColor: 'rgba(26,122,46,0.75)',  borderRadius: 4 },
+                { label: 'Expenses',   data: TREND_EXP,  backgroundColor: 'rgba(229,57,53,0.70)',  borderRadius: 4 },
             ]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
+            responsive: true, maintainAspectRatio: false,
             plugins: { legend: { position: 'top' } },
+            scales: { y: { beginAtZero: true, ticks: { callback: v => peso(v) } } }
+        }
+    });
+}
+
+// ── 2. Monthly Net Profit Trend line ────────────────────────────────────────
+const npCtx = document.getElementById('netProfitChart');
+if (npCtx) {
+    const netColors = TREND_NET.map(v => v >= 0 ? 'rgba(26,122,46,0.85)' : 'rgba(229,57,53,0.85)');
+    new Chart(npCtx, {
+        type: 'bar',
+        data: {
+            labels: TREND_LABELS,
+            datasets: [{
+                label: 'Net Profit',
+                data: TREND_NET,
+                backgroundColor: netColors,
+                borderRadius: 4,
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
             scales: {
                 y: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback: v => '₱' + v.toLocaleString()
-                    }
+                    ticks: { callback: v => peso(v) },
+                    grid: { color: ctx => ctx.tick.value === 0 ? '#94a3b8' : '#f1f5f9', lineWidth: ctx => ctx.tick.value === 0 ? 2 : 1 }
                 }
             }
         }
     });
 }
 
-// ── Category donut chart ────────────────────────────────────────────────
+// ── 3. COS vs OPEX stacked bar ──────────────────────────────────────────────
+const coCtx = document.getElementById('cosVsOpexChart');
+if (coCtx) {
+    new Chart(coCtx, {
+        type: 'bar',
+        data: {
+            labels: TREND_LABELS,
+            datasets: [
+                { label: 'Cost of Sales',       data: TREND_COS,  backgroundColor: 'rgba(249,115,22,0.80)', borderRadius: 4 },
+                { label: 'Operating Expenses',  data: TREND_OPEX, backgroundColor: 'rgba(59,130,246,0.80)', borderRadius: 4 },
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'top' } },
+            scales: {
+                x: { stacked: true },
+                y: { stacked: true, beginAtZero: true, ticks: { callback: v => peso(v) } }
+            }
+        }
+    });
+}
+
+// ── 4. COS vs OPEX donut ────────────────────────────────────────────────────
+const cdCtx = document.getElementById('cosOpexDonut');
+if (cdCtx && (COS_TOTAL + OPEX_TOTAL) > 0) {
+    new Chart(cdCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Cost of Sales', 'Operating Expenses'],
+            datasets: [{
+                data: [COS_TOTAL, OPEX_TOTAL],
+                backgroundColor: ['rgba(249,115,22,0.85)', 'rgba(59,130,246,0.85)'],
+                hoverOffset: 6, borderWidth: 2, borderColor: '#fff',
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false, cutout: '62%',
+            plugins: { legend: { display: false } }
+        }
+    });
+}
+
+// ── 5. Category donut ────────────────────────────────────────────────────────
 const cCtx = document.getElementById('categoryChart');
 if (cCtx && CAT_DATA.length) {
     new Chart(cCtx, {
@@ -512,35 +662,32 @@ if (cCtx && CAT_DATA.length) {
             datasets: [{
                 data: CAT_DATA,
                 backgroundColor: PALETTE,
-                hoverOffset: 6,
-                borderWidth: 2,
-                borderColor: '#fff',
+                hoverOffset: 6, borderWidth: 2, borderColor: '#fff',
             }]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            cutout: '60%',
+            responsive: true, maintainAspectRatio: false, cutout: '60%',
             plugins: { legend: { display: false } }
         }
     });
 
-    // Build custom legend
     const legend = document.getElementById('categoryLegend');
     if (legend) {
         const total = CAT_DATA.reduce((a, b) => a + b, 0);
         legend.innerHTML = CAT_LABELS.map((label, i) => {
             const pct = total > 0 ? ((CAT_DATA[i] / total) * 100).toFixed(1) : 0;
+            const isCos = COS_CATS.includes(label);
             return `<div class="legend-item">
                 <span class="legend-dot" style="background:${PALETTE[i % PALETTE.length]}"></span>
                 <span class="legend-name">${label}</span>
                 <span class="legend-pct">${pct}%</span>
+                <span class="exp-type-pill ${isCos ? 'exp-type-cos' : 'exp-type-opex'}" style="font-size:0.65rem;padding:1px 7px;">${isCos ? 'COS' : 'OPEX'}</span>
             </div>`;
         }).join('');
     }
 }
 
-// ── Tab switching ──────────────────────────────────────────────────────
+// ── Tab switching ────────────────────────────────────────────────────────────
 const urlParams = new URLSearchParams(window.location.search);
 const activeTab = urlParams.get('tab') || 'charts';
 document.querySelectorAll('.exp-tab-panel').forEach(p => p.style.display = 'none');
@@ -552,11 +699,9 @@ document.querySelectorAll('.exp-tab-btn').forEach(b => {
 document.querySelectorAll('.exp-tab-btn').forEach(btn => {
     btn.addEventListener('click', function () {
         const target = this.dataset.tab;
-        // Update URL without page reload
         const params = new URLSearchParams(window.location.search);
         params.set('tab', target);
         window.history.replaceState({}, '', '?' + params.toString());
-
         document.querySelectorAll('.exp-tab-btn').forEach(b => b.classList.remove('active'));
         this.classList.add('active');
         document.querySelectorAll('.exp-tab-panel').forEach(p => p.style.display = 'none');
@@ -564,7 +709,7 @@ document.querySelectorAll('.exp-tab-btn').forEach(btn => {
     });
 });
 
-// ── Period toggle (Month vs Custom Range) ───────────────────────────────
+// ── Period toggle ────────────────────────────────────────────────────────────
 document.querySelectorAll('.period-toggle-btn').forEach(btn => {
     btn.addEventListener('click', function () {
         document.querySelectorAll('.period-toggle-btn').forEach(b => b.classList.remove('active'));
@@ -575,16 +720,13 @@ document.querySelectorAll('.period-toggle-btn').forEach(btn => {
     });
 });
 
-// ── Quick date-range presets ────────────────────────────────────────────
-function fmtDate(d) {
-    return d.toISOString().split('T')[0];
-}
+// ── Quick date-range presets ──────────────────────────────────────────────────
+function fmtDate(d) { return d.toISOString().split('T')[0]; }
 document.querySelectorAll('.preset-btn').forEach(btn => {
     btn.addEventListener('click', function () {
         const preset = this.dataset.preset;
         const now = new Date();
         let start, end;
-
         if (preset === 'first-half') {
             start = new Date(now.getFullYear(), now.getMonth(), 1);
             end   = new Date(now.getFullYear(), now.getMonth(), 15);
@@ -592,44 +734,56 @@ document.querySelectorAll('.preset-btn').forEach(btn => {
             start = new Date(now.getFullYear(), now.getMonth(), 16);
             end   = new Date(now.getFullYear(), now.getMonth() + 1, 0);
         } else if (preset === 'last-7') {
-            end   = now;
-            start = new Date(now);
-            start.setDate(start.getDate() - 6);
+            end   = now; start = new Date(now); start.setDate(start.getDate() - 6);
         } else if (preset === 'last-30') {
-            end   = now;
-            start = new Date(now);
-            start.setDate(start.getDate() - 29);
+            end   = now; start = new Date(now); start.setDate(start.getDate() - 29);
         }
-
         const form = document.getElementById('rangeFilterForm');
         form.querySelector('input[name="start_date"]').value = fmtDate(start);
         form.querySelector('input[name="end_date"]').value   = fmtDate(end);
     });
 });
 
+// ── Category hint in Add modal ────────────────────────────────────────────────
+const COS_SET  = new Set({{ cos_categories | list | tojson }});
+const OPEX_SET = new Set({{ opex_categories | list | tojson }});
+const catSelect = document.getElementById('categorySelect');
+const catHint   = document.getElementById('categoryHint');
+if (catSelect && catHint) {
+    catSelect.addEventListener('change', function () {
+        const v = this.value;
+        if (COS_SET.has(v)) {
+            catHint.style.display = '';
+            catHint.className = 'exp-category-hint hint-cos';
+            catHint.innerHTML = '<span class="material-symbols-rounded">shopping_cart</span> This is a <strong>Cost of Sales</strong> expense — it reduces Gross Profit.';
+        } else if (OPEX_SET.has(v)) {
+            catHint.style.display = '';
+            catHint.className = 'exp-category-hint hint-opex';
+            catHint.innerHTML = '<span class="material-symbols-rounded">receipt_long</span> This is an <strong>Operating Expense</strong> — it reduces Net Profit.';
+        } else {
+            catHint.style.display = 'none';
+        }
+    });
+}
+
+// ── Modals ────────────────────────────────────────────────────────────────────
 function openModal(id)  { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
-// Add modal
 document.getElementById('openAddExpense')?.addEventListener('click',  () => openModal('addExpenseModal'));
 document.getElementById('openAddExpense2')?.addEventListener('click', () => openModal('addExpenseModal'));
 document.getElementById('closeAddExpense')?.addEventListener('click', () => closeModal('addExpenseModal'));
 document.getElementById('cancelAddExpense')?.addEventListener('click',() => closeModal('addExpenseModal'));
 
-// Set today's date as default in the add form
 const expDateInput = document.getElementById('expDateInput');
-if (expDateInput) {
-    const today = new Date().toISOString().split('T')[0];
-    expDateInput.value = today;
-}
+if (expDateInput) expDateInput.value = new Date().toISOString().split('T')[0];
 
-// Edit modal
 document.getElementById('closeEditExpense')?.addEventListener('click',  () => closeModal('editExpenseModal'));
 document.getElementById('cancelEditExpense')?.addEventListener('click', () => closeModal('editExpenseModal'));
 
 document.querySelectorAll('.btn-edit-exp').forEach(btn => {
     btn.addEventListener('click', function () {
-        const id   = this.dataset.id;
+        const id = this.dataset.id;
         document.getElementById('editExpenseForm').action = `/admin/expenses/edit/${id}`;
         document.getElementById('editCategory').value    = this.dataset.category;
         document.getElementById('editTitle').value       = this.dataset.title;
@@ -640,7 +794,6 @@ document.querySelectorAll('.btn-edit-exp').forEach(btn => {
     });
 });
 
-// Close modal on backdrop click
 ['addExpenseModal','editExpenseModal'].forEach(id => {
     document.getElementById(id)?.addEventListener('click', function(e) {
         if (e.target === this) closeModal(id);
