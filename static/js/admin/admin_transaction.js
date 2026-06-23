@@ -93,11 +93,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeBtn = document.getElementById('close-selection-modal');
     const selectionModal = document.getElementById('txnSelectionModal');
 
-    // NEW: CUSTOMER ELEMENTS
-    const customerInput = document.getElementById('customer-search-input');
-    const customerDropdown = document.getElementById('customer-dropdown-list');
-    const customerIdInput = document.getElementById('global-customer-id');
-
     // ===============================
     // OPEN MODAL
     // ===============================
@@ -121,60 +116,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ===============================
-    // SHOW DROPDOWN ON FOCUS
-    // ===============================
-    if (customerInput && customerDropdown) {
-        customerInput.addEventListener('focus', () => {
-            customerDropdown.classList.remove('hidden');
-        });
-
-        // FILTER SEARCH
-        customerInput.addEventListener('input', (e) => {
-            const query = e.target.value.toLowerCase().trim();
-            const items = customerDropdown.querySelectorAll('.customer-option-item');
-
-            let hasMatch = false;
-
-            items.forEach(item => {
-                const search = item.getAttribute('data-search-string') || '';
-
-                if (search.includes(query)) {
-                    item.style.display = 'flex';
-                    hasMatch = true;
-                } else {
-                    item.style.display = 'none';
-                }
-            });
-
-            const noMatch = document.getElementById('no-customer-match');
-            if (noMatch) {
-                noMatch.style.display = hasMatch || query === '' ? 'none' : 'block';
-            }
-        });
-
-        // SELECT CUSTOMER
-        customerDropdown.addEventListener('click', (e) => {
-            const item = e.target.closest('.customer-option-item');
-            if (!item) return;
-
-            const id = item.getAttribute('data-id');
-            const name = item.querySelector('.cust-name-text')?.innerText || '';
-
-            if (customerIdInput) customerIdInput.value = id;
-            if (customerInput) customerInput.value = name;
-
-            customerDropdown.classList.add('hidden');
-        });
-
-        // CLOSE WHEN CLICK OUTSIDE
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.customer-search-container')) {
-                customerDropdown.classList.add('hidden');
-            }
-        });
-    }
-
-// ===============================
     // TRANSACTION TYPE HANDLING
     // ===============================
     document.querySelectorAll('[data-flow]').forEach(button => {
@@ -190,15 +131,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const flowType = this.getAttribute('data-flow');
 
-            const customerId = customerIdInput?.value;
-            const customerName = customerInput?.value;
-
-            // VALIDATION (Skips alert only if flowType is 'Refill')
-            if (!customerId && flowType !== 'Refill') {
-                alert("Please select a Customer / Patient first.");
-                return;
-            }
-
             // CLOSE TRANSACTION SELECTION MODAL
             if (selectionModal) {
                 selectionModal.classList.add('hidden');
@@ -208,19 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // R E N T A L
             // ===============================
             if (flowType === 'Rental') {
-
                 const rentModal = document.getElementById('rentAssetModal');
-                const rentName = document.getElementById('rent-patient-display-name');
-
-                if (rentName) {
-                    rentName.innerText = customerName;
-                }
-
-                const rentCustomerHidden = document.querySelector('#rentAssetModal #global-customer-id');
-                if (rentCustomerHidden) {
-                    rentCustomerHidden.value = customerId;
-                }
-
                 if (rentModal) {
                     rentModal.classList.remove('hidden');
                 }
@@ -231,41 +151,33 @@ document.addEventListener('DOMContentLoaded', () => {
             // ===============================
             else if (flowType === 'Refill') {
                 const refillModal = document.getElementById('refillAssetModal');
-                const refillNameText = document.getElementById('refill-patient-display-name');
-                const refillCustomerHidden = document.getElementById('global-refill-customer-id');
-
                 if (refillModal) {
                     // Clear previous entries out cleanly before showing
                     const serialInput = document.getElementById('refill-serial-number');
                     if (serialInput) serialInput.value = "";
                     
-                    // Populate if available, otherwise apply generic patient layout fallbacks
-                    if (customerId && customerName) {
-                        if (refillNameText) refillNameText.innerText = customerName;
-                        if (refillCustomerHidden) refillCustomerHidden.value = customerId;
-                    } else {
-                        if (refillNameText) refillNameText.innerText = "Walk-in / Unspecified Customer";
-                        if (refillCustomerHidden) refillCustomerHidden.value = "";
-                    }
-
                     refillModal.classList.remove('hidden');
                 }
             }
 
             // ===============================
-            // P U R C H A S E
+            // P U R C H A S E (S A L E)
             // ===============================
-            else {
-
+            else if (flowType === 'Sale') {
                 const purchaseModal = document.getElementById('purchaseAssetModal');
-
-                const purchaseSelect = document.getElementById('purchase-customer');
-                if (purchaseSelect) {
-                    purchaseSelect.value = customerId;
-                }
-
                 if (purchaseModal) {
                     purchaseModal.classList.remove('hidden');
+                }
+            }
+
+            // ===============================
+            // P R I M E G A S
+            // ===============================
+            else if (flowType === 'Primegas') {
+                // Adjust ID to match your secondary target modal setup if named differently
+                const primegasModal = document.getElementById('primegasAssetModal');
+                if (primegasModal) {
+                    primegasModal.classList.remove('hidden');
                 }
             }
         });
@@ -294,365 +206,497 @@ document.addEventListener('DOMContentLoaded', () => {
 
 /*============= END OF TRANSACTION MODAL =============*/
 
+
 /*============= PURCHASE SUBMISSION LOGIC =============*/
 
-const purchaseForm = document.getElementById('purchaseEntryForm');
-const purchaseModal = document.getElementById('purchaseAssetModal'); 
+document.addEventListener('DOMContentLoaded', function() {
+    const purchaseForm = document.getElementById('purchaseEntryForm');
+    const purchaseModal = document.getElementById('purchaseAssetModal'); 
 
-// Array storage tracking multi-product data in the selection basket
-let purchaseBasket = [];
+    // Array storage tracking multi-product data in the selection basket
+    let purchaseBasket = [];
 
-/**
- * Handles toggling dynamic field changes safely inside the modal layout form context
- */
-purchaseForm?.addEventListener('change', function(e) {
-    if (e.target.name === 'fulfillment_type') {
-        const isDelivery = e.target.value === 'Delivery';
-        togglePurchaseDelivery(isDelivery);
-    }
-    if (e.target.id === 'purchase-payment-method') {
-        updatePurchaseRefVisibility();
-    }
-});
+    /*============= CUSTOMER SELECTION & CLASSIFICATION LOGIC =============*/
+    const radioRegistered = document.getElementById('buyer-type-registered');
+    const radioUnregistered = document.getElementById('buyer-type-unregistered'); // Matches HTML id
+    const registeredBuyerGroup = document.getElementById('registered-buyer-group');
+    const unregisteredBuyerGroup = document.getElementById('unregistered-buyer-group'); // Matches HTML id
 
-function togglePurchaseDelivery(isDelivery) {
-    const deliveryFields = document.getElementById('purchase-delivery-fields');
-    if (deliveryFields) {
-        deliveryFields.style.display = isDelivery ? 'grid' : 'none';
-        const addrInput = deliveryFields.querySelector('input[name="delivery_address"]');
-        if (addrInput) addrInput.required = isDelivery;
-    }
-}
+    const customerSearchInput = document.getElementById('purchase-customer-search'); // Matches HTML id
+    const customerDropdownList = document.getElementById('purchase-customer-dropdown-list');
+    const selectedCustomerId = document.getElementById('purchase-customer-id');
+    const customNameInput = document.getElementById('purchase-custom-name'); // Matches HTML id
 
-function updatePurchaseRefVisibility() {
-    const purchasePaymentMethod = document.getElementById('purchase-payment-method');
-    const purchaseRefGroup = document.getElementById('purchase-ref-group');
-    if (purchasePaymentMethod && purchaseRefGroup) {
-        const isElectronic = purchasePaymentMethod.value !== 'Cash';
-        purchaseRefGroup.style.display = isElectronic ? 'block' : 'none';
-        
-        if (!isElectronic) {
-            const refInput = purchaseRefGroup.querySelector('input');
-            if (refInput) refInput.value = '';
+    const bannerName = document.getElementById('purchase-banner-buyer-name');
+    const badge = document.getElementById('purchase-customer-type-display');
+
+    // Dynamic visibility toggling for Client Classification Track
+    function handleBuyerTypeChange() {
+        if (radioRegistered && radioRegistered.checked) {
+            if (registeredBuyerGroup) registeredBuyerGroup.style.display = 'block';
+            if (unregisteredBuyerGroup) unregisteredBuyerGroup.style.display = 'none';
+            if (customNameInput) customNameInput.value = '';
+            bannerName.textContent = customerSearchInput.value.trim() || "Enter Buyer Information";
+            badge.textContent = "New Transaction";
+        } else if (radioUnregistered && radioUnregistered.checked) {
+            if (unregisteredBuyerGroup) unregisteredBuyerGroup.style.display = 'block';
+            if (registeredBuyerGroup) registeredBuyerGroup.style.display = 'none';
+            if (selectedCustomerId) selectedCustomerId.value = '';
+            if (customerSearchInput) customerSearchInput.value = '';
+            bannerName.textContent = customNameInput.value.trim() || "Walk-In Customer";
+            badge.textContent = "Unregistered";
         }
     }
-}
 
-/*============= LIVE BASKET MULTI-PRODUCT LOGIC =============*/
+    radioRegistered?.addEventListener('change', handleBuyerTypeChange);
+    radioUnregistered?.addEventListener('change', handleBuyerTypeChange);
 
-const purchaseSearchInput = document.getElementById('purchase-product-search-input');
-const purchaseDropdownList = document.getElementById('purchase-product-dropdown-list');
-const purchaseBasketContainer = document.getElementById('purchase-selected-products-container');
-const purchaseEmptyPlaceholder = document.getElementById('purchase-empty-basket-placeholder');
-
-// Toggle dropdown visibility when clicking search box
-purchaseSearchInput?.addEventListener('focus', () => {
-    purchaseDropdownList?.classList.remove('hidden');
-    filterPurchaseProducts();
-});
-
-// Close dropdown list safely when clicking outside product containers
-document.addEventListener('click', function(e) {
-    if (!e.target.closest('.product-search-container')) {
-        purchaseDropdownList?.classList.add('hidden');
-    }
-});
-
-// Real-time input search event match filtering
-purchaseSearchInput?.addEventListener('input', filterPurchaseProducts);
-
-function filterPurchaseProducts() {
-    const query = purchaseSearchInput.value.toLowerCase().trim();
-    const options = document.querySelectorAll('.purchase-product-option-item');
-    let hasMatches = false;
-
-    options.forEach(option => {
-        const searchStr = option.getAttribute('data-search-string') || '';
-        if (searchStr.includes(query)) {
-            option.style.display = 'flex';
-            hasMatches = true;
-        } else {
-            option.style.display = 'none';
+    // Update banner display in real-time when typing a custom walk-in name
+    customNameInput?.addEventListener('input', function() {
+        if (bannerName) {
+            bannerName.textContent = this.value.trim() || "Walk-In Customer";
         }
     });
 
-    const noMatchDiv = document.getElementById('no-purchase-product-match');
-    if (noMatchDiv) {
-        noMatchDiv.style.display = hasMatches ? 'none' : 'block';
-    }
-}
+    // Open dropdown container on focus or explicit click interaction
+    const showCustomerDropdown = () => {
+        customerDropdownList?.classList.remove('hidden');
+        filterRegisteredCustomers();
+    };
+    customerSearchInput?.addEventListener('focus', showCustomerDropdown);
+    customerSearchInput?.addEventListener('click', showCustomerDropdown);
 
-// Add item option to target basket selection on item row click
-document.addEventListener('click', function(e) {
-    const optionItem = e.target.closest('.purchase-product-option-item');
-    if (optionItem) {
-        const id = optionItem.getAttribute('data-id');
-        const name = optionItem.getAttribute('data-name');
-        const maxStock = parseInt(optionItem.getAttribute('data-stock')) || 0;
-        const price = parseFloat(optionItem.getAttribute('data-price')) || 0;
+    // Reset hidden ID on manual input typing to prevent mismatched submission data
+    customerSearchInput?.addEventListener('input', () => {
+        if (selectedCustomerId) {
+            selectedCustomerId.value = '';
+        }
+        if (bannerName) {
+            bannerName.textContent = customerSearchInput.value.trim() || "Enter Buyer Information";
+        }
+        filterRegisteredCustomers();
+    });
 
-        // Check if item already exists in current session's basket data
-        const existingItem = purchaseBasket.find(i => i.id === id);
-        if (existingItem) {
-            if (existingItem.quantity < maxStock) {
-                existingItem.quantity += 1;
+    function filterRegisteredCustomers() {
+        if (!customerSearchInput) return;
+        const query = customerSearchInput.value.toLowerCase().trim();
+        const options = document.querySelectorAll('.purchase-customer-option-item');
+        let hasMatches = false;
+
+        options.forEach(option => {
+            const searchStr = (option.getAttribute('data-search-string') || '').toLowerCase();
+            if (searchStr.includes(query)) {
+                option.style.display = 'flex';
+                hasMatches = true;
             } else {
-                alert(`Cannot exceed maximum available stock layout limit (${maxStock}) for this item.`);
+                option.style.display = 'none';
             }
-        } else {
-            purchaseBasket.push({ id, name, maxStock, price, quantity: 1 });
-        }
-
-        purchaseSearchInput.value = '';
-        purchaseDropdownList?.classList.add('hidden');
-        renderPurchaseBasketUI();
-    }
-});
-
-function renderPurchaseBasketUI() {
-    if (!purchaseBasketContainer) return;
-
-    // Clear existing product row rows nodes aside from the default placeholder element
-    const rows = purchaseBasketContainer.querySelectorAll('.basket-item-row');
-    rows.forEach(r => r.remove());
-
-    if (purchaseBasket.length === 0) {
-        purchaseEmptyPlaceholder?.classList.remove('hidden');
-    } else {
-        purchaseEmptyPlaceholder?.classList.add('hidden');
-
-        purchaseBasket.forEach((item, index) => {
-            const itemRow = document.createElement('div');
-            itemRow.className = 'basket-item-row';
-            itemRow.style = 'display: flex; align-items: center; justify-content: space-between; gap: 12px; background: white; border: 1px solid #e2e8f0; padding: 8px 12px; border-radius: 6px;';
-            itemRow.innerHTML = `
-                <div style="flex: 1;">
-                    <strong style="font-size: 13px; color: #1e293b; display:block;">${item.name}</strong>
-                    <span style="font-size: 11px; color: #64748b;">₱${item.price.toFixed(2)} each</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    <label style="font-size: 11px; color: #64748b;">Qty:</label>
-                    <input type="number" class="clinical-input basket-qty-input" data-index="${index}" min="1" max="${item.maxStock}" value="${item.quantity}" style="width: 65px; height: 32px; padding: 0 6px; text-align: center;">
-                </div>
-                <button type="button" class="remove-basket-item-btn" data-index="${index}" style="background: none; border: none; color: #ef4444; cursor: pointer; display: flex; align-items: center;">
-                    <span class="material-symbols-rounded" style="font-size: 18px;">delete</span>
-                </button>
-            `;
-            purchaseBasketContainer.appendChild(itemRow);
         });
-    }
-    updatePurchaseBillingSummary();
-}
 
-// Handle basket interactions (Quantity updates & deletions)
-purchaseBasketContainer?.addEventListener('input', function(e) {
-    if (e.target.classList.contains('basket-qty-input')) {
-        const idx = parseInt(e.target.getAttribute('data-index'));
-        let val = parseInt(e.target.value) || 1;
-        const maxLimit = purchaseBasket[idx].maxStock;
-
-        if (val > maxLimit) {
-            alert(`Only ${maxLimit} items available in storage inventory logs.`);
-            val = maxLimit;
-            e.target.value = val;
-        } else if (val < 1) {
-            val = 1;
-            e.target.value = val;
+        const noMatchDiv = document.getElementById('no-purchase-customer-match');
+        if (noMatchDiv) {
+            noMatchDiv.style.display = hasMatches ? 'none' : 'block';
         }
-        purchaseBasket[idx].quantity = val;
+    }
+
+    // Target customer selection assignment on dropdown list item click
+    document.addEventListener('click', function(e) {
+        const optionItem = e.target.closest('.purchase-customer-option-item');
+        if (optionItem) {
+            const id = optionItem.getAttribute('data-id');
+            const name = optionItem.getAttribute('data-name');
+            
+            if (selectedCustomerId) selectedCustomerId.value = id;
+            if (customerSearchInput) customerSearchInput.value = name;
+            if (bannerName) bannerName.textContent = name;
+            if (badge) badge.textContent = 'Registered Customer';
+            
+            customerDropdownList?.classList.add('hidden');
+        }
+    });
+
+    /*============= HELPER CALCULATIONS UTILITIES =============*/
+    function cleanFloat(val) {
+        if (typeof val === 'number') return isNaN(val) ? 0 : val;
+        if (!val) return 0;
+        const cleaned = val.toString().replace(/[^0-9.-]/g, '');
+        const parsed = parseFloat(cleaned);
+        return isNaN(parsed) ? 0 : parsed;
+    }
+
+    function cleanInt(val) {
+        if (typeof val === 'number') return isNaN(val) ? 0 : Math.floor(val);
+        if (!val) return 0;
+        const cleaned = val.toString().replace(/[^0-9-]/g, '');
+        const parsed = parseInt(cleaned, 10);
+        return isNaN(parsed) ? 0 : parsed;
+    }
+
+    /*============= DYNAMIC FORM VISIBILITY FIELD HANDLING =============*/
+    purchaseForm?.addEventListener('change', function(e) {
+        if (e.target.name === 'fulfillment_type') {
+            const isDelivery = e.target.value === 'Delivery';
+            togglePurchaseDelivery(isDelivery);
+        }
+        if (e.target.id === 'purchase-payment-method') {
+            updatePurchaseRefVisibility();
+        }
+    });
+
+    function togglePurchaseDelivery(isDelivery) {
+        const deliveryFields = document.getElementById('purchase-delivery-fields');
+        if (deliveryFields) {
+            deliveryFields.style.display = isDelivery ? 'grid' : 'none';
+            const addrInput = deliveryFields.querySelector('input[name="delivery_address"]');
+            if (addrInput) addrInput.required = isDelivery;
+        }
+    }
+
+    function updatePurchaseRefVisibility() {
+        const purchasePaymentMethod = document.getElementById('purchase-payment-method');
+        const purchaseRefGroup = document.getElementById('purchase-ref-group');
+        if (purchasePaymentMethod && purchaseRefGroup) {
+            const isElectronic = purchasePaymentMethod.value !== 'Cash';
+            purchaseRefGroup.style.display = isElectronic ? 'block' : 'none';
+            
+            if (!isElectronic) {
+                const refInput = purchaseRefGroup.querySelector('input');
+                if (refInput) refInput.value = '';
+            }
+        }
+    }
+
+    /*============= LIVE BASKET MULTI-PRODUCT LOGIC =============*/
+    const purchaseSearchInput = document.getElementById('purchase-product-search-input');
+    const purchaseDropdownList = document.getElementById('purchase-product-dropdown-list');
+    const purchaseBasketContainer = document.getElementById('purchase-selected-products-container');
+    const purchaseEmptyPlaceholder = document.getElementById('purchase-empty-basket-placeholder');
+
+    const showProductDropdown = () => {
+        purchaseDropdownList?.classList.remove('hidden');
+        filterPurchaseProducts();
+    };
+    purchaseSearchInput?.addEventListener('focus', showProductDropdown);
+    purchaseSearchInput?.addEventListener('click', showProductDropdown);
+
+    // Close search dropdown lists safely when clicking outside boundaries
+    document.addEventListener('click', function(e) {
+        if (purchaseSearchInput && purchaseDropdownList && !purchaseSearchInput.contains(e.target) && !purchaseDropdownList.contains(e.target)) {
+            purchaseDropdownList.classList.add('hidden');
+        }
+        if (customerSearchInput && customerDropdownList && !customerSearchInput.contains(e.target) && !customerDropdownList.contains(e.target)) {
+            customerDropdownList.classList.add('hidden');
+        }
+    });
+
+    purchaseSearchInput?.addEventListener('input', filterPurchaseProducts);
+
+    function filterPurchaseProducts() {
+        if (!purchaseSearchInput) return;
+        const query = purchaseSearchInput.value.toLowerCase().trim();
+        const options = document.querySelectorAll('.purchase-product-option-item');
+        let hasMatches = false;
+
+        options.forEach(option => {
+            const searchStr = (option.getAttribute('data-search-string') || '').toLowerCase();
+            if (searchStr.includes(query)) {
+                option.style.display = 'flex';
+                hasMatches = true;
+            } else {
+                option.style.display = 'none';
+            }
+        });
+
+        const noMatchDiv = document.getElementById('no-purchase-product-match');
+        if (noMatchDiv) {
+            noMatchDiv.style.display = hasMatches ? 'none' : 'block';
+        }
+    }
+
+    // Add item option to basket selection container
+    document.addEventListener('click', function(e) {
+        const optionItem = e.target.closest('.purchase-product-option-item');
+        if (optionItem) {
+            const id = optionItem.getAttribute('data-id');
+            const name = optionItem.getAttribute('data-name');
+            const maxStock = cleanInt(optionItem.getAttribute('data-stock'));
+            const price = cleanFloat(optionItem.getAttribute('data-price'));
+
+            const existingItem = purchaseBasket.find(i => i.id === id);
+            if (existingItem) {
+                if (existingItem.quantity < maxStock) {
+                    existingItem.quantity += 1;
+                } else {
+                    alert(`Cannot exceed maximum available stock layout limit (${maxStock}) for this item.`);
+                }
+            } else {
+                purchaseBasket.push({ id, name, maxStock, price, quantity: 1 });
+            }
+
+            if (purchaseSearchInput) purchaseSearchInput.value = '';
+            purchaseDropdownList?.classList.add('hidden');
+            renderPurchaseBasketUI();
+        }
+    });
+
+    function renderPurchaseBasketUI() {
+        if (!purchaseBasketContainer) return;
+
+        const rows = purchaseBasketContainer.querySelectorAll('.basket-item-row');
+        rows.forEach(r => r.remove());
+
+        if (purchaseBasket.length === 0) {
+            purchaseEmptyPlaceholder?.classList.remove('hidden');
+        } else {
+            purchaseEmptyPlaceholder?.classList.add('hidden');
+
+            purchaseBasket.forEach((item, index) => {
+                const itemRow = document.createElement('div');
+                itemRow.className = 'basket-item-row';
+                itemRow.style = 'display: flex; align-items: center; justify-content: space-between; gap: 12px; background: white; border: 1px solid #e2e8f0; padding: 8px 12px; border-radius: 6px;';
+                itemRow.innerHTML = `
+                    <div style="flex: 1;">
+                        <strong style="font-size: 13px; color: #1e293b; display:block;">${item.name}</strong>
+                        <span style="font-size: 11px; color: #64748b;">₱${item.price.toFixed(2)} each</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <label style="font-size: 11px; color: #64748b;">Qty:</label>
+                        <input type="number" class="clinical-input basket-qty-input" data-index="${index}" min="1" max="${item.maxStock}" value="${item.quantity}" style="width: 65px; height: 32px; padding: 0 6px; text-align: center;">
+                    </div>
+                    <button type="button" class="remove-basket-item-btn" data-index="${index}" style="background: none; border: none; color: #ef4444; cursor: pointer; display: flex; align-items: center;">
+                        <span class="material-symbols-rounded" style="font-size: 18px;">delete</span>
+                    </button>
+                `;
+                purchaseBasketContainer.appendChild(itemRow);
+            });
+        }
         updatePurchaseBillingSummary();
     }
-});
 
-purchaseBasketContainer?.addEventListener('click', function(e) {
-    const deleteBtn = e.target.closest('.remove-basket-item-btn');
-    if (deleteBtn) {
-        const idx = parseInt(deleteBtn.getAttribute('data-index'));
-        purchaseBasket.splice(idx, 1);
+    purchaseBasketContainer?.addEventListener('input', function(e) {
+        if (e.target.classList.contains('basket-qty-input')) {
+            const idx = cleanInt(e.target.getAttribute('data-index'));
+            let val = cleanInt(e.target.value) || 1;
+            const maxLimit = purchaseBasket[idx].maxStock;
+
+            if (val > maxLimit) {
+                alert(`Only ${maxLimit} items available in storage inventory logs.`);
+                val = maxLimit;
+                e.target.value = val;
+            } else if (val < 1) {
+                val = 1;
+                e.target.value = val;
+            }
+            purchaseBasket[idx].quantity = val;
+            updatePurchaseBillingSummary();
+        }
+    });
+
+    purchaseBasketContainer?.addEventListener('click', function(e) {
+        const deleteBtn = e.target.closest('.remove-basket-item-btn');
+        if (deleteBtn) {
+            const idx = cleanInt(deleteBtn.getAttribute('data-index'));
+            purchaseBasket.splice(idx, 1);
+            renderPurchaseBasketUI();
+        }
+    });
+
+    /*============= FINANCIAL AND CALCULATIONS LOGIC =============*/
+    const amountPaidInput = document.getElementById('purchase-amount-paid');
+    amountPaidInput?.addEventListener('input', updatePurchaseBillingSummary);
+
+    function updatePurchaseBillingSummary() {
+        const countText = document.getElementById('purchase-items-count-text');
+        const grossBillDisplay = document.getElementById('purchase-gross-bill');
+        const summaryPaidDisplay = document.getElementById('purchase-summary-paid-val');
+        const totalDisplay = document.getElementById('purchase-total-display');
+        const breakdownContainer = document.getElementById('purchase-summary-items-breakdown');
+
+        let totalItemsCount = 0;
+        let grossTotalContract = 0;
+
+        if (breakdownContainer) breakdownContainer.innerHTML = '';
+
+        purchaseBasket.forEach(item => {
+            const itemQty = cleanInt(item.quantity) || 1;
+            const itemPrice = cleanFloat(item.price) || 0;
+            const itemTotalCost = itemPrice * itemQty;
+
+            totalItemsCount += itemQty;
+            grossTotalContract += itemTotalCost;
+
+            if (breakdownContainer) {
+                const breakdownRow = document.createElement('div');
+                breakdownRow.style = 'display: flex; justify-content: space-between; font-size: 12px; color: #64748b;';
+                breakdownRow.innerHTML = `
+                    <span>• ${item.name} <small>(${itemQty} × ₱${itemPrice.toLocaleString('en-US', {minimumFractionDigits: 2})})</small></span>
+                    <span>₱${itemTotalCost.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
+                `;
+                breakdownContainer.appendChild(breakdownRow);
+            }
+        });
+
+        if (countText) countText.innerText = `${totalItemsCount} Item(s) Selected`;
+        if (grossBillDisplay) grossBillDisplay.innerText = `₱${grossTotalContract.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+        let amountPaid = cleanFloat(amountPaidInput?.value);
+        
+        if (amountPaidInput && (amountPaidInput.value === "0.00" || amountPaidInput.value === "" || amountPaidInput.dataset.autoFilled === "true")) {
+            amountPaid = grossTotalContract;
+            amountPaidInput.value = grossTotalContract.toFixed(2);
+            amountPaidInput.dataset.autoFilled = "true";
+        }
+
+        if (summaryPaidDisplay) summaryPaidDisplay.innerText = `- ₱${amountPaid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+        const remainingBalance = Math.max(0, grossTotalContract - amountPaid);
+        const balanceSubText = document.getElementById('purchase-balance-label');
+        
+        if (totalDisplay) {
+            totalDisplay.innerText = `₱${remainingBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+            if (remainingBalance <= 0 && grossTotalContract > 0) {
+                totalDisplay.className = "total-amount-display status-paid";
+                if (balanceSubText) {
+                    balanceSubText.textContent = "Fully Settled";
+                    balanceSubText.className = "status-paid";
+                }
+            } else if (amountPaid > 0) {
+                totalDisplay.className = "total-amount-display status-pending";
+                if (balanceSubText) {
+                    balanceSubText.textContent = "Partial Balance Due";
+                    balanceSubText.className = "status-pending";
+                }
+            } else {
+                totalDisplay.className = "total-amount-display";
+                if (balanceSubText) {
+                    balanceSubText.textContent = "Remaining collectibles";
+                    balanceSubText.className = "";
+                }
+            }
+        }
+    }
+
+    amountPaidInput?.addEventListener('keydown', function() {
+        this.dataset.autoFilled = "false";
+    });
+
+    /*============= MODAL RESET PROCEDURES =============*/
+    function resetPurchaseModal() {
+        purchaseBasket = [];
+        if (purchaseForm) {
+            purchaseForm.reset();
+            togglePurchaseDelivery(false);
+            updatePurchaseRefVisibility();
+            if (radioRegistered) {
+                radioRegistered.checked = true;
+                handleBuyerTypeChange();
+            }
+        }
+        if (amountPaidInput) amountPaidInput.dataset.autoFilled = "true";
         renderPurchaseBasketUI();
     }
-});
 
-/*============= FINANCIAL AND CALCULATIONS LOGIC =============*/
-
-const amountPaidInput = document.getElementById('purchase-amount-paid');
-amountPaidInput?.addEventListener('input', updatePurchaseBillingSummary);
-
-function updatePurchaseBillingSummary() {
-    const countText = document.getElementById('purchase-items-count-text');
-    const grossBillDisplay = document.getElementById('purchase-gross-bill');
-    const summaryPaidDisplay = document.getElementById('purchase-summary-paid-val');
-    const totalDisplay = document.getElementById('purchase-total-display');
-    const breakdownContainer = document.getElementById('purchase-summary-items-breakdown');
-
-    let totalItemsCount = 0;
-    let grossTotalContract = 0;
-
-    // Clear previous dynamic item rows in the summary breakdown layout box
-    if (breakdownContainer) breakdownContainer.innerHTML = '';
-
-    purchaseBasket.forEach(item => {
-        const itemQty = parseInt(item.quantity) || 1;
-        const itemPrice = parseFloat(item.price) || 0;
-        const itemTotalCost = itemPrice * itemQty;
-
-        totalItemsCount += itemQty;
-        grossTotalContract += itemTotalCost;
-
-        // Dynamic Line Item Calculation Generation Block
-        if (breakdownContainer) {
-            const breakdownRow = document.createElement('div');
-            breakdownRow.style = 'display: flex; justify-content: space-between; font-size: 12px; color: #64748b;';
-            breakdownRow.innerHTML = `
-                <span>• ${item.name} <small>(${itemQty} × ₱${itemPrice.toLocaleString('en-US', {minimumFractionDigits: 2})})</small></span>
-                <span>₱${itemTotalCost.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
-            `;
-            breakdownContainer.appendChild(breakdownRow);
-        }
-    });
-
-    if (countText) countText.innerText = `${totalItemsCount} Item(s) Selected`;
-    if (grossBillDisplay) grossBillDisplay.innerText = `₱${grossTotalContract.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-    // Handle dynamic paid-matching computations
-    let amountPaid = parseFloat(amountPaidInput?.value) || 0;
-    
-    // Auto-fill amount paid matching total value balance initially if unmodified or zero
-    if (amountPaidInput && (amountPaidInput.value === "0.00" || amountPaidInput.value === "" || amountPaidInput.dataset.autoFilled === "true")) {
-        amountPaid = grossTotalContract;
-        amountPaidInput.value = grossTotalContract.toFixed(2);
-        amountPaidInput.dataset.autoFilled = "true";
-    }
-
-    if (summaryPaidDisplay) summaryPaidDisplay.innerText = `- ₱${amountPaid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-    const remainingBalance = Math.max(0, grossTotalContract - amountPaid);
-    
-    const balanceSubText = document.getElementById('purchase-balance-label');
-    if (totalDisplay) {
-        totalDisplay.innerText = `₱${remainingBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-        if (remainingBalance <= 0 && grossTotalContract > 0) {
-            totalDisplay.className = "total-amount-display status-paid";
-            if (balanceSubText) {
-                balanceSubText.textContent = "Fully Settled";
-                balanceSubText.className = "status-paid";
-            }
-        } else if (amountPaid > 0) {
-            totalDisplay.className = "total-amount-display status-pending";
-            if (balanceSubText) {
-                balanceSubText.textContent = "Partial Balance Due";
-                balanceSubText.className = "status-pending";
-            }
-        } else {
-            totalDisplay.className = "total-amount-display";
-            if (balanceSubText) {
-                balanceSubText.textContent = "Remaining collectibles";
-                balanceSubText.className = "";
-            }
-        }
-    }
-}
-
-// Track if user explicitly alters paid data manually to break auto-fill lock down
-amountPaidInput?.addEventListener('keydown', function() {
-    this.dataset.autoFilled = "false";
-});
-
-/**
- * Clears form data and resets UI states
- */
-function resetPurchaseModal() {
-    purchaseBasket = [];
+    /*============= FORM SUBMISSION VERIFICATION PROCESS =============*/
     if (purchaseForm) {
-        purchaseForm.reset();
-        togglePurchaseDelivery(false);
-        updatePurchaseRefVisibility();
-    }
-    if (amountPaidInput) amountPaidInput.dataset.autoFilled = "true";
-    renderPurchaseBasketUI();
-}
+        purchaseForm.addEventListener('submit', function(e) {
+            e.preventDefault();
 
-/**
- * Form Submission Logic
- */
-if (purchaseForm) {
-    purchaseForm.addEventListener('submit', function(e) {
-        e.preventDefault();
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const formData = new FormData(this);
 
-        const submitBtn = this.querySelector('button[type="submit"]');
-        const formData = new FormData(this);
+            if (purchaseBasket.length === 0) {
+                alert("Error: Please select at least one component or product item to purchase.");
+                return;
+            }
 
-        // 1. Validation: Basket Content
-        if (purchaseBasket.length === 0) {
-            alert("Error: Please select at least one component or product item to purchase.");
-            return;
-        }
+            const buyerTypeEle = this.querySelector('input[name="buyer_type"]:checked');
+            const buyerType = buyerTypeEle ? buyerTypeEle.value : 'registered';
+            
+            let customerIdPayload = null;
+            let customerNamePayload = null;
 
-        // 2. Validation: Customer Extraction Node
-        const customerId = document.getElementById('global-purchase-customer-id')?.value || formData.get('customer_id');
-        if (!customerId) {
-            alert("Please load or select a valid buyer profile record session.");
-            return;
-        }
-
-        const payload = {
-            customer_id: customerId,
-            items: purchaseBasket.map(i => ({ id: i.id, quantity: i.quantity, price: i.price })),
-            payment_method: formData.get('payment_method'),
-            amount_paid: parseFloat(formData.get('amount_paid')) || 0,
-            reference_number: formData.get('reference_number') || "",
-            fulfillment_type: formData.get('fulfillment_type'),
-            delivery_address: formData.get('delivery_address') || "",
-            landmark: formData.get('landmark') || "",
-            warranty_or_notes: formData.get('warranty_or_notes')?.trim() || ""
-        };
-
-        // UI: Loading State Activation
-        submitBtn.disabled = true;
-        submitBtn.innerText = "Processing Transaction...";
-
-        fetch(this.getAttribute('action') || '/admin/process-purchase', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.getElementById('purchase_csrf_token')?.value || ''
-            },
-            body: JSON.stringify(payload)
-        })
-        .then(async response => {
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.message || "Server error occurred during execution structural processing");
-            return data;
-        })
-        .then(data => {
-            if (data.success) {
-                window.location.reload();
+            if (buyerType === 'registered') {
+                const customerId = document.getElementById('purchase-customer-id')?.value;
+                const customerName = customerSearchInput?.value?.trim();
+                
+                if (!customerId || !customerName) {
+                    alert("Please search and select the name of the customer from the options list.");
+                    return;
+                }
+                customerIdPayload = /^\d+$/.test(customerId) ? parseInt(customerId, 10) : customerId;
+                customerNamePayload = customerName;
             } else {
-                alert(data.message);
+                const walkInName = customNameInput?.value?.trim(); // Fixed lookup pointer variable link
+                if (!walkInName) {
+                    alert("Please enter the name of the customer.");
+                    return;
+                }
+                customerNamePayload = walkInName;
+            }
+
+            const amountPaid = cleanFloat(document.getElementById('purchase-amount-paid')?.value);
+
+            const payload = {
+                buyer_type: buyerType,
+                customer_id: customerIdPayload,
+                customer_name: customerNamePayload,
+                items: purchaseBasket.map(i => ({ 
+                    id: /^\d+$/.test(i.id) ? parseInt(i.id, 10) : i.id, 
+                    quantity: cleanInt(i.quantity), 
+                    price: cleanFloat(i.price) 
+                })),
+                payment_method: formData.get('payment_method'),
+                amount_paid: amountPaid,
+                reference_number: formData.get('reference_number') || "",
+                fulfillment_type: formData.get('fulfillment_type'),
+                delivery_address: formData.get('delivery_address') || "",
+                landmark: formData.get('landmark') || "",
+                warranty_or_notes: formData.get('warranty_or_notes')?.trim() || ""
+            };
+
+            submitBtn.disabled = true;
+            submitBtn.innerText = "Processing Transaction...";
+
+            fetch(this.getAttribute('action') || '/admin/process-purchase', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.getElementById('purchase_csrf_token')?.value || ''
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(async response => {
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.message || "Server error occurred during execution structural processing");
+                return data;
+            })
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert(data.message);
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = "Complete Purchase";
+                }
+            })
+            .catch(error => {
+                alert(error.message || "A transaction execution system error occurred.");
                 submitBtn.disabled = false;
                 submitBtn.innerText = "Complete Purchase";
-            }
-        })
-        .catch(error => {
-            alert(error.message || "A transaction execution system error occurred.");
-            submitBtn.disabled = false;
-            submitBtn.innerText = "Complete Purchase";
+            });
         });
-    });
-}
-
-/**
- * Modal Visibility & Close Handling
- */
-document.addEventListener('click', function(e) {
-    if (e.target.closest('.close-purchase-modal') || e.target === purchaseModal) {
-        purchaseModal?.classList.add('hidden');
-        resetPurchaseModal();
     }
+
+    /*============= CLOSING EVENT ACTION HANDLERS =============*/
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.close-purchase-modal') || e.target === purchaseModal) {
+            purchaseModal?.classList.add('hidden');
+            resetPurchaseModal();
+        }
+    });
 });
 
-/*============= END OF PURCHASE SUBMISSION LOGIC =============*/
 
 /*============= START OF RENTMODAL MULTI-PRODUCT SYSTEM =============*/
 
@@ -665,6 +709,12 @@ const productSearchInput = document.getElementById('product-search-input');
 const productDropdownList = document.getElementById('product-dropdown-list');
 const selectedProductsContainer = document.getElementById('selected-products-container');
 const emptyBasketPlaceholder = document.getElementById('empty-basket-placeholder');
+
+// RENT MODAL INLINE CUSTOMER SELECTION ELEMENTS
+const rentCustomerInput = document.getElementById('rent-customer-search-input');
+const rentCustomerDropdown = document.getElementById('rent-customer-dropdown-list');
+const rentCustomerIdInput = document.getElementById('global-customer-id');
+const rentPatientDisplayName = document.getElementById('rent-patient-display-name');
 
 // Memory state cache keeping track of active selected basket items
 let productBasket = [];
@@ -707,39 +757,20 @@ function toggleRentDelivery(isDelivery) {
 }
 
 /**
- * Helper function to update status icons
- */
-const updateStatusIcon = (targetElement, iconId) => {
-    const icon = document.getElementById(iconId);
-    if (!icon) return;
-    
-    if (targetElement && targetElement.value) {
-        icon.innerText = 'check_circle';
-        icon.style.color = '#10b981';
-    } else {
-        icon.innerText = 'radio_button_unchecked';
-        icon.style.color = '#cbd5e1';
-    }
-};
-
-/**
  * Resets the Global Customer Selection state
  */
 function resetGlobalCustomerSelection() {
-    const txnModalSearchInput = document.querySelector('#txnSelectionModal #customer-search-input');
-    const txnModalGlobalCustomerId = document.querySelector('#txnSelectionModal #global-customer-id');
-    const rentFormGlobalCustomerId = document.querySelector('#rentAssetModal #global-customer-id');
-    const rentPatientDisplayName = document.getElementById('rent-patient-display-name');
-    const purchaseSelect = document.getElementById('purchase-customer');
-
-    if (txnModalSearchInput) txnModalSearchInput.value = '';
-    if (txnModalGlobalCustomerId) txnModalGlobalCustomerId.value = '';
-    if (rentFormGlobalCustomerId) rentFormGlobalCustomerId.value = '';
+    if (rentCustomerInput) rentCustomerInput.value = '';
+    if (rentCustomerIdInput) rentCustomerIdInput.value = '';
     if (rentPatientDisplayName) rentPatientDisplayName.textContent = 'No Patient Selected';
     
-    if (purchaseSelect) {
-        purchaseSelect.value = '';
-        updateStatusIcon(purchaseSelect, 'purchase-customer-status');
+    if (rentCustomerDropdown) {
+        rentCustomerDropdown.classList.add('hidden');
+        const items = rentCustomerDropdown.querySelectorAll('.customer-option-item');
+        items.forEach(item => item.style.display = 'flex');
+        
+        const noMatch = document.getElementById('no-customer-match');
+        if (noMatch) noMatch.style.display = 'none';
     }
 }
 
@@ -781,9 +812,6 @@ function resetRentModal() {
     productBasket = [];
     renderProductBasket();
     if (productSearchInput) productSearchInput.value = '';
-
-    const display = document.getElementById('rent-total-display');
-    if (display) display.innerText = "₱0.00";
     
     resetGlobalCustomerSelection();
     calculateRentalTotals();
@@ -816,7 +844,7 @@ function renderProductBasket() {
     // Dynamic state trackers for oxygen criteria matching
     let containsOxygenEquipment = false;
 
-    productBasket.forEach((item, index) => {
+    productBasket.forEach((item) => {
         // Evaluate product titles for oxygen components
         const itemNameLower = item.name.toLowerCase();
         if (itemNameLower.includes('oxygen') || itemNameLower.includes('o2') || itemNameLower.includes('concentrator')) {
@@ -827,6 +855,7 @@ function renderProductBasket() {
         row.className = 'selected-product-row';
         row.style = 'display: flex; align-items: center; justify-content: space-between; background: white; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);';
         
+        // FIXED: Switched from tracking array index loops to explicit product database IDs
         row.innerHTML = `
             <div style="display: flex; flex-direction: column; gap: 2px; flex: 1;">
                 <span style="font-weight: 600; font-size: 13px; color: #1e293b;">${item.name}</span>
@@ -839,10 +868,10 @@ function renderProductBasket() {
                     <label style="font-size: 11px; color: #64748b;">Qty:</label>
                     <input type="number" name="quantity[]" class="clinical-input basket-qty-input" 
                            value="${item.quantity}" min="1" max="${item.maxStock}" 
-                           data-index="${index}" 
+                           data-product-id="${item.id}" 
                            style="width: 60px; height: 32px; padding: 0 6px; font-size: 13px; text-align: center;">
                 </div>
-                <button type="button" class="btn-remove-basket-item" data-index="${index}" 
+                <button type="button" class="btn-remove-basket-item" data-product-id="${item.id}" 
                         style="background: none; border: none; color: #ef4444; cursor: pointer; display: flex; align-items: center; padding: 4px;">
                     <span class="material-symbols-rounded" style="font-size: 18px;">delete</span>
                 </button>
@@ -953,7 +982,7 @@ function calculateRentalTotals() {
     const totalContract = (totalMonthlyRate * months) + deliveryFee;
     const balance = totalContract - amountPaid;
 
-    // ============== UI UPDATES ==============
+    // ============== UI EXPANSIONS ==============
 
     const durationText = document.getElementById('rent-duration-text');
     if (durationText) {
@@ -998,6 +1027,67 @@ function calculateRentalTotals() {
     }
 }
 
+// INLINE CUSTOMER SEARCH LOGIC & INTERACTION
+if (rentCustomerInput && rentCustomerDropdown) {
+    rentCustomerInput.addEventListener('focus', () => {
+        rentCustomerDropdown.classList.remove('hidden');
+    });
+
+    rentCustomerInput.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase().trim();
+        const items = rentCustomerDropdown.querySelectorAll('.customer-option-item');
+        let hasMatch = false;
+
+        items.forEach(item => {
+            const searchString = item.getAttribute('data-search-string') || '';
+            if (searchString.includes(query)) {
+                item.style.display = 'flex';
+                hasMatch = true;
+            } else {
+                item.style.display = 'none';
+            }
+        });
+
+        const noMatch = document.getElementById('no-customer-match');
+        if (noMatch) {
+            noMatch.style.display = hasMatch || query === '' ? 'none' : 'block';
+        }
+    });
+
+    rentCustomerDropdown.addEventListener('click', (e) => {
+        const item = e.target.closest('.customer-option-item');
+        if (!item) return;
+
+        const id = item.getAttribute('data-id');
+        const name = item.getAttribute('data-name') || item.querySelector('.cust-name-text')?.innerText.trim() || '';
+
+        if (rentCustomerIdInput) rentCustomerIdInput.value = id;
+        if (rentPatientDisplayName) rentPatientDisplayName.innerText = name;
+        if (rentCustomerInput) rentCustomerInput.value = name;
+
+        rentCustomerDropdown.classList.add('hidden');
+    });
+}
+
+// FIXED: SAFELY DELEGATE PRODUCT REMOVAL USING ID COMPLIANCE AND STOP PROPAGATION BLOCKS
+if (selectedProductsContainer) {
+    selectedProductsContainer.addEventListener('click', (e) => {
+        const removeBtn = e.target.closest('.btn-remove-basket-item');
+        if (removeBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation(); // Halts any secondary duplicate listener threads completely
+
+            const prodId = removeBtn.getAttribute('data-product-id');
+            
+            // Re-assign the array without the targeted item ID (Idempotent execution)
+            productBasket = productBasket.filter(item => item.id !== prodId);
+            
+            renderProductBasket();
+        }
+    });
+}
+
 rentBtns.forEach(btn => {
     btn.addEventListener('click', () => {
         resetRentModal();
@@ -1022,11 +1112,17 @@ rentBtns.forEach(btn => {
     });
 });
 
-rentModal.addEventListener('click', (e) => {
-    if (e.target.classList.contains('close-rent-modal') || 
-        e.target.classList.contains('medical-modal-overlay')) {
-        rentModal.classList.add('hidden');
-        resetRentModal();
+// CLOSE MODAL EVENTS AND EXTERNAL CONTAINER BOUNDARY WATCHERS
+document.addEventListener('click', (e) => {
+    if (rentCustomerDropdown && !e.target.closest('.customer-search-container')) {
+        rentCustomerDropdown.classList.add('hidden');
+    }
+
+    if (e.target.classList.contains('close-rent-modal') || e.target.classList.contains('medical-modal-overlay')) {
+        if (rentModal && !rentModal.classList.contains('hidden')) {
+            rentModal.classList.add('hidden');
+            resetRentModal();
+        }
     }
 });
 
@@ -1041,9 +1137,10 @@ if (rentForm) {
         }
     });
 
+    // FIXED: Target updates via product-id attributes instead of mutable index numbers
     rentForm.addEventListener('input', (e) => {
         if (e.target.classList.contains('basket-qty-input')) {
-            const idx = e.target.getAttribute('data-index');
+            const prodId = e.target.getAttribute('data-product-id');
             let value = parseInt(e.target.value) || 1;
             const max = parseInt(e.target.max) || 999;
             
@@ -1051,10 +1148,13 @@ if (rentForm) {
             if (value < 1) value = 1;
             
             e.target.value = value;
-            productBasket[idx].quantity = value;
+            
+            const basketItem = productBasket.find(item => item.id === prodId);
+            if (basketItem) {
+                basketItem.quantity = value;
+            }
         }
         
-        // Listens to delivery fee changes or standard modal adjustments dynamically
         calculateRentalTotals();
     });
 }

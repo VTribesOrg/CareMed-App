@@ -186,17 +186,20 @@
             </thead>
             <tbody style="font-size: 0.9rem;">
                 {% for asset in standard_assets %}
-                <tr style="border-bottom: 1px solid #f8fafc;">
-                    <td style="padding: 14px 8px; font-weight: 600; color: #1e293b;">{{ asset.name }}</td>
-                    <td style="padding: 14px 8px; text-align: center; font-weight: 500;">{{ asset.total_stock }}</td>
-                    <td style="padding: 14px 8px; text-align: center;">
-                        <span class="pill-blue">{{ asset.rented_count }}</span>
-                    </td>
-                    <td style="padding: 14px 8px; text-align: center; color: #64748b;">{{ asset.used_count }}</td>
-                    <td style="padding: 14px 8px; text-align: center;">
-                        <span class="pill-green">{{ asset.brand_new_count }}</span>
-                    </td>
-                </tr>
+                    {# Only show the row if there is at least one used or brand new item #}
+                    {% if asset.used_count > 0 or asset.brand_new_count > 0 %}
+                    <tr style="border-bottom: 1px solid #f8fafc;">
+                        <td style="padding: 14px 8px; font-weight: 600; color: #1e293b;">{{ asset.name }}</td>
+                        <td style="padding: 14px 8px; text-align: center; font-weight: 500;">{{ asset.total_stock }}</td>
+                        <td style="padding: 14px 8px; text-align: center;">
+                            <span class="pill-blue">{{ asset.rented_count }}</span>
+                        </td>
+                        <td style="padding: 14px 8px; text-align: center; color: #64748b;">{{ asset.used_count }}</td>
+                        <td style="padding: 14px 8px; text-align: center;">
+                            <span class="pill-green">{{ asset.brand_new_count }}</span>
+                        </td>
+                    </tr>
+                    {% endif %}
                 {% else %}
                 <tr>
                     <td colspan="5" style="text-align: center; padding: 30px; color: #94a3b8;">No standard asset records found.</td>

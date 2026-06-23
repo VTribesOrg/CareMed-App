@@ -471,87 +471,102 @@
 
         <!-- Customer Details -->
         <div class="summary-side-card">
-            <h5 class="sidebar-card-title">Customer Details</h5>
-            <a href="{{ url_for('admin.customer_details', id=txn.customer_id) }}" class="customer-profile-link">
-                <div class="customer-profile-section">
-                    <div class="profile-icon-container">
-                        <span class="material-symbols-rounded">person</span>
-                    </div>
-                    <div class="profile-info">
-                        <div class="profile-name">
-                            {{ txn.customer_name or (txn.customer.first_name ~ ' ' ~ txn.customer.last_name if txn.customer else 'Unknown Customer') }}
-                        </div>
-                        <small class="profile-type">View Full Profile</small>
-                    </div>
-                    <span class="material-symbols-rounded icon-subtle">chevron_right</span>
-                </div>
-            </a>
-
-            <div class="info-column mt-3">
-                <span class="info-label">Fulfillment Type:</span>
-                <div class="info-value">
-                    {% if txn.fulfillment_type|lower == 'delivery' %}
-                        <span class="badge-soft-primary">
-                            <span class="material-symbols-rounded" style="font-size:14px; vertical-align:middle;">local_shipping</span>
-                            DELIVERY
-                        </span>
+                    <h5 class="sidebar-card-title">Customer Details</h5>
+                    
+                    {% if txn.customer_id %}
+                        <a href="{{ url_for('admin.customer_details', id=txn.customer_id) }}" class="customer-profile-link">
+                            <div class="customer-profile-section">
+                                <div class="profile-icon-container">
+                                    <span class="material-symbols-rounded">person</span>
+                                </div>
+                                <div class="profile-info">
+                                    <div class="profile-name">
+                                        {{ txn.customer_name or (txn.customer.first_name ~ ' ' ~ txn.customer.last_name if txn.customer else 'Unknown Customer') }}
+                                    </div>
+                                    <small class="profile-type">View Full Profile</small>
+                                </div>
+                                <span class="material-symbols-rounded icon-subtle">chevron_right</span>
+                            </div>
+                        </a>
                     {% else %}
-                        <span class="badge-soft-info">
-                            <span class="material-symbols-rounded" style="font-size:14px; vertical-align:middle;">store</span>
-                            PICKUP
-                        </span>
+                        <div class="customer-profile-section structural-layout-only" style="cursor: default; pointer-events: none;">
+                            <div class="profile-icon-container" style="background-color: #f1f5f9; color: #64748b;">
+                                <span class="material-symbols-rounded">no_accounts</span>
+                            </div>
+                            <div class="profile-info">
+                                <div class="profile-name" style="color: #475569;">
+                                    {{ txn.customer_name or 'Walk-in / Unregistered' }}
+                                </div>
+                                <small class="profile-type text-muted" style="color: #94a3b8;">Guest Customer</small>
+                            </div>
+                        </div>
                     {% endif %}
-                </div>
-            </div>
 
-            {% if txn.delivery_address %}
-            <div class="info-column address-spacing">
-                <span class="info-label d-block">Delivery Address:</span>
-                <span class="info-value-address text-muted d-block">{{ txn.delivery_address }}</span>
-            </div>
-            {% endif %}
+                    <div class="info-column mt-3">
+                        <span class="info-label">Fulfillment Type:</span>
+                        <div class="info-value">
+                            {% if txn.fulfillment_type|lower == 'delivery' %}
+                                <span class="badge-soft-primary">
+                                    <span class="material-symbols-rounded" style="font-size:14px; vertical-align:middle;">local_shipping</span>
+                                    DELIVERY
+                                </span>
+                            {% else %}
+                                <span class="badge-soft-info">
+                                    <span class="material-symbols-rounded" style="font-size:14px; vertical-align:middle;">store</span>
+                                    PICKUP
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
 
-            <hr class="card-divider">
+                    {% if txn.delivery_address %}
+                    <div class="info-column address-spacing">
+                        <span class="info-label d-block">Delivery Address:</span>
+                        <span class="info-value-address text-muted d-block">{{ txn.delivery_address }}</span>
+                    </div>
+                    {% endif %}
 
-            <div class="info-column">
-                <span class="info-label">Payment Method</span>
-                <div class="info-value payment-detail">
-                    <span class="material-symbols-rounded">payments</span>
-                    <span>{{ txn.payment_method if txn.payment_method else 'Manual/Cash' }}</span>
-                </div>
-            </div>
+                    <hr class="card-divider">
 
-            <div class="transaction-breakdown">
-                <div class="breakdown-item">
-                    <span>Subtotal</span>
-                    <span>₱{{ "{:,.2f}".format(txn.total_amount or 0) }}</span>
-                </div>
-                <div class="breakdown-item">
-                    <span>Service/Late Fees</span>
-                    <span>₱{{ "{:,.2f}".format(txn.total_late_fees or 0) }}</span>
-                </div>
-                <div class="breakdown-item total-row">
-                    <span>Total Value</span>
-                    <span class="text-dark font-bold">
-                        ₱{{ "{:,.2f}".format((txn.total_amount or 0) + (txn.total_late_fees or 0)) }}
-                    </span>
-                </div>
-            </div>
+                    <div class="info-column">
+                        <span class="info-label">Payment Method</span>
+                        <div class="info-value payment-detail">
+                            <span class="material-symbols-rounded">payments</span>
+                            <span>{{ txn.payment_method if txn.payment_method else 'Manual/Cash' }}</span>
+                        </div>
+                    </div>
 
-            <hr class="card-divider">
+                    <div class="transaction-breakdown">
+                        <div class="breakdown-item">
+                            <span>Subtotal</span>
+                            <span>₱{{ "{:,.2f}".format(txn.total_amount or 0) }}</span>
+                        </div>
+                        <div class="breakdown-item">
+                            <span>Service/Late Fees</span>
+                            <span>₱{{ "{:,.2f}".format(txn.total_late_fees or 0) }}</span>
+                        </div>
+                        <div class="breakdown-item total-row">
+                            <span>Total Value</span>
+                            <span class="text-dark font-bold">
+                                ₱{{ "{:,.2f}".format((txn.total_amount or 0) + (txn.total_late_fees or 0)) }}
+                            </span>
+                        </div>
+                    </div>
 
-            <div class="info-column">
-                <span class="info-label">Transaction Date</span>
-                <div class="info-value text-muted small">
-                    <span class="material-symbols-rounded" style="font-size: 14px; vertical-align: middle;">event</span>
-                    {{ txn.created_at.strftime('%B %d, %Y at %I:%M %p') if txn.created_at else 'Date Not Recorded' }}
+                    <hr class="card-divider">
+
+                    <div class="info-column">
+                        <span class="info-label">Transaction Date</span>
+                        <div class="info-value text-muted small">
+                            <span class="material-symbols-rounded" style="font-size: 14px; vertical-align: middle;">event</span>
+                            {{ txn.created_at.strftime('%B %d, %Y at %I:%M %p') if txn.created_at else 'Date Not Recorded' }}
+                        </div>
+                    </div>
                 </div>
-            </div>
+
+            </aside>
+
         </div>
-
-    </aside>
-
-</div>
 
 {% if txn.transaction_type == 'Rental' %}
 <!-- ── PRINTABLE RENTAL AGREEMENT (hidden on screen, shown on print) ── -->

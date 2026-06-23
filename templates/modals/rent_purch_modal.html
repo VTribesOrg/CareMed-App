@@ -33,6 +33,47 @@
             
             <div class="form-layout-grid">
                 
+                <div class="form-field full-width customer-search-container" style="position: relative;">
+                    <label>Select Customer / Patient</label>
+                    <div class="select-wrapper">
+                        <span class="material-symbols-rounded filter-icon">person_search</span>
+                        <input type="text" id="rent-customer-search-input" class="clinical-input" style="padding-left: 40px;" placeholder="Type to search name or email..." autocomplete="off">
+                        <span class="material-symbols-rounded select-icon" style="color: #64748b;">expand_more</span>
+                    </div>
+
+                    <div id="rent-customer-dropdown-list" class="custom-search-dropdown hidden" style="position: absolute; top: 100%; left: 0; width: 100%; z-index: 1050; max-height: 200px; margin-top: 4px; overflow-y: auto; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; box-shadow: 0px 4px 12px rgba(0,0,0,0.1);">
+                        {% if customers %}
+                            {% for cust in customers %}
+                                <div class="customer-option-item" 
+                                     data-id="{{ cust.id }}" 
+                                     data-name="{{ cust.full_name }}"
+                                     data-search-string="{{ cust.full_name|lower }} {{ cust.user.email|lower if cust.user else '' }}"
+                                     style="padding: 10px 12px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; border-bottom: 1px solid #f1f5f9;">
+                                    
+                                    <strong class="cust-name-text" style="font-size: 0.9rem; color: #1e293b; font-weight: 600;">
+                                        {{ cust.full_name }}
+                                    </strong>
+
+                                    <small class="cust-sub-text" style="font-size: 0.75rem; color: #64748b;">
+                                        {% if cust.user %}
+                                            Email: {{ cust.user.email }}
+                                        {% else %}
+                                            Contact: {{ cust.contact_number or 'No phone logged' }}
+                                        {% endif %}
+                                    </small>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div style="padding: 12px; text-align: center; color: #64748b; font-size: 0.85rem;">
+                                No active customer records available
+                            </div>
+                        {% endif %}
+
+                        <div id="no-customer-match" style="display: none; padding: 12px; text-align: center; color: #94a3b8; font-size: 0.85rem;">
+                            No customer names match your search
+                        </div>
+                    </div>
+                </div>
                 <div class="form-field full-width product-search-container" style="position: relative;">
                     <label>Add Equipment / Medical Products</label>
                     <div class="select-wrapper">
@@ -90,7 +131,6 @@
                         <span class="material-symbols-rounded" style="position: absolute; left: 12px; color: #64748b; font-size: 20px;">schedule</span>
                         <input type="number" id="rent-duration-months" class="clinical-input" style="padding-left: 40px;" min="1" max="60" value="1" required>
                     </div>
-                    <!-- Hidden input automatically populated by JS so your backend form submission remains untouched -->
                     <input type="hidden" name="return_date" id="rent-return-date">
                     <small style="display: block; margin-top: 4px; color: #0284c7; font-weight: 500;">
                         Expected Return: <span id="rent-return-date-preview">--</span>
@@ -161,8 +201,6 @@
                         <input type="text" id="rent-asset-serial" name="serial_number" class="clinical-input" style="padding-left: 40px;" placeholder="Enter serial number...">
                     </div>
                 </div>
-
-
             </div>
 
             <div class="rental-summary-box">
@@ -177,8 +215,7 @@
                         <span id="rent-duration-text" class="text-info">0 Items × 0 Months</span>
                     </div>
 
-                    <div id="rent-summary-items-breakdown" style="display: flex; flex-direction: column; gap: 4px; padding: 6px 0 6px 12px; border-left: 2px solid #cbd5e1; margin: 4px 0;">
-                        </div>
+                    <div id="rent-summary-items-breakdown" style="display: flex; flex-direction: column; gap: 4px; padding: 6px 0 6px 12px; border-left: 2px solid #cbd5e1; margin: 4px 0;"></div>
 
                     <div class="summary-row">
                         <span>Total Contract Value</span>
@@ -220,16 +257,16 @@
                     <div class="banner-left">
                         <div class="asset-context-label">
                             <span class="material-symbols-rounded">person</span>
-                            SELECTED BUYER / PATIENT
+                            CUSTOMER DETAILS
                         </div>
                         <div class="asset-display-name">
-                            <span id="purchase-patient-display-name">No Patient Selected</span>
+                            <span id="purchase-banner-buyer-name">Enter Buyer Information</span>
                         </div>
                     </div>
                     <div class="banner-right">
                         <div id="active-buyer-badge" class="stock-status-badge status-in-stock">
                             <span class="dot"></span>
-                            <span id="purchase-customer-type-display">Active Session</span>
+                            <span id="purchase-customer-type-display">New Transaction</span>
                         </div>
                     </div>
                 </div>
@@ -241,10 +278,73 @@
             <input type="hidden" name="csrf_token" id="purchase_csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="transaction_type" value="Purchase">
             
-            <input type="hidden" name="customer_id" id="global-purchase-customer-id">
-            
             <div class="form-layout-grid">
                 
+                <div class="form-field full-width">
+                    <label style="margin-bottom: 6px; display: block; font-weight: 600; color: #334155;">Buyer Classification</label>
+                    <div style="display: flex; gap: 20px; padding: 4px 0; margin-bottom: 4px;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; color: #475569;">
+                            <input type="radio" name="buyer_type" value="registered" checked id="buyer-type-registered" style="accent-color: #f59e0b;">
+                            <span>Registered Customer</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; color: #475569;">
+                            <input type="radio" name="buyer_type" value="unregistered" id="buyer-type-unregistered" style="accent-color: #f59e0b;">
+                            <span>Unregistered / Walk-In</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div id="registered-buyer-group" class="form-field full-width" style="position: relative;">
+                    <label>Search Registered Profiles</label>
+                    <input type="hidden" name="customer_id" id="purchase-customer-id" value="">
+                    <div class="select-wrapper">
+                        <span class="material-symbols-rounded filter-icon">person_search</span>
+                        <input type="text" id="purchase-customer-search" name="registered_customer_name" class="clinical-input" style="padding-left: 40px;" placeholder="Type to search name or email..." autocomplete="off">
+                        <span class="material-symbols-rounded select-icon" style="color: #64748b;">expand_more</span>
+                    </div>
+
+                <div id="purchase-customer-dropdown-list" class="custom-search-dropdown hidden" style="position: absolute; top: 100%; left: 0; width: 100%; z-index: 1050; max-height: 200px; margin-top: 4px; overflow-y: auto; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; box-shadow: 0px 4px 12px rgba(0,0,0,0.1);">
+                    {% if customers %}  {# <-- Changed from all_customers #}
+                        {% for customer in customers %}  {# <-- Changed from all_customers #}
+                            <div class="purchase-customer-option-item" 
+                                data-id="{{ customer.id }}" 
+                                data-name="{{ customer.full_name }}" 
+                                data-search-string="{{ customer.full_name|lower }} {{ customer.user.email|lower if customer.user else '' }}" 
+                                style="padding: 10px 12px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; border-bottom: 1px solid #f1f5f9;">
+                                
+                                <strong class="cust-name-text" style="font-size: 0.9rem; color: #1e293b; font-weight: 600;">
+                                    {{ customer.full_name }}
+                                </strong>
+                                
+                                <small class="cust-sub-text" style="font-size: 0.75rem; color: #64748b;">
+                                    {% if customer.user %}
+                                        Email: {{ customer.user.email }}
+                                    {% else %}
+                                        Contact: {{ customer.contact_number or 'No phone logged' }}
+                                    {% endif %}
+                                </small>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div style="padding: 12px; text-align: center; color: #64748b; font-size: 0.85rem;">
+                            No active customer records available
+                        </div>
+                    {% endif %}
+
+                    <div id="no-purchase-customer-match" style="display: none; padding: 12px; text-align: center; color: #94a3b8; font-size: 0.85rem;">
+                        No customer names match your search
+                    </div>
+                </div>
+                </div>
+
+                <div id="unregistered-buyer-group" class="form-field full-width" style="display: none;">
+                    <label>Buyer Full Name</label>
+                    <div class="select-wrapper">
+                        <span class="material-symbols-rounded filter-icon">person</span>
+                        <input type="text" id="purchase-custom-name" name="unregistered_customer_name" class="clinical-input" style="padding-left: 40px;" placeholder="Enter complete full name for invoice registry...">
+                    </div>
+                </div>
+
                 <div class="form-field full-width product-search-container" style="position: relative;">
                     <label>Add Equipment / Medical Products</label>
                     <div class="select-wrapper">
@@ -358,7 +458,7 @@
                     </div>
 
                     <div id="purchase-summary-items-breakdown" style="display: flex; flex-direction: column; gap: 4px; padding: 6px 0 6px 12px; border-left: 2px solid #cbd5e1; margin: 4px 0;">
-                        </div>
+                    </div>
 
                     <div class="summary-row">
                         <span>Gross Total Amount</span>

@@ -53,7 +53,6 @@ def administrator_required(f):
 
 
 from sqlalchemy import func
-
 @admin_bp.route('/dashboard')
 @login_required
 @administrator_required
@@ -89,7 +88,12 @@ def dashboard():
 
     tank_statuses = TankStatus.query.join(Product).filter(Product.is_active == True).all()
 
-    all_products = Product.query.filter_by(is_refillable=False, is_active=True).all()
+    # UPDATED: Only query products that are 'Brand New' or 'Used'
+    all_products = Product.query.filter(
+        Product.is_refillable == False, 
+        Product.is_active == True,
+        Product.condition.in_(['Brand New', 'Used'])
+    ).all()
     
     active_rented_units = db.session.query(
         Rental.product_id,
@@ -113,10 +117,11 @@ def dashboard():
         assets_aggregation[prod_name]['total_stock'] += (prod.stock or 0)
         assets_aggregation[prod_name]['rented_count'] += rented_map.get(prod.id, 0)
 
-        condition_str = (prod.condition or "").lower()
-        if "brand new" in condition_str:
+        # Logic for incrementing counts
+        condition_str = (prod.condition or "").strip()
+        if condition_str == "Brand New":
             assets_aggregation[prod_name]['brand_new_count'] += (prod.stock or 0)
-        else:
+        elif condition_str == "Used":
             assets_aggregation[prod_name]['used_count'] += (prod.stock or 0)
 
     standard_assets = list(assets_aggregation.values())
@@ -945,53 +950,65 @@ def delete_product(product_id):
 @login_required
 @administrator_required
 def process_purchase():
+    from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
+    
+    is_ajax = request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    data = request.get_json() or request.form or {}
+
+    def handle_response(success, message, redirect_url=None, status_code=200):
+        """Helper to seamlessly manage both AJAX and traditional HTML Form responses."""
+        if is_ajax:
+            return jsonify({"success": success, "message": message}), status_code
+        else:
+            flash(message, "success" if success else "error")
+            return redirect(redirect_url or url_for('admin.transactions'))
+
     try:
-        data = request.get_json() or {}
-
         try:
-            product_id = int(data.get('product_id'))
-            customer_id = int(data.get('customer_id'))
-            quantity = int(data.get('quantity', 0))
-            unit_price = Decimal(str(data.get('unit_price', '0.00')))
-            amount_paid = Decimal(str(data.get('amount_paid', '0.00')))
+            amount_paid = Decimal(str(data.get('amount_paid', '0.00') or '0.00'))
         except (ValueError, TypeError, InvalidOperation):
-            return jsonify({"success": False, "message": "Invalid numeric input."}), 400
+            return handle_response(False, "Invalid numeric input for amount paid.", status_code=400)
 
-        if quantity <= 0:
-            return jsonify({"success": False, "message": "Quantity must be at least 1."}), 400
+        buyer_type = data.get('buyer_type', 'registered')
+        customer_id = data.get('customer_id')
 
-        product = Product.query.with_for_update().get(product_id)
-        customer = Customer.query.get(customer_id)
+        customer_name = (data.get('unregistered_customer_name') or data.get('customer_name') or '').strip()
 
-        if not product or product.status == "Archived":
-            db.session.rollback()
-            return jsonify({"success": False, "message": "Product not available."}), 404
+        if buyer_type == 'registered':
+            if not customer_id:
+                return handle_response(False, "Registered customer selection is required.", status_code=400)
+            
+            customer = db.session.get(Customer, int(customer_id))
+            if not customer:
+                return handle_response(False, "Selected customer profile not found.", status_code=404)
 
-        if not customer or not customer.is_active:
-            db.session.rollback()
-            return jsonify({"success": False, "message": "Inactive customer."}), 403
+            customer_name = customer.full_name
+        else:
+            if not customer_name:
+                return handle_response(False, "Walk-In Buyer / Patient full name is required.", status_code=400)
+            customer_id = None
 
-        if product.stock < quantity:
-            db.session.rollback()
-            return jsonify({"success": False, "message": f"Only {product.stock} left in stock."}), 400
+        items_data = data.get('items', [])
+        if isinstance(items_data, str):
+            try:
+                items_data = json.loads(items_data)
+            except (json.JSONDecodeError, TypeError):
+                return handle_response(False, "Failed to decode basket collection elements.", status_code=400)
 
-        total_price = (unit_price * quantity).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-        balance_due = total_price - amount_paid
-
-        payment_status = "Paid" if balance_due <= 0 else "Partial" if amount_paid > 0 else "Unpaid"
+        if not items_data or not isinstance(items_data, list):
+            return handle_response(False, "Please select at least one item to purchase.", status_code=400)
 
         now = datetime.now()
         ref_no = f"PUR-{now:%m%d%Y}-{now:%H%M%S}-{''.join(random.choices(string.ascii_uppercase + string.digits, k=4))}"
-
-        fulfillment = data.get("fulfillment_type", "Pickup")
+        fulfillment = data.get("fulfillment_type", "Walk-In")
 
         new_transaction = Transaction(
             reference_no=ref_no,
             customer_id=customer_id,
-            customer_name=f"{customer.first_name} {customer.last_name}",
+            customer_name=customer_name,
             processed_by=current_user.id,
             transaction_type="Sale",
-            total_amount=total_price,
+            total_amount=Decimal("0.00"),
             fulfillment_type=fulfillment,
             delivery_address=data.get("delivery_address") if fulfillment == "Delivery" else None,
             landmark=data.get("landmark") if fulfillment == "Delivery" else None,
@@ -1000,69 +1017,134 @@ def process_purchase():
         )
 
         db.session.add(new_transaction)
-        db.session.flush()
+        db.session.flush() 
+
+        total_transaction_price = Decimal('0.00')
+
+        for item in items_data:
+            try:
+                product_id = int(item.get('id'))
+                quantity = int(item.get('quantity', 1))
+                unit_price = Decimal(str(item.get('price', '0.00')))
+            except (ValueError, TypeError, InvalidOperation):
+                db.session.rollback()
+                return handle_response(False, "Invalid numeric values detected inside basket components.", status_code=400)
+
+            if quantity <= 0:
+                db.session.rollback()
+                return handle_response(False, "Quantity must be at least 1 for all selected products.", status_code=400)
+
+            product = Product.query.filter_by(id=product_id).with_for_update().first()
+
+            if not product:
+                db.session.rollback()
+                return handle_response(False, f"Product entry unique ID {product_id} is unavailable.", status_code=404)
+
+            if not product.is_active:
+                db.session.rollback()
+                return handle_response(False, f"'{product.name}' has been archived.", status_code=400)
+
+            if product.stock < quantity:
+                db.session.rollback()
+                return handle_response(False, f"Only {product.stock} units left in stock for '{product.name}'.", status_code=400)
+
+            item_total_price = (unit_price * quantity).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            total_transaction_price += item_total_price
+
+            product.stock -= quantity
+
+            if product.stock <= 0:
+                product.stock = 0
+                product.status = "Out of Stock"
+            else:
+                product.status = "Available"
+
+            db.session.add(Purchase(
+                transaction_id=new_transaction.id,
+                product_id=product.id,
+                customer_id=customer_id,  
+                quantity=quantity,
+                unit_price=unit_price,
+                total_price=item_total_price,
+                warranty_or_notes=(data.get("warranty_or_notes") or "").strip(),
+                product_name=product.name,
+                product_asset_tag=product.asset_tag,
+                product_type=getattr(product, 'equipment_type', None) or getattr(product, 'product_type', None),
+                product_description=product.description,
+                product_image=product.image,
+                product_condition=product.condition,
+                product_category=product.category,
+                product_cost_price=product.cost_price,
+                product_sale_price=product.sale_price,
+                product_rent_price=product.rent_price,
+                product_rent_period=product.rent_period
+            ))
+
+            db.session.add(InventoryLog(
+                product_id=product.id,
+                action="SALE",
+                quantity=-quantity,
+                note=f"Sold {quantity} via {ref_no}",
+                user_id=current_user.id,
+                user_name=getattr(current_user, 'full_name', 'System Administrator')
+            ))
+
+        new_transaction.total_amount = total_transaction_price
 
         if amount_paid > 0:
+
+            payment_method = (data.get("payment_method") or "Cash").strip()
+
+            reference_number = ((data.get("reference_number") or "").strip())
+
+
+            if payment_method.lower() == "cash":
+                reference_number = None
+
+            else:
+
+                if not reference_number:
+                    db.session.rollback()
+                    return handle_response(
+                        False,
+                        "Reference number is required for non-cash payments.",
+                        status_code=400
+                    )
+
+                existing_payment = Payment.query.filter_by(
+                    reference_number=reference_number
+                ).first()
+
+                if existing_payment:
+                    db.session.rollback()
+                    return handle_response(
+                        False,
+                        "Payment reference number already exists.",
+                        status_code=400
+                    )
+
             db.session.add(Payment(
                 transaction_id=new_transaction.id,
                 amount=amount_paid,
-                payment_method=data.get("payment_method", "Cash"),
-                reference_number=data.get("reference_number"),
+                payment_method=payment_method,
+                reference_number=reference_number,
                 status="Completed",
                 verified_by_id=current_user.id,
                 verified_at=datetime.utcnow()
             ))
 
-        db.session.add(Purchase(
-            transaction_id=new_transaction.id,
-            product_id=product.id,
-            customer_id=customer_id,
-            quantity=quantity,
-            unit_price=unit_price,
-            total_price=total_price,
-            warranty_or_notes=data.get("warranty_or_notes", "").strip(),
-
-            product_name=product.name,
-            product_asset_tag=product.asset_tag,
-            product_type=product.equipment_type,
-            product_description=product.description,
-            product_image=product.image,
-            product_condition=product.condition,
-            product_category=product.category,
-            product_cost_price=product.cost_price,
-            product_sale_price=product.sale_price,
-            product_rent_price=product.rent_price,
-            product_rent_period=product.rent_period
-        ))
-
-        product.stock -= quantity
-        if product.stock <= 0:
-            product.status = "Out of Stock"
-
-        db.session.add(InventoryLog(
-            product_id=product.id,
-            action="SALE",
-            quantity=-quantity,
-            note=f"Sold {quantity} via {ref_no}",
-            user_id=current_user.id,
-            user_name=current_user.full_name
-        ))
-
-        new_transaction.update_totals()
+        if hasattr(new_transaction, 'update_totals'):
+            new_transaction.update_totals()
+            
         db.session.commit()
-
-        return jsonify({
-            "success": True,
-            "message": "Purchase completed.",
-            "reference_no": ref_no,
-            "payment_status": payment_status
-        })
+        return handle_response(True, f"Purchase {ref_no} completed successfully!")
 
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"PURCHASE_ERROR: {str(e)}")
-        return jsonify({"success": False, "message": "Server error occurred."}), 500
-          
+        return handle_response(False, f"Server error occurred during purchase processing sequence.", status_code=500)
+       
+       
 @admin_bp.route('/process-rental', methods=['POST'])
 @login_required
 @administrator_required

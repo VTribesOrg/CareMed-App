@@ -315,63 +315,17 @@
         <div class="modal-header-tnx-row">
             <h2 class="modal-header">New Transaction</h2>
         </div>
- 
+
         <button class="modal-close-btn" id="close-selection-modal">
             <span class="material-symbols-rounded">close</span>
         </button>
- 
+
         <div class="modal-body" style="padding: 20px 0;">
-            <div class="form-field">
-                <label style="font-weight: 700; color: #1e293b; margin-bottom: 8px; display: block;">1. Select Customer / Patient</label>
-                
-                <div class="customer-search-container" style="position: relative;">
-                    <input type="text" 
-                           id="customer-search-input" 
-                           class="medical-select" 
-                           placeholder="Type to search name or email..." 
-                           style="width: 100%; height: 44px; padding: 0 16px 0 44px; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #1e293b; font-size: 0.95rem; outline: none; box-sizing: border-box;"
-                           autocomplete="off">
-                    <span class="material-symbols-rounded" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #64748b; pointer-events: none; font-size: 20px;">person_search</span>
-                    
-                    <input type="hidden" id="global-customer-id" name="customer_id" value="">
-                    
-                    <div id="customer-dropdown-list" class="custom-search-dropdown hidden" style="position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; max-height: 220px; overflow-y: auto; z-index: 1050; box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -2px rgba(15, 23, 42, 0.04); margin-top: 0; box-sizing: border-box;">
-                        {% if customers %}
-                            {% for cust in customers %}
-                                <div class="customer-option-item" 
-                                    data-id="{{ cust.id }}" 
-                                    data-search-string="{{ cust.full_name|lower }} {{ cust.user.email|lower if cust.user else '' }}"
-                                    style="padding: 10px 16px; cursor: pointer; border-bottom: 1px solid #f1f5f9; display: flex; flex-direction: column; gap: 2px; transition: background-color 0.15s ease;">
-                                    
-                                    <strong class="cust-name-text" style="font-size: 0.9rem; color: #1e293b; font-weight: 600;">
-                                        {{ cust.full_name }}
-                                    </strong>
- 
-                                    <small class="cust-sub-text" style="font-size: 0.75rem; color: #64748b;">
-                                        {% if cust.user %}
-                                            Email: {{ cust.user.email }}
-                                        {% else %}
-                                            Contact: {{ cust.contact_number or 'No phone logged' }}
-                                        {% endif %}
-                                    </small>
-                                </div>
-                            {% endfor %}
-                        {% else %}
-                            <div style="padding: 16px; text-align: center; color: #64748b; font-size: 0.85rem;">
-                                No active customer records available
-                            </div>
-                        {% endif %}
- 
-                        <div id="no-customer-match" style="padding: 16px; text-align: center; color: #94a3b8; font-size: 0.85rem; display: none;">
-                            No customer names match your search
-                        </div>
-                    </div>
-                </div>
-            </div>
- 
-            <label style="display: block; margin-top: 24px; font-size: 0.85rem; font-weight: 700; color: #64748b; text-transform: uppercase;">2. Choose Transaction Type</label>
+            <label style="display: block; font-size: 0.85rem; font-weight: 700; color: #64748b; text-transform: uppercase;">
+                1. Choose Transaction Type
+            </label>
    
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 12px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px;">
                 <button type="button" class="type-choice-btn rental" data-flow="Rental">
                     <span class="material-symbols-rounded">calendar_today</span>
                     <strong>Rental</strong>
@@ -382,10 +336,14 @@
                     <strong>Purchase</strong>
                 </button>
                 
-              
-                <button type="button" class="type-choice-btn refill" data-flow="Refill" style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                <button type="button" class="type-choice-btn refill" data-flow="Refill">
                     <span class="material-symbols-rounded">discover_tune</span>
                     <strong>Refill</strong>
+                </button>
+
+                <button type="button" class="type-choice-btn primegas" data-flow="Primegas">
+                    <span class="material-symbols-rounded">gas_meter</span>
+                    <strong>Primegas</strong>
                 </button>
             </div>
         </div>

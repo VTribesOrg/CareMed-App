@@ -57,9 +57,10 @@ class Purchase(db.Model):
     __tablename__ = "purchase"
 
     id = db.Column(db.Integer, primary_key=True)
-    transaction_id = db.Column(db.Integer, db.ForeignKey("transaction.id"), nullable=False)
 
-    product_id = db.Column(db.Integer, db.ForeignKey("product.id", ondelete="SET NULL"),nullable=True)
+    transaction_id = db.Column(db.Integer,db.ForeignKey("transaction.id"),nullable=False)
+
+    product_id = db.Column(db.Integer,db.ForeignKey("product.id", ondelete="SET NULL"), nullable=True)
 
     customer_id = db.Column(db.Integer, db.ForeignKey("customer.id", ondelete="SET NULL"), nullable=True)
 
@@ -68,16 +69,29 @@ class Purchase(db.Model):
     product_asset_tag = db.Column(db.String(20), nullable=True)
     product_condition = db.Column(db.String(50), nullable=True)
 
+    product_description = db.Column(db.Text, nullable=True)
+    product_image = db.Column(db.String(255), nullable=True)
+    product_category = db.Column(db.String(50), nullable=True)
+
+    product_cost_price = db.Column(db.Numeric(10, 2), nullable=True)
+    product_sale_price = db.Column(db.Numeric(10, 2), nullable=True)
+    product_rent_price = db.Column(db.Numeric(10, 2), nullable=True)
+    product_rent_period = db.Column(db.String(20), nullable=True)
+
     quantity = db.Column(db.Integer, nullable=False)
+
     unit_price = db.Column(db.Numeric(10, 2))
     total_price = db.Column(db.Numeric(10, 2))
-    warranty_or_notes = db.Column(db.Text, nullable=True) 
+
+    warranty_or_notes = db.Column(db.Text, nullable=True)
+
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
 
     transaction = db.relationship("Transaction", back_populates="purchases")
+
     product = db.relationship("Product", back_populates="purchases")
+
     customer = db.relationship("Customer", back_populates="purchases")
-    
 
 
 class Transaction(db.Model):
@@ -199,7 +213,6 @@ class Transaction(db.Model):
                 if self.status == "Closed":
                     self.status = "Open"
                         
-
 class Payment(db.Model):
     __tablename__ = "payments"
 
@@ -209,7 +222,7 @@ class Payment(db.Model):
     
     amount = db.Column(db.Numeric(10, 2), nullable=False)
     payment_method = db.Column(db.String(50), nullable=False) 
-    reference_number = db.Column(db.String(100), unique=True, index=True) 
+    reference_number = db.Column(db.String(100), nullable=True, unique=True, index=True)
     receipt_image_path = db.Column(db.String(255))
     
     status = db.Column(db.String(20), default="Pending")
@@ -340,9 +353,6 @@ class InventoryLog(db.Model):
 
     product = db.relationship("Product", back_populates="inventory_logs")
     user = db.relationship("User", backref=db.backref("inventory_logs", lazy="dynamic"))
-    
-    
-
     
     
 class Expense(db.Model):
