@@ -104,55 +104,6 @@
     </div>
 
     <div id="standard-assets-panel" class="inventory-data-panel">
-<<<<<<< HEAD
-        <table class="medical-data-table" style="width: 100%; border-collapse: collapse;">
-            <thead>
-                <tr style="text-align: left; color: #64748b; font-size: 0.85rem;">
-                    <th style="padding: 12px 8px;">Item Name</th>
-                    <th style="padding: 12px 8px; text-align: center;">Total Units</th>
-                    <th style="padding: 12px 8px; text-align: center;">Rented Out</th>
-                    <th style="padding: 12px 8px; text-align: center;">Used</th>
-                    <th style="padding: 12px 8px; text-align: center;">Brand New</th>
-                </tr>
-            </thead>
-            <tbody style="font-size: 0.9rem;">
-                {% for asset in standard_assets %}
-                    {# Only show the row if there is at least one used or brand new item #}
-                    {% if asset.used_count > 0 or asset.brand_new_count > 0 %}
-                    <tr style="border-bottom: 1px solid #f8fafc;">
-                        <td style="padding: 14px 8px; font-weight: 600; color: #1e293b;">{{ asset.name }}</td>
-                        <td style="padding: 14px 8px; text-align: center; font-weight: 500;">{{ asset.total_stock }}</td>
-                        <td style="padding: 14px 8px; text-align: center;">
-                            <span class="pill-blue">{{ asset.rented_count }}</span>
-                        </td>
-                        <td style="padding: 14px 8px; text-align: center; color: #64748b;">{{ asset.used_count }}</td>
-                        <td style="padding: 14px 8px; text-align: center;">
-                            <span class="pill-green">{{ asset.brand_new_count }}</span>
-                        </td>
-                    </tr>
-                    {% endif %}
-                {% else %}
-                <tr>
-                    <td colspan="5" style="text-align: center; padding: 30px; color: #94a3b8;">No standard asset records found.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<div class="dashboard-split" style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-top: 24px;">
-
-    <div class="activity-section" style="background: #fff; padding: 24px; border-radius: 16px; border: 1px solid #f1f5f9;">
-        <div class="registry-controls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h3 class="registry-title" style="margin: 0; font-size: 1.1rem;">Recent Activity Logs</h3>
-            <a href="{{ url_for('admin.system_logs') }}" class="register-asset-btn"
-               style="text-decoration: none; background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0;
-                      padding: 2px 10px; border-radius: 8px; display: flex; align-items: center; gap: 8px;">
-                <span class="material-symbols-rounded" style="font-size: 18px;">history</span>
-                <span>View All</span>
-            </a>
-=======
         <div class="table-scroll-wrapper">
             <table class="medical-data-table">
                 <thead>
@@ -180,7 +131,6 @@
                     {% endfor %}
                 </tbody>
             </table>
->>>>>>> d79dc4ab1d37284ae17a81dd0e424542e09c3b02
         </div>
     </div>
 </div>

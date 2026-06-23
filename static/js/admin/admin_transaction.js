@@ -1458,6 +1458,39 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 /*============= END OF REFERENCE NO. LOGIC =============*/
 
+/*=================================== START OF PRIMEGAS ===================================*/
+
+// 1. Open Modal
+document.querySelector('.type-choice-btn.primegas').addEventListener('click', () => {
+    document.getElementById('txnSelectionModal').classList.add('hidden');
+    document.getElementById('primegasModal').classList.remove('hidden');
+});
+
+// 2. Update Max Limit dynamically
+document.getElementById('primegasProductSelect').addEventListener('change', function() {
+    const selectedOption = this.options[this.selectedIndex];
+    const maxStock = selectedOption.getAttribute('data-max') || 0;
+    
+    document.getElementById('maxEmptyStock').textContent = maxStock;
+    
+    const qtyInput = document.getElementById('primegasQty');
+    qtyInput.max = maxStock;
+    
+    // Optional: Reset value if it's too high for the new selection
+    if (parseInt(qtyInput.value) > parseInt(maxStock)) {
+        qtyInput.value = maxStock;
+    }
+});
+
+// 3. Close Modal
+const closePrimegas = () => {
+    document.getElementById('primegasModal').classList.add('hidden');
+};
+document.getElementById('close-primegas-modal').addEventListener('click', closePrimegas);
+document.getElementById('close-primegas-modal-btn').addEventListener('click', closePrimegas);
+
+/*=================================== END OF PRIMEGAS ===================================*/
+
 /*=================================== START OF ADD PAYMENT MODAL ===================================*/
 
 document.addEventListener('DOMContentLoaded', function() {

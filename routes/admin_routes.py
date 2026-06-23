@@ -1384,7 +1384,6 @@ def transactions():
         query = query.filter(Transaction.fulfillment_type == fulfillment)
  
     elif status_filter == 'expiring':
-        # Rentals whose return date is today or within the next 5 days
         from datetime import timedelta
         current_date = datetime.now().date()
         soon = current_date + timedelta(days=5)
@@ -1424,7 +1423,6 @@ def transactions():
             Transaction.status == 'Open'
         )
 
-
     pagination = query.order_by(Transaction.created_at.desc()).paginate(
         page=page, per_page=limit, error_out=False
     )
@@ -1448,6 +1446,9 @@ def transactions():
     
     customers = Customer.query.order_by(Customer.last_name).all()
     all_equipment = Product.query.filter_by(status='Available').order_by(Product.equipment_type.asc()).all()
+    
+    # Query for Primegas modal
+    refillable_products = Product.query.join(TankStatus).filter(Product.is_active == True).all()
 
     return render_template(
         "admin/transactions.html",
@@ -1460,10 +1461,11 @@ def transactions():
         current_status=status_filter, 
         customers=customers,
         all_equipment=all_equipment,
+        refillable_products=refillable_products,
         datetime_now_date=current_date,
         **stats
     )
-    
+
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
 from io import BytesIO
@@ -1763,8 +1765,6 @@ def post_payment():
 
     return redirect(request.referrer or url_for('admin.transactions'))
 
-
-
 @admin_bp.route('/confirm-payment-proof/<int:proof_id>', methods=['POST'])
 @login_required
 @administrator_required
@@ -1947,7 +1947,25 @@ def process_return(txn_id):
 
     return redirect(url_for('admin.transaction_details', id=txn.id))
 
-from flask import request
+
+@admin_bp.route('/process-primegas', methods=['POST'])
+@login_required
+def process_primegas():
+    product_id = request.form.get('product_id')
+    quantity = int(request.form.get('quantity', 0))
+
+    tank_status = TankStatus.query.filter_by(product_id=product_id).first()
+
+    if not tank_status or tank_status.empty_in_stock < quantity:
+        flash('Insufficient empty stock.', 'danger')
+        return redirect(url_for('admin.transactions'))
+
+    tank_status.empty_in_stock -= quantity
+    tank_status.full_in_stock += quantity
+    
+    db.session.commit()
+    flash('Inventory updated successfully!', 'success')
+    return redirect(url_for('admin.transactions'))
 
 @admin_bp.route('/system_logs')
 @limiter.exempt
