@@ -178,6 +178,13 @@
                             <span class="nav-label">Expense Tracker</span>
                         </a>
                     </li>
+                    <li class="nav-item" title="Staff Management">
+                        <a href="{{ url_for('admin.staff_management') }}" 
+                        class="nav-link {% if request.endpoint == 'admin.staff_management' %}active{% endif %}">
+                            <span class="material-symbols-rounded">admin_panel_settings</span>
+                            <span class="nav-label">Staff Management</span>
+                        </a>
+                    </li>
                     <li class="nav-item" title="Backup Management">
                         <a href="{{ url_for('admin.backup_page') }}"
                             class="nav-link {% if request.endpoint == 'admin.backup_page' %}active{% endif %}">
@@ -193,7 +200,8 @@
                         </a>
                     </li>
                 </ul>
-
+                
+                <!--
                 <div class="sidebar-footer" title="Settings">
                     <a href="javascript:void(0)" class="nav-link settings-link" id="settings-toggle-btn">
                         <span class="material-symbols-rounded">settings</span>
@@ -218,6 +226,7 @@
                         </ul>
                     </div>
                 </div>
+                -->
             </div>
         </aside>
         <!-- ========== END SIDEBAR ========== -->

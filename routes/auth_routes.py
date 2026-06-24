@@ -541,7 +541,7 @@ If this was not you, reset your password immediately.
             except Exception:
                 pass  # Never break login if email fails
 
-        if user.role == "Administrator":
+        if user.role.strip() in ['Administrator', 'Staff']:
             return redirect(url_for("admin.dashboard"))
 
         return redirect(url_for("user.homepage"))
@@ -820,8 +820,8 @@ def callback():
     user.last_login_at = datetime.utcnow()
     db.session.commit()
 
-    if user.role == "Administrator":
-        return redirect(url_for("admin.dashboard"))
+    if user.role.strip() in ['Administrator', 'Staff']:
+            return redirect(url_for("admin.dashboard"))
 
     return redirect(url_for("user.homepage"))
 

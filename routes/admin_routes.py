@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, url_for, redirect, flash, request, jsonify, current_app, send_from_directory
+from flask import Blueprint, render_template, url_for, redirect, flash, request, jsonify, current_app, send_from_directory, abort
 from flask_login import current_user
 from extensions import db, limiter, csrf
 from sqlalchemy.orm import joinedload
@@ -7,7 +7,7 @@ from flask_login import login_required
 from functools import wraps
 from models.product import Product, InventoryLog, Transaction, Purchase, Payment, Rental, RentalInvoice, Expense, PaymentProof, TankStatus
 from models.customer import Customer
-from models.users import User, SecurityLog, BlockedIP
+from models.users import User, SecurityLog, BlockedIP, Permission
 from flask_mail import Message
 from flask import current_app
 from werkzeug.utils import secure_filename
@@ -26,16 +26,18 @@ import time
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
-def administrator_required(f):
+def admin_or_staff_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if current_user.role.strip() != 'Administrator':
-            # IDS: log unauthorized admin access
+
+        authorized_roles = ['Administrator', 'Staff']
+
+        if not current_user.is_authenticated or current_user.role.strip() not in authorized_roles:
             try:
                 log = SecurityLog(
                     ip_address=request.remote_addr,
-                    event_type="Unauthorized Admin Access",
-                    description=f"Non-admin user tried to access: {request.path}",
+                    event_type="Unauthorized Access",
+                    description=f"User with role '{getattr(current_user, 'role', 'None')}' tried to access: {request.path}",
                     user_id=current_user.id if current_user.is_authenticated else None,
                     user_email=current_user.email if current_user.is_authenticated else None,
                     user_agent=request.headers.get('User-Agent', 'Unknown')[:255],
@@ -44,13 +46,37 @@ def administrator_required(f):
                 )
                 db.session.add(log)
                 db.session.commit()
-            except Exception:
+            except Exception as e:
                 db.session.rollback()
+                current_app.logger.error(f"Failed to log unauthorized access: {e}")
+                
             flash("Unauthorized access.", "error")
             return redirect(url_for('user.homepage'))
+            
         return f(*args, **kwargs)
     return decorated_function
 
+def permission_required(permission_name):
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if not current_user.is_authenticated:
+                return redirect(url_for('auth.login'))
+            
+            if getattr(current_user, 'role', '') == 'Administrator':
+                return f(*args, **kwargs)
+            
+            user_perms = Permission.query.filter_by(user_id=current_user.id).first()
+            
+
+            if user_perms and getattr(user_perms, permission_name, False):
+                return f(*args, **kwargs)
+
+            flash("You do not have permission to access this feature.", "danger")
+            return redirect(request.referrer or url_for('admin.dashboard'))
+            
+        return decorated_function
+    return decorator
 
 from sqlalchemy import func
 
@@ -93,7 +119,7 @@ ALL_EXPENSE_CATEGORIES_ORDERED = [
 
 @admin_bp.route('/dashboard')
 @login_required
-@administrator_required
+@admin_or_staff_required
 def dashboard():
     total_sales = db.session.query(
         func.sum(Transaction.amount_paid)
@@ -159,7 +185,6 @@ def dashboard():
         assets_aggregation[prod_name]['total_stock'] += (prod.stock or 0)
         assets_aggregation[prod_name]['rented_count'] += rented_map.get(prod.id, 0)
 
-        # Logic for incrementing counts
         condition_str = (prod.condition or "").strip()
         if condition_str == "Brand New":
             assets_aggregation[prod_name]['brand_new_count'] += (prod.stock or 0)
@@ -193,7 +218,7 @@ def dashboard():
     
 @admin_bp.route('/customers')
 @login_required
-@administrator_required
+@admin_or_staff_required
 def customers():
     page         = request.args.get('page', 1, type=int)
     limit        = request.args.get('limit', 10, type=int)
@@ -210,7 +235,6 @@ def customers():
         ))
  
     if filter_type == 'overdue_invoices':
-        # Customers who have at least one unpaid invoice past its due date
         from models.product import RentalInvoice, Rental as RentalModel
         today = date.today()
         overdue_customer_ids = db.session.query(
@@ -225,7 +249,7 @@ def customers():
         query = query.filter(Customer.id.in_(overdue_customer_ids))
  
     elif filter_type == 'pending_id':
-        # Customers who uploaded an ID but are not yet verified
+
         query = query.filter(
             Customer.is_id_verified == False,
             Customer.valid_id_path != None
@@ -261,7 +285,7 @@ def customers():
 
 @admin_bp.route('/get_customer/<int:id>')
 @login_required
-@administrator_required
+@admin_or_staff_required
 def get_customer(id):
     try:
         customer = Customer.query.options(
@@ -325,7 +349,7 @@ def get_customer(id):
         
 @admin_bp.route('/customers/<int:id>')
 @login_required
-@administrator_required
+@admin_or_staff_required
 def customer_details(id):
     customer = Customer.query.get_or_404(id)
 
@@ -335,7 +359,7 @@ def customer_details(id):
 
 @admin_bp.route('/customers/<int:id>/verify', methods=['POST'])
 @login_required
-@administrator_required
+@admin_or_staff_required
 def verify_customer(id):
     customer = Customer.query.get_or_404(id)
     
@@ -356,7 +380,7 @@ def verify_customer(id):
 
 @admin_bp.route('/customers/<int:id>/unverify', methods=['POST'])
 @login_required
-@administrator_required
+@admin_or_staff_required
 def unverify_customer(id):
     customer = Customer.query.get_or_404(id)
     
@@ -374,6 +398,8 @@ def unverify_customer(id):
 
 @admin_bp.route('/admin/add-customer', methods=['POST'])
 @login_required
+@admin_or_staff_required
+@permission_required('can_manage_customers')
 def add_customer():
 
     if current_user.role not in ['Administrator', 'Staff']:
@@ -467,7 +493,8 @@ def add_customer():
 
 @admin_bp.route('/update-customer', methods=['POST'])
 @login_required
-@administrator_required
+@admin_or_staff_required
+@permission_required('can_manage_customers')
 def update_customer():
     customer_id = request.form.get("customer_id")
     customer = Customer.query.options(db.joinedload(Customer.user)).get_or_404(customer_id)
@@ -557,7 +584,7 @@ def update_customer():
 @admin_bp.route('/products')
 @limiter.exempt
 @login_required
-@administrator_required
+@admin_or_staff_required
 def products():
     page           = request.args.get('page', 1, type=int)
     limit          = request.args.get('limit', 10, type=int)
@@ -627,7 +654,8 @@ def products():
 
 @admin_bp.route('/add-product', methods=['POST'])
 @login_required
-@administrator_required
+@admin_or_staff_required
+@permission_required('can_manage_products')
 def add_product():
     equipment_type = request.form.get("equipment_type", "").strip().title()
     name = request.form.get("name", "").strip().title()
@@ -753,7 +781,8 @@ def add_product():
 
 @admin_bp.route('/edit-product/<int:product_id>', methods=['POST'])
 @login_required
-@administrator_required
+@admin_or_staff_required
+@permission_required('can_manage_products')
 def edit_product(product_id):
     product = Product.query.get_or_404(product_id)
 
@@ -874,7 +903,8 @@ def edit_product(product_id):
 
 @admin_bp.route('/update_stock/<int:product_id>', methods=['POST'])
 @login_required
-@administrator_required
+@admin_or_staff_required
+@permission_required('can_manage_products')
 @csrf.exempt
 def update_stock(product_id):
 
@@ -946,7 +976,8 @@ def update_stock(product_id):
         
 @admin_bp.route('/delete-product/<int:product_id>', methods=['POST'])
 @login_required
-@administrator_required
+@admin_or_staff_required
+@permission_required('can_manage_products')
 def delete_product(product_id):
     product = Product.query.get_or_404(product_id)
 
@@ -991,7 +1022,8 @@ def delete_product(product_id):
 
 @admin_bp.route('/process-purchase', methods=['POST'])
 @login_required
-@administrator_required
+@admin_or_staff_required
+@permission_required('can_process_transactions')
 def process_purchase():
     from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
     
@@ -1190,7 +1222,8 @@ def process_purchase():
        
 @admin_bp.route('/process-rental', methods=['POST'])
 @login_required
-@administrator_required
+@admin_or_staff_required
+@permission_required('can_process_transactions')
 def process_rental():
     try:
         product_ids = request.form.getlist('product_id[]') or request.form.getlist('product_id')
@@ -1308,7 +1341,7 @@ def process_rental():
      
 @admin_bp.route('/product/<int:product_id>/history')
 @login_required
-@administrator_required
+@admin_or_staff_required
 def product_history(product_id):
     try:
         logs = InventoryLog.query.filter_by(product_id=product_id)\
@@ -1354,7 +1387,7 @@ def product_history(product_id):
 
 @admin_bp.route('/transactions')
 @login_required
-@administrator_required
+@admin_or_staff_required
 @csrf.exempt
 def transactions():
     page = request.args.get('page', 1, type=int)
@@ -1473,7 +1506,8 @@ from flask import make_response
 
 @admin_bp.route('/transactions/export')
 @login_required
-@administrator_required
+@admin_or_staff_required
+@permission_required('can_process_transactions')
 def export_transactions():
     search_query = request.args.get('q', '').strip()
     txn_type = request.args.get('type', '')
@@ -1572,7 +1606,7 @@ def export_transactions():
 
 @admin_bp.route('/transaction_details/<int:id>') 
 @login_required
-@administrator_required
+@admin_or_staff_required
 def transaction_details(id):
     txn = Transaction.query.get_or_404(id)
     
@@ -1614,7 +1648,7 @@ def update_tracking(txn_id):
 
 @admin_bp.route('/post-payment', methods=['POST'])
 @login_required
-@administrator_required
+@admin_or_staff_required
 def post_payment():
     txn_id = request.form.get('txn_id')
     invoice_id = request.form.get('invoice_id')
@@ -1767,7 +1801,7 @@ def post_payment():
 
 @admin_bp.route('/confirm-payment-proof/<int:proof_id>', methods=['POST'])
 @login_required
-@administrator_required
+@admin_or_staff_required
 def confirm_payment_proof(proof_id):
     proof = PaymentProof.query.get_or_404(proof_id)
     txn = Transaction.query.get_or_404(proof.transaction_id)
@@ -1850,7 +1884,7 @@ def confirm_payment_proof(proof_id):
 
 @admin_bp.route('/transaction/<int:txn_id>/return', methods=['POST'])
 @login_required
-@administrator_required
+@admin_or_staff_required
 def process_return(txn_id):
     txn = Transaction.query.get_or_404(txn_id)
     returned_item_ids = request.form.getlist('returned_items')
@@ -1970,7 +2004,7 @@ def process_primegas():
 @admin_bp.route('/system_logs')
 @limiter.exempt
 @login_required
-@administrator_required
+@admin_or_staff_required
 def system_logs():
     page = request.args.get('page', 1, type=int)
     limit = request.args.get('limit', 10, type=int)
@@ -2030,7 +2064,7 @@ def system_logs():
 
 @admin_bp.route('/logs/<int:log_id>/detail')
 @login_required
-@administrator_required
+@admin_or_staff_required
 def log_detail(log_id):
     log = InventoryLog.query.get_or_404(log_id)
     return jsonify({
@@ -2050,7 +2084,7 @@ def allowed_file(filename):
 @admin_bp.route('/profile', methods=['GET', 'POST'])
 @limiter.exempt
 @login_required
-@administrator_required
+@admin_or_staff_required
 def profile():
     if request.method == 'POST':
         fname = request.form.get('fname', '').strip()
@@ -2084,7 +2118,7 @@ def profile():
 
 @admin_bp.route('/profile/update-avatar', methods=['POST'])
 @login_required
-@administrator_required
+@admin_or_staff_required
 def update_avatar():
     """Handles profile picture uploads via AJAX."""
     if 'avatar' not in request.files:
@@ -2124,7 +2158,7 @@ def update_avatar():
 
 @admin_bp.route('/profile/remove-avatar', methods=['POST'])
 @login_required
-@administrator_required
+@admin_or_staff_required
 def remove_avatar():
     """Handles removing profile picture via AJAX."""
     if not current_user.profile_path:
@@ -2154,7 +2188,7 @@ def serve_profile_pic(filename):
 
 @admin_bp.route('/reports')
 @login_required
-@administrator_required
+@admin_or_staff_required
 def reports():
     from datetime import date
     from sqlalchemy import extract
@@ -2530,7 +2564,7 @@ def reports():
 
 @admin_bp.route('/expenses')
 @login_required
-@administrator_required
+@admin_or_staff_required
 def expenses():
     from sqlalchemy import extract
     from datetime import date, datetime as dt
@@ -2733,7 +2767,7 @@ def expenses():
 
 @admin_bp.route('/expenses/add', methods=['POST'])
 @login_required
-@administrator_required
+@admin_or_staff_required
 def add_expense():
     from datetime import datetime
     try:
@@ -2805,7 +2839,7 @@ def add_expense():
  
 @admin_bp.route('/expenses/delete/<int:expense_id>', methods=['POST'])
 @login_required
-@administrator_required
+@admin_or_staff_required
 def delete_expense(expense_id):
     expense = Expense.query.get_or_404(expense_id)
     try:
@@ -2835,7 +2869,7 @@ def delete_expense(expense_id):
  
 @admin_bp.route('/expenses/edit/<int:expense_id>', methods=['POST'])
 @login_required
-@administrator_required
+@admin_or_staff_required
 def edit_expense(expense_id):
     from datetime import datetime
     expense = Expense.query.get_or_404(expense_id)
@@ -2864,7 +2898,7 @@ def edit_expense(expense_id):
 @admin_bp.route('/security')
 @limiter.exempt
 @login_required
-@administrator_required
+@admin_or_staff_required
 def security_dashboard():
 
     logs = SecurityLog.query.order_by(SecurityLog.created_at.desc()).limit(500).all()
@@ -2939,7 +2973,7 @@ def security_dashboard():
 # ── Block an IP (manual or auto via JS) 
 @admin_bp.route('/security/block-ip', methods=['POST'])
 @login_required
-@administrator_required
+@admin_or_staff_required
 def block_ip():
     ip = request.form.get('ip_address', '').strip()
     reason = request.form.get('reason', 'Manually blocked by admin').strip()
@@ -3001,7 +3035,7 @@ def block_ip():
 # ── Unblock an IP 
 @admin_bp.route('/security/unblock/<int:block_id>', methods=['POST'])
 @login_required
-@administrator_required
+@admin_or_staff_required
 def unblock_ip(block_id):
     entry = BlockedIP.query.get_or_404(block_id)
     entry.is_active = False
@@ -3029,7 +3063,7 @@ def unblock_ip(block_id):
 # ── Delete a single security log 
 @admin_bp.route('/security/delete-log/<int:log_id>', methods=['POST'])
 @login_required
-@administrator_required
+@admin_or_staff_required
 def delete_security_log(log_id):
     log = SecurityLog.query.get_or_404(log_id)
     try:
@@ -3044,7 +3078,7 @@ def delete_security_log(log_id):
 # ── Clear ALL security logs 
 @admin_bp.route('/security/clear-logs', methods=['POST'])
 @login_required
-@administrator_required
+@admin_or_staff_required
 def clear_security_logs():
     try:
         SecurityLog.query.delete()
@@ -3058,7 +3092,7 @@ def clear_security_logs():
 # ── Backup Management ──────────────────────────
 @admin_bp.route('/backup')
 @login_required
-@administrator_required
+@admin_or_staff_required
 def backup_page():
     backups = get_all_backups()
     total_size = sum(b['size_kb'] for b in backups)
@@ -3067,7 +3101,7 @@ def backup_page():
 
 @admin_bp.route('/backup/create', methods=['POST'])
 @login_required
-@administrator_required
+@admin_or_staff_required
 def create_manual_backup():
     success, result = create_backup(triggered_by='admin')
 
@@ -3097,7 +3131,7 @@ def create_manual_backup():
 
 @admin_bp.route('/backup/download/<filename>')
 @login_required
-@administrator_required
+@admin_or_staff_required
 def download_backup(filename):
     # Prevent path traversal attack
     if '..' in filename or '/' in filename or '\\' in filename:
@@ -3129,7 +3163,7 @@ def download_backup(filename):
 
 @admin_bp.route('/backup/delete/<filename>', methods=['POST'])
 @login_required
-@administrator_required
+@admin_or_staff_required
 def delete_backup(filename):
     if '..' in filename or '/' in filename or '\\' in filename:
         flash("Invalid filename.", "error")
@@ -3317,7 +3351,7 @@ def _build_notifications():
 
 @admin_bp.route('/notifications/stream')
 @login_required
-@administrator_required
+@admin_or_staff_required
 def notification_stream():
     """Server-Sent Events endpoint — pushes notification data every 30s."""
  
@@ -3350,7 +3384,7 @@ def notification_stream():
  
 @admin_bp.route('/notifications/data')
 @login_required
-@administrator_required
+@admin_or_staff_required
 def notification_data():
     """One-shot JSON endpoint — used for the initial page load."""
     try:
@@ -3360,3 +3394,122 @@ def notification_data():
         current_app.logger.error(f"Notification data error: {e}")
         return jsonify({"count": 0, "notifications": []})
  
+
+@admin_bp.route('/staff-management', methods=['GET', 'POST'])
+@login_required
+@admin_or_staff_required
+def staff_management():
+    staff_members = User.query.filter(User.role.in_(['Staff', 'Administrator']))\
+                              .options(joinedload(User.permissions))\
+                              .all()
+
+    total_staff_count = len(staff_members)
+    admin_count = sum(1 for u in staff_members if u.role == 'Administrator')
+    active_staff_count = sum(1 for u in staff_members if u.is_active)
+
+    return render_template(
+        'admin/staff_management.html',
+        staff_members=staff_members,
+        total_staff_count=total_staff_count,
+        admin_count=admin_count,
+        active_staff_count=active_staff_count
+    )
+
+
+from extensions import db, passhasher
+
+@admin_bp.route("/staff/create", methods=["POST"])
+@login_required
+def create_system_user():
+    data = {
+        "email": request.form.get("email", "").strip().lower(),
+        "first": request.form.get("first_name", "").strip().title(),
+        "last": request.form.get("last_name", "").strip().title(),
+        "pwd": request.form.get("password", ""),
+        "role": request.form.get("role")
+    }
+
+    if not all(data.values()):
+        flash("All fields are mandatory.", "danger")
+        return redirect(url_for("admin.staff_management"))
+
+    pwd_errors = []
+    if len(data['pwd']) < 12: pwd_errors.append("12+ characters")
+    if not any(c.isupper() for c in data['pwd']): pwd_errors.append("uppercase letter")
+    if not any(c.isdigit() for c in data['pwd']): pwd_errors.append("number")
+    if not any(c in "!@#$%^&*()-_=+" for c in data['pwd']): pwd_errors.append("special character")
+
+    if pwd_errors:
+        flash(f"Password weak. Requires: {', '.join(pwd_errors)}", "danger")
+        return redirect(url_for("admin.staff_management"))
+
+    if User.query.filter_by(email=data['email']).first():
+        flash("Email identity conflict: Record already exists.", "danger")
+        return redirect(url_for("admin.staff_management"))
+
+    try:
+        user_record = User(
+            email=data['email'],
+            password_hash=passhasher.hash(data['pwd']),
+            first_name=data['first'],
+            last_name=data['last'],
+            role=data['role'],
+            is_active=True,
+            is_verified=True
+        )
+        
+        db.session.add(user_record)
+        db.session.flush() 
+
+
+        new_permissions = Permission(user_id=user_record.id)
+        db.session.add(new_permissions)
+
+        db.session.commit()
+
+        flash(f"New system user {data['first']} initialized successfully.", "success")
+        
+    except Exception as error:
+        db.session.rollback()
+        current_app.logger.critical(f"Provisioning Failure: {error}")
+        flash("System error during record creation. Contact development team.", "danger")
+
+    return redirect(url_for("admin.staff_management"))
+
+@admin_bp.route("/update-user-access", methods=["POST"])
+@admin_or_staff_required
+def update_user_access():
+    user_id = request.form.get("user_id")
+    
+
+    user = User.query.get_or_404(user_id)
+
+    user.role = request.form.get("role")
+
+    perms = Permission.query.filter_by(user_id=user_id).first()
+    if not perms:
+        perms = Permission(user_id=user_id)
+        db.session.add(perms)
+    
+
+    perms.can_manage_customers = 'can_manage_customers' in request.form
+    perms.can_manage_products = 'can_manage_products' in request.form
+    perms.can_process_transactions = 'can_process_transactions' in request.form
+    perms.can_confirm_payments = 'can_confirm_payments' in request.form
+    perms.can_manage_expenses = 'can_manage_expenses' in request.form
+    perms.can_view_reports = 'can_view_reports' in request.form
+    
+    try:
+        db.session.commit()
+        flash(f"Access rights and role updated for {user.full_name}.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash("An error occurred while updating permissions.", "error")
+        
+    return redirect(url_for('admin.staff_management'))
+
+@admin_bp.route("/delete-user/<int:user_id>", methods=["POST"])
+@admin_or_staff_required
+def delete_user(user_id):
+
+    return redirect(url_for('admin.staff_management'))

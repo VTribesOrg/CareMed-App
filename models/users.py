@@ -41,6 +41,8 @@ class User(UserMixin, db.Model):
     
     last_login_user_agent = db.Column(db.String(255), nullable=True)
     
+    permissions = db.relationship("Permission", backref="user", uselist=False)
+    
     @property
     def full_name(self):
         return f"{self.first_name} {self.last_name}"
@@ -63,6 +65,24 @@ class User(UserMixin, db.Model):
             return f"{masked_name}@{domain}"
         except Exception:
             return None
+
+class Permission(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), unique=True)
+    
+    can_manage_customers = db.Column(db.Boolean, default=False)
+    can_verify_customers = db.Column(db.Boolean, default=False)
+    
+    can_manage_products = db.Column(db.Boolean, default=False)
+    can_update_stock = db.Column(db.Boolean, default=False)
+
+    can_process_transactions = db.Column(db.Boolean, default=False)
+    can_confirm_payments = db.Column(db.Boolean, default=False)
+    can_export_transactions = db.Column(db.Boolean, default=False)
+
+    can_manage_expenses = db.Column(db.Boolean, default=False)
+    can_view_reports = db.Column(db.Boolean, default=False)
+    can_view_logs = db.Column(db.Boolean, default=False)
     
 class SecurityLog(db.Model):
     __tablename__ = "security_logs"

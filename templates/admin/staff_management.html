@@ -1,0 +1,185 @@
+{% extends "admin/nav_base.html" %}
+
+{% block title %}Staff Management{% endblock %}
+{% block page_title %}Staff Management & Access Control{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/staff_management.css') }}">
+{% endblock %}
+
+{% block content %}
+
+<div class="staff-stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon purple"><span class="material-symbols-rounded">group</span></div>
+        <div class="stat-info">
+            <span class="stat-label">Total Staff</span>
+            <span class="stat-value">{{ total_staff_count }}</span>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon blue"><span class="material-symbols-rounded">admin_panel_settings</span></div>
+        <div class="stat-info">
+            <span class="stat-label">Administrators</span>
+            <span class="stat-value">{{ admin_count }}</span>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon green"><span class="material-symbols-rounded">check_circle</span></div>
+        <div class="stat-info">
+            <span class="stat-label">Active Users</span>
+            <span class="stat-value">{{ active_staff_count }}</span>
+        </div>
+    </div>
+</div>
+
+<div class="staff-management-container">
+    <div class="staff-header-actions">
+        <h3>Staff Directory</h3>
+        <button class="btn-primary" id="open-modal-btn">
+            <span class="material-symbols-rounded">person_add</span>
+            Add System User
+        </button>
+    </div>
+
+    <div class="staff-data-panel is-active">
+        <div class="table-scroll-wrapper">
+            <table class="staff-data-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Last Login</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in staff_members %}
+                    <tr>
+                        <td style="font-weight: 600;">{{ user.full_name }}</td>
+                        <td>{{ user.email }}</td>
+                        <td><span class="pill-{{ user.role }}">{{ user.role|title }}</span></td>
+                        <td>
+                            <span class="status-indicator {{ 'online' if user.is_active else 'offline' }}"></span>
+                            {{ 'Active' if user.is_active else 'Suspended' }}
+                        </td>
+                        <td style="color: #64748b;">{{ user.last_login_at.strftime('%Y-%m-%d %H:%M') if user.last_login_at else 'Never' }}</td>
+                        <td style="white-space: nowrap;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <button class="icon-btn edit-user-btn" 
+                                        title="Edit" 
+                                        data-user-id="{{ user.id }}"
+                                        data-first-name="{{ user.first_name }}"
+                                        data-last-name="{{ user.last_name }}"
+                                        data-role="{{ user.role }}"
+                                        data-can-manage-customers="{{ 'true' if (user.permissions and user.permissions.can_manage_customers) else 'false' }}"
+                                        data-can-manage-products="{{ 'true' if (user.permissions and user.permissions.can_manage_products) else 'false' }}"
+                                        data-can-process-transactions="{{ 'true' if (user.permissions and user.permissions.can_process_transactions) else 'false' }}"
+                                        data-can-confirm-payments="{{ 'true' if (user.permissions and user.permissions.can_confirm_payments) else 'false' }}"
+                                        data-can-manage-expenses="{{ 'true' if (user.permissions and user.permissions.can_manage_expenses) else 'false' }}"
+                                        data-can-view-reports="{{ 'true' if (user.permissions and user.permissions.can_view_reports) else 'false' }}">
+                                    <span class="material-symbols-rounded">edit</span>
+                                </button>
+                                
+                                <form action="{{ url_for('admin.delete_user', user_id=user.id) }}" method="POST" class="delete-user-form">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="icon-btn text-danger" title="Delete">
+                                        <span class="material-symbols-rounded">delete</span>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr class="table-empty-row">
+                        <td colspan="6" style="text-align: center; padding: 20px;">No staff members found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div id="create-user-modal" class="modal-overlay hidden">
+    <div class="modal-content">
+        <form method="POST" action="{{ url_for('admin.create_system_user') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <h3>Create System User</h3>
+            <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 20px;">
+                Provision a new staff account. Credentials will be managed securely.
+            </p>
+            
+            <input type="text" name="first_name" placeholder="First Name" required>
+            <input type="text" name="last_name" placeholder="Last Name" required>
+            <input type="email" name="email" placeholder="Email Address" required>
+            <input type="password" name="password" placeholder="Initial Password" required>
+            
+            <label style="display:block; margin: 10px 0 5px; font-weight: 600;">Account Role</label>
+            <select name="role" required>
+                <option value="Staff">Staff (Limited Access)</option>
+                <option value="Administrator">Administrator (Full Access)</option>
+            </select>
+            
+            <div class="modal-actions" style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" id="close-modal-btn" style="background: #f1f5f9; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer;">Cancel</button>
+                <button type="submit" class="btn-primary">Create User Account</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="edit-user-modal" class="modal-overlay hidden">
+    <div class="modal-content" style="max-width: 500px;">
+        <form method="POST" action="{{ url_for('admin.update_user_access') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="user_id" id="edit-user-id">
+            <h3>Edit User Access</h3>
+            <p id="edit-user-name" style="color: #64748b; margin-bottom: 20px;"></p>
+            
+            <label>Update Role</label>
+            <select name="role" id="edit-user-role" style="width:100%; margin-bottom: 20px;">
+                <option value="Staff">Staff</option>
+                <option value="Administrator">Administrator</option>
+            </select>
+
+            <label style="font-weight: 600; display: block; margin-bottom: 15px;">Access Permissions</label>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; background: #f8fafc; padding: 15px; border-radius: 8px;">
+                {% for perm in ['can_manage_customers', 'can_manage_products', 'can_process_transactions', 'can_confirm_payments', 'can_manage_expenses', 'can_view_reports'] %}
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 0.85rem; text-transform: capitalize;">{{ perm.replace('can_', '').replace('_', ' ') }}</span>
+                    <label class="switch">
+                        <input type="checkbox" name="{{ perm }}">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <div class="modal-actions" style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" id="close-edit-modal-btn" style="background:#f1f5f9; padding: 10px; border-radius: 8px; cursor: pointer;">Cancel</button>
+                <button type="submit" class="btn-primary">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script nonce="{{ csp_nonce() }}">
+    document.addEventListener('DOMContentLoaded', () => {
+        // Handle Delete Confirmation safely
+        document.querySelectorAll('.delete-user-form').forEach(form => {
+            form.addEventListener('submit', (e) => {
+                if (!confirm('WARNING: This will remove access for this user. Are you sure?')) {
+                    e.preventDefault();
+                }
+            });
+        });
+    });
+</script>
+<script src="{{ url_for('static', filename='js/admin/staff_management.js') }}" nonce="{{ csp_nonce() }}"></script>
+{% endblock %}
