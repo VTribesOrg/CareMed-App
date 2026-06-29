@@ -20,6 +20,26 @@
     </button>
 </div>
 
+{# ── Role-based notices ── #}
+{% if current_user.role.strip() != 'Administrator' %}
+<div style="background:#eff6ff; border:1px solid #93c5fd; border-radius:10px;
+            padding:12px 16px; margin-bottom:16px; font-size:0.85rem; color:#1d4ed8;
+            display:flex; align-items:center; gap:8px;">
+    <span class="material-symbols-rounded" style="font-size:18px; flex-shrink:0;">info</span>
+    <span>Cost of Sales expenses are <strong>automatically recorded</strong> when stock is added or restocked.
+    You can view expense records but cannot add, edit, or delete them.</span>
+</div>
+{% else %}
+<div style="background:#f0fdf4; border:1px solid #86efac; border-radius:10px;
+            padding:12px 16px; margin-bottom:16px; font-size:0.85rem; color:#15803d;
+            display:flex; align-items:center; gap:8px;">
+    <span class="material-symbols-rounded" style="font-size:18px; flex-shrink:0;">auto_awesome</span>
+    <span><strong>Cost of Sales</strong> (Equipment Purchase, Oxygen Refill, etc.) are
+    <strong>auto-recorded when stock is added or restocked</strong>. You can still add them
+    manually if needed (e.g. supplier payments not tied to inventory).</span>
+</div>
+{% endif %}
+
 {# ── Period picker ── #}
 <div class="exp-period-toggle">
     <button type="button" class="period-toggle-btn {{ 'active' if not use_range }}" data-mode="month">
@@ -178,7 +198,7 @@
 <div class="exp-tab-panel" id="tab-charts">
 
     {# Row 1: Revenue vs Cost of Sales  |  Revenue vs Operating Expenses #}
-    <div class="exp-charts-row exp-charts-3col">
+    <div class="exp-charts-row" style="grid-template-columns: 1fr 1fr 1fr;">
 
         <div class="exp-chart-card">
             <div class="exp-chart-header">
@@ -220,39 +240,6 @@
 
     </div>
 
-    {# Row 2: COS vs OPEX stacked bar #}
-    <div class="exp-charts-row" style="grid-template-columns: 1fr 1fr; margin-top: 0;">
-        <div class="exp-chart-card">
-            <div class="exp-chart-header">
-                <span class="material-symbols-rounded">stacked_bar_chart</span>
-                Cost of Sales vs Operating Expenses — Last 6 Months
-            </div>
-            <div class="chart-canvas-wrap" style="height:240px;">
-                <canvas id="cosVsOpexChart"></canvas>
-            </div>
-        </div>
-        <div class="exp-chart-card">
-            <div class="exp-chart-header">
-                <span class="material-symbols-rounded">pie_chart</span>
-                {{ 'Selected Period' if use_range else 'This Month' }} — COS vs OPEX
-            </div>
-            <div class="chart-canvas-wrap" style="height:180px;">
-                <canvas id="cosOpexDonut"></canvas>
-            </div>
-            <div class="exp-cos-opex-legend">
-                <div class="cos-opex-row">
-                    <span class="cos-dot"></span>
-                    <span class="cos-opex-label">Cost of Sales</span>
-                    <span class="cos-opex-val">₱{{ "{:,.2f}".format(cost_of_sales) }}</span>
-                </div>
-                <div class="cos-opex-row">
-                    <span class="opex-dot"></span>
-                    <span class="cos-opex-label">Operating Expenses</span>
-                    <span class="cos-opex-val">₱{{ "{:,.2f}".format(operating_expenses) }}</span>
-                </div>
-            </div>
-        </div>
-    </div>
 
 </div>
 
@@ -314,6 +301,7 @@
                         </td>
                         <td class="exp-amount-cell">₱{{ "{:,.2f}".format(exp.amount) }}</td>
                         <td>
+                            {% if current_user.role.strip() == 'Administrator' %}
                             <div style="display:flex;gap:6px;">
                                 <button class="btn-exp-action btn-edit-exp"
                                         data-id="{{ exp.id }}"
@@ -334,6 +322,9 @@
                                     </button>
                                 </form>
                             </div>
+                            {% else %}
+                            <span style="font-size:0.75rem; color:#cbd5e1;">View only</span>
+                            {% endif %}
                         </td>
                     </tr>
                     {% endfor %}
@@ -361,9 +352,12 @@
                 {% endif %}
                 {% if category_filter %} in <strong>{{ category_filter }}</strong>{% endif %}.
             </p>
-            <button class="btn-add-expense" id="openAddExpense2">
-                <span class="material-symbols-rounded">add_circle</span> Add First Expense
+            {% if current_user.role.strip() == 'Administrator' %}
+            <button class="btn-add-expense" id="openAddExpense">
+                <span class="material-symbols-rounded">add_circle</span>
+                Add Expense
             </button>
+            {% endif %}
         </div>
         {% endif %}
     </div>
@@ -609,50 +603,8 @@ if (npCtx) {
     });
 }
 
-// ── 3. COS vs OPEX stacked bar ──────────────────────────────────────────────
-const coCtx = document.getElementById('cosVsOpexChart');
-if (coCtx) {
-    new Chart(coCtx, {
-        type: 'bar',
-        data: {
-            labels: TREND_LABELS,
-            datasets: [
-                { label: 'Cost of Sales',       data: TREND_COS,  backgroundColor: 'rgba(249,115,22,0.80)', borderRadius: 4 },
-                { label: 'Operating Expenses',  data: TREND_OPEX, backgroundColor: 'rgba(59,130,246,0.80)', borderRadius: 4 },
-            ]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { position: 'top' } },
-            scales: {
-                x: { stacked: true },
-                y: { stacked: true, beginAtZero: true, ticks: { callback: v => peso(v) } }
-            }
-        }
-    });
-}
 
-// ── 4. COS vs OPEX donut ────────────────────────────────────────────────────
-const cdCtx = document.getElementById('cosOpexDonut');
-if (cdCtx && (COS_TOTAL + OPEX_TOTAL) > 0) {
-    new Chart(cdCtx, {
-        type: 'doughnut',
-        data: {
-            labels: ['Cost of Sales', 'Operating Expenses'],
-            datasets: [{
-                data: [COS_TOTAL, OPEX_TOTAL],
-                backgroundColor: ['rgba(249,115,22,0.85)', 'rgba(59,130,246,0.85)'],
-                hoverOffset: 6, borderWidth: 2, borderColor: '#fff',
-            }]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false, cutout: '62%',
-            plugins: { legend: { display: false } }
-        }
-    });
-}
-
-// ── 5. Category donut ────────────────────────────────────────────────────────
+// ── 3. Category donut ────────────────────────────────────────────────────────
 const cCtx = document.getElementById('categoryChart');
 if (cCtx && CAT_DATA.length) {
     new Chart(cCtx, {

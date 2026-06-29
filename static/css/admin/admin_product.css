@@ -1424,12 +1424,8 @@ td:nth-child(2) {
 }
 
 #inventory-table tbody tr .asset-actions {
-    opacity: 0;
-    transition: opacity 0.2s ease-in-out;
-}
-
-#inventory-table tbody tr:hover .asset-actions {
     opacity: 1;
+    transition: opacity 0.2s ease-in-out;
 }
 
 .action-dropdown {

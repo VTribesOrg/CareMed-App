@@ -365,11 +365,13 @@ class Expense(db.Model):
     description = db.Column(db.String(255))
     attachment_path = db.Column(db.String(255)) 
     
+    product_id = db.Column(db.Integer, db.ForeignKey("product.id", ondelete="SET NULL"), nullable=True)
     recorded_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     date_incurred = db.Column(db.Date, default=datetime.utcnow)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     recorded_by = db.relationship("User", foreign_keys=[recorded_by_id])
+    product = db.relationship("Product", foreign_keys=[product_id], backref=db.backref("expenses", lazy="dynamic"))
     
     
 class Cart(db.Model):

@@ -136,14 +136,13 @@
 {% block content %}
 
 {# ── Toolbar ── #}
-<div class="report-toolbar">
-    <div class="tab-group">
-        <button class="tab-btn active" data-tab="sales">Sales</button>
-        <button class="tab-btn" data-tab="rentals">Rentals</button>
-        <button class="tab-btn" data-tab="inventory">Inventory</button>
-        <button class="tab-btn" data-tab="customers">Customers</button>
-        <button class="tab-btn" data-tab="financial">Financial</button>
-    </div>
+<div class="tab-group">
+    <button class="tab-btn active" data-tab="sales">Sales</button>
+    <button class="tab-btn" data-tab="rentals">Rentals</button>
+    <button class="tab-btn" data-tab="inventory">Inventory</button>
+    <button class="tab-btn" data-tab="customers">Customers</button>
+    <button class="tab-btn" data-tab="financial">Financial</button>
+    <button class="tab-btn" data-tab="equipment">Equipment P&L</button>
 </div>
 
 {# ══════════════════════════════════════════════════════════
@@ -762,11 +761,162 @@
 
 </div>
 
+{# 
+   EQUIPMENT P&L
+   ══════════════════════════════════════════════════════════ #}
+<div class="report-panel" id="panel-equipment">
+
+    {# Summary stats #}
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon green"><span class="material-symbols-rounded">inventory_2</span></div>
+            <div>
+                <div class="stat-value">{{ equipment_pl | length }}</div>
+                <div class="stat-label">Products Tracked</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon blue"><span class="material-symbols-rounded">payments</span></div>
+            <div>
+                <div class="stat-value">₱{{ "{:,.0f}".format(equipment_pl | sum(attribute='total_income')) }}</div>
+                <div class="stat-label">Total Equipment Income</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon orange"><span class="material-symbols-rounded">shopping_cart</span></div>
+            <div>
+                <div class="stat-value">₱{{ "{:,.0f}".format(equipment_pl | sum(attribute='total_spent')) }}</div>
+                <div class="stat-label">Total Equipment Cost</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            {% set total_net = (equipment_pl | sum(attribute='total_income')) - (equipment_pl | sum(attribute='total_spent')) %}
+            <div class="stat-icon {{ 'green' if total_net >= 0 else 'red' }}">
+                <span class="material-symbols-rounded">{{ 'trending_up' if total_net >= 0 else 'trending_down' }}</span>
+            </div>
+            <div>
+                <div class="stat-value {{ 'net-positive' if total_net >= 0 else 'net-negative' }}">
+                    {{ '+ ₱' if total_net >= 0 else '- ₱' }}{{ "{:,.0f}".format(total_net|abs) }}
+                </div>
+                <div class="stat-label">Overall Net</div>
+            </div>
+        </div>
+    </div>
+
+    {# Chart: Top 5 by income vs cost #}
+    <div class="charts-row equal">
+        <div class="report-card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Income vs Cost per Equipment</div>
+                    <div class="card-sub">Top 8 by income — all time</div>
+                </div>
+            </div>
+            <div class="chart-wrapper chart-h-280"><canvas id="chart-equipment-pl"></canvas></div>
+        </div>
+        <div class="report-card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">Net Profit per Equipment</div>
+                    <div class="card-sub">Income minus acquisition cost</div>
+                </div>
+            </div>
+            <div class="chart-wrapper chart-h-280"><canvas id="chart-equipment-net"></canvas></div>
+        </div>
+    </div>
+
+    {# Full P&L table #}
+    <div class="report-table-card">
+        <div class="card-header">
+            <div>
+                <div class="card-title">Equipment P&L Breakdown</div>
+                <div class="card-sub">Income (sales + rentals) vs acquisition costs — all time</div>
+            </div>
+        </div>
+
+        {% if equipment_pl %}
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Product</th>
+                    <th>Type</th>
+                    <th>Units Acquired</th>
+                    <th>Total Spent</th>
+                    <th>Sale Income</th>
+                    <th>Rental Income</th>
+                    <th>Total Income</th>
+                    <th>Net</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for i, eq in enumerate(equipment_pl) %}
+                {% set net = eq.total_income - eq.total_spent %}
+                <tr>
+                    <td style="color:#94a3b8;">{{ i + 1 }}</td>
+                    <td style="font-weight:700; color:#1e293b;">{{ eq.name }}</td>
+                    <td style="color:#64748b; font-size:0.8rem;">{{ eq.equipment_type or '—' }}</td>
+                    <td style="color:#64748b;">{{ eq.units_acquired or 0 }}</td>
+                    <td style="color:#ea580c; font-weight:700;">
+                        {% if eq.total_spent > 0 %}
+                            ₱{{ "{:,.2f}".format(eq.total_spent) }}
+                        {% else %}
+                            <span style="color:#cbd5e1;">—</span>
+                        {% endif %}
+                    </td>
+                    <td style="color:#16a34a; font-weight:600;">
+                        {% if eq.sale_income > 0 %}
+                            ₱{{ "{:,.2f}".format(eq.sale_income) }}
+                        {% else %}
+                            <span style="color:#cbd5e1;">—</span>
+                        {% endif %}
+                    </td>
+                    <td style="color:#0284c7; font-weight:600;">
+                        {% if eq.rental_income > 0 %}
+                            ₱{{ "{:,.2f}".format(eq.rental_income) }}
+                        {% else %}
+                            <span style="color:#cbd5e1;">—</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-weight:700; color:#002347;">
+                        ₱{{ "{:,.2f}".format(eq.total_income) }}
+                    </td>
+                    <td style="font-weight:800;" class="{{ 'net-positive' if net >= 0 else 'net-negative' }}">
+                        {{ '+ ₱' if net >= 0 else '- ₱' }}{{ "{:,.2f}".format(net|abs) }}
+                    </td>
+                    <td>
+                        {% if eq.total_spent == 0 %}
+                            <span class="status-tag tag-warning">No cost data</span>
+                        {% elif net >= 0 %}
+                            <span class="status-tag tag-success">Profitable</span>
+                        {% else %}
+                            <span class="status-tag tag-danger">Loss</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <span class="material-symbols-rounded">inventory_2</span>
+            <p>No equipment data yet. Add products and process transactions to see P&L.</p>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
 <script nonce="{{ csp_nonce() }}">
 const LABELS       = {{ month_labels | tojson }};
+const EQ_NAMES     = {{ equipment_pl | map(attribute='name') | list | tojson }};
+const EQ_INCOME    = {{ equipment_pl | map(attribute='total_income') | list | tojson }};
+const EQ_COST      = {{ equipment_pl | map(attribute='total_spent') | list | tojson }};
+const EQ_NET       = {{ equipment_pl | map(attribute='net') | list | tojson }};
 const SALES        = {{ sales_by_month | tojson }};
 const RENTALS      = {{ rentals_by_month | tojson }};
 const REVENUE      = {{ revenue_by_month | tojson }};

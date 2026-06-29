@@ -227,6 +227,82 @@ function renderFinancial() {
     colorNetProfit();
 }
 
+// ── Equipment P&L Charts ──────────────────────────────────────────────────────
+function renderEquipment() {
+    kill('equipment-pl');
+    kill('equipment-net');
+
+    if (typeof EQ_NAMES === 'undefined' || !EQ_NAMES.length) return;
+
+    const top8Names  = EQ_NAMES.slice(0, 8);
+    const top8Income = EQ_INCOME.slice(0, 8);
+    const top8Cost   = EQ_COST.slice(0, 8);
+    const top8Net    = EQ_NET.slice(0, 8);
+
+    // ── Income vs Cost grouped bar ────────────────────────────────────────────
+    ch['equipment-pl'] = new Chart(document.getElementById('chart-equipment-pl'), {
+        type: 'bar',
+        data: {
+            labels: top8Names,
+            datasets: [
+                {
+                    label: 'Total Income',
+                    data: top8Income,
+                    backgroundColor: '#16a34aCC',
+                    borderRadius: 4,
+                },
+                {
+                    label: 'Total Cost',
+                    data: top8Cost,
+                    backgroundColor: '#ea580cCC',
+                    borderRadius: 4,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top', labels: { boxWidth: 10, font: { size: 11 } } }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { callback: v => peso(v) }
+                }
+            }
+        }
+    });
+
+    // ── Net profit per equipment bar ──────────────────────────────────────────
+    ch['equipment-net'] = new Chart(document.getElementById('chart-equipment-net'), {
+        type: 'bar',
+        data: {
+            labels: top8Names,
+            datasets: [{
+                label: 'Net Profit',
+                data: top8Net,
+                backgroundColor: top8Net.map(v => v >= 0 ? '#16a34aCC' : '#ef4444CC'),
+                borderRadius: 4,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: {
+                    ticks: { callback: v => peso(v) },
+                    grid: {
+                        color: ctx => ctx.tick.value === 0 ? '#94a3b8' : '#f1f5f9',
+                        lineWidth: ctx => ctx.tick.value === 0 ? 2 : 1
+                    }
+                }
+            }
+        }
+    });
+}
+
 // ── Tab switching ─────────────────────────────────────────────────────────────
 const renderers = {
     sales:     renderSales,
@@ -234,6 +310,7 @@ const renderers = {
     inventory: renderInventory,
     customers: renderCustomers,
     financial: renderFinancial,
+    equipment: renderEquipment,
 };
 
 document.querySelectorAll('.tab-btn').forEach(btn => {

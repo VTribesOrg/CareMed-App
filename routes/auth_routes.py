@@ -326,7 +326,7 @@ If this was not you, reset your password immediately.
                 is_suspicious=True,
                 severity='High'
             )
- 
+
         if user.role.strip() == 'Administrator':
             remember = False
             session.permanent = False
@@ -344,11 +344,16 @@ If this was not you, reset your password immediately.
             remember = form.remember_me.data
             session.permanent = remember
             if prev_failures < 3:   # avoid double-logging suspicious logins
+                if user.role.strip() == 'Staff':
+                    event_type = 'Staff Login — New Device' if is_new_device else 'Staff Login'
+                else:
+                    event_type = 'Successful Login'
                 log_security_event(
-                    "Successful Login",
-                    f"User logged in successfully: {email}",
+                    event_type,
+                    f"{user.role.strip()} logged in successfully: {email}",
                     user=user,
-                    is_suspicious=False
+                    is_suspicious=False,
+                    severity='Low'
                 )
  
         login_user(user, remember=remember)

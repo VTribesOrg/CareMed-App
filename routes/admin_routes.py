@@ -80,6 +80,18 @@ def permission_required(permission_name):
 
 from sqlalchemy import func
 
+def get_cogs_category(product):
+    """Smart category assignment for auto-generated Cost of Sales expenses."""
+    if product.is_refillable:
+        return 'Oxygen Refill Cost'
+    et = (product.equipment_type or '').lower()
+    name = (product.name or '').lower()
+    if 'medical supplies' in et or 'medical supplies' in name:
+        return 'Medical Supplies Purchase'
+    if 'supplies' in et or 'supplies' in name:
+        return 'Medical Supplies Purchase'
+    return 'Equipment Purchase'
+
 COST_OF_SALES_CATEGORIES = {
     'Oxygen Refill Cost',
     'Equipment Purchase',
@@ -138,12 +150,17 @@ def dashboard():
         func.sum(Expense.amount)
     ).scalar() or 0
 
+    # Non-refillable products only (refillable are counted via TankStatus)
     product_inventory = db.session.query(
         func.sum(Product.stock)
-    ).filter(Product.is_active == True).scalar() or 0
+    ).filter(
+        Product.is_active == True,
+        Product.is_refillable == False
+    ).scalar() or 0
 
+    # Refillable tanks — count full + empty + rented out for true total owned
     tank_inventory = db.session.query(
-        func.sum(TankStatus.full_in_stock + TankStatus.empty_in_stock)
+        func.sum(TankStatus.full_in_stock + TankStatus.empty_in_stock + TankStatus.rented_out)
     ).join(Product).filter(Product.is_active == True).scalar() or 0
 
     total_inventory = product_inventory + tank_inventory
@@ -219,6 +236,7 @@ def dashboard():
 @admin_bp.route('/customers')
 @login_required
 @admin_or_staff_required
+@permission_required('can_manage_customers')
 def customers():
     page         = request.args.get('page', 1, type=int)
     limit        = request.args.get('limit', 10, type=int)
@@ -585,6 +603,7 @@ def update_customer():
 @limiter.exempt
 @login_required
 @admin_or_staff_required
+@permission_required('can_manage_products')
 def products():
     page           = request.args.get('page', 1, type=int)
     limit          = request.args.get('limit', 10, type=int)
@@ -763,7 +782,33 @@ def add_product():
         )
         db.session.add(log)
         
+        # ── Auto acquisition expense ───────────────────────────────────────
+        if cost_price and cost_price > 0 and stock > 0:
+            acq_category = get_cogs_category(new_product)
+            acq_amount = (cost_price * stock).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
+            db.session.add(Expense(
+                category=acq_category,
+                expense_title=f"Stock Acquisition — {name} x{stock}",
+                amount=acq_amount,
+                description=f"Auto-recorded on initial stock entry. "
+                            f"Unit cost: ₱{cost_price:,.2f} × {stock} unit(s).",
+                date_incurred=datetime.utcnow().date(),
+                recorded_by_id=current_user.id,
+                product_id=new_product.id,
+            ))
+        elif stock > 0 and (not cost_price or cost_price == 0):
+            db.session.add(InventoryLog(
+                product_id=new_product.id,
+                action="Acquisition Warning",
+                note=f"Cost price not set for '{name}' — no acquisition expense recorded.",
+                user_id=current_user.id,
+                user_name=current_user.full_name
+            ))
+        
         db.session.commit()
+        
         flash(f"Product '{name}' added successfully.", "success")
         
     except Exception as e:
@@ -801,10 +846,8 @@ def edit_product(product_id):
     changes = []
 
     try:
-        stock_input = request.form.get("stock")
-        new_stock = int(stock_input) if stock_input not in [None, ""] else product.stock
-        
-        raw_cost = Decimal(request.form.get("cost_price") or "0.00")
+        new_stock = product.stock
+        raw_cost = product.cost_price or Decimal("0.00")
         raw_rent = Decimal(request.form.get("rent_price") or "0.00")
         raw_sale = Decimal(request.form.get("sale_price") or "0.00")
 
@@ -834,15 +877,6 @@ def edit_product(product_id):
         if product.condition != new_condition:
             changes.append(f"Changed condition status from '{product.condition or 'N/A'}' to '{new_condition}'")
             product.condition = new_condition
-
-        if product.stock != new_stock:
-            changes.append(f"Adjusted stock quantity from {product.stock} to {new_stock}")
-            product.stock = new_stock
-            product.status = "Available" if new_stock > 0 else "Out of Stock"
-
-        if product.cost_price != raw_cost:
-            changes.append(f"Updated investment cost from ₱{product.cost_price} to ₱{raw_cost}")
-            product.cost_price = raw_cost
 
         if product.rent_price != new_rent:
             changes.append(f"Changed rental rate from ₱{product.rent_price} to ₱{new_rent}")
@@ -914,10 +948,15 @@ def update_stock(product_id):
     try:
         increment = int(data.get('increment', 0))
         reason = data.get('reason', '').strip() or 'Stock replenishment'
-    except (ValueError, TypeError):
+        total_amount_paid = data.get('total_amount_paid', None)
+        if total_amount_paid is not None:
+            total_amount_paid = Decimal(str(total_amount_paid)).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
+    except (ValueError, TypeError, Exception):
         return jsonify({
             "success": False,
-            "message": "Invalid quantity format."
+            "message": "Invalid quantity or amount format."
         }), 400
 
     if increment <= 0:
@@ -929,51 +968,91 @@ def update_stock(product_id):
     try:
         old_stock = product.stock
         product.stock += increment
+        product.status = "Available" if product.stock > 0 else "Out of Stock"
 
-        product.status = (
-            "Available" if product.stock > 0 else "Out of Stock"
-        )
+        # ── Sync TankStatus for refillable products ────────────────────────
+        if product.is_refillable and product.tank_status:
+            product.tank_status.full_in_stock = (product.tank_status.full_in_stock or 0) + increment
+            product.tank_status.total_owned = (
+                (product.tank_status.full_in_stock or 0) +
+                (product.tank_status.empty_in_stock or 0) +
+                (product.tank_status.rented_out or 0)
+            )
+
+        # ── Auto-update unit cost if total amount paid is provided ─────────
+        if total_amount_paid and total_amount_paid > 0:
+            new_unit_cost = (total_amount_paid / increment).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
+            product.cost_price = new_unit_cost
 
         log_note = (
             f"Restocked: {old_stock} → {product.stock}. "
             f"Reason: {reason}"
         )
+        if total_amount_paid:
+            log_note += f". Total paid: ₱{total_amount_paid:,.2f}"
 
-        inventory_log = InventoryLog(
+        db.session.add(InventoryLog(
             product_id=product.id,
             action="Restock",
             quantity=increment,
             note=log_note[:255],
             user_id=current_user.id,
             user_name=current_user.full_name
+        ))
+
+        # ── Auto restock expense ───────────────────────────────────────────
+        expense_amount = total_amount_paid if (total_amount_paid and total_amount_paid > 0) else (
+            (product.cost_price * increment).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            if product.cost_price and product.cost_price > 0 else None
         )
 
-        db.session.add(inventory_log)
+        if expense_amount and expense_amount > 0:
+            restock_category = get_cogs_category(product)
+            unit_cost_display = product.cost_price or (total_amount_paid / increment)
+            db.session.add(Expense(
+                category=restock_category,
+                expense_title=f"Restock — {product.name} x{increment}",
+                amount=expense_amount,
+                description=f"Auto-recorded on restock. "
+                            f"Unit cost: ₱{unit_cost_display:,.2f} × {increment} unit(s).",
+                date_incurred=datetime.utcnow().date(),
+                recorded_by_id=current_user.id,
+                product_id=product.id,
+            ))
+        else:
+            db.session.add(InventoryLog(
+                product_id=product.id,
+                action="Acquisition Warning",
+                note=f"No cost provided for restock of '{product.name}' — no expense recorded.",
+                user_id=current_user.id,
+                user_name=current_user.full_name
+            ))
+
         db.session.commit()
 
         return jsonify({
             "success": True,
             "new_stock": product.stock,
             "new_status": product.status,
+            "new_unit_cost": float(product.cost_price) if product.cost_price else 0,
             "message": (
                 f"Added {increment} units. "
                 f"Total stock for {product.name} is now {product.stock}."
+                + (f" Unit cost updated to ₱{product.cost_price:,.2f}." if total_amount_paid else "")
             )
         })
 
     except Exception:
         db.session.rollback()
-
-        current_app.logger.exception(
-            f"Stock Update Error for Product {product_id}"
-        )
-
+        current_app.logger.exception(f"Stock Update Error for Product {product_id}")
         return jsonify({
             "success": False,
             "message": "Unable to update inventory at this time."
         }), 500
-    
-        
+
+     
 @admin_bp.route('/delete-product/<int:product_id>', methods=['POST'])
 @login_required
 @admin_or_staff_required
@@ -1133,6 +1212,15 @@ def process_purchase():
                 product.status = "Out of Stock"
             else:
                 product.status = "Available"
+                
+            # ── Sync TankStatus for refillable products on sale ───────────
+            if product.is_refillable and product.tank_status:
+                product.tank_status.full_in_stock = max(
+                    (product.tank_status.full_in_stock or 0) - quantity, 0
+                )
+                product.tank_status.total_owned = max(
+                    (product.tank_status.total_owned or 0) - quantity, 0
+                )
 
             db.session.add(Purchase(
                 transaction_id=new_transaction.id,
@@ -1163,6 +1251,8 @@ def process_purchase():
                 user_id=current_user.id,
                 user_name=getattr(current_user, 'full_name', 'System Administrator')
             ))
+
+
 
         new_transaction.total_amount = total_transaction_price
 
@@ -1389,6 +1479,7 @@ def product_history(product_id):
 @login_required
 @admin_or_staff_required
 @csrf.exempt
+@permission_required('can_process_transactions')
 def transactions():
     page = request.args.get('page', 1, type=int)
     limit = request.args.get('limit', 10, type=int)
@@ -2005,6 +2096,7 @@ def process_primegas():
 @limiter.exempt
 @login_required
 @admin_or_staff_required
+@permission_required('can_view_reports')
 def system_logs():
     page = request.args.get('page', 1, type=int)
     limit = request.args.get('limit', 10, type=int)
@@ -2045,11 +2137,23 @@ def system_logs():
         except ValueError:
             pass
 
+    staff_filter = request.args.get('staff_id', '', type=str)
+    if staff_filter:
+        try:
+            query = query.filter(InventoryLog.user_id == int(staff_filter))
+        except (ValueError, TypeError):
+            pass
+
     pagination = query.order_by(InventoryLog.created_at.desc()).paginate(
         page=page,
         per_page=limit,
         error_out=False
     )
+    
+    # Staff list for filter dropdown
+    staff_list = User.query.filter(
+        User.role.in_(['Staff', 'Administrator'])
+    ).order_by(User.first_name).all()
 
     return render_template(
         'admin/system_logs.html',
@@ -2060,6 +2164,8 @@ def system_logs():
         current_type=current_type,
         date_from=date_from,
         date_to=date_to,
+        staff_list=staff_list,
+        staff_filter=staff_filter,
     )
 
 @admin_bp.route('/logs/<int:log_id>/detail')
@@ -2189,6 +2295,7 @@ def serve_profile_pic(filename):
 @admin_bp.route('/reports')
 @login_required
 @admin_or_staff_required
+@permission_required('can_view_reports')
 def reports():
     from datetime import date
     from sqlalchemy import extract
@@ -2490,6 +2597,68 @@ def reports():
     recent_transactions = Transaction.query.order_by(
         Transaction.created_at.desc()
     ).limit(5).all()
+    
+    # ── Equipment P&L ─────────────────────────────────────────────────────
+    # Get all products
+    all_equipment_products = Product.query.filter_by(is_active=True).all()
+
+    equipment_pl = []
+    for prod in all_equipment_products:
+
+        # Total acquisition cost from linked expenses
+        total_spent = float(
+            db.session.query(func.sum(Expense.amount))
+            .filter(Expense.product_id == prod.id)
+            .scalar() or 0
+        )
+
+        # Sale income
+        sale_income = float(
+            db.session.query(func.sum(Purchase.total_price))
+            .filter(Purchase.product_id == prod.id)
+            .scalar() or 0
+        )
+
+        # Rental income — sum of completed payments linked to rentals of this product
+        rental_income = float(
+            db.session.query(func.sum(Payment.amount))
+            .join(Transaction, Payment.transaction_id == Transaction.id)
+            .join(Rental, Rental.transaction_id == Transaction.id)
+            .filter(
+                Rental.product_id == prod.id,
+                Payment.status == 'Completed'
+            )
+            .scalar() or 0
+        )
+
+        # Units acquired — sum of quantities from acquisition expenses
+        units_acquired = int(
+            db.session.query(func.sum(InventoryLog.quantity))
+            .filter(
+                InventoryLog.product_id == prod.id,
+                InventoryLog.action.in_(['Initial Stock Entry', 'Restock'])
+            )
+            .scalar() or 0
+        )
+
+        total_income = sale_income + rental_income
+        net = total_income - total_spent
+
+        # Only include products that have some data
+        if total_spent > 0 or total_income > 0:
+            equipment_pl.append({
+                'name': prod.name,
+                'equipment_type': prod.equipment_type,
+                'units_acquired': units_acquired,
+                'total_spent': total_spent,
+                'sale_income': sale_income,
+                'rental_income': rental_income,
+                'total_income': total_income,
+                'net': net,
+            })
+
+    # Sort by total income descending
+    equipment_pl.sort(key=lambda x: x['total_income'], reverse=True)
  
     return render_template(
         "admin/reports.html",
@@ -2558,6 +2727,9 @@ def reports():
  
         # Chart datasets serialisable
         sales_by_month_json=sales_by_month,
+        
+        # Equipment P&L
+        equipment_pl=equipment_pl,
     )
 
 # Expenses ════════════════════════════════════════════════════════════════════════
@@ -2565,6 +2737,7 @@ def reports():
 @admin_bp.route('/expenses')
 @login_required
 @admin_or_staff_required
+@permission_required('can_manage_expenses')
 def expenses():
     from sqlalchemy import extract
     from datetime import date, datetime as dt
@@ -2769,6 +2942,10 @@ def expenses():
 @login_required
 @admin_or_staff_required
 def add_expense():
+    if current_user.role.strip() != 'Administrator':
+        flash("Only Administrators can record expenses.", "danger")
+        return redirect(url_for('admin.expenses'))
+    
     from datetime import datetime
     try:
         category    = request.form.get('category', '').strip()
@@ -2841,6 +3018,10 @@ def add_expense():
 @login_required
 @admin_or_staff_required
 def delete_expense(expense_id):
+    if current_user.role.strip() != 'Administrator':
+        flash("Only Administrators can delete expenses.", "danger")
+        return redirect(url_for('admin.expenses'))
+    
     expense = Expense.query.get_or_404(expense_id)
     try:
         # Delete attachment file if it exists
@@ -2871,6 +3052,10 @@ def delete_expense(expense_id):
 @login_required
 @admin_or_staff_required
 def edit_expense(expense_id):
+    if current_user.role.strip() != 'Administrator':
+        flash("Only Administrators can edit expenses.", "danger")
+        return redirect(url_for('admin.expenses'))
+    
     from datetime import datetime
     expense = Expense.query.get_or_404(expense_id)
     try:
@@ -2898,8 +3083,10 @@ def edit_expense(expense_id):
 @admin_bp.route('/security')
 @limiter.exempt
 @login_required
-@admin_or_staff_required
 def security_dashboard():
+    if current_user.role.strip() != 'Administrator':
+        flash("Access restricted to Administrators only.", "danger")
+        return redirect(url_for('admin.dashboard'))
 
     logs = SecurityLog.query.order_by(SecurityLog.created_at.desc()).limit(500).all()
     blocked = BlockedIP.query.filter_by(is_active=True).order_by(BlockedIP.blocked_at.desc()).all()
@@ -2923,30 +3110,68 @@ def security_dashboard():
         'Admin Session Expired',
         'Admin Failed Login',
     ]
+
+    staff_event_types = [
+        'Staff Login',
+        'Staff Login — New Device',
+        'Staff Logout',
+        'Staff Session Expired',
+        'Staff Failed Login',
+        'Staff Action',
+    ]
  
     admin_logs = SecurityLog.query.filter(
         SecurityLog.event_type.in_(admin_event_types)
     ).order_by(SecurityLog.created_at.desc()).limit(200).all()
- 
+
     admin_activity_count = SecurityLog.query.filter(
         SecurityLog.event_type.in_(admin_event_types)
     ).count()
- 
+
     admin_login_count = SecurityLog.query.filter(
         SecurityLog.event_type.in_(['Admin Login', 'Admin Login — New Device'])
     ).count()
- 
+
     admin_logout_count = SecurityLog.query.filter_by(
         event_type='Admin Logout'
     ).count()
- 
+
     admin_expired_count = SecurityLog.query.filter_by(
         event_type='Admin Session Expired'
     ).count()
- 
+
     admin_failed_count = SecurityLog.query.filter_by(
         event_type='Admin Failed Login'
     ).count()
+
+    # ── Staff Activity ─────────────────────────────────────────────────────
+    staff_logs = SecurityLog.query.filter(
+        SecurityLog.event_type.in_(staff_event_types)
+    ).order_by(SecurityLog.created_at.desc()).limit(200).all()
+
+    staff_activity_count = SecurityLog.query.filter(
+        SecurityLog.event_type.in_(staff_event_types)
+    ).count()
+
+    staff_login_count = SecurityLog.query.filter(
+        SecurityLog.event_type.in_(['Staff Login', 'Staff Login — New Device'])
+    ).count()
+
+    staff_logout_count = SecurityLog.query.filter_by(
+        event_type='Staff Logout'
+    ).count()
+
+    staff_action_count = SecurityLog.query.filter_by(
+        event_type='Staff Action'
+    ).count()
+
+    # ── All staff actions from InventoryLog (what they did) ───────────────
+    staff_users = User.query.filter_by(role='Staff').all()
+    staff_user_ids = [u.id for u in staff_users]
+
+    staff_activity_logs = InventoryLog.query.filter(
+        InventoryLog.user_id.in_(staff_user_ids)
+    ).order_by(InventoryLog.created_at.desc()).limit(200).all()
  
     return render_template(
         'admin/security_dashboard.html',
@@ -2967,6 +3192,14 @@ def security_dashboard():
         admin_logout_count=admin_logout_count,
         admin_expired_count=admin_expired_count,
         admin_failed_count=admin_failed_count,
+        # staff activity
+        staff_logs=staff_logs,
+        staff_activity_count=staff_activity_count,
+        staff_login_count=staff_login_count,
+        staff_logout_count=staff_logout_count,
+        staff_action_count=staff_action_count,
+        staff_activity_logs=staff_activity_logs,
+        staff_members=staff_users,
     )
 
 
@@ -3092,8 +3325,11 @@ def clear_security_logs():
 # ── Backup Management ──────────────────────────
 @admin_bp.route('/backup')
 @login_required
-@admin_or_staff_required
 def backup_page():
+    if current_user.role.strip() != 'Administrator':
+        flash("Access restricted to Administrators only.", "danger")
+        return redirect(url_for('admin.dashboard'))
+    
     backups = get_all_backups()
     total_size = sum(b['size_kb'] for b in backups)
     return render_template('admin/backup.html', backups=backups, total_size=round(total_size, 2))
@@ -3101,8 +3337,11 @@ def backup_page():
 
 @admin_bp.route('/backup/create', methods=['POST'])
 @login_required
-@admin_or_staff_required
 def create_manual_backup():
+    if current_user.role.strip() != 'Administrator':
+        flash("Access restricted to Administrators only.", "danger")
+        return redirect(url_for('admin.dashboard'))
+    
     success, result = create_backup(triggered_by='admin')
 
     try:
@@ -3131,8 +3370,11 @@ def create_manual_backup():
 
 @admin_bp.route('/backup/download/<filename>')
 @login_required
-@admin_or_staff_required
 def download_backup(filename):
+    if current_user.role.strip() != 'Administrator':
+        flash("Access restricted to Administrators only.", "danger")
+        return redirect(url_for('admin.dashboard'))
+    
     # Prevent path traversal attack
     if '..' in filename or '/' in filename or '\\' in filename:
         flash("Invalid filename.", "error")
@@ -3163,8 +3405,11 @@ def download_backup(filename):
 
 @admin_bp.route('/backup/delete/<filename>', methods=['POST'])
 @login_required
-@admin_or_staff_required
 def delete_backup(filename):
+    if current_user.role.strip() != 'Administrator':
+        flash("Access restricted to Administrators only.", "danger")
+        return redirect(url_for('admin.dashboard'))
+    
     if '..' in filename or '/' in filename or '\\' in filename:
         flash("Invalid filename.", "error")
         return redirect(url_for('admin.backup_page'))
@@ -3397,8 +3642,11 @@ def notification_data():
 
 @admin_bp.route('/staff-management', methods=['GET', 'POST'])
 @login_required
-@admin_or_staff_required
 def staff_management():
+    if current_user.role.strip() != 'Administrator':
+        flash("Access restricted to Administrators only.", "danger")
+        return redirect(url_for('admin.dashboard'))
+    
     staff_members = User.query.filter(User.role.in_(['Staff', 'Administrator']))\
                               .options(joinedload(User.permissions))\
                               .all()
@@ -3421,6 +3669,9 @@ from extensions import db, passhasher
 @admin_bp.route("/staff/create", methods=["POST"])
 @login_required
 def create_system_user():
+    if current_user.role.strip() != 'Administrator':
+        return jsonify({"success": False, "message": "Unauthorized."}), 403
+    
     data = {
         "email": request.form.get("email", "").strip().lower(),
         "first": request.form.get("first_name", "").strip().title(),
@@ -3440,12 +3691,10 @@ def create_system_user():
     if not any(c in "!@#$%^&*()-_=+" for c in data['pwd']): pwd_errors.append("special character")
 
     if pwd_errors:
-        flash(f"Password weak. Requires: {', '.join(pwd_errors)}", "danger")
-        return redirect(url_for("admin.staff_management"))
+        return jsonify({"success": False, "message": f"Password weak. Requires: {', '.join(pwd_errors)}"}), 400
 
     if User.query.filter_by(email=data['email']).first():
-        flash("Email identity conflict: Record already exists.", "danger")
-        return redirect(url_for("admin.staff_management"))
+        return jsonify({"success": False, "message": "Email already exists in the system."}), 400
 
     try:
         user_record = User(
@@ -3467,18 +3716,19 @@ def create_system_user():
 
         db.session.commit()
 
-        flash(f"New system user {data['first']} initialized successfully.", "success")
+        return jsonify({"success": True, "message": f"New system user {data['first']} initialized successfully."})
         
     except Exception as error:
         db.session.rollback()
         current_app.logger.critical(f"Provisioning Failure: {error}")
-        flash("System error during record creation. Contact development team.", "danger")
-
-    return redirect(url_for("admin.staff_management"))
-
+        return jsonify({"success": False, "message": "System error during record creation. Contact development team."}), 500
 @admin_bp.route("/update-user-access", methods=["POST"])
-@admin_or_staff_required
+@login_required
 def update_user_access():
+    if current_user.role.strip() != 'Administrator':
+        flash("Access restricted to Administrators only.", "danger")
+        return redirect(url_for('admin.dashboard'))
+    
     user_id = request.form.get("user_id")
     
 
@@ -3509,7 +3759,28 @@ def update_user_access():
     return redirect(url_for('admin.staff_management'))
 
 @admin_bp.route("/delete-user/<int:user_id>", methods=["POST"])
-@admin_or_staff_required
+@login_required
 def delete_user(user_id):
+    if current_user.role.strip() != 'Administrator':
+        flash("Access restricted to Administrators only.", "danger")
+        return redirect(url_for('admin.dashboard'))
+    
+    user = User.query.get_or_404(user_id)
+
+    # Prevent self-deletion
+    if user.id == current_user.id:
+        flash("You cannot delete your own account.", "danger")
+        return redirect(url_for('admin.staff_management'))
+
+    try:
+        # Delete associated permissions first to avoid FK constraint errors
+        Permission.query.filter_by(user_id=user.id).delete()
+        db.session.delete(user)
+        db.session.commit()
+        flash(f"{user.first_name} {user.last_name} has been removed from the system.", "success")
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"DELETE_USER_ERROR: {e}")
+        flash("Failed to delete user. They may have linked records.", "danger")
 
     return redirect(url_for('admin.staff_management'))

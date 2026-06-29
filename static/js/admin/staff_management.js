@@ -6,12 +6,68 @@ document.addEventListener('DOMContentLoaded', () => {
     // Create User Modal Logic
     const openCreateBtn = document.getElementById('open-modal-btn');
     const closeCreateBtn = document.getElementById('close-modal-btn');
+    const createUserForm = createModal ? createModal.querySelector('form') : null;
+    const createErrorBox = document.getElementById('create-user-error');
+    const createSubmitBtn = document.getElementById('create-user-submit-btn');
+
+    function showCreateError(msg) {
+        if (createErrorBox) {
+            createErrorBox.textContent = msg;
+            createErrorBox.style.display = 'block';
+        }
+    }
+
+    function clearCreateError() {
+        if (createErrorBox) {
+            createErrorBox.textContent = '';
+            createErrorBox.style.display = 'none';
+        }
+    }
 
     if (openCreateBtn) {
-        openCreateBtn.addEventListener('click', () => createModal.classList.remove('hidden'));
+        openCreateBtn.addEventListener('click', () => {
+            clearCreateError();
+            if (createUserForm) createUserForm.reset();
+            createModal.classList.remove('hidden');
+        });
     }
     if (closeCreateBtn) {
-        closeCreateBtn.addEventListener('click', () => createModal.classList.add('hidden'));
+        closeCreateBtn.addEventListener('click', () => {
+            clearCreateError();
+            createModal.classList.add('hidden');
+        });
+    }
+
+    if (createSubmitBtn && createUserForm) {
+        createSubmitBtn.addEventListener('click', async () => {
+            clearCreateError();
+            createSubmitBtn.disabled = true;
+            createSubmitBtn.textContent = 'Creating...';
+
+            const formData = new FormData(createUserForm);
+            try {
+                const res = await fetch(createUserForm.action, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    createModal.classList.add('hidden');
+                    createUserForm.reset();
+                    // Show success then reload so the table updates
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    showCreateError(data.message);
+                }
+            } catch (err) {
+                showCreateError('A network error occurred. Please try again.');
+            } finally {
+                createSubmitBtn.disabled = false;
+                createSubmitBtn.textContent = 'Create User Account';
+            }
+        });
     }
 
     // Edit User Modal Logic

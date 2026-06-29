@@ -77,6 +77,14 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // ── Staff / personnel filter ───────────────────────────────────────────
+    const staffFilter = document.getElementById('staff-filter');
+    if (staffFilter) {
+        staffFilter.addEventListener('change', function () {
+            navigate({ staff_id: this.value });
+        });
+    }
+
     // ── Date range filter ──────────────────────────────────────────────────
     const dateFrom  = document.getElementById('log-date-from');
     const dateTo    = document.getElementById('log-date-to');

@@ -50,6 +50,7 @@
                         <optgroup label="Expenses">
                             <option value="Expense Recorded" {{ 'selected' if current_type == 'Expense Recorded' }}>Expense Recorded</option>
                             <option value="Expense Deleted"  {{ 'selected' if current_type == 'Expense Deleted' }}>Expense Deleted</option>
+                            <option value="COGS Warning"     {{ 'selected' if current_type == 'COGS Warning' }}>COGS Warning (Missing Cost Price)</option>
                         </optgroup>
                     </select>
                 </div>
@@ -67,6 +68,21 @@
                         Apply
                     </button>
                 </div>
+
+                {# ── Staff filter ── #}
+                {% if staff_list %}
+                <div class="filter-group">
+                    <select id="staff-filter" class="medical-select">
+                        <option value="">All Personnel</option>
+                        {% for member in staff_list %}
+                        <option value="{{ member.id }}" {{ 'selected' if staff_filter == member.id|string }}>
+                            {{ member.first_name }} {{ member.last_name }} ({{ member.role }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+
 
                 {# ── Clear filters ── #}
                 {% if search_query or current_type or date_from or date_to %}

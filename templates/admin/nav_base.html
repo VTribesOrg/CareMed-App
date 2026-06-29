@@ -129,6 +129,7 @@
 
             <div class="sidebar-navigation">
                 <ul class="nav-menu">
+                    {# ── Dashboard — always accessible ── #}
                     <li class="nav-item" title="Dashboard">
                         <a href="{{ url_for('admin.dashboard') }}"
                             class="nav-link {% if request.endpoint == 'admin.dashboard' %}active{% endif %}">
@@ -136,69 +137,102 @@
                             <span class="nav-label">Dashboard</span>
                         </a>
                     </li>
+
+                    {# ── Inventory ── #}
+                    {% set can_products = current_user.role.strip() == 'Administrator' or (current_user.permissions and current_user.permissions.can_manage_products) %}
                     <li class="nav-item" title="Inventory">
-                        <a href="{{ url_for('admin.products') }}"
-                            class="nav-link {% if request.endpoint == 'admin.products' %}active{% endif %}">
+                        <a href="{{ url_for('admin.products') if can_products else 'javascript:void(0)' }}"
+                            class="nav-link {% if request.endpoint == 'admin.products' %}active{% endif %} {% if not can_products %}nav-locked{% endif %}">
                             <span class="material-symbols-rounded">inventory_2</span>
                             <span class="nav-label">Inventory</span>
+                            {% if not can_products %}<span class="material-symbols-rounded nav-lock-icon">lock</span>{% endif %}
                         </a>
                     </li>
+
+                    {# ── Customer Records ── #}
+                    {% set can_customers = current_user.role.strip() == 'Administrator' or (current_user.permissions and current_user.permissions.can_manage_customers) %}
                     <li class="nav-item" title="Customer Records">
-                        <a href="{{ url_for('admin.customers') }}"
-                            class="nav-link {% if request.endpoint in ['admin.customers', 'admin.customer_details'] %}active{% endif %}">
+                        <a href="{{ url_for('admin.customers') if can_customers else 'javascript:void(0)' }}"
+                            class="nav-link {% if request.endpoint in ['admin.customers', 'admin.customer_details'] %}active{% endif %} {% if not can_customers %}nav-locked{% endif %}">
                             <span class="material-symbols-rounded">groups</span>
                             <span class="nav-label">Customer Records</span>
+                            {% if not can_customers %}<span class="material-symbols-rounded nav-lock-icon">lock</span>{% endif %}
                         </a>
                     </li>
+
+                    {# ── Transactions ── #}
+                    {% set can_transactions = current_user.role.strip() == 'Administrator' or (current_user.permissions and current_user.permissions.can_process_transactions) %}
                     <li class="nav-item" title="Transactions">
-                        <a href="{{ url_for('admin.transactions') }}"
-                            class="nav-link {% if request.endpoint in ['admin.transactions', 'admin.transaction_details'] %}active{% endif %}">
+                        <a href="{{ url_for('admin.transactions') if can_transactions else 'javascript:void(0)' }}"
+                            class="nav-link {% if request.endpoint in ['admin.transactions', 'admin.transaction_details'] %}active{% endif %} {% if not can_transactions %}nav-locked{% endif %}">
                             <span class="material-symbols-rounded">receipt_long</span>
                             <span class="nav-label">Transactions</span>
+                            {% if not can_transactions %}<span class="material-symbols-rounded nav-lock-icon">lock</span>{% endif %}
                         </a>
                     </li>
+
+                    {# ── Reports & Analytics ── #}
+                    {% set can_reports = current_user.role.strip() == 'Administrator' or (current_user.permissions and current_user.permissions.can_view_reports) %}
                     <li class="nav-item" title="Reports & Analytics">
-                        <a href="{{ url_for('admin.reports') }}"
-                            class="nav-link {% if request.endpoint == 'admin.reports' %}active{% endif %}">
+                        <a href="{{ url_for('admin.reports') if can_reports else 'javascript:void(0)' }}"
+                            class="nav-link {% if request.endpoint == 'admin.reports' %}active{% endif %} {% if not can_reports %}nav-locked{% endif %}">
                             <span class="material-symbols-rounded">analytics</span>
                             <span class="nav-label">Reports & Analytics</span>
+                            {% if not can_reports %}<span class="material-symbols-rounded nav-lock-icon">lock</span>{% endif %}
                         </a>
                     </li>
+
+                    {# ── System Logs ── #}
                     <li class="nav-item" title="System Logs">
-                        <a href="{{ url_for('admin.system_logs') }}"
-                            class="nav-link {% if request.endpoint == 'admin.system_logs' %}active{% endif %}">
+                        <a href="{{ url_for('admin.system_logs') if can_reports else 'javascript:void(0)' }}"
+                            class="nav-link {% if request.endpoint == 'admin.system_logs' %}active{% endif %} {% if not can_reports %}nav-locked{% endif %}">
                             <span class="material-symbols-rounded">list_alt</span>
                             <span class="nav-label">System Logs</span>
+                            {% if not can_reports %}<span class="material-symbols-rounded nav-lock-icon">lock</span>{% endif %}
                         </a>
                     </li>
+
+                    {# ── Expense Tracker ── #}
+                    {% set can_expenses = current_user.role.strip() == 'Administrator' or (current_user.permissions and current_user.permissions.can_manage_expenses) %}
                     <li class="nav-item" title="Expense Tracker">
-                        <a href="{{ url_for('admin.expenses') }}"
-                            class="nav-link {% if request.endpoint == 'admin.expenses' %}active{% endif %}">
+                        <a href="{{ url_for('admin.expenses') if can_expenses else 'javascript:void(0)' }}"
+                            class="nav-link {% if request.endpoint == 'admin.expenses' %}active{% endif %} {% if not can_expenses %}nav-locked{% endif %}">
                             <span class="material-symbols-rounded">account_balance_wallet</span>
                             <span class="nav-label">Expense Tracker</span>
+                            {% if not can_expenses %}<span class="material-symbols-rounded nav-lock-icon">lock</span>{% endif %}
                         </a>
                     </li>
+
+                    {# ── Admin-only — always locked for Staff ── #}
+                    {% set is_admin = current_user.role.strip() == 'Administrator' %}
+
                     <li class="nav-item" title="Staff Management">
-                        <a href="{{ url_for('admin.staff_management') }}" 
-                        class="nav-link {% if request.endpoint == 'admin.staff_management' %}active{% endif %}">
+                        <a href="{{ url_for('admin.staff_management') if is_admin else 'javascript:void(0)' }}"
+                            class="nav-link {% if request.endpoint == 'admin.staff_management' %}active{% endif %} {% if not is_admin %}nav-locked{% endif %}">
                             <span class="material-symbols-rounded">admin_panel_settings</span>
                             <span class="nav-label">Staff Management</span>
+                            {% if not is_admin %}<span class="material-symbols-rounded nav-lock-icon">lock</span>{% endif %}
                         </a>
                     </li>
+
                     <li class="nav-item" title="Backup Management">
-                        <a href="{{ url_for('admin.backup_page') }}"
-                            class="nav-link {% if request.endpoint == 'admin.backup_page' %}active{% endif %}">
+                        <a href="{{ url_for('admin.backup_page') if is_admin else 'javascript:void(0)' }}"
+                            class="nav-link {% if request.endpoint == 'admin.backup_page' %}active{% endif %} {% if not is_admin %}nav-locked{% endif %}">
                             <span class="material-symbols-rounded">backup</span>
                             <span class="nav-label">Backup Management</span>
+                            {% if not is_admin %}<span class="material-symbols-rounded nav-lock-icon">lock</span>{% endif %}
                         </a>
                     </li>
+
                     <li class="nav-item" title="Security Center">
-                        <a href="{{ url_for('admin.security_dashboard') }}"
-                            class="nav-link {% if request.endpoint == 'admin.security_dashboard' %}active{% endif %}">
+                        <a href="{{ url_for('admin.security_dashboard') if is_admin else 'javascript:void(0)' }}"
+                            class="nav-link {% if request.endpoint == 'admin.security_dashboard' %}active{% endif %} {% if not is_admin %}nav-locked{% endif %}">
                             <span class="material-symbols-rounded">security</span>
                             <span class="nav-label">Security Center</span>
+                            {% if not is_admin %}<span class="material-symbols-rounded nav-lock-icon">lock</span>{% endif %}
                         </a>
                     </li>
+
                 </ul>
                 
                 <!--

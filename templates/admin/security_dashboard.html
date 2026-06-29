@@ -86,6 +86,8 @@
     .clear-btn:hover { border-color:#dc2626; color:#dc2626; }
     .log-delete-btn { background:none; border:1px solid #e2e8f0; color:#94a3b8; padding:2px 8px; border-radius:6px; font-size:0.7rem; cursor:pointer; }
     .log-delete-btn:hover { border-color:#dc2626; color:#dc2626; }
+    .fbtn-staff { padding:4px 12px; border-radius:99px; font-size:0.75rem; font-weight:600; border:1px solid #e2e8f0; background:#fff; color:#64748b; cursor:pointer; transition:all .15s; }
+    .fbtn-staff.active, .fbtn-staff:hover { background:#002347; color:#fff; border-color:#002347; }
     @media (max-width:1100px) { .ids-stats { grid-template-columns:repeat(2,1fr); } .ids-grid { grid-template-columns:1fr; } }
 </style>
 {% endblock %}
@@ -133,6 +135,11 @@
         <span class="material-symbols-rounded" style="font-size:16px;">manage_accounts</span>
         Admin Activity
         <span class="tab-count">{{ admin_activity_count }}</span>
+    </button>
+    <button class="sec-tab" data-tab="staff-activity">
+        <span class="material-symbols-rounded" style="font-size:16px;">badge</span>
+        Staff Activity
+        <span class="tab-count">{{ staff_activity_count }}</span>
     </button>
 </div>
  
@@ -447,6 +454,195 @@
         </div>
     </div>
 </div><!-- /#tab-admin-activity -->
+
+<!-- ══ TAB: Staff Activity ══ -->
+<div class="tab-panel" id="tab-staff-activity">
+    <div class="ids-card">
+        <div class="ids-card-header">
+            <h3>
+                <span class="material-symbols-rounded" style="font-size:18px;">badge</span>
+                Staff Activity
+            </h3>
+            <span style="font-size:0.8rem; color:#94a3b8;">Last 200 events</span>
+        </div>
+
+        <!-- Staff Login Stats -->
+        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; padding:16px; border-bottom:1px solid #e2e8f0;">
+            <div class="stat-card blue" style="padding:14px;">
+                <span class="material-symbols-rounded stat-icon" style="font-size:22px;">badge</span>
+                <div class="stat-num" style="font-size:1.4rem;">{{ staff_activity_count }}</div>
+                <div class="stat-label">Total Staff Events</div>
+            </div>
+            <div class="stat-card green" style="padding:14px;">
+                <span class="material-symbols-rounded stat-icon" style="font-size:22px;">login</span>
+                <div class="stat-num" style="font-size:1.4rem;">{{ staff_login_count }}</div>
+                <div class="stat-label">Staff Logins</div>
+            </div>
+            <div class="stat-card amber" style="padding:14px;">
+                <span class="material-symbols-rounded stat-icon" style="font-size:22px;">edit_note</span>
+                <div class="stat-num" style="font-size:1.4rem;">{{ staff_action_count }}</div>
+                <div class="stat-label">Actions Performed</div>
+            </div>
+        </div>
+
+        <!-- Staff Member Filter Buttons -->
+        {% if staff_members %}
+        <div style="padding:14px 16px; border-bottom:1px solid #e2e8f0; background:#f8fafc;">
+            <p style="margin:0; font-size:0.78rem; font-weight:700; color:#64748b; text-transform:uppercase;">
+                Active Staff Members ({{ staff_members|length }})
+            </p>
+        </div>
+        <div style="display:flex; gap:10px; padding:12px 16px; flex-wrap:wrap; border-bottom:1px solid #e2e8f0;">
+            <button class="fbtn-staff active" data-staff-filter="all">All Staff</button>
+            {% for member in staff_members %}
+            {% if member.role == 'Staff' %}
+            <button class="fbtn-staff" data-staff-filter="{{ member.id }}">
+                {{ member.first_name }} {{ member.last_name }}
+            </button>
+            {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Staff Login Events -->
+        <div class="ids-card-header" style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:12px 16px;">
+            <h3 style="font-size:0.85rem; font-weight:700; color:#1e293b; margin:0; display:flex; align-items:center; gap:6px;">
+                <span class="material-symbols-rounded" style="font-size:16px;">lock_clock</span>
+                Staff Login &amp; Session Events
+            </h3>
+        </div>
+
+        <div class="log-scroll">
+            {% if staff_logs %}
+            <table class="log-table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Event</th>
+                        <th>Staff Member</th>
+                        <th>IP Address</th>
+                        <th>Device / Browser</th>
+                    </tr>
+                </thead>
+                <tbody id="staffLogBody">
+                    {% for log in staff_logs %}
+                    <tr class="staff-log-row" data-staff-id="{{ log.user_id or '' }}">
+                        <td style="white-space:nowrap; color:#94a3b8; font-size:0.72rem;">
+                            {{ log.created_at|pst('%m/%d %I:%M:%S %p') }}
+                        </td>
+                        <td>
+                            {% if 'Login' in log.event_type %}
+                                <span class="pill pill-green">{{ log.event_type }}</span>
+                            {% elif 'Logout' in log.event_type %}
+                                <span class="pill pill-gray">{{ log.event_type }}</span>
+                            {% elif 'Failed' in log.event_type %}
+                                <span class="pill pill-red">{{ log.event_type }}</span>
+                            {% else %}
+                                <span class="pill pill-blue">{{ log.event_type }}</span>
+                            {% endif %}
+                        </td>
+                        <td style="font-size:0.82rem; font-weight:600; color:#374151;">
+                            {{ log.user_email or '—' }}
+                        </td>
+                        <td style="font-family:monospace; font-size:0.78rem; color:#475569;">
+                            {{ log.ip_address or '—' }}
+                        </td>
+                        <td style="font-size:0.75rem; color:#64748b; max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                            {% if log.user_agent %}
+                                {% set ua = log.user_agent %}
+                                {% if 'Chrome' in ua and 'Edg' not in ua %}Chrome
+                                {% elif 'Firefox' in ua %}Firefox
+                                {% elif 'Edg' in ua %}Edge
+                                {% elif 'Safari' in ua and 'Chrome' not in ua %}Safari
+                                {% else %}Unknown Browser
+                                {% endif %}
+                                /
+                                {% if 'Windows' in ua %}Windows
+                                {% elif 'Mac' in ua %}macOS
+                                {% elif 'iPhone' in ua or 'iPad' in ua %}iOS
+                                {% elif 'Android' in ua %}Android
+                                {% elif 'Linux' in ua %}Linux
+                                {% else %}Unknown OS
+                                {% endif %}
+                            {% else %}—{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state">
+                <span class="material-symbols-rounded">badge</span>
+                <p style="font-weight:600;">No staff login events yet</p>
+                <p style="font-size:0.8rem;">Events will appear here as staff members log in.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Staff System Actions -->
+        <div class="ids-card-header" style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:12px 16px; margin-top:8px;">
+            <h3 style="font-size:0.85rem; font-weight:700; color:#1e293b; margin:0; display:flex; align-items:center; gap:6px;">
+                <span class="material-symbols-rounded" style="font-size:16px;">checklist</span>
+                Staff System Actions
+            </h3>
+        </div>
+
+        <div class="log-scroll">
+            {% if staff_activity_logs %}
+            <table class="log-table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Action</th>
+                        <th>Staff Member</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody id="staffActionBody">
+                    {% for log in staff_activity_logs %}
+                    <tr class="staff-action-row" data-staff-id="{{ log.user_id or '' }}">
+                        <td style="white-space:nowrap; color:#94a3b8; font-size:0.72rem;">
+                            {{ log.created_at|pst('%m/%d %I:%M:%S %p') }}
+                        </td>
+                        <td>
+                            {% set act = log.action | lower %}
+                            {% if 'sale' in act or 'purchase' in act %}
+                                <span class="pill pill-green">{{ log.action }}</span>
+                            {% elif 'rental' in act %}
+                                <span class="pill pill-blue">{{ log.action }}</span>
+                            {% elif 'return' in act %}
+                                <span class="pill pill-yellow">{{ log.action }}</span>
+                            {% elif 'restock' in act or 'stock' in act %}
+                                <span class="pill pill-green">{{ log.action }}</span>
+                            {% elif 'delete' in act or 'archive' in act %}
+                                <span class="pill pill-red">{{ log.action }}</span>
+                            {% elif 'customer' in act %}
+                                <span class="pill pill-blue">{{ log.action }}</span>
+                            {% else %}
+                                <span class="pill pill-gray">{{ log.action }}</span>
+                            {% endif %}
+                        </td>
+                        <td style="font-size:0.82rem; font-weight:600; color:#374151;">
+                            {{ log.user_name or '—' }}
+                        </td>
+                        <td style="font-size:0.78rem; color:#64748b; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                            {{ log.note or '—' }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state">
+                <span class="material-symbols-rounded">edit_note</span>
+                <p style="font-weight:600;">No staff actions recorded yet</p>
+                <p style="font-size:0.8rem;">Staff actions like processing transactions will appear here.</p>
+            </div>
+            {% endif %}
+        </div>
+
+    </div>
+</div><!-- /#tab-staff-activity -->
  
 {% endblock %}
  
@@ -552,6 +748,17 @@
                 else if (filter === 'expired') show = ev.includes('expired');
                 else if (filter === 'failed')  show = ev.includes('failed');
                 row.style.display = show ? '' : 'none';
+            });
+        });
+    });
+    // ── Staff member filter buttons ───────────────────────────────
+    document.querySelectorAll('.fbtn-staff').forEach(btn => {
+        btn.addEventListener('click', function () {
+            document.querySelectorAll('.fbtn-staff').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            const filter = this.dataset.staffFilter;
+            document.querySelectorAll('.staff-log-row, .staff-action-row').forEach(row => {
+                row.style.display = (filter === 'all' || row.dataset.staffId === filter) ? '' : 'none';
             });
         });
     });

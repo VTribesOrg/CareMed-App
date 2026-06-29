@@ -1771,3 +1771,30 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     });
 });
+
+/*============= AUTO-OPEN MODAL FROM URL PARAM =============*/
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const openParam = urlParams.get('open');
+
+    if (openParam === 'sale') {
+        const purchaseModal = document.getElementById('purchaseAssetModal');
+        if (purchaseModal) {
+            purchaseModal.classList.remove('hidden');
+        }
+    } else if (openParam === 'rental') {
+        const rentModal = document.getElementById('rentAssetModal');
+        if (rentModal) {
+            resetRentModal();
+            rentModal.classList.remove('hidden');
+        }
+    }
+
+    // Clean the URL so refreshing doesn't re-open the modal
+    if (openParam) {
+        const cleanUrl = window.location.pathname + 
+            (window.location.search.replace(/[?&]open=[^&]*/g, '').replace(/^&/, '?') || '');
+        window.history.replaceState({}, '', cleanUrl);
+    }
+});
+/*============= END OF AUTO-OPEN MODAL FROM URL PARAM =============*/

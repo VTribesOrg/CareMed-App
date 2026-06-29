@@ -201,8 +201,6 @@ window.openEditModal = function(productData) {
         'edit-product-id': productData.id,
         'edit-type': productData.type,
         'edit-name': productData.name,
-        'edit-cost_price': productData.cost_price,
-        'edit-stock': productData.stock,
         'edit-condition': productData.condition,
         'edit-description': productData.description,
         'edit-offer-type': productData.offer_type,
@@ -210,6 +208,15 @@ window.openEditModal = function(productData) {
         'edit-rent-period': productData.rent_period,
         'edit-price': productData.sale_price
     };
+
+    // Show unit cost as read-only display
+    const costDisplay = document.getElementById('edit-cost-display');
+    if (costDisplay) {
+        const cost = parseFloat(productData.cost_price);
+        costDisplay.innerText = cost > 0
+            ? `₱${cost.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+            : 'Not set';
+    }
 
     // Store these values to compare later
     originalAssetData = { ...fields };
@@ -258,8 +265,6 @@ document.getElementById('editAssetForm')?.addEventListener('input', function() {
         'edit-product-id': document.getElementById('edit-product-id').value,
         'edit-type': document.getElementById('edit-type').value,
         'edit-name': document.getElementById('edit-name').value,
-        'edit-cost_price': document.getElementById('edit-cost_price').value,
-        'edit-stock': document.getElementById('edit-stock').value,
         'edit-condition': document.getElementById('edit-condition').value,
         'edit-description': document.getElementById('edit-description').value,
         'edit-offer-type': document.getElementById('edit-offer-type').value,
@@ -531,29 +536,10 @@ document.getElementById('editAssetForm')?.addEventListener('submit', function() 
 
 /*============= START OF RENTMODAL =============*/
 
-const rentModal = document.getElementById('rentAssetModal');
-const rentBtns = document.querySelectorAll('.asset-action-btn.rent');
-
-rentBtns.forEach(btn => {
+document.querySelectorAll('.asset-action-btn.rent').forEach(btn => {
     btn.addEventListener('click', () => {
-        const row = btn.closest('tr');
-        const equipmentName = row.cells[1].innerText;
-        const equipmentId = row.cells[1].innerText;
-        const rentNameDisplay = document.getElementById('rent-equipment-name');
-        
-        if (rentNameDisplay) {
-            rentNameDisplay.textContent = `${equipmentName} (${equipmentId})`;
-        }
-
-        rentModal.classList.remove('hidden');
+        window.location.href = '/admin/transactions?type=Rental';
     });
-});
-
-rentModal.addEventListener('click', (e) => {
-    if (e.target.classList.contains('close-rent-modal') || 
-        e.target.classList.contains('medical-modal-overlay')) {
-        rentModal.classList.add('hidden');
-    }
 });
 
 const rentForm = document.getElementById('rentEntryForm');
@@ -602,277 +588,126 @@ document.addEventListener('DOMContentLoaded', function() {
     const stockModal = document.getElementById('addStockModal');
     const stockForm = document.getElementById('addStockForm');
     const stockInput = document.getElementById('stock-increment-input');
+    const totalCostInput = document.getElementById('stock-total-cost-input');
+    const unitCostPreview = document.getElementById('unit-cost-preview');
+    const calculatedUnitCost = document.getElementById('calculated-unit-cost');
     const currentStockDisplay = document.getElementById('current-stock-display');
     const newTotalDisplay = document.getElementById('new-total-display');
     const stockEquipName = document.getElementById('stock-equipment-name');
+    const reasonInput = document.getElementById('stock-reason-input');
 
     let currentBaseStock = 0;
     let activeProductId = null;
 
-    // --- 1. Event Delegation for Opening Modal ---
+    // --- 1. Open Modal ---
     document.addEventListener('click', function(e) {
         const btn = e.target.closest('.add-stock-trigger');
         if (btn) {
             activeProductId = btn.dataset.id;
             currentBaseStock = parseInt(btn.dataset.stock) || 0;
-            
+
             stockEquipName.innerText = btn.dataset.name;
             currentStockDisplay.innerText = `${currentBaseStock} Units`;
             newTotalDisplay.innerText = `${currentBaseStock} Units`;
-            stockInput.value = ''; 
-            
+
+            // Reset fields
+            stockInput.value = '';
+            totalCostInput.value = '';
+            reasonInput.value = '';
+            unitCostPreview.style.display = 'none';
+
             stockModal.classList.remove('hidden');
         }
 
-        // Handle closing modal
         if (e.target.closest('.close-stock-modal')) {
             stockModal.classList.add('hidden');
         }
     });
 
-    // --- 2. Live Calculation ---
+    // --- 2. Live Stock Calculation ---
     stockInput.addEventListener('input', function() {
-        const val = parseInt(this.value) || 0;
-        const total = currentBaseStock + val;
+        const qty = parseInt(this.value) || 0;
+        const total = currentBaseStock + qty;
         newTotalDisplay.innerText = `${total} Units`;
         newTotalDisplay.style.color = total < currentBaseStock ? "#ef4444" : "#52B788";
+        updateUnitCostPreview();
     });
 
-    // --- 3. Form Submission (AJAX) ---
+    // --- 3. Live Unit Cost Preview ---
+    totalCostInput.addEventListener('input', updateUnitCostPreview);
+
+    function updateUnitCostPreview() {
+        const qty = parseInt(stockInput.value) || 0;
+        const total = parseFloat(totalCostInput.value) || 0;
+
+        if (qty > 0 && total > 0) {
+            const unitCost = total / qty;
+            calculatedUnitCost.innerText = `₱${unitCost.toLocaleString('en-PH', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            })}`;
+            unitCostPreview.style.display = 'block';
+        } else {
+            unitCostPreview.style.display = 'none';
+        }
+    }
+
+    // --- 4. Form Submission ---
     stockForm.addEventListener('submit', function(e) {
         e.preventDefault();
-        
-        const incrementVal = stockInput.value;
-        const reasonVal = this.querySelector('textarea').value;
+
+        const increment = parseInt(stockInput.value);
+        const totalAmountPaid = parseFloat(totalCostInput.value) || null;
+        const reason = reasonInput.value.trim();
+
+        if (!increment || increment <= 0) {
+            alert('Please enter a valid quantity.');
+            return;
+        }
+
+        const submitBtn = this.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.innerText = 'Processing...';
 
         fetch(`/admin/update_stock/${activeProductId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                increment: parseInt(incrementVal),
-                reason: reasonVal
+                increment: increment,
+                total_amount_paid: totalAmountPaid,
+                reason: reason
             })
         })
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                window.location.reload(); 
+                stockModal.classList.add('hidden');
+                window.location.reload();
+            } else {
+                alert(data.message || 'Failed to update stock.');
+                submitBtn.disabled = false;
+                submitBtn.innerText = 'Confirm Restock';
             }
         })
-        .catch(err => console.error("CSP-Compliant Fetch Error:", err));
+        .catch(err => {
+            console.error('Stock Update Error:', err);
+            alert('A network error occurred.');
+            submitBtn.disabled = false;
+            submitBtn.innerText = 'Confirm Restock';
+        });
     });
 });
-
 
 /*============= END OF ADDSTOCKMODAL =============*/
 
 /*============= PURCHASE SUBMISSION LOGIC =============*/
 
-const purchaseForm = document.getElementById('purchaseEntryForm');
-const purchaseModal = document.getElementById('purchaseAssetModal'); 
-let activePurchaseProductId = null;
-
-/**
- * Handles toggling delivery fields without using onclick in HTML
- */
-purchaseForm?.addEventListener('change', function(e) {
-    if (e.target.name === 'fulfillment_type') {
-        const isDelivery = e.target.value === 'Delivery';
-        togglePurchaseDelivery(isDelivery);
-    }
-});
-
-/**
- * Updates the Grand Total and auto-fills the Amount Paid
- */
-function updatePurchaseTotal() {
-    const qtyInput = document.getElementById('purchase-qty');
-    const priceInput = document.getElementById('purchase-unit-price');
-    const amountPaidInput = document.getElementById('purchase-amount-paid');
-    const totalDisplay = document.getElementById('purchase-total-display');
-
-    if (qtyInput && priceInput && totalDisplay) {
-        const qty = parseFloat(qtyInput.value) || 0;
-        const price = parseFloat(priceInput.value) || 0;
-        const total = qty * price;
-        
-        totalDisplay.innerText = `₱${total.toLocaleString('en-US', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        })}`;
-
-        // Auto-fill Amount Paid to match the total by default
-        if (amountPaidInput) {
-            amountPaidInput.value = total.toFixed(2);
-        }
-    }
-}
-
-/**
- * Clears form data and resets UI states
- */
-function resetPurchaseModal() {
-    activePurchaseProductId = null;
-    if (purchaseForm) {
-        purchaseForm.reset();
-        togglePurchaseDelivery(false); // Hide delivery fields by default
-    }
-    const display = document.getElementById('purchase-total-display');
-    if (display) display.innerText = "₱0.00";
-}
-
-/**
- * Global click listener to open modal and populate data
- */
 document.addEventListener('click', function(e) {
     const btn = e.target.closest('.asset-action-btn.purchase');
     if (btn) {
-        resetPurchaseModal(); 
-        
-        activePurchaseProductId = btn.getAttribute('data-id'); 
-        const stockValue = parseInt(btn.getAttribute('data-stock')) || 0;
-        
-        const stockBadge = document.getElementById('purchase-stock-badge');
-        const stockDisplay = document.getElementById('purchase-stock-display');
-        const qtyInput = document.getElementById('purchase-qty');
-
-        if (stockDisplay) {
-            stockDisplay.innerText = `${stockValue} Units Available`;
-        }
-
-        if (stockBadge) {
-            stockBadge.classList.remove('status-in-stock', 'status-low-stock', 'status-out-of-stock');
-            if (stockValue <= 0) {
-                stockBadge.classList.add('status-out-of-stock');
-            } else if (stockValue < 5) {
-                stockBadge.classList.add('status-low-stock');
-            } else {
-                stockBadge.classList.add('status-in-stock');
-            }
-        }
-
-        if (qtyInput) {
-            qtyInput.max = stockValue; // Set HTML constraint
-            qtyInput.value = stockValue > 0 ? 1 : 0;
-        }
-
-        const nameLabel = document.getElementById('purchase-equipment-name');
-        const unitPriceInput = document.getElementById('purchase-unit-price');
-
-        if (nameLabel) nameLabel.innerText = btn.getAttribute('data-name');
-        if (unitPriceInput) unitPriceInput.value = btn.getAttribute('data-price');
-        
-        updatePurchaseTotal();
-        purchaseModal?.classList.remove('hidden');
+        window.location.href = '/admin/transactions?type=Sale';
     }
 });
-
-// Real-time calculation listeners
-document.getElementById('purchase-qty')?.addEventListener('input', updatePurchaseTotal);
-document.getElementById('purchase-unit-price')?.addEventListener('input', updatePurchaseTotal);
-
-/**
- * Form Submission Logic
- */
-if (purchaseForm) {
-    purchaseForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-
-        const submitBtn = this.querySelector('button[type="submit"]');
-        const originalBtnText = submitBtn.innerText;
-        const formData = new FormData(this);
-
-        // 1. Validation: Product Selection
-        if (!activePurchaseProductId) {
-            alert("Error: No product selected.");
-            return;
-        }
-
-        // 2. Validation: Stock Check
-        const qtyToPurchase = parseInt(formData.get('quantity'));
-        const qtyInput = document.getElementById('purchase-qty');
-        const maxAvailable = parseInt(qtyInput?.max) || 0;
-
-        if (qtyToPurchase > maxAvailable) {
-            alert(`Insufficient Stock! Only ${maxAvailable} units available.`);
-            return;
-        }
-
-        // 3. Validation: Customer Selection
-        if (!formData.get('customer_id')) {
-            alert("Please select a valid buyer/customer.");
-            return;
-        }
-
-        const payload = {
-            product_id: activePurchaseProductId,
-            customer_id: formData.get('customer_id'),
-            quantity: qtyToPurchase,
-            unit_price: parseFloat(formData.get('unit_price')),
-            amount_paid: parseFloat(formData.get('amount_paid')),
-            payment_method: formData.get('payment_method'),
-            payment_ref: formData.get('reference_number'),
-            fulfillment_type: formData.get('fulfillment_type'),
-            delivery_address: formData.get('delivery_address') || "",
-            landmark: formData.get('landmark') || "",
-            warranty_or_notes: formData.get('warranty_or_notes').trim()
-        };
-
-        // UI: Loading State
-        submitBtn.disabled = true;
-        submitBtn.innerText = "Processing Transaction...";
-
-        fetch('/admin/process-purchase', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value || ''
-            },
-            body: JSON.stringify(payload)
-        })
-        .then(async response => {
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.message || "Server error occurred");
-            return data;
-        })
-        .then(data => {
-            if (data.success) {
-                alert(`Success! Transaction Recorded.`);
-                window.location.reload(); 
-            } else {
-                throw new Error(data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Purchase Error:', error);
-            alert(error.message);
-            submitBtn.disabled = false;
-            submitBtn.innerText = originalBtnText;
-        });
-    });
-}
-
-/**
- * Modal Close Handling
- */
-document.addEventListener('click', function(e) {
-    if (e.target.closest('.close-purchase-modal') || e.target === purchaseModal) {
-        purchaseModal?.classList.add('hidden');
-        resetPurchaseModal();
-    }
-});
-
-/**
- * Toggles visibility of delivery address fields
- */
-function togglePurchaseDelivery(isDelivery) {
-    const deliveryFields = document.getElementById('purchase-delivery-fields');
-    if (deliveryFields) {
-        deliveryFields.style.display = isDelivery ? 'grid' : 'none';
-        const addrInput = deliveryFields.querySelector('input[name="delivery_address"]');
-        if (addrInput) addrInput.required = isDelivery;
-    }
-}
 
 /*============= END OF PURCHASE SUBMISSION LOGIC =============*/
 

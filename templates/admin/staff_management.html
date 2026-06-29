@@ -123,9 +123,13 @@
                 <option value="Administrator">Administrator (Full Access)</option>
             </select>
             
+            <div id="create-user-error"
+                 style="display:none; background:#fef2f2; border:1px solid #fca5a5; color:#991b1b;
+                        border-radius:8px; padding:10px 14px; font-size:0.85rem; margin-top:12px;">
+            </div>
             <div class="modal-actions" style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
                 <button type="button" id="close-modal-btn" style="background: #f1f5f9; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer;">Cancel</button>
-                <button type="submit" class="btn-primary">Create User Account</button>
+                <button type="button" id="create-user-submit-btn" class="btn-primary">Create User Account</button>
             </div>
         </form>
     </div>
