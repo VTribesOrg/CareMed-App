@@ -29,15 +29,28 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.more-trigger').forEach(trigger => {
         trigger.addEventListener('click', function(e) {
             e.stopPropagation();
-            
+
             const parentDropdown = this.closest('.action-dropdown');
             const parentRow = this.closest('tr');
+            const menu = parentDropdown.querySelector('.dropdown-menu');
 
             document.querySelectorAll('.action-dropdown').forEach(d => {
                 if (d !== parentDropdown) d.classList.remove('active');
             });
 
             parentDropdown.classList.toggle('active');
+
+            // Position the dropdown using fixed coords from the trigger button
+            if (parentDropdown.classList.contains('active') && menu) {
+                const rect = this.getBoundingClientRect();
+                menu.style.top = (rect.bottom + 4) + 'px';
+                menu.style.left = (rect.right - menu.offsetWidth - 4) + 'px';
+                // Adjust if menu goes off screen bottom
+                const menuBottom = rect.bottom + 4 + menu.offsetHeight;
+                if (menuBottom > window.innerHeight) {
+                    menu.style.top = (rect.top - menu.offsetHeight - 4) + 'px';
+                }
+            }
 
             allRows.forEach(r => r.classList.remove('row-active'));
             parentRow.classList.add('row-active');

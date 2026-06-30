@@ -83,6 +83,7 @@ class Permission(db.Model):
     can_manage_expenses = db.Column(db.Boolean, default=False)
     can_view_reports = db.Column(db.Boolean, default=False)
     can_view_logs = db.Column(db.Boolean, default=False)
+    can_view_active_rentals = db.Column(db.Boolean, default=False)
     
 class SecurityLog(db.Model):
     __tablename__ = "security_logs"

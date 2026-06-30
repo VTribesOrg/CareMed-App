@@ -92,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Populate Permission Toggles
                 const permissionFields = [
                     'can_manage_customers', 'can_manage_products', 'can_process_transactions', 
-                    'can_confirm_payments', 'can_manage_expenses', 'can_view_reports'
+                    'can_confirm_payments', 'can_manage_expenses', 'can_view_reports', 'can_view_active_rentals'
                 ];
 
                 permissionFields.forEach(field => {

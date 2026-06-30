@@ -611,7 +611,7 @@ def products():
     equipment_type = request.args.get('type', 'all')
     filter_type    = request.args.get('filter', '')         
  
-    query = Product.query
+    query = Product.query.filter(Product.status != 'Archived')
  
     if search_query:
         query = query.filter(or_(
@@ -655,6 +655,15 @@ def products():
  
     customers = Customer.query.filter_by(is_active=True)\
         .order_by(Customer.last_name.asc()).all()
+        
+    # Dynamic equipment types from actual inventory
+    equipment_types = db.session.query(
+        Product.equipment_type
+    ).filter(
+        Product.equipment_type != None,
+        Product.status != 'Archived'
+    ).distinct().order_by(Product.equipment_type.asc()).all()
+    equipment_types = [et[0] for et in equipment_types]
  
     return render_template(
         "admin/products.html",
@@ -667,6 +676,7 @@ def products():
         current_filter=filter_type,      
         start_entry=start_entry,
         end_entry=end_entry,
+        equipment_types=equipment_types,
         **stats
     )
 
@@ -1416,6 +1426,46 @@ def process_rental():
         for r in rentals:
             r.generate_monthly_invoices()
 
+        db.session.flush()
+        db.session.expire(new_txn, ['payments'])
+        
+        # ── Record initial payment if provided ────────────────────────────
+        amount_paid_raw = request.form.get('amount_paid', '0').replace(',', '') or '0'
+        amount_paid = Decimal(amount_paid_raw)
+
+        if amount_paid > 0:
+            payment_method = request.form.get('payment_method', 'Cash').strip()
+            reference_number = request.form.get('reference_number', '').strip() or None
+
+            # Distribute initial payment across first unpaid invoice(s)
+            remaining = amount_paid
+            all_invoices = []
+            for r in rentals:
+                for inv in r.invoices:
+                    all_invoices.append(inv)
+
+            for inv in all_invoices:
+                if remaining <= 0:
+                    break
+                pay_amount = min(remaining, Decimal(str(inv.amount_due or 0)))
+                db.session.add(Payment(
+                    transaction_id=new_txn.id,
+                    invoice_id=inv.id,
+                    amount=pay_amount,
+                    payment_method=payment_method,
+                    reference_number=reference_number,
+                    status="Completed",
+                    verified_by_id=current_user.id,
+                    verified_at=datetime.utcnow()
+                ))
+                if pay_amount >= Decimal(str(inv.amount_due or 0)):
+                    inv.status = "Paid"
+                else:
+                    inv.status = "Partially Paid"
+                remaining -= pay_amount
+
+        db.session.flush()
+        db.session.expire(new_txn, ['payments'])
         new_txn.update_totals()
         db.session.commit()
 
@@ -1495,11 +1545,12 @@ def transactions():
     )
 
     if search_query:
-        query = query.filter(or_(
+        query = query.outerjoin(Rental, Rental.transaction_id == Transaction.id).filter(or_(
             Transaction.reference_no.ilike(f"%{search_query}%"),
             Transaction.customer_name.ilike(f"%{search_query}%"),
-            Transaction.landmark.ilike(f"%{search_query}%")
-        ))
+            Transaction.landmark.ilike(f"%{search_query}%"),
+            Rental.serial_number.ilike(f"%{search_query}%")
+        )).distinct()
     
     if txn_type:
         query = query.filter(Transaction.transaction_type == txn_type)
@@ -1571,6 +1622,13 @@ def transactions():
     customers = Customer.query.order_by(Customer.last_name).all()
     all_equipment = Product.query.filter_by(status='Available').order_by(Product.equipment_type.asc()).all()
     
+    # Override stock display for refillable products to show full_in_stock only
+    for equipment in all_equipment:
+        if equipment.is_refillable and equipment.tank_status:
+            equipment.available_stock = equipment.tank_status.full_in_stock or 0
+        else:
+            equipment.available_stock = equipment.stock or 0
+    
     # Query for Primegas modal
     refillable_products = Product.query.join(TankStatus).filter(Product.is_active == True).all()
 
@@ -1588,6 +1646,28 @@ def transactions():
         refillable_products=refillable_products,
         datetime_now_date=current_date,
         **stats
+    )
+    
+@admin_bp.route('/active-rentals')
+@login_required
+@admin_or_staff_required
+@permission_required('can_view_active_rentals')
+def active_rentals():
+    search_query = request.args.get('q', '').strip()
+    
+    query = Rental.query.filter_by(status='Active')\
+        .options(
+            joinedload(Rental.product),
+            joinedload(Rental.transaction).joinedload(Transaction.customer)
+        )
+    
+    rentals = query.order_by(Rental.expected_return_date.asc()).all()
+    
+    return render_template(
+        'admin/active_rentals.html',
+        rentals=rentals,
+        search_query=search_query,
+        datetime_now_date=date.today()
     )
 
 import openpyxl
@@ -3722,6 +3802,7 @@ def create_system_user():
         db.session.rollback()
         current_app.logger.critical(f"Provisioning Failure: {error}")
         return jsonify({"success": False, "message": "System error during record creation. Contact development team."}), 500
+    
 @admin_bp.route("/update-user-access", methods=["POST"])
 @login_required
 def update_user_access():
@@ -3748,6 +3829,7 @@ def update_user_access():
     perms.can_confirm_payments = 'can_confirm_payments' in request.form
     perms.can_manage_expenses = 'can_manage_expenses' in request.form
     perms.can_view_reports = 'can_view_reports' in request.form
+    perms.can_view_active_rentals = 'can_view_active_rentals' in request.form
     
     try:
         db.session.commit()

@@ -171,6 +171,17 @@
                         </a>
                     </li>
 
+                    {# ── Active Rentals ── #}
+                    {% set can_active_rentals = current_user.role.strip() == 'Administrator' or (current_user.permissions and current_user.permissions.can_view_active_rentals) %}
+                    <li class="nav-item" title="Active Rentals">
+                        <a href="{{ url_for('admin.active_rentals') if can_active_rentals else 'javascript:void(0)' }}"
+                            class="nav-link {% if request.endpoint == 'admin.active_rentals' %}active{% endif %} {% if not can_active_rentals %}nav-locked{% endif %}">
+                            <span class="material-symbols-rounded">event_repeat</span>
+                            <span class="nav-label">Active Rentals</span>
+                            {% if not can_active_rentals %}<span class="material-symbols-rounded nav-lock-icon">lock</span>{% endif %}
+                        </a>
+                    </li>
+
                     {# ── Reports & Analytics ── #}
                     {% set can_reports = current_user.role.strip() == 'Administrator' or (current_user.permissions and current_user.permissions.can_view_reports) %}
                     <li class="nav-item" title="Reports & Analytics">

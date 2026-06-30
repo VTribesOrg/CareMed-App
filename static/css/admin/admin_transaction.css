@@ -1121,6 +1121,24 @@ body.ready .viewport-container {
     background: #ffffff;
 }
 
+.table-responsive::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.table-responsive::-webkit-scrollbar-track {
+  background: transparent;
+}
+.table-responsive::-webkit-scrollbar-thumb {
+  background: #dbe2e1;
+  border-radius: 99px;
+}
+.table-responsive::-webkit-scrollbar-thumb:hover {
+  background: #b0bec5;
+}
+.table-responsive::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 
 .pagination-info {
     font-size: 12px;

@@ -662,7 +662,7 @@
                     <tr>
                         <td>{{ item.quantity }}</td>
                         <td>{{ item.product.name if item.product else '—' }}</td>
-                        <td></td>
+                        <td>{{ item.serial_number or '—' }}</td>
                         <td></td>
                         <td></td>
                         <td>₱{{ "{:,.2f}".format(item.monthly_rate or 0) }}/mo</td>

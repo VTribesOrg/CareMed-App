@@ -1,0 +1,388 @@
+/* ==========================================================
+   ACTIVE RENTALS — consistent with CareMed admin style
+   ========================================================== */
+
+.page-header p {
+    color: #64748b;
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+/* ── Card ── */
+.active-rentals-card {
+    background: #ffffff;
+    border: 1px solid #dbe2e1;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 35, 71, 0.05);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* ── Toolbar ── */
+.rentals-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e2e8f0;
+    background: #f8fafc;
+    flex-wrap: wrap;
+}
+
+.rentals-count {
+    color: #64748b;
+    font-size: 0.78rem;
+    font-weight: 700;
+    background: #f1f5f9;
+    padding: 5px 14px;
+    border-radius: 999px;
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+/* ── Search ── */
+.search-box {
+    position: relative;
+    width: 320px;
+    max-width: 100%;
+}
+
+.search-box input {
+    width: 100%;
+    height: 44px;
+    border: 1px solid #dbe2e1;
+    border-radius: 10px;
+    padding-left: 44px;
+    padding-right: 44px;
+    font-size: 0.9rem;
+    background: #ffffff;
+    color: #002347;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    outline: none;
+    box-sizing: border-box;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.search-box input::placeholder {
+    color: #94a3b8;
+}
+
+.search-box input:focus {
+    border-color: #52B788;
+    box-shadow: 0 0 0 3px rgba(82, 183, 136, 0.1);
+    background: #ffffff;
+}
+
+.search-icon {
+    position: absolute;
+    left: 13px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    font-size: 20px;
+    pointer-events: none;
+}
+
+.search-clear-btn {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: none;
+    background: #f1f5f9;
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    transition: background 0.15s, color 0.15s;
+}
+
+.search-clear-btn .material-symbols-rounded {
+    font-size: 16px;
+}
+
+.search-clear-btn:hover {
+    background: #e2e8f0;
+    color: #002347;
+}
+
+/* ── Table container ── */
+.table-container {
+    overflow-x: auto;
+    overflow-y: auto;
+    max-height: 70vh;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* ── Table ── */
+.rentals-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.rentals-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    text-align: left;
+    padding: 12px 16px;
+    background: #f8fafc;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid #e2e8f0;
+    white-space: nowrap;
+}
+
+.rentals-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+    font-size: 0.88rem;
+    color: #374151;
+}
+
+.rentals-table tbody tr {
+    transition: background 0.15s;
+}
+
+.rentals-table tbody tr:hover {
+    background: #f8fafc;
+}
+
+.rentals-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* ── Cells ── */
+.customer-cell {
+    font-weight: 700;
+    color: #002347;
+    white-space: nowrap;
+    font-size: 0.9rem;
+}
+
+.center {
+    text-align: center;
+}
+
+.actions {
+    text-align: right;
+}
+
+.monthly-rate {
+    font-weight: 700;
+    color: #0369a1;
+    white-space: nowrap;
+    font-size: 0.9rem;
+}
+
+.monthly-rate small {
+    color: #94a3b8;
+    font-weight: 400;
+}
+
+.empty-value {
+    color: #cbd5e1;
+    font-size: 0.82rem;
+    font-style: italic;
+}
+
+/* ── Serial chip ── */
+.serial-wrapper {
+    display: flex;
+    align-items: center;
+    width: 150px;
+}
+
+.serial-input {
+    flex: 1;
+    min-width: 0;
+    border: 1px solid #e2e8f0;
+    border-right: none;
+    border-radius: 6px 0 0 6px;
+    background: #f8fafc;
+    padding: 6px 10px;
+    font-size: 0.78rem;
+    font-family: 'JetBrains Mono', monospace;
+    color: #475569;
+    outline: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.copy-serial {
+    width: 32px;
+    height: 31px;
+    border: 1px solid #e2e8f0;
+    border-left: none;
+    border-radius: 0 6px 6px 0;
+    background: #f8fafc;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: background 0.15s, color 0.15s;
+    color: #94a3b8;
+    flex-shrink: 0;
+}
+
+.copy-serial:hover {
+    background: #f0fdf4;
+    color: #52B788;
+    border-color: #86efac;
+}
+
+.copy-serial .material-symbols-rounded {
+    font-size: 15px;
+}
+
+.copy-serial.copied {
+    background: #f0fdf4;
+    color: #16a34a;
+    border-color: #86efac;
+}
+
+/* ── Status pills ── */
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.status-pill.active {
+    background: #f0fdf4;
+    color: #16a34a;
+    border: 1px solid #86efac;
+}
+
+.status-pill.active .dot {
+    animation: pulse-green 1.8s ease-in-out infinite;
+}
+
+@keyframes pulse-green {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(82, 183, 136, 0.5); }
+    50%       { box-shadow: 0 0 0 5px rgba(82, 183, 136, 0); }
+}
+
+.status-pill.warning {
+    background: #fff7ed;
+    color: #c2410c;
+    border: 1px solid #fed7aa;
+}
+
+.status-pill.overdue {
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+}
+
+.status-pill.due {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+}
+
+.dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+}
+
+/* ── Date colors ── */
+.normal-date  { color: #64748b; }
+.warning-date { color: #d97706; font-weight: 600; }
+.overdue-date { color: #dc2626; font-weight: 700; }
+.days-left    { color: #64748b; font-size: 0.85rem; }
+
+/* ── Action button ── */
+.action-btn {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    text-decoration: none;
+    color: #64748b;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    transition: all 0.2s;
+}
+
+.action-btn:hover {
+    color: #00a8cc;
+    background: #e0f2fe;
+    border-color: #00a8cc;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+.action-btn .material-symbols-rounded {
+    font-size: 18px;
+}
+
+/* ── Empty state ── */
+.empty-state {
+    height: 300px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: #94a3b8;
+    text-align: center;
+    gap: 0;
+}
+
+.empty-state .material-symbols-rounded {
+    font-size: 52px;
+    margin-bottom: 12px;
+    color: #cbd5e1;
+}
+
+.empty-state h3 {
+    margin: 0;
+    color: #475569;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.empty-state p {
+    margin-top: 6px;
+    font-size: 0.85rem;
+    color: #94a3b8;
+}
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+    .rentals-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .search-box {
+        width: 100%;
+    }
+
+    .rentals-count {
+        text-align: center;
+    }
+}

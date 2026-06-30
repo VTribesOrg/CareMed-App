@@ -1,0 +1,259 @@
+{% extends "admin/nav_base.html" %}
+
+{% block title %}Active Rentals{% endblock %}
+{% block page_title %}Active Rentals{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/active_rentals.css') }}">
+{% endblock %}
+
+{% block content %}
+
+<div class="page-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+    <p style="color:#64748b; font-size:0.9rem; margin:0;">
+        Live view of all active rentals 
+    </p>
+    <div class="rentals-count" id="rental-count-badge">
+        {{ rentals|length }} active rental{{ 's' if rentals|length != 1 }}
+    </div>
+</div>
+
+<div class="active-rentals-card">
+
+    <div class="rentals-toolbar">
+
+        <div class="search-box">
+            <span class="material-symbols-rounded search-icon">search</span>
+
+            <input
+                type="text"
+                id="rental-search"
+                placeholder="Search by serial number, customer or equipment..."
+                value="{{ search_query }}"
+                autocomplete="off">
+
+            <button
+                type="button"
+                id="clear-search"
+                class="search-clear-btn"
+                aria-label="Clear search">
+                <span class="material-symbols-rounded">close</span>
+            </button>
+        </div>
+
+    </div>
+
+    <div class="table-container">
+
+        <table class="rentals-table" id="rentals-table">
+
+            <thead>
+                <tr>
+                    <th>Customer</th>
+                    <th>Equipment</th>
+                    <th>Product</th>
+                    <th>Serial Number</th>
+                    <th>Qty</th>
+                    <th>Date Rented</th>
+                    <th>Expected Return</th>
+                    <th>Duration</th>
+                    <th>Monthly Rate</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+            {% for rental in rentals %}
+
+                {% set txn = rental.transaction %}
+                {% set customer_name = txn.customer_name or ((txn.customer.first_name ~ ' ' ~ txn.customer.last_name) if txn.customer else '—') %}
+                {% set today = datetime_now_date %}
+                {% set days_remaining = (rental.expected_return_date - today).days if rental.expected_return_date else None %}
+
+                <tr
+                    data-search="{{ customer_name|lower }} {{ rental.product.equipment_type|lower }} {{ rental.product.name|lower }} {{ rental.serial_number|lower if rental.serial_number else '' }}">
+
+                    <td class="customer-cell">
+                        {{ customer_name }}
+                    </td>
+
+                    <td>
+                        {{ rental.product.equipment_type or '—' }}
+                    </td>
+
+                    <td>
+                        {{ rental.product.name or '—' }}
+                    </td>
+
+                    <td>
+
+                        {% if rental.serial_number %}
+
+                        <div class="serial-wrapper">
+
+                            <input
+                                class="serial-input"
+                                value="{{ rental.serial_number }}"
+                                readonly>
+
+                            <button
+                                type="button"
+                                class="copy-serial"
+                                data-serial="{{ rental.serial_number }}"
+                                title="Copy serial number">
+
+                                <span class="material-symbols-rounded">
+                                    content_copy
+                                </span>
+
+                            </button>
+
+                        </div>
+
+                        {% else %}
+
+                        <span class="empty-value">
+                            No serial
+                        </span>
+
+                        {% endif %}
+
+                    </td>
+
+                    <td class="center">
+                        {{ rental.quantity }}
+                    </td>
+
+                    <td>
+                        {{ rental.start_date.strftime('%b %d, %Y') }}
+                    </td>
+
+                    <td>
+
+                        {% if rental.expected_return_date %}
+
+                        <span class="
+                        {% if days_remaining < 0 %}
+                            overdue-date
+                        {% elif days_remaining <= 5 %}
+                            warning-date
+                        {% else %}
+                            normal-date
+                        {% endif %}
+                        ">
+                            {{ rental.expected_return_date.strftime('%b %d, %Y') }}
+                        </span>
+
+                        {% else %}
+                            —
+                        {% endif %}
+
+                    </td>
+
+                    <td>
+
+                        {% if days_remaining is not none %}
+
+                            {% if days_remaining < 0 %}
+                                <span class="status-pill overdue">
+                                    {{ days_remaining|abs }} day{{ 's' if days_remaining|abs != 1 }} overdue
+                                </span>
+
+                            {% elif days_remaining == 0 %}
+                                <span class="status-pill due">
+                                    Due today
+                                </span>
+
+                            {% elif days_remaining <= 5 %}
+                                <span class="status-pill warning">
+                                    {{ days_remaining }} day{{ 's' if days_remaining != 1 }} left
+                                </span>
+
+                            {% else %}
+
+                                <span class="days-left">
+                                    {{ days_remaining }} days
+                                </span>
+
+                            {% endif %}
+
+                        {% else %}
+
+                            —
+
+                        {% endif %}
+
+                    </td>
+
+                    <td class="monthly-rate">
+                        ₱{{ "{:,.2f}".format(rental.monthly_rate) }}
+                        <small>/month</small>
+                    </td>
+
+                    <td>
+
+                        <span class="status-pill active">
+                            <span class="dot"></span>
+                            Active
+                        </span>
+
+                    </td>
+
+                    <td class="actions">
+
+                        <a
+                            href="{{ url_for('admin.transaction_details', id=txn.id) }}"
+                            class="action-btn"
+                            title="View transaction">
+
+                            <span class="material-symbols-rounded">
+                                visibility
+                            </span>
+
+                        </a>
+
+                    </td>
+
+                </tr>
+
+            {% else %}
+
+                <tr>
+
+                    <td colspan="11">
+
+                        <div class="empty-state">
+
+                            <span class="material-symbols-rounded">
+                                inventory_2
+                            </span>
+
+                            <h3>No active rentals</h3>
+
+                            <p>
+                                There are currently no active rental records.
+                            </p>
+
+                        </div>
+
+                    </td>
+
+                </tr>
+
+            {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/admin/active_rentals.js') }}"></script>
+{% endblock %}

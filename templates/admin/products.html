@@ -60,17 +60,16 @@
                 <span class="material-symbols-rounded search-icon">search</span>
                 <input type="text" id="table-search" class="asset-search-input"
                     value="{{ search_query }}"
-                    placeholder="Search Serial, Model or Asset Tag...">
+                    placeholder="Search equipment type or product name...">
             </div>
             <div class="filter-group">
                 <div class="select-wrapper">
                     <span class="material-symbols-rounded filter-icon">filter_list</span>
                     <select class="medical-select" id="type-filter">
                         <option value="all" {{ 'selected' if current_type == 'all' }}>All Equipment</option>
-                        <option value="Oxygen Equipment" {{ 'selected' if current_type == 'Oxygen Equipment' }}>Oxygen Equipment</option>
-                        <option value="Wheelchairs & Mobility" {{ 'selected' if current_type == 'Wheelchairs & Mobility' }}>Wheelchairs & Mobility</option>
-                        <option value="CPAP/BiPAP" {{ 'selected' if current_type == 'CPAP/BiPAP' }}>CPAP/BiPAP</option>
-                        <option value="Medical Devices" {{ 'selected' if current_type == 'Medical Devices' }}>Medical Devices</option>
+                        {% for et in equipment_types %}
+                        <option value="{{ et }}" {{ 'selected' if current_type == et }}>{{ et }}</option>
+                        {% endfor %}
                     </select>
                 </div>
             </div>
@@ -106,7 +105,16 @@
                     </td>
                     <td>{{ product.equipment_type or 'N/A' }}</td>
                     <td>{{ product.name or 'N/A' }}</td>
-                    <td class="stock">{{ product.stock }} Units</td>
+                    <td class="stock">
+                        {% if product.is_refillable and product.tank_status %}
+                            {{ product.tank_status.full_in_stock or 0 }} Units
+                            <small style="display:block; color:#94a3b8; font-size:0.72rem;">
+                                {{ product.tank_status.rented_out or 0 }} rented out
+                            </small>
+                        {% else %}
+                            {{ product.stock }} Units
+                        {% endif %}
+                    </td>
                     <td>
                         {% if product.stock > 0 %}
                             <span class="status-pill status-ready">Available</span>
@@ -288,10 +296,9 @@
                             <div class="input-wrapper">
                                 <input type="text" name="equipment_type" class="clinical-input" list="equipment-types" placeholder="e.g. Hospital Bed" required>
                                 <datalist id="equipment-types">
-                                    <option value="Hospital Bed"></option>
-                                    <option value="Oxygen Equipment"></option>
-                                    <option value="Wheelchairs & Mobility"></option>
-                                    <option value="Medical Devices"></option>
+                                    {% for et in equipment_types %}
+                                    <option value="{{ et }}"></option>
+                                    {% endfor %}
                                 </datalist>
                             </div>
                         </div>

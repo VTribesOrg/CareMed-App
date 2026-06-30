@@ -88,7 +88,7 @@
                                 <div class="product-option-item" 
                                     data-id="{{ item.id }}" 
                                     data-name="{{ item.name }}" 
-                                    data-stock="{{ item.stock }}" 
+                                    data-stock="{{ item.available_stock }}" 
                                     data-rent="{{ item.rent_price or '0.00' }}" 
                                     data-search-string="{{ item.name.lower() }} {% if item.asset_tag %}{{ item.asset_tag.lower() }}{% endif %}{% if item.condition and item.condition|lower != 'n/a' %} {{ item.condition|lower }}{% endif %}" 
                                     style="padding: 10px 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9;">
@@ -111,7 +111,7 @@
                                             <div style="font-size: 11px; color: #64748b;">₱{{ "{:,.2f}".format(item.rent_price or 0) }}/mo</div>
                                         </div>
                                     </div>
-                                    <span class="badge stock-count-text" style="font-size: 11px; padding: 2px 6px; background: #e0f2fe; color: #0369a1; border-radius: 4px;">{{ item.stock }} Available</span>
+                                    <span class="badge stock-count-text" style="font-size: 11px; padding: 2px 6px; background: #e0f2fe; color: #0369a1; border-radius: 4px;">{{ item.available_stock }} Available</span>
                                 </div>
                             {% endif %}
                         {% endfor %}
