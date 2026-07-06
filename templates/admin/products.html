@@ -54,7 +54,7 @@
 
 <div class="asset-registry-card">
 
-    <div class="registry-controls">
+    <div class="registry-controls style="flex-shrink: 0;"">
         <div class="filter-search-container">
             <div class="search-wrapper">
                 <span class="material-symbols-rounded search-icon">search</span>
@@ -104,7 +104,7 @@
                         </div>
                     </td>
                     <td>{{ product.equipment_type or 'N/A' }}</td>
-                    <td>{{ product.name or 'N/A' }}</td>
+                    <td>{{ product.name or 'N/A' }} {{ product.size}}</td>
                     <td class="stock">
                         {% if product.is_refillable and product.tank_status %}
                             {{ product.tank_status.full_in_stock or 0 }} Units
@@ -310,25 +310,25 @@
                         </div>
                     </div>
                     
-                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:15px;">
+                    {# UPDATED GRID TO 4 COLUMNS TO ACCOMMODATE SIZE #}
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:15px;">
                         <div class="form-field">
-                            <label class="clinical-label">Unit Cost (per item)</label>
+                            <label class="clinical-label">Unit Cost</label>
                             <input type="number" name="cost_price" id="edit-cost_price" class="clinical-input" placeholder="0.00" step="0.01" min="0" required>
-                            <small style="color:#94a3b8; font-size:0.72rem; margin-top:4px; display:block;">
-                                Cost per single unit. Total acquisition expense is calculated automatically.
-                            </small>
                         </div>
                         <div class="form-field">
-                            <label class="clinical-label">Initial Stock (Units)</label>
-                            <div class="input-wrapper">
-                                <input type="number" name="stock" class="clinical-input" placeholder="0" min="0" required>
-                            </div>
+                            <label class="clinical-label">Initial Stock</label>
+                            <input type="number" name="stock" class="clinical-input" placeholder="0" min="0" required>
+                        </div>
+                        <div class="form-field">
+                            <label class="clinical-label">Size</label>
+                            <input type="text" name="size" class="clinical-input" placeholder="e.g. Large">
                         </div>
                         <div class="form-field">
                             <label class="clinical-label">Condition</label>
                             <div class="input-wrapper" style="position:relative;">
                                 <select name="condition" class="clinical-input" style="width:100%; cursor:pointer; -webkit-appearance:none; appearance:none; padding:0 30px 0 12px; height:44px;" required>
-                                    <option value="N/A" selected>Not Applicable</option>
+                                    <option value="N/A" selected>N/A</option>
                                     <option value="Used">Used</option>
                                     <option value="Brand New">Brand New</option>
                                 </select>
@@ -358,12 +358,10 @@
                     </label>
                     <div style="display:flex; align-items:stretch; border-radius:8px; overflow:hidden; height:44px; border:1.5px solid #cbd5e1; background:#ffffff;">
                         <div class="input-wrapper" style="flex:1; position:relative; min-width:150px;">
-                            <input type="number" name="rent_price" class="clinical-input" placeholder="0.00" step="0.01"
-                                style="border:none; width:100%; padding:0 10px 0 35px; height:100%; font-size:0.95rem; outline:none;">
+                            <input type="number" name="rent_price" class="clinical-input" placeholder="0.00" step="0.01" style="border:none; width:100%; padding:0 10px 0 35px; height:100%; font-size:0.95rem; outline:none;">
                             <span class="material-symbols-rounded" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8; font-size:18px; pointer-events:none;">payments</span>
                         </div>
-                        <select name="rent_period" class="clinical-input"
-                                style="width:30px; border:none; border-left:1.5px solid #cbd5e1; background-color:#f8fafc; cursor:pointer; font-size:0.8rem; font-weight:600; color:#475569; text-align:center; outline:none; -webkit-appearance:none; appearance:none;">
+                        <select name="rent_period" class="clinical-input" style="width:30px; border:none; border-left:1.5px solid #cbd5e1; background-color:#f8fafc; cursor:pointer; font-size:0.8rem; font-weight:600; color:#475569; text-align:center; outline:none; -webkit-appearance:none; appearance:none;">
                             <option value="Day">/ Day</option>
                             <option value="Week">/ Week</option>
                             <option value="Monthly" selected>/ Monthly</option>
@@ -375,17 +373,14 @@
                         <span class="material-symbols-rounded" style="font-size:16px; color:#10b981;">shopping_bag</span> Sale Price
                     </label>
                     <div class="input-wrapper" style="position:relative; height:44px;">
-                        <input type="number" name="sale_price" class="clinical-input" placeholder="0.00" step="0.01"
-                            style="width:100%; border:1.5px solid #cbd5e1; border-radius:8px; padding-left:35px; height:100%; font-size:0.95rem;">
+                        <input type="number" name="sale_price" class="clinical-input" placeholder="0.00" step="0.01" style="width:100%; border:1.5px solid #cbd5e1; border-radius:8px; padding-left:35px; height:100%; font-size:0.95rem;">
                         <span class="material-symbols-rounded" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8; font-size:18px;">sell</span>
                     </div>
                 </div>
             </div>
             <div class="form-field full-width" style="margin-bottom:20px;">
                 <label class="clinical-label">Product Description</label>
-                <textarea name="description" class="clinical-input" rows="3"
-                    style="width:100%; resize:none; padding:10px; border-radius:8px; border:1.5px solid #cbd5e1; font-family:inherit; font-size:0.9rem;"
-                    placeholder="Enter technical specifications, dimensions, or usage instructions..."></textarea>
+                <textarea name="description" class="clinical-input" rows="3" style="width:100%; resize:none; padding:10px; border-radius:8px; border:1.5px solid #cbd5e1; font-family:inherit; font-size:0.9rem;" placeholder="Enter technical specifications, dimensions, or usage instructions..."></textarea>
             </div>
             <div class="modal-footer-actions" style="margin-top:25px;">
                 <button type="button" class="btn-medical-outline close-reg-modal">Cancel</button>
@@ -450,24 +445,24 @@
                         </div>
                     </div>
 
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:15px;">
+                        <div class="form-field">
+                            <label class="clinical-label">Size</label>
+                            <input type="text" name="size" id="edit-size" class="clinical-input" placeholder="e.g. Large">
+                        </div>
                         <div class="form-field">
                             <label class="clinical-label">Condition</label>
                             <select name="condition" id="edit-condition" class="clinical-input" style="width:100%; cursor:pointer; -webkit-appearance:none; appearance:none; padding:0 30px 0 12px; height:44px;" required>
-                                <option value="N/A" selected>Not Applicable</option>
+                                <option value="N/A">N/A</option>
                                 <option value="Used">Used</option>
                                 <option value="Brand New">Brand New</option>
                             </select>
                         </div>
-                        <div class="form-field">
+                        <div class="form-field" style="grid-column: span 2;">
                             <label class="clinical-label" style="color:#94a3b8;">Current Unit Cost</label>
-                            <div style="height:44px; display:flex; align-items:center; background:#f8fafc;
-                                        border:1.5px solid #e2e8f0; border-radius:8px; padding:0 12px;
-                                        font-size:0.9rem; color:#64748b;">
+                            <div style="height:44px; display:flex; align-items:center; background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:8px; padding:0 12px; font-size:0.9rem; color:#64748b;">
                                 <span id="edit-cost-display">—</span>
-                                <span style="font-size:0.72rem; color:#94a3b8; margin-left:8px;">
-                                    (update via Add Stock)
-                                </span>
+                                <span style="font-size:0.72rem; color:#94a3b8; margin-left:8px;">(update via Add Stock)</span>
                             </div>
                         </div>
                     </div>
@@ -494,12 +489,10 @@
                     </label>
                     <div style="display:flex; align-items:stretch; border-radius:8px; overflow:hidden; height:44px; border:1.5px solid #cbd5e1; background:#ffffff;">
                         <div class="input-wrapper" style="flex:1; position:relative; min-width:150px;">
-                            <input type="number" name="rent_price" id="edit-rent" class="clinical-input" placeholder="0.00" step="0.01"
-                                style="border:none; width:100%; padding:0 10px 0 35px; height:100%; font-size:0.95rem; outline:none;">
+                            <input type="number" name="rent_price" id="edit-rent" class="clinical-input" placeholder="0.00" step="0.01" style="border:none; width:100%; padding:0 10px 0 35px; height:100%; font-size:0.95rem; outline:none;">
                             <span class="material-symbols-rounded" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8; font-size:18px; pointer-events:none;">payments</span>
                         </div>
-                        <select name="rent_period" id="edit-rent-period" class="clinical-input"
-                                style="width:30px; border:none; border-left:1.5px solid #cbd5e1; background-color:#f8fafc; cursor:pointer; font-size:0.8rem; font-weight:600; color:#475569; text-align:center; outline:none; -webkit-appearance:none; appearance:none;">
+                        <select name="rent_period" id="edit-rent-period" class="clinical-input" style="width:30px; border:none; border-left:1.5px solid #cbd5e1; background-color:#f8fafc; cursor:pointer; font-size:0.8rem; font-weight:600; color:#475569; text-align:center; outline:none; -webkit-appearance:none; appearance:none;">
                             <option value="Day">/ Day</option>
                             <option value="Week">/ Week</option>
                             <option value="Monthly">/ Monthly</option>
@@ -512,8 +505,7 @@
                         <span class="material-symbols-rounded" style="font-size:16px; color:#10b981;">shopping_bag</span> Sale Price
                     </label>
                     <div class="input-wrapper" style="position:relative; height:44px;">
-                        <input type="number" name="sale_price" id="edit-price" class="clinical-input" placeholder="0.00" step="0.01"
-                            style="width:100%; border:1.5px solid #cbd5e1; border-radius:8px; padding-left:35px; height:100%; font-size:0.95rem;">
+                        <input type="number" name="sale_price" id="edit-price" class="clinical-input" placeholder="0.00" step="0.01" style="width:100%; border:1.5px solid #cbd5e1; border-radius:8px; padding-left:35px; height:100%; font-size:0.95rem;">
                         <span class="material-symbols-rounded" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8; font-size:18px;">sell</span>
                     </div>
                 </div>
@@ -521,9 +513,7 @@
 
             <div class="form-field full-width" style="margin-bottom:20px;">
                 <label class="clinical-label">Product Description</label>
-                <textarea name="description" id="edit-description" class="clinical-input" rows="3"
-                    style="width:100%; resize:none; padding:10px; border-radius:8px; border:1.5px solid #cbd5e1; font-family:inherit; font-size:0.9rem;"
-                    placeholder="Enter technical specifications, dimensions, or usage instructions..."></textarea>
+                <textarea name="description" id="edit-description" class="clinical-input" rows="3" style="width:100%; resize:none; padding:10px; border-radius:8px; border:1.5px solid #cbd5e1; font-family:inherit; font-size:0.9rem;" placeholder="Enter technical specifications, dimensions, or usage instructions..."></textarea>
             </div>
 
             <div class="modal-footer-actions">

@@ -79,7 +79,103 @@ document.addEventListener('DOMContentLoaded', function() {
         jumpInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') handleJump();
         });
+        }
+    const refillSearchInput = document.getElementById('refill-search-input');
+    const refillDropdown = document.getElementById('refill-customer-dropdown-list');
+    const refillOptions = document.querySelectorAll('.refill-option-item');
+    const refillIdInput = document.getElementById('refill-customer-id');
+    const noMatch = document.getElementById('no-refill-customer-match');
+    const unregNameInput = document.querySelector('input[name="unregistered_customer_name"]');
+
+    const tankSelect = document.getElementById('refill-tank-size');
+    const tankText = document.getElementById('refill-tank-text');
+    const labelReg = document.getElementById('label-tank-registered');
+    const labelUnreg = document.getElementById('label-tank-unregistered');
+
+    // New variables for the serial field
+    const serialContainer = document.getElementById('refill-serial-container');
+    const serialTextarea = document.getElementById('refill-serial-numbers');
+
+    // 1. Toggle Groups & Tank Inputs
+    document.querySelectorAll('input[name="refill_buyer_type"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            const isRegistered = e.target.value === 'registered';
+            
+            // Toggle UI groups
+            document.getElementById('refill-registered-group').style.display = isRegistered ? 'block' : 'none';
+            document.getElementById('refill-unregistered-group').style.display = isRegistered ? 'none' : 'block';
+            
+            // Toggle Serial Number field (Hide if walk-in)
+            if (isRegistered) {
+                serialContainer.style.display = 'block';
+                serialTextarea.setAttribute('required', 'required');
+                unregNameInput.value = ''; // Clear walk-in name
+            } else {
+                serialContainer.style.display = 'none';
+                serialTextarea.removeAttribute('required'); // Prevent form validation errors
+                serialTextarea.value = ''; // Clear input if switching
+                refillSearchInput.value = ''; // Clear search input
+                refillIdInput.value = '';    // Clear hidden ID
+            }
+            
+            // Toggle Tank Input
+            if (isRegistered) {
+                tankSelect.style.display = 'block';
+                tankSelect.setAttribute('name', 'tank_size');
+                tankText.style.display = 'none';
+                tankText.removeAttribute('name');
+                labelReg.style.display = 'inline';
+                labelUnreg.style.display = 'none';
+            } else {
+                tankSelect.style.display = 'none';
+                tankSelect.removeAttribute('name');
+                tankText.style.display = 'block';
+                tankText.setAttribute('name', 'tank_size');
+                labelReg.style.display = 'none';
+                labelUnreg.style.display = 'inline';
+            }
+        });
+    });
+
+    // 2. Search Filter
+    refillSearchInput.addEventListener('input', () => {
+        const term = refillSearchInput.value.toLowerCase();
+        refillDropdown.classList.remove('hidden');
+        let hasMatch = false;
+
+        refillOptions.forEach(opt => {
+            const matches = opt.dataset.searchString.includes(term);
+            opt.style.display = matches ? 'flex' : 'none';
+            if (matches) hasMatch = true;
+        });
+        noMatch.style.display = hasMatch ? 'none' : 'block';
+    });
+
+    // 3. Selection
+    refillOptions.forEach(opt => {
+        opt.addEventListener('click', () => {
+            refillSearchInput.value = opt.dataset.name;
+            refillIdInput.value = opt.dataset.id;
+            refillDropdown.classList.add('hidden');
+        });
+    });
+
+    // 4. Close when clicking outside
+    document.addEventListener('click', (event) => {
+        const isClickInsideInput = refillSearchInput.contains(event.target);
+        const isClickInsideDropdown = refillDropdown.contains(event.target);
+
+        if (!isClickInsideInput && !isClickInsideDropdown) {
+            refillDropdown.classList.add('hidden');
+        }
+    });
+
+    // 5. Initialize UI state on page load
+    const checkedRadio = document.querySelector('input[name="refill_buyer_type"]:checked');
+    if (checkedRadio) {
+        checkedRadio.dispatchEvent(new Event('change'));
     }
+
 });
 
 /*============= END OF PAGINATION =============*/

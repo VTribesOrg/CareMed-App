@@ -10,6 +10,7 @@ class Product(db.Model):
     asset_tag = db.Column(db.String(20), nullable=True, unique=True)
     equipment_type = db.Column(db.String(100), nullable=False)
     name = db.Column(db.String(100), nullable=False)
+    size = db.Column(db.String(50), nullable=True)
     description = db.Column(db.Text, nullable=True) 
     stock = db.Column(db.Integer, default=0)
     
@@ -35,6 +36,36 @@ class Product(db.Model):
     tank_status = db.relationship("TankStatus", back_populates="product", uselist=False, cascade="all, delete-orphan")
     inventory_logs = db.relationship("InventoryLog", back_populates="product", passive_deletes=True)
     
+class RefillTransaction(db.Model):
+    __tablename__ = "refill_transaction"
+
+    id = db.Column(db.Integer, primary_key=True)
+    
+
+    product_id = db.Column(db.Integer, db.ForeignKey("product.id"), nullable=True) 
+    customer_id = db.Column(db.Integer, db.ForeignKey("customer.id"), nullable=True)
+
+    walk_in_name = db.Column(db.String(255), nullable=True)
+    walk_in_tank_size = db.Column(db.String(50), nullable=True) # NEW: For walk-in sizes
+    
+    quantity = db.Column(db.Integer, nullable=False)
+    total_revenue = db.Column(db.Numeric(10, 2), nullable=False)
+    refill_cost_per_unit = db.Column(db.Numeric(10, 2), default=0.00)
+
+    serial_numbers = db.Column(db.Text, nullable=False)
+    processed_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+
+    product = db.relationship("Product", backref="refill_transactions")
+    customer = db.relationship("Customer", backref="refill_transactions")
+
+    @property
+    def total_cost(self):
+        return self.quantity * self.refill_cost_per_unit
+
+    @property
+    def net_profit(self):
+        return self.total_revenue - self.total_cost
     
 class TankStatus(db.Model):
     __tablename__ = "tank_status"

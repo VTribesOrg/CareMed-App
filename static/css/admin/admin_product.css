@@ -643,8 +643,17 @@ body.ready .viewport-container {
 }
 
 .asset-registry-card {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 24px;
+    border: 1px solid #dbe2e1;
+    box-shadow: 0 4px 20px rgba(0, 35, 71, 0.05);
+    
     display: flex;
     flex-direction: column;
+    
+    height: calc(100vh - 40px);
+    min-height: 585px;
     overflow: hidden; 
 }
 
@@ -669,10 +678,19 @@ body.ready .viewport-container {
 }
 
 .table-scroll-container {
-    scrollbar-width: thin;
-    scrollbar-color: #cbd5e1 #f1f5f9;
+    flex-grow: 1; 
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    
+    margin: 16px 0;
+    overflow-y: auto;
+    overflow-x: auto;
+    position: relative;
+    -webkit-overflow-scrolling: touch;
+    
+    min-height: 200px;
 }
-
 .medical-data-table thead {
     position: sticky;
     top: 0;
@@ -727,6 +745,7 @@ body.ready .viewport-container {
     border-radius: 0 0 12px 12px; 
     flex-wrap: wrap;
     gap: 15px;
+    flex-shrink: 0;
 }
 
 
@@ -942,19 +961,7 @@ body.ready .viewport-container {
 
 /*=================================== START OF ASSETREGISTRYCARD ===================================*/
 
-.asset-registry-card {
-    background: #ffffff;
-    border-radius: 16px;
-    padding: 24px;
-    padding-bottom: 0;
-    border: 1px solid #dbe2e1;
-    box-shadow: 0 4px 20px rgba(0, 35, 71, 0.05);
-    display: flex;
-    height: fit-content;
-    flex-direction: column;
-    overflow: hidden;
-    height: 600px;
-}
+
 
 
 .registry-controls {

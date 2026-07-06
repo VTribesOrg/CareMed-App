@@ -5,7 +5,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy import func, or_, and_
 from flask_login import login_required
 from functools import wraps
-from models.product import Product, InventoryLog, Transaction, Purchase, Payment, Rental, RentalInvoice, Expense, PaymentProof, TankStatus
+from models.product import Product, InventoryLog, Transaction, Purchase, Payment, Rental, RefillTransaction, RentalInvoice, Expense, PaymentProof, TankStatus
 from models.customer import Customer
 from models.users import User, SecurityLog, BlockedIP, Permission
 from flask_mail import Message
@@ -144,13 +144,17 @@ def dashboard():
         Payment.status == 'Completed'
     ).scalar() or 0
 
+    # Calculate total refill profit
+    total_refill_profit = db.session.query(
+        func.sum(RefillTransaction.total_revenue)
+    ).scalar() or 0
+
     active_rentals_count = Rental.query.filter_by(status='Active').count()
     
     total_expenses = db.session.query(
         func.sum(Expense.amount)
     ).scalar() or 0
 
-    # Non-refillable products only (refillable are counted via TankStatus)
     product_inventory = db.session.query(
         func.sum(Product.stock)
     ).filter(
@@ -158,12 +162,37 @@ def dashboard():
         Product.is_refillable == False
     ).scalar() or 0
 
-    # Refillable tanks — count full + empty + rented out for true total owned
-    tank_inventory = db.session.query(
-        func.sum(TankStatus.full_in_stock + TankStatus.empty_in_stock + TankStatus.rented_out)
-    ).join(Product).filter(Product.is_active == True).scalar() or 0
+    # ── Aggregate Tank Statuses ──────────────────────────────────────────
+    raw_tank_data = TankStatus.query.join(Product).filter(Product.is_active == True).all()
+    
+    tank_aggregation = {}
+    total_tank_count = 0
+    
+    for tank in raw_tank_data:
+        # Create a unique key based on name and size
+        key = (tank.product.name, tank.product.size)
+        
+        if key not in tank_aggregation:
+            tank_aggregation[key] = {
+                'name': tank.product.name,
+                'size': tank.product.size,
+                'product_id': tank.product.id,
+                'total_owned': 0,
+                'rented_out': 0,
+                'full_in_stock': 0,
+                'empty_in_stock': 0
+            }
+        
+        tank_aggregation[key]['total_owned'] += tank.total_owned
+        tank_aggregation[key]['rented_out'] += tank.rented_out
+        tank_aggregation[key]['full_in_stock'] += tank.full_in_stock
+        tank_aggregation[key]['empty_in_stock'] += tank.empty_in_stock
+        
+        # Add to total for inventory calculation
+        total_tank_count += (tank.full_in_stock + tank.empty_in_stock + tank.rented_out)
 
-    total_inventory = product_inventory + tank_inventory
+    combined_tank_statuses = list(tank_aggregation.values())
+    total_inventory = product_inventory + total_tank_count
 
     low_stock_count = Product.query.filter(
         Product.is_active == True,
@@ -171,9 +200,6 @@ def dashboard():
         Product.stock <= 5
     ).count()
 
-    tank_statuses = TankStatus.query.join(Product).filter(Product.is_active == True).all()
-
-    # UPDATED: Only query products that are 'Brand New' or 'Used'
     all_products = Product.query.filter(
         Product.is_refillable == False, 
         Product.is_active == True,
@@ -217,22 +243,156 @@ def dashboard():
     security_alerts = SecurityLog.query.order_by(
         SecurityLog.created_at.desc()
     ).limit(3).all()
+    
+    active_oxygen_rentals = Rental.query.join(Product).filter(
+        Rental.status == 'Active',
+        Product.is_refillable == True
+    ).all()
 
     return render_template(
         'admin/dashboard.html',
         total_sales=total_sales,
         total_rentals=total_rentals,
+        total_refill_profit=total_refill_profit, # New variable added
         active_rentals_count=active_rentals_count,
         total_inventory=total_inventory,
         low_stock_count=low_stock_count,
-        tank_statuses=tank_statuses,
+        tank_statuses=combined_tank_statuses,
         standard_assets=standard_assets,
         recent_logs=recent_logs,
         security_alerts=security_alerts,
         total_expenses=total_expenses,
+        active_oxygen_rentals=active_oxygen_rentals
     )
     
+@admin_bp.route('/request-refill', methods=['POST'])
+@login_required
+@admin_or_staff_required
+def request_refill():
+    product_id = request.form.get('product_id')
+    quantity = request.form.get('quantity', type=int)
+    rental_id = request.form.get('rental_id')
+
+    if not product_id or not quantity or quantity <= 0:
+        flash("It looks like some information is missing. Please check your request and try again.", "error")
+        return redirect(url_for('admin.dashboard'))
+
+    try:
+        tank = TankStatus.query.filter_by(product_id=product_id).first()
+        if not tank:
+            flash("We couldn't find this specific tank in our records. Please contact support.", "error")
+            return redirect(url_for('admin.dashboard'))
+
+        if tank.full_in_stock < quantity:
+            flash(f"Oops! We only have {tank.full_in_stock} full tanks ready. Please adjust your request to a lower amount.", "error")
+            return redirect(url_for('admin.dashboard'))
+
+        ref_no = "Manual"
+        if rental_id:
+            rental = Rental.query.get(rental_id)
+            if rental and rental.transaction:
+                ref_no = rental.transaction.reference_no
+
+        tank.full_in_stock -= quantity
+        tank.empty_in_stock += quantity
+
+        log = InventoryLog(
+            product_id=product_id,
+            action="Refill Request Created",
+            quantity=quantity,
+            note=f"Moved {quantity} units from Full to Empty. Rental Ref: {ref_no}",
+            user_id=current_user.id,
+            user_name=current_user.full_name
+        )
+        
+        db.session.add(log)
+        db.session.commit()
+        
+        flash(f"Success! {quantity} tank(s) have been marked as empty and are now ready for refill.", "success")
+
+    except Exception as e:
+        db.session.rollback()
+        flash("We ran into a slight issue updating the inventory. Please try again or contact the technical team if this persists.", "error")
+
+    return redirect(url_for('admin.dashboard'))
+   
+@admin_bp.route('/process-refill-transaction', methods=['POST'])
+@login_required
+@admin_or_staff_required
+def process_refill_transaction():
+    buyer_type = request.form.get('refill_buyer_type')
+    tank_size = request.form.get('tank_size')
+    quantity = request.form.get('quantity', type=int)
+    serial_input = request.form.get('serial_numbers', '')
+    serial_list = [sn.strip() for sn in serial_input.split(',') if sn.strip()]
+    amount = request.form.get('amount', type=Decimal)
     
+    REFILL_COST = Decimal("50.00") 
+
+    if not tank_size or not amount or not quantity or quantity <= 0:
+        flash("Transaction failed: Please ensure all fields are filled correctly.", "error")
+        return redirect(url_for('admin.dashboard'))
+
+    if buyer_type == 'registered' and len(serial_list) != quantity:
+        flash(f"Data Mismatch: You specified {quantity} tank(s), but only entered {len(serial_list)} serial number(s).", "error")
+        return redirect(url_for('admin.dashboard'))
+
+    try:
+        product = Product.query.filter_by(name=tank_size, is_refillable=True).first()
+        customer_id = None
+        display_name = "Walk-in Customer"
+        
+        if buyer_type == 'registered':
+            customer_id = request.form.get('refill_customer_id')
+            customer = Customer.query.get(customer_id)
+            if not customer:
+                flash("System Error: Could not verify the registered customer.", "error")
+                return redirect(url_for('admin.dashboard'))
+            display_name = customer.full_name
+            
+            if product:
+                tank_status = TankStatus.query.filter_by(product_id=product.id).first()
+                if not tank_status or tank_status.empty_in_stock < quantity:
+                    flash(f"Inventory Alert: Insufficient empty tanks in stock for {product.name}.", "error")
+                    return redirect(url_for('admin.dashboard'))
+                
+                tank_status.empty_in_stock -= quantity
+                tank_status.full_in_stock += quantity
+        else:
+            display_name = request.form.get('unregistered_customer_name', '').strip() or "Walk-in Customer"
+
+        new_transaction = RefillTransaction(
+            product_id=product.id if product else None,
+            customer_id=customer_id,
+            walk_in_name=display_name if buyer_type != 'registered' else None,
+            walk_in_tank_size=tank_size if not product else None,
+            quantity=quantity,
+            total_revenue=amount,
+            refill_cost_per_unit=REFILL_COST,
+            serial_numbers=", ".join(serial_list) if buyer_type == 'registered' else "N/A",
+            processed_by_id=current_user.id
+        )
+        db.session.add(new_transaction)
+
+        log = InventoryLog(
+            product_id=product.id if product else None,
+            action="Refill Service Completed",
+            quantity=quantity,
+            note=f"Processed refill for {display_name}. Total: {amount} PHP. (SNs: {', '.join(serial_list) if buyer_type == 'registered' else 'N/A'})",
+            user_id=current_user.id,
+            user_name=current_user.full_name
+        )
+        db.session.add(log)
+        
+        db.session.commit()
+        flash(f"Refill successfully processed for {display_name}. Transaction recorded.", "success")
+
+    except Exception as e:
+        db.session.rollback()
+        flash("An unexpected error occurred while saving the transaction. Please try again.", "error")
+
+    return redirect(url_for('admin.dashboard'))
+
 @admin_bp.route('/customers')
 @login_required
 @admin_or_staff_required
@@ -688,19 +848,19 @@ def products():
 def add_product():
     equipment_type = request.form.get("equipment_type", "").strip().title()
     name = request.form.get("name", "").strip().title()
+    size = request.form.get("size", "").strip()
     description = request.form.get("description", "").strip()
     
     is_refillable = True if request.form.get("is_refillable") == "on" else False
-    
 
     if "oxygen" in equipment_type.lower() or "oxygen" in name.lower():
         is_refillable = True
     
     transaction_type = request.form.get("offer_type", "Sale").strip().title()
     rent_period = request.form.get("rent_period", "Monthly").strip().title()
-    
     condition = request.form.get("condition", "Brand New").strip()
 
+    # Validation
     try:
         stock = int(request.form.get("stock", 0))
         rent_price_raw = request.form.get("rent_price", "").strip()
@@ -712,30 +872,31 @@ def add_product():
         cost_price = Decimal(cost_price_raw) if cost_price_raw else Decimal("0.00")
         
         if transaction_type == 'Rent' and rent_price <= 0:
-            flash("Please provide a valid rent price for 'Rent Only' items.", "error")
+            flash("Please provide a valid rent price for 'Rent Only' items.", "warning")
             return redirect(request.referrer)
         if transaction_type == 'Sale' and sale_price <= 0:
-            flash("Please provide a valid sale price for 'Sale Only' items.", "error")
+            flash("Please provide a valid sale price for 'Sale Only' items.", "warning")
             return redirect(request.referrer)
         
         if stock < 0:
             raise ValueError("Stock cannot be negative.")
         
     except (ValueError, InvalidOperation):
-        flash("Invalid numbers provided for stock or prices.", "error")
+        flash("Oops! Please double-check the stock and price fields. Ensure you've entered valid numbers.", "error")
         return redirect(request.referrer)
 
     if not equipment_type:
-        flash("Equipment Type is required.", "error")
+        flash("The 'Equipment Type' is required. Please fill it out and try again.", "warning")
         return redirect(request.referrer)
 
+    # Handle Image Upload
     image_file = request.files.get("image")
     image_path = None
     
     if image_file and image_file.filename != '':
         ext = os.path.splitext(secure_filename(image_file.filename))[1].lower()
         if ext not in ['.jpg', '.jpeg', '.png', '.webp']:
-            flash("Invalid image format. Use JPG, PNG, or WebP.", "error")
+            flash("Invalid image format. Please use JPG, PNG, or WebP files.", "error")
             return redirect(request.referrer)
             
         random_name = f"prod_{uuid.uuid4().hex[:12]}{ext}"
@@ -749,13 +910,15 @@ def add_product():
             image_file.save(full_path)
         except Exception as e:
             current_app.logger.error(f"Image Save Error: {e}")
-            flash("Failed to save product image.", "error")
+            flash("We had trouble saving the product image. Please try uploading it again.", "error")
             return redirect(request.referrer)
 
+    # Save to Database
     try:
         new_product = Product(
             equipment_type=equipment_type,
             name=name,
+            size=size, 
             description=description, 
             stock=stock,
             is_refillable=is_refillable,
@@ -786,7 +949,7 @@ def add_product():
             product_id=new_product.id,
             action="Initial Stock Entry",
             quantity=stock,
-            note=f"Registered {name}. Mode: {transaction_type}. Refillable: {is_refillable}. Condition: {condition}. Cost: {cost_price}",
+            note=f"Registered {name} (Size: {size}). Mode: {transaction_type}. Refillable: {is_refillable}. Condition: {condition}. Cost: {cost_price}",
             user_id=current_user.id,
             user_name=current_user.full_name 
         )
@@ -818,8 +981,7 @@ def add_product():
             ))
         
         db.session.commit()
-        
-        flash(f"Product '{name}' added successfully.", "success")
+        flash(f"Success! '{name}' has been added to your inventory.", "success")
         
     except Exception as e:
         db.session.rollback()
@@ -829,10 +991,9 @@ def add_product():
                 os.remove(abs_image_path)
         
         current_app.logger.error(f"Database Error on Product Add: {str(e)}")
-        flash("An error occurred while saving to the database.", "error")
+        flash("Something went wrong on our end while saving. Please wait a moment and try again.", "error")
 
     return redirect(url_for('admin.products'))
-
 
 @admin_bp.route('/edit-product/<int:product_id>', methods=['POST'])
 @login_required
@@ -843,6 +1004,7 @@ def edit_product(product_id):
 
     new_type = request.form.get("equipment_type", "").strip().title()
     new_name = request.form.get("name", "").strip().title()
+    new_size = request.form.get("size", "").strip() 
     new_description = request.form.get("description", "").strip()
     new_condition = request.form.get("condition", "").strip()
     
@@ -850,14 +1012,12 @@ def edit_product(product_id):
     new_rent_period = request.form.get("rent_period", "Monthly").strip().title()
     
     if not new_type or not new_name:
-        flash("Equipment Type and Product Name are required fields.", "error")
+        flash("Equipment Type and Product Name are required fields.", "warning")
         return redirect(url_for('admin.products'))
 
     changes = []
 
     try:
-        new_stock = product.stock
-        raw_cost = product.cost_price or Decimal("0.00")
         raw_rent = Decimal(request.form.get("rent_price") or "0.00")
         raw_sale = Decimal(request.form.get("sale_price") or "0.00")
 
@@ -865,83 +1025,86 @@ def edit_product(product_id):
         new_sale = raw_sale if new_offer_type in ['Both', 'Sale'] else Decimal("0.00")
 
         if product.transaction_type != new_offer_type:
-            changes.append(f"Changed transaction type from '{product.transaction_type}' to '{new_offer_type}'")
+            changes.append(f"Changed type from '{product.transaction_type}' to '{new_offer_type}'")
             product.transaction_type = new_offer_type
 
         if product.rent_period != new_rent_period:
-            changes.append(f"Updated rental period from '{product.rent_period}' to '{new_rent_period}'")
+            changes.append(f"Updated rental period to '{new_rent_period}'")
             product.rent_period = new_rent_period
 
         if product.equipment_type != new_type:
-            changes.append(f"Updated equipment type from '{product.equipment_type}' to '{new_type}'")
+            changes.append(f"Updated type to '{new_type}'")
             product.equipment_type = new_type
 
         if (product.name or "") != new_name:
-            changes.append(f"Renamed product from '{product.name or 'Untitled'}' to '{new_name}'")
+            changes.append(f"Renamed to '{new_name}'")
             product.name = new_name
+            
+        if (product.size or "") != new_size:
+            changes.append(f"Updated size from '{product.size or 'N/A'}' to '{new_size}'")
+            product.size = new_size
 
         if (product.description or "").strip() != new_description:
-            changes.append("Updated product description")
+            changes.append("Updated description")
             product.description = new_description
 
         if product.condition != new_condition:
-            changes.append(f"Changed condition status from '{product.condition or 'N/A'}' to '{new_condition}'")
+            changes.append(f"Changed condition to '{new_condition}'")
             product.condition = new_condition
 
         if product.rent_price != new_rent:
-            changes.append(f"Changed rental rate from ₱{product.rent_price} to ₱{new_rent}")
+            changes.append(f"Changed rental rate to ₱{new_rent:,.2f}")
             product.rent_price = new_rent
 
         if product.sale_price != new_sale:
-            changes.append(f"Changed sale price from ₱{product.sale_price} to ₱{new_sale}")
+            changes.append(f"Changed sale price to ₱{new_sale:,.2f}")
             product.sale_price = new_sale
 
     except (ValueError, InvalidOperation):
-        flash("Please enter valid numeric amounts for the stock, cost, or pricing fields.", "error")
+        flash("Oops! Please double-check your pricing fields. Ensure you've entered valid numbers.", "error")
         return redirect(url_for('admin.products'))
 
+    # Image Handling
     image_file = request.files.get("image")
     if image_file and image_file.filename != '':
+        ext = os.path.splitext(secure_filename(image_file.filename))[1].lower()
+        if ext not in ['.jpg', '.jpeg', '.png', '.webp']:
+            flash("Invalid image format. Please use JPG, PNG, or WebP.", "error")
+            return redirect(url_for('admin.products'))
+
         if product.image:
             old_full_path = os.path.join(current_app.root_path, "static", product.image)
             if os.path.exists(old_full_path):
-                try:
-                    os.remove(old_full_path)
-                except Exception as e:
-                    current_app.logger.warning(f"Could not delete old image: {e}")
+                os.remove(old_full_path)
 
-        ext = os.path.splitext(secure_filename(image_file.filename))[1].lower()
         random_name = f"prod_{uuid.uuid4().hex[:12]}{ext}"
         upload_folder = os.path.join(current_app.root_path, "static", "uploads", "products")
         os.makedirs(upload_folder, exist_ok=True)
         
-        new_rel_path = f"uploads/products/{random_name}"
         image_file.save(os.path.join(upload_folder, random_name))
-        
-        product.image = new_rel_path
-        changes.append("Uploaded a new product image")
+        product.image = f"uploads/products/{random_name}"
+        changes.append("Updated product image")
 
     try:
         if changes:
-            log_note = f"{'; '.join(changes)}"
             inventory_log = InventoryLog(
                 product_id=product.id,
                 action="Product Edited",
                 quantity=product.stock,
-                note=log_note[:255], 
+                note=f"{'; '.join(changes)}",
                 user_id=current_user.id,
                 user_name=current_user.full_name
             )
             db.session.add(inventory_log)
             db.session.commit()
-            flash(f"Successfully updated the details for {product.name}!", "success")
+            flash(f"Success! The details for '{product.name}' have been updated.", "success")
         else:
-            flash("No changes were made to the record.", "info")
+            flash("No changes were detected.", "info")
 
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Product Update Error: {e}")
-        flash("An unexpected database error occurred while updating the product. Please try again.", "error")
+        flash("Something went wrong on our end while updating. Please try again.", "error")
 
     return redirect(url_for('admin.products'))
 
@@ -1622,15 +1785,20 @@ def transactions():
     customers = Customer.query.order_by(Customer.last_name).all()
     all_equipment = Product.query.filter_by(status='Available').order_by(Product.equipment_type.asc()).all()
     
-    # Override stock display for refillable products to show full_in_stock only
     for equipment in all_equipment:
         if equipment.is_refillable and equipment.tank_status:
             equipment.available_stock = equipment.tank_status.full_in_stock or 0
         else:
             equipment.available_stock = equipment.stock or 0
+
+    raw_refillables = Product.query.join(TankStatus).filter(Product.is_active == True).all()
+    grouped_refills = {}
+    for p in raw_refillables:
+        key = (p.name, p.size)
+        if key not in grouped_refills:
+            grouped_refills[key] = {'name': p.name, 'size': p.size}
     
-    # Query for Primegas modal
-    refillable_products = Product.query.join(TankStatus).filter(Product.is_active == True).all()
+    unique_refillable_products = list(grouped_refills.values())
 
     return render_template(
         "admin/transactions.html",
@@ -1643,7 +1811,7 @@ def transactions():
         current_status=status_filter, 
         customers=customers,
         all_equipment=all_equipment,
-        refillable_products=refillable_products,
+        refillable_products=unique_refillable_products,
         datetime_now_date=current_date,
         **stats
     )
