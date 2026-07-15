@@ -1,13 +1,3 @@
-    document.addEventListener('DOMContentLoaded', () => {
-        const printBtn = document.getElementById('trigger-print');
-        if (printBtn) {
-            printBtn.addEventListener('click', () => {
-                window.print();
-            });
-        }
-    });
-
-
 /*=================================== START OF ADD PAYMENT MODAL ===================================*/
 
 document.addEventListener('DOMContentLoaded', function() {
