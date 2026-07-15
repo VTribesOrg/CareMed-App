@@ -657,23 +657,38 @@
                 </tr>
             </thead>
             <tbody>
+                {% set ns = namespace(total_rows=0) %}
                 {% if txn.rentals %}
                     {% for item in txn.rentals %}
-                    <tr>
-                        <td>{{ item.quantity }}</td>
-                        <td>{{ item.product.name if item.product else '—' }}</td>
-                        <td>{{ item.serial_number or '—' }}</td>
-                        <td></td>
-                        <td></td>
-                        <td>₱{{ "{:,.2f}".format(item.monthly_rate or 0) }}/mo</td>
-                        <td>
-                            {% if item.start_date and item.expected_return_date %}
-                                {{ item.start_date.strftime('%b %d') }} – {{ item.expected_return_date.strftime('%b %d, %Y') }}
-                            {% endif %}
-                        </td>
-                    </tr>
+                        {% set serials = (item.serial_number.replace(',', '/').split('/') if item.serial_number else [])|map('trim')|reject('equalto', '')|list %}
+                        {% set duration %}{% if item.start_date and item.expected_return_date %}{{ item.start_date.strftime('%b %d') }} – {{ item.expected_return_date.strftime('%b %d, %Y') }}{% endif %}{% endset %}
+                        {% if serials|length == item.quantity and item.quantity > 1 %}
+                            {% for serial in serials %}
+                            <tr>
+                                <td>1</td>
+                                <td>{{ item.product.name if item.product else '—' }}</td>
+                                <td>{{ serial }}</td>
+                                <td></td>
+                                <td></td>
+                                <td>₱{{ "{:,.2f}".format(item.monthly_rate or 0) }}/mo</td>
+                                <td>{{ duration }}</td>
+                            </tr>
+                            {% set ns.total_rows = ns.total_rows + 1 %}
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td>{{ item.quantity }}</td>
+                                <td>{{ item.product.name if item.product else '—' }}</td>
+                                <td>{{ item.serial_number or '—' }}</td>
+                                <td></td>
+                                <td></td>
+                                <td>₱{{ "{:,.2f}".format(item.monthly_rate or 0) }}/mo</td>
+                                <td>{{ duration }}</td>
+                            </tr>
+                            {% set ns.total_rows = ns.total_rows + 1 %}
+                        {% endif %}
                     {% endfor %}
-                    {% for i in range([6 - txn.rentals|length, 0]|max) %}
+                    {% for i in range([6 - ns.total_rows, 0]|max) %}
                     <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
                     {% endfor %}
                 {% else %}
