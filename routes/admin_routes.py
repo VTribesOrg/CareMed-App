@@ -1008,7 +1008,7 @@ def edit_product(product_id):
     new_description = request.form.get("description", "").strip()
     new_condition = request.form.get("condition", "").strip()
     
-    new_offer_type = request.form.get("offer_type", "Rent").strip().title()
+    new_offer_type = request.form.get("offer_type", "Rental").strip().title()
     new_rent_period = request.form.get("rent_period", "Monthly").strip().title()
     
     if not new_type or not new_name:
@@ -1021,7 +1021,7 @@ def edit_product(product_id):
         raw_rent = Decimal(request.form.get("rent_price") or "0.00")
         raw_sale = Decimal(request.form.get("sale_price") or "0.00")
 
-        new_rent = raw_rent if new_offer_type in ['Both', 'Rent'] else Decimal("0.00")
+        new_rent = raw_rent if new_offer_type in ['Both', 'Rental'] else Decimal("0.00")
         new_sale = raw_sale if new_offer_type in ['Both', 'Sale'] else Decimal("0.00")
 
         if product.transaction_type != new_offer_type:
@@ -1990,7 +1990,7 @@ def update_tracking(txn_id):
 @admin_or_staff_required
 def post_payment():
     txn_id = request.form.get('txn_id')
-    invoice_id = request.form.get('invoice_id')
+    invoice_id = request.form.get('invoice_id')  
 
     try:
         raw_amount = request.form.get('amount', '0').replace(',', '').strip()
@@ -2019,55 +2019,36 @@ def post_payment():
             flash("Reference number already exists.", "danger")
             return redirect(request.referrer)
 
-        # ── Handle receipt upload (shared for both Sale & Rental) ──
         receipt_path = None
         file = request.files.get('receipt_image')
         if file and file.filename:
-            filename = secure_filename(
-                f"{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{file.filename}"
-            )
-            upload_folder = os.path.join(
-                current_app.root_path, 'static', 'uploads', 'receipts'
-            )
+            filename = secure_filename(f"{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{file.filename}")
+            upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'receipts')
             os.makedirs(upload_folder, exist_ok=True)
             file.save(os.path.join(upload_folder, filename))
             receipt_path = f'uploads/receipts/{filename}'
 
-        # ── SALE: direct payment against the transaction ───────────
         if txn.transaction_type == 'Sale':
             sale_balance = Decimal(str(txn.balance_due or 0))
-
             if sale_balance <= 0:
                 flash('This transaction is already fully paid.', 'info')
                 return redirect(request.referrer)
-
             if amount > sale_balance:
-                flash(
-                    f'Payment ₱{amount:,.2f} exceeds the remaining balance of ₱{sale_balance:,.2f}.',
-                    'danger'
-                )
+                flash(f'Payment ₱{amount:,.2f} exceeds the remaining balance of ₱{sale_balance:,.2f}.', 'danger')
                 return redirect(request.referrer)
 
-            payment = Payment(
-                transaction_id=txn.id,
-                invoice_id=None,        
-                amount=amount,
-                payment_method=method,
-                reference_number=ref_number,
-                receipt_image_path=receipt_path,
-                status="Completed",
-                verified_by_id=current_user.id,
-                verified_at=datetime.utcnow()
-            )
+            payment = Payment(transaction_id=txn.id, amount=amount, payment_method=method, 
+                              reference_number=ref_number, receipt_image_path=receipt_path,
+                              status="Completed", verified_by_id=current_user.id, verified_at=datetime.utcnow())
             db.session.add(payment)
 
-        # ── RENTAL: distribute across unpaid invoices ──────────────
         else:
-            unpaid_invoices = []
             if invoice_id:
-                target = RentalInvoice.query.get(invoice_id)
-                if target:
-                    unpaid_invoices = [target]
+                target_invoice = RentalInvoice.query.filter_by(id=invoice_id, rental_id=[r.id for r in txn.rentals]).first()
+                if not target_invoice:
+                    flash("Invalid invoice selected.", "danger")
+                    return redirect(request.referrer)
+                unpaid_invoices = [target_invoice]
             else:
                 unpaid_invoices = RentalInvoice.query.filter(
                     RentalInvoice.rental_id.in_([r.id for r in txn.rentals]),
@@ -2075,65 +2056,37 @@ def post_payment():
                 ).order_by(RentalInvoice.service_period_start.asc()).all()
 
             total_remaining = sum(inv.remaining_balance for inv in unpaid_invoices)
-
             if amount > total_remaining:
-                flash(
-                    f'Payment ₱{amount:,.2f} exceeds the total remaining balance of ₱{total_remaining:,.2f}.',
-                    'danger'
-                )
+                flash(f'Payment ₱{amount:,.2f} exceeds the remaining balance of ₱{total_remaining:,.2f}.', 'danger')
                 return redirect(request.referrer)
 
             remaining_to_distribute = amount
-
             for inv in unpaid_invoices:
-                if remaining_to_distribute <= 0:
-                    break
-
-                inv_balance = inv.remaining_balance
-                if inv_balance <= 0:
-                    continue
-
-                payment_amount = min(remaining_to_distribute, inv_balance)
-
-                payment = Payment(
-                    transaction_id=txn.id,
-                    invoice_id=inv.id,
-                    amount=payment_amount,
-                    payment_method=method,
-                    reference_number=ref_number,
-                    receipt_image_path=receipt_path,
-                    status="Completed",
-                    verified_by_id=current_user.id,
-                    verified_at=datetime.utcnow()
-                )
+                if remaining_to_distribute <= 0: break
+                
+                payment_amount = min(remaining_to_distribute, inv.remaining_balance)
+                
+                payment = Payment(transaction_id=txn.id, invoice_id=inv.id, amount=payment_amount,
+                                  payment_method=method, reference_number=ref_number, 
+                                  receipt_image_path=receipt_path, status="Completed",
+                                  verified_by_id=current_user.id, verified_at=datetime.utcnow())
                 db.session.add(payment)
 
-                if payment_amount >= inv_balance:
-                    inv.status = "Paid"
-                else:
-                    inv.status = "Partially Paid"
-
+                inv.status = "Paid" if payment_amount >= inv.remaining_balance else "Partially Paid"
                 remaining_to_distribute -= payment_amount
 
-        db.session.flush()
         db.session.expire(txn, ['payments'])
         txn.update_totals()
         db.session.commit()
 
-        flash(
-            f'Payment of ₱{amount:,.2f} recorded successfully for {txn.reference_no}.',
-            'success'
-        )
+        flash(f'Payment of ₱{amount:,.2f} recorded successfully.', 'success')
 
     except (InvalidOperation, ValueError):
         db.session.rollback()
         flash('Invalid amount format.', 'danger')
-
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(
-            f"PAYMENT_ERROR | TXN: {txn_id} | Error: {str(e)}"
-        )
+        current_app.logger.error(f"PAYMENT_ERROR | TXN: {txn_id} | Error: {str(e)}")
         flash(f'A system error occurred: {str(e)}', 'danger')
 
     return redirect(request.referrer or url_for('admin.transactions'))

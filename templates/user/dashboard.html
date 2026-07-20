@@ -7,6 +7,7 @@
     <title>CareMed</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded" rel="stylesheet">
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='icons/favicon-circle.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/user/dashboard.css') }}">
     <style>
@@ -582,10 +583,43 @@
         </div>
     </footer>
 
-    <div class="toast-notification" id="toast">
-        <i class="fa-solid fa-circle-check"></i>
-        <span id="toastMsg"></span>
+    <div id="main-toast-container" class="toast-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="medical-toast {{ category or 'info' }}" role="alert">
+                        <div class="toast-progress"></div>
+                        <span class="material-symbols-rounded toast-icon">
+                            {% if category == 'success' %}check_circle
+                            {% elif category == 'error' %}error
+                            {% elif category == 'warning' %}warning
+                            {% else %}info{% endif %}
+                        </span>
+                        <div class="toast-content">
+                            <span class="toast-title">{{ category|capitalize or 'Notice' }}</span>
+                            <span class="toast-message">{{ message|replace('\n', '<br>')|safe }}</span>
+                        </div>
+                        <button type="button" class="toast-close">
+                            <span class="material-symbols-rounded">close</span>
+                        </button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
     </div>
+
+    <template id="toast-template">
+        <div class="medical-toast" role="alert">
+            <div class="toast-progress"></div> <span class="material-symbols-rounded toast-icon"></span>
+            <div class="toast-content">
+                <span class="toast-title"></span>
+                <span class="toast-message"></span>
+            </div>
+            <button type="button" class="toast-close">
+                <span class="material-symbols-rounded">close</span>
+            </button>
+        </div>
+    </template>
 
     <script nonce="{{ csp_nonce() }}">
         document.addEventListener("DOMContentLoaded", function() {
@@ -701,6 +735,91 @@
             } else {
                 switchTab('orders'); // Default
             }
+        });
+
+                /*================== START OF MESSAGE NOTIFICATION ==================*/
+        /**
+        * Core function to create and show a toast notification
+        */
+        function showToast(message, category = 'info') {
+            const container = document.getElementById('main-toast-container');
+            const template = document.getElementById('toast-template');
+            
+            if (!container || !template) return;
+
+            // 1. Clone the template
+            const toastClone = template.content.cloneNode(true);
+            const toastDiv = toastClone.querySelector('.medical-toast');
+
+            // 2. Set Category Class (success, error, warning, info)
+            toastDiv.classList.add(category);
+
+            // 3. Set the Icon
+            const icons = { 
+                success: 'check_circle', 
+                error: 'error', 
+                warning: 'warning', 
+                info: 'info' 
+            };
+            const iconElement = toastDiv.querySelector('.toast-icon');
+            iconElement.textContent = icons[category] || 'info';
+
+            // 4. Set Titles and Message
+            const titleElement = toastDiv.querySelector('.toast-title');
+            const messageElement = toastDiv.querySelector('.toast-message');
+            
+            titleElement.textContent = category.charAt(0).toUpperCase() + category.slice(1);
+            messageElement.textContent = message;
+
+            // 5. Add to the DOM
+            container.appendChild(toastDiv);
+
+            // 6. Handle Auto-Removal
+            setupToastAutoRemove(toastDiv);
+        }
+
+        /**
+        * Shared logic to handle the fade-out and removal of a toast element
+        */
+        function setupToastAutoRemove(toastElement) {
+            setTimeout(() => {
+                if (toastElement.parentNode) {
+                    // Apply the fade-out animation via JS
+                    toastElement.style.animation = 'toast-fade-out 0.5s ease forwards';
+                    
+                    toastElement.addEventListener('animationend', (e) => {
+                        if (e.animationName === 'toast-fade-out') {
+                            toastElement.remove();
+                        }
+                    });
+                }
+            }, 4500); // 4.5s visible + 0.5s fade = 5s total
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const existingToasts = document.querySelectorAll('.medical-toast');
+            existingToasts.forEach(toast => {
+                setupToastAutoRemove(toast);
+            });
+        });
+
+        document.addEventListener("DOMContentLoaded", function () {
+
+            const container = document.getElementById("main-toast-container");
+
+            if (!container) return;
+
+            container.addEventListener("click", function (e) {
+
+                const closeBtn = e.target.closest(".toast-close");
+
+                if (closeBtn) {
+                    const toast = closeBtn.closest(".medical-toast");
+                    if (toast) toast.remove();
+                }
+
+            });
+
         });
     </script>
    

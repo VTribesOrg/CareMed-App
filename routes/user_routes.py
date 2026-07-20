@@ -633,12 +633,21 @@ def place_order():
         flash("Please provide a delivery address before proceeding.", "info")
         return redirect(url_for('user.checkout'))
 
+    selected_item_ids = request.form.getlist('selected_items')
+    if not selected_item_ids:
+        flash("Please select at least one item to order.", "warning")
+        return redirect(url_for('user.cart'))
+
     cart = Cart.query.filter_by(user_id=current_user.id).first()
     if not cart or not cart.items:
         flash("Your cart is empty.", "warning")
         return redirect(url_for('user.cart'))
 
-    is_rental_order = any(item.item_type == 'Rental' for item in cart.items)
+
+    target_items = [item for item in cart.items if str(item.id) in selected_item_ids]
+
+    is_rental_order = any(item.item_type == 'Rental' for item in target_items)
+    
     if is_rental_order:
         if not profile.valid_id_path or not profile.secondary_id_path:
             flash("Rental orders require two forms of valid ID for verification.", "error")
@@ -671,7 +680,8 @@ def place_order():
         db.session.flush()
 
         total_accumulated = Decimal("0.00")
-        for item in cart.items:
+
+        for item in target_items:
             product = Product.query.with_for_update().get(item.product_id)
             
             if not product or product.status == 'Archived':
@@ -684,9 +694,20 @@ def place_order():
             total_accumulated += item_total
 
             if item.item_type == 'Sale':
-                db.session.add(Purchase(transaction_id=new_transaction.id, product_id=product.id, 
-                                        customer_id=profile.id, quantity=item.quantity, 
-                                        unit_price=item_price, total_price=item_total))
+                new_purchase = Purchase(
+                    transaction_id=new_transaction.id, 
+                    product_id=product.id, 
+                    customer_id=profile.id,
+                    product_name=product.name,
+                    product_type=getattr(product, 'equipment_type', None),
+                    product_asset_tag=getattr(product, 'asset_tag', None),
+                    product_condition=getattr(product, 'condition', None),
+                    product_category=getattr(product, 'category', None),
+                    quantity=item.quantity, 
+                    unit_price=item_price, 
+                    total_price=item_total
+                )
+                db.session.add(new_purchase)
             else:
                 end_date = item.rental_start_date + relativedelta(months=item.rental_duration)
                 rental = Rental(transaction_id=new_transaction.id, product_id=product.id, 
@@ -704,16 +725,14 @@ def place_order():
                                         quantity=-item.quantity, note=f"Ref: {ref_no}", 
                                         user_id=current_user.id, user_name=new_transaction.customer_name))
 
-        new_transaction.total_amount = total_accumulated
-        new_transaction.update_totals()
-
-        for item in cart.items:
             db.session.delete(item)
 
+        new_transaction.total_amount = total_accumulated
+        new_transaction.update_totals()
         db.session.commit()
 
         if payment_method == 'COD':
-            flash(f"Order successful! Your reference is {ref_no}.", "success")
+            # flash(f"Order successful! Your reference is {ref_no}.", "success")
             return redirect(url_for('user.order_success', ref=ref_no))
         else:
             return redirect(url_for('user.payment_upload', txn_id=new_transaction.id))
@@ -727,6 +746,7 @@ def place_order():
         current_app.logger.error(f"CHECKOUT_ERROR: {str(e)}")
         flash("Could not process order. Please try again.", "error")
         return redirect(url_for('user.checkout'))
+    
 
 @user_bp.route('/payment-upload/<int:txn_id>')
 @login_required

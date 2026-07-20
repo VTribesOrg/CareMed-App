@@ -125,7 +125,7 @@
                     <td>
                         {% if product.transaction_type == 'Both' %}
                             <span class="status-pill" style="background:#f0fdfa; color:#0f766e; border:1px solid #ccfbf1;">Both</span>
-                        {% elif product.transaction_type == 'Rent' %}
+                        {% elif product.transaction_type == 'Rental' %}
                             <span class="status-pill" style="background:#eff6ff; color:#1d4ed8; border:1px solid #dbeafe;">For Rent</span>
                         {% elif product.transaction_type == 'Sale' %}
                             <span class="status-pill" style="background:#fefce8; color:#a16207; border:1px solid #fef9c3;">For Sale</span>
@@ -346,7 +346,7 @@
                         <select name="offer_type" id="reg-offer-type" class="clinical-input"
                                 style="width:100%; cursor:pointer; -webkit-appearance:none; appearance:none; padding:0 35px 0 12px; border:1.5px solid #cbd5e1; border-radius:8px; height:44px; font-size:0.9rem; color:#1e293b; background:#ffffff;" required>
                             <option value="" disabled selected>Select...</option>
-                            <option value="Rent">Rent Only</option>
+                            <option value="Rental">Rent Only</option>
                             <option value="Sale">Sale Only</option>
                         </select>
                         <span class="material-symbols-rounded" style="pointer-events:none; position:absolute; right:10px; top:50%; transform:translateY(-50%); color:#94a3b8; font-size:20px;">unfold_more</span>
@@ -476,7 +476,7 @@
                         <select name="offer_type" id="edit-offer-type" class="clinical-input"
                                 style="width:100%; cursor:pointer; -webkit-appearance:none; appearance:none; padding:0 35px 0 12px; border:1.5px solid #cbd5e1; border-radius:8px; height:44px; font-size:0.9rem; color:#1e293b; background:#ffffff;" required>
                             <option value="" disabled selected>Select...</option>
-                            <option value="Rent">Rent Only</option>
+                            <option value="Rental">Rent Only</option>
                             <option value="Sale">Sale Only</option>
                         </select>
                         <span class="material-symbols-rounded" style="pointer-events:none; position:absolute; right:10px; top:50%; transform:translateY(-50%); color:#94a3b8; font-size:20px;">unfold_more</span>

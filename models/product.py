@@ -46,7 +46,7 @@ class RefillTransaction(db.Model):
     customer_id = db.Column(db.Integer, db.ForeignKey("customer.id"), nullable=True)
 
     walk_in_name = db.Column(db.String(255), nullable=True)
-    walk_in_tank_size = db.Column(db.String(50), nullable=True) # NEW: For walk-in sizes
+    walk_in_tank_size = db.Column(db.String(50), nullable=True)
     
     quantity = db.Column(db.Integer, nullable=False)
     total_revenue = db.Column(db.Numeric(10, 2), nullable=False)

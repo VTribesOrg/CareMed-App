@@ -886,7 +886,7 @@ document.addEventListener('DOMContentLoaded', function() {
             rentField.style.display = 'none';
             saleField.style.display = 'none';
 
-            if (val === 'Rent') {
+            if (val === 'Rental') {
                 rentField.style.display = 'block';
                 pricingRow.style.gridTemplateColumns = '200px 260px'; 
             } 
@@ -918,7 +918,7 @@ document.addEventListener('DOMContentLoaded', function() {
             editRentField.style.display = 'none';
             editSaleField.style.display = 'none';
 
-            if (val === 'Rent') {
+            if (val === 'Rental') {
                 editRentField.style.display = 'block';
                 editPricingRow.style.gridTemplateColumns = '200px 260px'; 
             } 
