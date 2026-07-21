@@ -52,6 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
 /* ======================================== END OF SIDEBAR STATE ======================================== */
 
 
+
 /*================== START OF MESSAGE NOTIFICATION ==================*/
 /**
  * Core function to create and show a toast notification
@@ -111,13 +112,29 @@ function setupToastAutoRemove(toastElement) {
     }, 4500); // 4.5s visible + 0.5s fade = 5s total
 }
 
-/**
- * Initialize existing toasts (Flask Flash) on page load
- */
 document.addEventListener('DOMContentLoaded', () => {
     const existingToasts = document.querySelectorAll('.medical-toast');
     existingToasts.forEach(toast => {
         setupToastAutoRemove(toast);
     });
+});
+
+document.addEventListener("DOMContentLoaded", function () {
+
+    const container = document.getElementById("main-toast-container");
+
+    if (!container) return;
+
+    container.addEventListener("click", function (e) {
+
+        const closeBtn = e.target.closest(".toast-close");
+
+        if (closeBtn) {
+            const toast = closeBtn.closest(".medical-toast");
+            if (toast) toast.remove();
+        }
+
+    });
+
 });
 /*================== END OF MESSAGE NOTIFICATION ==================*/

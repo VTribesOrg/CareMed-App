@@ -228,18 +228,6 @@
  
                     <td class="text-end">
                         <div class="action-row-container d-inline-flex justify-content-end gap-1">
-                            <button type="button"
-                                class="btn-action btn-add-payment {{ 'disabled opacity-50' if txn.balance_due <= 0 }}"
-                                title="Add Payment"
-                                data-txn-id="{{ txn.id }}"
-                                data-ref="{{ txn.reference_no }}"
-                                data-balance="{{ txn.balance_due }}"
-                                data-type="{{ txn.transaction_type }}"
-                                data-monthly-rate="{% if txn.rentals %}{{ txn.rentals[0].monthly_rate }}{% else %}0{% endif %}"
-                                data-unpaid-count="{% if txn.rentals %}{{ txn.rentals[0].invoices|selectattr('status', 'ne', 'Paid')|list|length }}{% else %}0{% endif %}"
-                                {% if txn.balance_due <= 0 %}disabled{% endif %}>
-                                <i class="material-symbols-rounded">add_card</i>
-                            </button>
  
                             <a href="{{ url_for('admin.transaction_details', id=txn.id) }}" class="btn-action" title="View/Return Details">
                                 <i class="material-symbols-rounded">visibility</i>

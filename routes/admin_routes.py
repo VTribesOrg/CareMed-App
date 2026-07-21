@@ -2037,43 +2037,54 @@ def post_payment():
                 flash(f'Payment ₱{amount:,.2f} exceeds the remaining balance of ₱{sale_balance:,.2f}.', 'danger')
                 return redirect(request.referrer)
 
-            payment = Payment(transaction_id=txn.id, amount=amount, payment_method=method, 
-                              reference_number=ref_number, receipt_image_path=receipt_path,
-                              status="Completed", verified_by_id=current_user.id, verified_at=datetime.utcnow())
+            payment = Payment(
+                transaction_id=txn.id, 
+                amount=amount, 
+                payment_method=method, 
+                reference_number=ref_number, 
+                receipt_image_path=receipt_path,
+                status="Completed", 
+                verified_by_id=current_user.id, 
+                verified_at=datetime.utcnow()
+            )
             db.session.add(payment)
 
         else:
-            if invoice_id:
-                target_invoice = RentalInvoice.query.filter_by(id=invoice_id, rental_id=[r.id for r in txn.rentals]).first()
-                if not target_invoice:
-                    flash("Invalid invoice selected.", "danger")
-                    return redirect(request.referrer)
-                unpaid_invoices = [target_invoice]
-            else:
-                unpaid_invoices = RentalInvoice.query.filter(
-                    RentalInvoice.rental_id.in_([r.id for r in txn.rentals]),
-                    RentalInvoice.status != 'Paid'
-                ).order_by(RentalInvoice.service_period_start.asc()).all()
-
-            total_remaining = sum(inv.remaining_balance for inv in unpaid_invoices)
-            if amount > total_remaining:
-                flash(f'Payment ₱{amount:,.2f} exceeds the remaining balance of ₱{total_remaining:,.2f}.', 'danger')
+            if not invoice_id:
+                flash("Please select a specific item/invoice to pay.", "warning")
                 return redirect(request.referrer)
 
-            remaining_to_distribute = amount
-            for inv in unpaid_invoices:
-                if remaining_to_distribute <= 0: break
-                
-                payment_amount = min(remaining_to_distribute, inv.remaining_balance)
-                
-                payment = Payment(transaction_id=txn.id, invoice_id=inv.id, amount=payment_amount,
-                                  payment_method=method, reference_number=ref_number, 
-                                  receipt_image_path=receipt_path, status="Completed",
-                                  verified_by_id=current_user.id, verified_at=datetime.utcnow())
-                db.session.add(payment)
+            rental_ids = [r.id for r in txn.rentals]
+            target_invoice = RentalInvoice.query.filter(
+                RentalInvoice.id == invoice_id,
+                RentalInvoice.rental_id.in_(rental_ids)
+            ).first()
 
-                inv.status = "Paid" if payment_amount >= inv.remaining_balance else "Partially Paid"
-                remaining_to_distribute -= payment_amount
+            if not target_invoice:
+                flash("Invalid invoice selected.", "danger")
+                return redirect(request.referrer)
+
+            if amount > target_invoice.remaining_balance:
+                flash(f'Payment ₱{amount:,.2f} exceeds the invoice balance of ₱{target_invoice.remaining_balance:,.2f}.', 'danger')
+                return redirect(request.referrer)
+
+            payment = Payment(
+                transaction_id=txn.id, 
+                invoice_id=target_invoice.id, 
+                amount=amount,
+                payment_method=method, 
+                reference_number=ref_number, 
+                receipt_image_path=receipt_path, 
+                status="Completed",
+                verified_by_id=current_user.id, 
+                verified_at=datetime.utcnow()
+            )
+            db.session.add(payment)
+
+            if amount >= target_invoice.remaining_balance:
+                target_invoice.status = "Paid"
+            else:
+                target_invoice.status = "Partially Paid"
 
         db.session.expire(txn, ['payments'])
         txn.update_totals()

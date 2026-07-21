@@ -7,13 +7,14 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // UI Elements inside Modal
     const txnIdInput = document.getElementById('payment-txn-id');
+    const invoiceIdInput = document.getElementById('payment-invoice-id');
     const summaryRef = document.getElementById('summary-ref');
     const summaryType = document.getElementById('summary-type');
     const summaryBalance = document.getElementById('summary-balance');
     const amountInput = document.getElementById('payment-amount');
     const amountError = document.getElementById('amount-error');
     const rentalQuickPay = document.getElementById('rental-quick-pay');
-    const quickPayContainer = document.getElementById('quick-pay-button-container'); // Ensure this ID is in your HTML
+    const quickPayContainer = document.getElementById('quick-pay-button-container');
     
     // Method/Ref Elements
     const paymentMethodSelect = document.getElementById('payment-method');
@@ -21,9 +22,30 @@ document.addEventListener('DOMContentLoaded', function() {
     const refLabel = document.getElementById('pm-ref-label');
     const refInput = document.getElementById('payment-reference');
 
+    // Receipt File Elements
+    const receiptInput = document.getElementById('receipt-image');
+    const receiptPreviewWrap = document.getElementById('receipt-preview-wrap');
+    const receiptPreview = document.getElementById('receipt-preview');
+    const receiptFilename = document.getElementById('receipt-filename');
+    const receiptStatus = document.getElementById('receipt-status');
+    const replaceFileBtn = document.getElementById('replace-file');
+    const removeFileBtn = document.getElementById('remove-file');
+
     let currentMonthlyRate = 0;
     let currentBalance = 0;
     let currentType = 'Rental';
+
+    // Helper to reset receipt input state
+    const resetReceiptUpload = () => {
+        if (receiptInput) receiptInput.value = '';
+        if (receiptPreviewWrap) receiptPreviewWrap.style.display = 'none';
+        if (receiptPreview) receiptPreview.src = '';
+        if (receiptFilename) receiptFilename.innerText = '';
+        if (receiptStatus) {
+            receiptStatus.innerText = 'cloud_upload';
+            receiptStatus.style.color = '#aaa';
+        }
+    };
 
     // 1. OPEN MODAL & DYNAMICALLY GENERATE BUTTONS
     document.addEventListener('click', function(e) {
@@ -32,84 +54,142 @@ document.addEventListener('DOMContentLoaded', function() {
 
         e.preventDefault();
 
-        // Extract Data
+        // Extract Data (Including specific Invoice ID)
         const txnId = btn.getAttribute('data-txn-id');
+        const invoiceId = btn.getAttribute('data-invoice-id') || '';
         const refNo = btn.getAttribute('data-ref');
         currentType = btn.getAttribute('data-type') || 'Rental';
         currentBalance = parseFloat(btn.getAttribute('data-balance') || 0);
         currentMonthlyRate = parseFloat(btn.getAttribute('data-monthly-rate') || 0);
         const unpaidMonths = parseInt(btn.getAttribute('data-unpaid-count') || 1);
 
-        // Populate Fields
-        txnIdInput.value = txnId;
-        summaryRef.innerText = refNo || 'N/A';
-        summaryType.innerText = currentType;
-        summaryBalance.innerText = `₱${currentBalance.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
-        amountInput.value = currentBalance.toFixed(2);
+        // Populate Hidden & Summary Fields
+        if (txnIdInput) txnIdInput.value = txnId;
+        if (invoiceIdInput) invoiceIdInput.value = invoiceId;
+
+        if (summaryRef) summaryRef.innerText = refNo || 'N/A';
+        if (summaryType) summaryType.innerText = currentType;
+        if (summaryBalance) {
+            summaryBalance.innerText = `₱${currentBalance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            summaryBalance.setAttribute('data-raw-balance', currentBalance);
+        }
+
+        if (amountInput) {
+            amountInput.value = currentBalance.toFixed(2);
+            amountInput.max = currentBalance;
+        }
         
-        amountError.style.display = 'none';
+        if (amountError) amountError.style.display = 'none';
 
         // 2. DYNAMIC QUICK PAY GENERATION
         if (currentType === 'Rental' && unpaidMonths > 1) {
-            rentalQuickPay.style.display = 'block';
-            quickPayContainer.innerHTML = ''; // Clear old buttons
+            if (rentalQuickPay) rentalQuickPay.style.display = 'block';
+            if (quickPayContainer) {
+                quickPayContainer.innerHTML = ''; // Clear old buttons
 
-            for (let i = 1; i <= unpaidMonths; i++) {
-                const pill = document.createElement('button');
-                pill.type = 'button';
-                pill.className = 'btn-month-pill';
-                pill.innerText = `${i}${i === 1 ? 'mo' : 'mos'}`;
-                
-                pill.onclick = function() {
-                    const total = (currentMonthlyRate * i).toFixed(2);
-                    amountInput.value = total;
+                for (let i = 1; i <= unpaidMonths; i++) {
+                    const pill = document.createElement('button');
+                    pill.type = 'button';
+                    pill.className = 'btn-month-pill';
+                    pill.innerText = `${i}${i === 1 ? 'mo' : 'mos'}`;
                     
-                    // Toggle active class
-                    document.querySelectorAll('.btn-month-pill').forEach(b => b.classList.remove('active'));
-                    pill.classList.add('active');
-                };
-                quickPayContainer.appendChild(pill);
+                    pill.onclick = function() {
+                        const total = (currentMonthlyRate * i).toFixed(2);
+                        if (amountInput) amountInput.value = total;
+                        
+                        // Toggle active class
+                        document.querySelectorAll('.btn-month-pill').forEach(b => b.classList.remove('active'));
+                        pill.classList.add('active');
+                    };
+                    quickPayContainer.appendChild(pill);
+                }
             }
-            amountInput.placeholder = `Monthly Rate: ₱${currentMonthlyRate.toFixed(2)}`;
+            if (amountInput) amountInput.placeholder = `Monthly Rate: ₱${currentMonthlyRate.toFixed(2)}`;
         } else {
-            rentalQuickPay.style.display = 'none';
+            if (rentalQuickPay) rentalQuickPay.style.display = 'none';
         }
 
-        paymentModal.classList.remove('hidden');
+        resetReceiptUpload();
+        if (paymentModal) paymentModal.classList.remove('hidden');
     });
 
     // 3. PAYMENT METHOD LOGIC
-    paymentMethodSelect.addEventListener('change', function() {
-        const isCash = this.value === 'Cash';
-        refGroup.style.display = isCash ? 'none' : 'block';
-        refInput.required = !isCash;
-        
-        if (!isCash) {
-            refLabel.innerText = (this.value === 'Check') ? "Check Number" : "Reference Number";
-            refInput.placeholder = (this.value === 'Check') ? "Enter check #" : "Enter reference ID";
-        }
-    });
+    if (paymentMethodSelect) {
+        paymentMethodSelect.addEventListener('change', function() {
+            const isCash = this.value === 'Cash';
+            if (refGroup) refGroup.style.display = isCash ? 'none' : 'block';
+            if (refInput) refInput.required = !isCash;
+            
+            if (!isCash && refLabel && refInput) {
+                refLabel.innerText = (this.value === 'Check') ? "Check Number" : "Reference Number";
+                refInput.placeholder = (this.value === 'Check') ? "Enter check #" : "Enter reference ID";
+            }
+        });
+    }
 
-    // 4. VALIDATION & SUBMIT
-    paymentForm.addEventListener('submit', function(e) {
-        const amount = parseFloat(amountInput.value);
+    // 4. RECEIPT FILE PREVIEW & ACTIONS
+    if (receiptInput) {
+        receiptInput.addEventListener('change', function() {
+            const file = this.files[0];
+            if (file) {
+                if (receiptFilename) receiptFilename.innerText = file.name;
+                if (receiptStatus) {
+                    receiptStatus.innerText = 'check_circle';
+                    receiptStatus.style.color = '#2e7d32';
+                }
 
-        if (isNaN(amount) || amount <= 0) {
-            e.preventDefault();
-            alert("Please enter a valid payment amount.");
-            return;
-        }
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        if (receiptPreview) receiptPreview.src = e.target.result;
+                        if (receiptPreviewWrap) receiptPreviewWrap.style.display = 'flex';
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    if (receiptPreview) receiptPreview.src = '';
+                    if (receiptPreviewWrap) receiptPreviewWrap.style.display = 'flex';
+                }
+            }
+        });
+    }
 
-        postBtn.disabled = true;
-        postBtn.innerHTML = `<span class="material-symbols-rounded">sync</span> Processing...`;
-    });
+    if (replaceFileBtn && receiptInput) {
+        replaceFileBtn.addEventListener('click', () => receiptInput.click());
+    }
 
-    // 5. MODAL CLOSE LOGIC
+    if (removeFileBtn) {
+        removeFileBtn.addEventListener('click', resetReceiptUpload);
+    }
+
+    // 5. VALIDATION & SUBMIT
+    if (paymentForm) {
+        paymentForm.addEventListener('submit', function(e) {
+            const amount = parseFloat(amountInput.value);
+
+            if (isNaN(amount) || amount <= 0) {
+                e.preventDefault();
+                alert("Please enter a valid payment amount.");
+                return;
+            }
+
+            if (postBtn) {
+                postBtn.disabled = true;
+                postBtn.innerHTML = `<span class="material-symbols-rounded">sync</span> Processing...`;
+            }
+        });
+    }
+
+    // 6. MODAL CLOSE LOGIC
     const closeModal = () => {
-        paymentModal.classList.add('hidden');
-        paymentForm.reset();
-        refGroup.style.display = 'none';
-        if(quickPayContainer) quickPayContainer.innerHTML = ''; 
+        if (paymentModal) paymentModal.classList.add('hidden');
+        if (paymentForm) paymentForm.reset();
+        if (refGroup) refGroup.style.display = 'none';
+        if (quickPayContainer) quickPayContainer.innerHTML = '';
+        if (postBtn) {
+            postBtn.disabled = false;
+            postBtn.innerHTML = `<span class="material-symbols-rounded">check_circle</span> Post Payment`;
+        }
+        resetReceiptUpload();
     };
 
     document.querySelectorAll('#close-payment-modal, #cancel-payment').forEach(el => {

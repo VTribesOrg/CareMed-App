@@ -672,4 +672,162 @@ body.ready .viewport-container {
 
 /*================================== end of contentArea ==================================*/
 
+/*================== START OF MESSAGE NOTIFICATION ==================*/
+
+.toast-container {
+    position: fixed;
+    top: 65px; 
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 8px; 
+}
+
+.medical-toast {
+    background: #ffffff;
+    min-width: 320px;
+    max-width: 440px; 
+    padding: 10px 12px; 
+    border-radius: 12px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 10px; 
+    box-shadow: 0 10px 22px -6px rgba(0, 0, 0, 0.1),
+                0 6px 10px -6px rgba(0, 0, 0, 0.05);
+    position: relative;
+    overflow: hidden;
+    border: 1px solid #f1f5f9;
+    animation: toast-slide-in 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+/* Status borders */
+.medical-toast.success { border-left: 4px solid #10b981; }
+.medical-toast.success .toast-icon { color: #10b981; background: #ecfdf5; }
+
+.medical-toast.error { border-left: 4px solid #ef4444; }
+.medical-toast.error .toast-icon { color: #ef4444; background: #fef2f2; }
+
+.medical-toast.warning { border-left: 4px solid #f59e0b; }
+.medical-toast.warning .toast-icon { color: #f59e0b; background: #fffbeb; }
+
+.medical-toast.info { border-left: 4px solid #3b82f6; }
+.medical-toast.info .toast-icon { color: #3b82f6; background: #eff6ff; }
+
+/* ICON */
+.toast-icon {
+    width: 32px;  
+    height: 32px; 
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px !important;
+}
+
+/* CONTENT */
+.toast-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.toast-title {
+    font-weight: 700;
+    font-size: 12.5px; 
+    color: #1e293b;
+    margin-bottom: 1px;
+}
+
+.toast-message {
+    font-size: 12px; 
+    color: #64748b;
+    line-height: 1.25; 
+}
+
+/* CLOSE BUTTON */
+.toast-close {
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: #94a3b8;
+    border-radius: 8px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    transition: all 0.2s ease;
+}
+
+.toast-close .material-symbols-rounded {
+    font-size: 18px;
+    line-height: 1;
+}
+
+.toast-close:hover {
+    background: #f1f5f9;
+    color: #334155;
+    transform: scale(1.05);
+}
+
+.toast-close:active {
+    transform: scale(0.95);
+}
+
+/* PROGRESS BAR */
+.toast-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 2px;
+    width: 100%;
+    background: rgba(0, 0, 0, 0.03);
+}
+
+.toast-progress::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    background: currentColor;
+    opacity: 0.4;
+    animation: toast-progress-shrink 5s linear forwards;
+}
+
+/* COLOR THEME */
+.medical-toast.success { color: #10b981; }
+.medical-toast.error { color: #ef4444; }
+.medical-toast.warning { color: #f59e0b; }
+.medical-toast.info { color: #3b82f6; }
+
+/* ANIMATIONS */
+@keyframes toast-slide-in {
+    from { transform: translateX(110%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes toast-fade-out {
+    from { transform: scale(1); opacity: 1; }
+    to { transform: scale(0.9); opacity: 0; }
+}
+
+@keyframes toast-progress-shrink {
+    from { width: 100%; }
+    to { width: 0%; }
+}
+
+.material-symbols-rounded {
+    font-variation-settings:
+        'FILL' 1,
+        'wght' 500,
+        'GRAD' 0,
+        'opsz' 24;
+}
+
+/*================== END OF MESSAGE NOTIFICATION ==================*/
+
 /*--------------------- END OF MAIN CONTENT --------------------------------------*/

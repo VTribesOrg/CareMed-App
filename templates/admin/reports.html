@@ -133,6 +133,49 @@
 </style>
 {% endblock %}
 
+
+{# Override flash block — this page uses toast-style flash messages #}
+{% block flash %}
+<div id="main-toast-container" class="toast-container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="medical-toast {{ category or 'info' }}" role="alert">
+                    <div class="toast-progress"></div>
+                    <span class="material-symbols-rounded toast-icon">
+                        {% if category == 'success' %}check_circle
+                        {% elif category == 'error' %}error
+                        {% elif category == 'warning' %}warning
+                        {% else %}info{% endif %}
+                    </span>
+                    <div class="toast-content">
+                        <span class="toast-title">{{ category|capitalize or 'Notice' }}</span>
+                        <span class="toast-message">{{ message|replace('\n', '<br>')|safe }}</span>
+                    </div>
+                    <button class="toast-close" onclick="this.parentElement.remove()">
+                        <span class="material-symbols-rounded">close</span>
+                    </button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+</div>
+
+<template id="toast-template">
+    <div class="medical-toast" role="alert">
+        <div class="toast-progress"></div>
+        <span class="material-symbols-rounded toast-icon"></span>
+        <div class="toast-content">
+            <span class="toast-title"></span>
+            <span class="toast-message"></span>
+        </div>
+        <button class="toast-close" onclick="this.parentElement.remove()">
+            <span class="material-symbols-rounded">close</span>
+        </button>
+    </div>
+</template>
+{% endblock %}
+
 {% block content %}
 
 {# ── Toolbar ── #}
