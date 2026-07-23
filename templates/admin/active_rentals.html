@@ -67,14 +67,12 @@
 
         <div class="search-box">
             <span class="material-symbols-rounded search-icon">search</span>
-
             <input
                 type="text"
                 id="rental-search"
                 placeholder="Search by serial number, customer or equipment..."
                 value="{{ search_query }}"
                 autocomplete="off">
-
             <button
                 type="button"
                 id="clear-search"
@@ -83,6 +81,22 @@
                 <span class="material-symbols-rounded">close</span>
             </button>
         </div>
+
+        <!-- RETURN STATUS FILTER -->
+        <select id="return-filter" class="medical-select">
+            <option value="">All Active Rentals</option>
+            <option value="overdue_return" {{ 'selected' if current_filter == 'overdue_return' }}>
+                Overdue Returns 
+            </option>
+        </select>
+
+        <!-- CLEAR FILTER BUTTON (shows only when filter is active) -->
+        {% if current_filter %}
+        <button type="button" id="clear-filter-btn" class="clear-filter-btn">
+            <span class="material-symbols-rounded">filter_alt_off</span>
+            Reset
+        </button>
+        {% endif %}
 
     </div>
 
