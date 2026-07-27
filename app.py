@@ -253,6 +253,7 @@ if os.environ.get("ENABLE_BACKUP") == "true":
         id='daily_backup',
         replace_existing=True
     )
+    scheduler.start()
     atexit.register(lambda: scheduler.shutdown())
     print("[Backup] Scheduler started — auto backup runs every midnight")
 
