@@ -1694,6 +1694,8 @@ def product_history(product_id):
 @csrf.exempt
 @permission_required('can_process_transactions')
 def transactions():
+    current_date = datetime.now().date()
+
     page = request.args.get('page', 1, type=int)
     limit = request.args.get('limit', 10, type=int)
     search_query = request.args.get('q', '').strip()
@@ -1723,7 +1725,6 @@ def transactions():
  
     elif status_filter == 'expiring':
         from datetime import timedelta
-        current_date = datetime.now().date()
         soon = current_date + timedelta(days=5)
         query = query.filter(
             Transaction.transaction_type == 'Rental',
@@ -1736,7 +1737,20 @@ def transactions():
             )
         )
         
+    if status_filter == 'overdue_return':
+        # Rentals NOT RETURNED past due date
+        query = query.filter(
+            Transaction.transaction_type == 'Rental',
+            Transaction.rentals.any(
+                and_(
+                    Rental.status == 'Active',
+                    Rental.expected_return_date < current_date
+                )
+            )
+        )
+
     elif status_filter == 'overdue_payment':
+        # Rental payments past due
         query = query.filter(
             Transaction.transaction_type == 'Rental',
             Transaction.balance_due > 0,
@@ -1765,7 +1779,6 @@ def transactions():
         page=page, per_page=limit, error_out=False
     )
 
-    current_date = datetime.now().date()
     for txn in pagination.items:
         rental_overdue = False
         if txn.rentals and txn.rentals[0].expected_return_date:
@@ -1821,13 +1834,20 @@ def transactions():
 @admin_or_staff_required
 @permission_required('can_view_active_rentals')
 def active_rentals():
+    from datetime import date
+
     search_query = request.args.get('q', '').strip()
+    filter_type = request.args.get('filter', '')  
     
     query = Rental.query.filter_by(status='Active')\
         .options(
             joinedload(Rental.product),
             joinedload(Rental.transaction).joinedload(Transaction.customer)
         )
+
+    today = date.today()
+    if filter_type == 'overdue_return':
+        query = query.filter(Rental.expected_return_date < today)
     
     rentals = query.order_by(Rental.expected_return_date.asc()).all()
     
@@ -1835,7 +1855,8 @@ def active_rentals():
         'admin/active_rentals.html',
         rentals=rentals,
         search_query=search_query,
-        datetime_now_date=date.today()
+        datetime_now_date=date.today(),
+        current_filter=filter_type 
     )
 
 import openpyxl
@@ -3640,7 +3661,7 @@ def _build_notifications():
 
     from models.product import PaymentProof, RentalInvoice
     from models.customer import Customer
-    from datetime import timedelta
+    from datetime import timedelta, date
 
     today = date.today()
     soon  = today + timedelta(days=5)
@@ -3686,7 +3707,26 @@ def _build_notifications():
             "link": "/admin/transactions?type=Rental&status=expiring"
         })
 
-    # ── 3. UNPAID SALE TRANSACTIONS ───────────────────────────────────────
+    # ── 3. OVERDUE RETURNS (items not returned past due date) ──────────────────
+    overdue_returns = Rental.query.filter(
+        Rental.status == 'Active',
+        Rental.expected_return_date < today
+    ).all()
+
+    if overdue_returns:
+        first_item = overdue_returns[0]
+        days_overdue = (today - first_item.expected_return_date).days
+        
+        notifications.append({
+            "id": "overdue_returns",
+            "type": "error",
+            "icon": "assignment_return",
+            "title": f"{len(overdue_returns)} Equipment Return{'s' if len(overdue_returns) > 1 else ''} OVERDUE",
+            "message": f"{len(overdue_returns)} item{'s' if len(overdue_returns) > 1 else ''} not returned. Oldest: {days_overdue} days late.",
+            "link": "/admin/active-rentals?filter=overdue_return" 
+        })
+
+    # ── 4. UNPAID SALE TRANSACTIONS ───────────────────────────────────────
     unpaid_sales = Transaction.query.filter(
         Transaction.transaction_type == 'Sale',
         Transaction.payment_status == 'Unpaid',
@@ -3703,7 +3743,7 @@ def _build_notifications():
             "link": "/admin/transactions?type=Sale&status=unpaid"
         })
 
-    # ── 4. PARTIALLY PAID TRANSACTIONS ────────────────────────────────────
+    # ── 5. PARTIALLY PAID TRANSACTIONS ────────────────────────────────────
     partial_payments = Transaction.query.filter(
         Transaction.payment_status == 'Partially Paid',
         Transaction.status == 'Open'
@@ -3719,7 +3759,7 @@ def _build_notifications():
             "link": "/admin/transactions?status=partial"
         })
 
-    # ── 5. LOW STOCK ──────────────────────────────────────────────────────
+    # ── 6. LOW STOCK ──────────────────────────────────────────────────────
     low_stock = Product.query.filter(
         Product.stock <= 5,
         Product.stock > 0,
@@ -3738,7 +3778,7 @@ def _build_notifications():
             "link": "/admin/products?filter=low_stock"
         })
 
-    # ── 6. OUT OF STOCK ───────────────────────────────────────────────────
+    # ── 7. OUT OF STOCK ───────────────────────────────────────────────────
     out_of_stock = Product.query.filter(
         Product.stock == 0,
         Product.status != 'Archived'
@@ -3754,7 +3794,7 @@ def _build_notifications():
             "link": "/admin/products?filter=out_of_stock"
         })
 
-    # ── 7. ORDERS STUCK AT SUBMITTED ─────────────────────────────────────
+    # ── 8. ORDERS STUCK AT SUBMITTED ─────────────────────────────────────
     stuck_submitted = Transaction.query.filter(
         Transaction.tracking_status == 'SUBMITTED',
         Transaction.status == 'Open'
@@ -3770,7 +3810,7 @@ def _build_notifications():
             "link": "/admin/transactions?status=submitted"
         })
 
-    # ── 8. PENDING CUSTOMER ID VERIFICATIONS ─────────────────────────────
+    # ── 9. PENDING CUSTOMER ID VERIFICATIONS ─────────────────────────────
     pending_verifications = Customer.query.filter(
         Customer.is_id_verified == False,
         Customer.valid_id_path != None
@@ -3786,7 +3826,7 @@ def _build_notifications():
             "link": "/admin/customers?filter=pending_id"
         })
 
-    # ── 9. INACTIVE CUSTOMERS WITH OPEN TRANSACTIONS ─────────────────────
+    # ── 10. INACTIVE CUSTOMERS WITH OPEN TRANSACTIONS ─────────────────────
     inactive_with_open = db.session.query(func.count(Transaction.id)).join(
         Customer, Customer.id == Transaction.customer_id
     ).filter(
