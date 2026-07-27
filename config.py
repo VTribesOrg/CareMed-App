@@ -6,21 +6,36 @@ load_dotenv()
 
 
 class ProductionConfig:
+    
+    DEBUG = False
+    TESTING = False
+    
     SECRET_KEY = os.environ.get("SECRET_KEY")
     if not SECRET_KEY:
         raise RuntimeError("SECRET_KEY environment variable is not set")
 
-    SQLALCHEMY_DATABASE_URI = os.environ.get(
-    "DATABASE_URL",
-    f"mysql+pymysql://{os.environ.get('MYSQLUSER')}:{os.environ.get('MYSQLPASSWORD')}@{os.environ.get('MYSQLHOST')}:{os.environ.get('MYSQLPORT')}/{os.environ.get('MYSQLDATABASE')}"
-)
-    if not SQLALCHEMY_DATABASE_URI:
-        raise RuntimeError("DATABASE_URL environment variable is not set")
+    database_url = os.environ.get("DATABASE_URL")
+
+    if not database_url:
+        database_url = (
+            f"mysql+pymysql://"
+            f"{os.environ.get('MYSQLUSER')}:"
+            f"{os.environ.get('MYSQLPASSWORD')}@"
+            f"{os.environ.get('MYSQLHOST')}:"
+            f"{os.environ.get('MYSQLPORT')}/"
+            f"{os.environ.get('MYSQLDATABASE')}"
+        )
+
+    SQLALCHEMY_DATABASE_URI = database_url
+
+    if not SQLALCHEMY_DATABASE_URI or "None" in SQLALCHEMY_DATABASE_URI:
+        raise RuntimeError("Database environment variables are not configured")
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
         "pool_pre_ping": True,
         "pool_recycle": 280,
+        "pool_timeout": 20,
     }
 
     GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
@@ -29,13 +44,12 @@ class ProductionConfig:
     SESSION_COOKIE_NAME = "caremed_session"
     SESSION_COOKIE_SECURE = True        
     SESSION_COOKIE_HTTPONLY = True      
-    SESSION_COOKIE_SAMESITE = "Strict"  
-    PERMANENT_SESSION_LIFETIME = 3600   
+    SESSION_COOKIE_SAMESITE = "Lax"  
 
     REMEMBER_COOKIE_DURATION    = timedelta(hours=8)  
     REMEMBER_COOKIE_SECURE      = True
     REMEMBER_COOKIE_HTTPONLY    = True
-    REMEMBER_COOKIE_SAMESITE    = "Strict"
+    REMEMBER_COOKIE_SAMESITE = "Lax"
     PERMANENT_SESSION_LIFETIME  = timedelta(hours=2)   
 
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  
@@ -94,7 +108,6 @@ class DevConfig:
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
 
-    PERMANENT_SESSION_LIFETIME = 3600
 
     REMEMBER_COOKIE_DURATION    = timedelta(hours=8)
     REMEMBER_COOKIE_SECURE      = False

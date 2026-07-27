@@ -37,6 +37,9 @@ mail.init_app(app)
 csrf.init_app(app)
 limiter.init_app(app)
 
+@app.route("/health")
+def health():
+    return {"status": "ok"}, 200
 
 @login_manager.user_loader
 def load_user(user_id):
