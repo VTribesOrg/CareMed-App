@@ -6,25 +6,30 @@ load_dotenv()
 
 
 class ProductionConfig:
-    
     DEBUG = False
     TESTING = False
-    
+
     SECRET_KEY = os.environ.get("SECRET_KEY")
     if not SECRET_KEY:
         raise RuntimeError("SECRET_KEY environment variable is not set")
 
-    database_url = os.environ.get("DATABASE_URL")
+    database_url = os.environ.get("DATABASE_URL") or os.environ.get("MYSQL_URL")
 
-    if not database_url:
-        database_url = (
-            f"mysql+pymysql://"
-            f"{os.environ.get('MYSQLUSER')}:"
-            f"{os.environ.get('MYSQLPASSWORD')}@"
-            f"{os.environ.get('MYSQLHOST')}:"
-            f"{os.environ.get('MYSQLPORT')}/"
-            f"{os.environ.get('MYSQLDATABASE')}"
-        )
+    if database_url:
+        if database_url.startswith("mysql://"):
+            database_url = database_url.replace("mysql://", "mysql+pymysql://", 1)
+    else:
+        user = os.environ.get('MYSQLUSER', '')
+        password = os.environ.get('MYSQLPASSWORD', '')
+        host = os.environ.get('MYSQLHOST', '')
+
+        port = os.environ.get('MYSQLPORT', '').strip()
+        if not port:
+            port = '3306'
+
+        db_name = os.environ.get('MYSQLDATABASE', '')
+        
+        database_url = f"mysql+pymysql://{user}:{password}@{host}:{port}/{db_name}"
 
     SQLALCHEMY_DATABASE_URI = database_url
 
