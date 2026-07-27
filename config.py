@@ -9,9 +9,7 @@ class ProductionConfig:
     DEBUG = False
     TESTING = False
 
-    SECRET_KEY = os.environ.get("SECRET_KEY")
-    if not SECRET_KEY:
-        raise RuntimeError("SECRET_KEY environment variable is not set")
+    SECRET_KEY = os.environ.get("SECRET_KEY", "fallback-secret-key")
 
     database_url = os.environ.get("DATABASE_URL") or os.environ.get("MYSQL_URL")
 
@@ -19,10 +17,11 @@ class ProductionConfig:
         if database_url.startswith("mysql://"):
             database_url = database_url.replace("mysql://", "mysql+pymysql://", 1)
     else:
-        user = os.environ.get('MYSQLUSER', '')
+        # 2. Second choice: Separate variables
+        user = os.environ.get('MYSQLUSER', 'root')
         password = os.environ.get('MYSQLPASSWORD', '')
-        host = os.environ.get('MYSQLHOST', '')
-
+        host = os.environ.get('MYSQLHOST', '') 
+        
         port = os.environ.get('MYSQLPORT', '').strip()
         if not port:
             port = '3306'
