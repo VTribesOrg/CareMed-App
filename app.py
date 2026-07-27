@@ -12,15 +12,22 @@ import atexit
 from flask_login import current_user, logout_user
 from datetime import datetime, timezone, timedelta
 from flask import session
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 
 app = Flask(__name__)
 app.jinja_env.globals['enumerate'] = enumerate
+app.wsgi_app = ProxyFix(
+    app.wsgi_app,
+    x_for=1,
+    x_proto=1,
+    x_host=1
+)
 
 if os.environ.get('FLASK_ENV') == 'development':
     app.config.from_object('config.DevConfig')
 else:
-    app.config.from_object('config.Config')
+    app.config.from_object('config.ProductionConfig')
 
 db.init_app(app)
 migrate.init_app(app, db)
@@ -44,7 +51,10 @@ csp = {
     "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com"],
     "font-src": ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"],
     "img-src": ["'self'", "data:", "https://www.google.com", "https://*.googleusercontent.com"],
-    "connect-src": ["'self'"],
+    "connect-src": [
+    "'self'",
+    "https://accounts.google.com"
+    ],
     "frame-ancestors": ["'self'"],
     "object-src": ["'none'"]
 }
@@ -55,7 +65,7 @@ Talisman(
     strict_transport_security=True,
     strict_transport_security_max_age=31536000,
     strict_transport_security_include_subdomains=True,
-    session_cookie_secure=False,
+    session_cookie_secure=True,
     session_cookie_http_only=True,
     frame_options="SAMEORIGIN",
 )
@@ -233,7 +243,7 @@ app.register_blueprint(admin_bp)
 
 # ── Auto Backup Scheduler ──────────────────────
 from utils.backup import auto_backup
-if not app.debug or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+if os.environ.get("ENABLE_BACKUP") == "true":
     scheduler = BackgroundScheduler()
     scheduler.add_job(
         func=auto_backup,
@@ -243,11 +253,14 @@ if not app.debug or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
         id='daily_backup',
         replace_existing=True
     )
-    scheduler.start()
     atexit.register(lambda: scheduler.shutdown())
     print("[Backup] Scheduler started — auto backup runs every midnight")
 
 
 if __name__ == "__main__":
-    debug = os.environ.get("DEBUG", "False") == "True"
-    app.run(debug=debug)
+    debug = os.getenv("DEBUG", "False").lower() == "true"
+    app.run(
+        host="0.0.0.0",
+        port=5000,
+        debug=debug
+    )

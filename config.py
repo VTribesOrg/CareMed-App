@@ -5,12 +5,15 @@ from datetime import timedelta
 load_dotenv()
 
 
-class Config:
+class ProductionConfig:
     SECRET_KEY = os.environ.get("SECRET_KEY")
     if not SECRET_KEY:
         raise RuntimeError("SECRET_KEY environment variable is not set")
 
-    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
+    SQLALCHEMY_DATABASE_URI = os.environ.get(
+    "DATABASE_URL",
+    f"mysql+pymysql://{os.environ.get('MYSQLUSER')}:{os.environ.get('MYSQLPASSWORD')}@{os.environ.get('MYSQLHOST')}:{os.environ.get('MYSQLPORT')}/{os.environ.get('MYSQLDATABASE')}"
+)
     if not SQLALCHEMY_DATABASE_URI:
         raise RuntimeError("DATABASE_URL environment variable is not set")
 
