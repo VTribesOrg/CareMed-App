@@ -6,7 +6,6 @@ load_dotenv()
 
 
 class ProductionConfig:
-    
     DEBUG = False
     TESTING = False
     
@@ -14,22 +13,30 @@ class ProductionConfig:
     if not SECRET_KEY:
         raise RuntimeError("SECRET_KEY environment variable is not set")
 
+    # Get DATABASE_URL from Railway
     database_url = os.environ.get("DATABASE_URL")
 
+    # Railway sometimes provides 'mysql://' instead of 'mysql+pymysql://'
+    if database_url and database_url.startswith("mysql://"):
+        database_url = database_url.replace("mysql://", "mysql+pymysql://", 1)
+
+    # Fallback construction if DATABASE_URL isn't explicitly set, using safe defaults
     if not database_url:
+        mysql_user = os.environ.get("MYSQLUSER", "")
+        mysql_password = os.environ.get("MYSQLPASSWORD", "")
+        mysql_host = os.environ.get("MYSQLHOST", "localhost")
+        mysql_port = os.environ.get("MYSQLPORT") or "3306"
+        mysql_database = os.environ.get("MYSQLDATABASE", "")
+
         database_url = (
-            f"mysql+pymysql://"
-            f"{os.environ.get('MYSQLUSER')}:"
-            f"{os.environ.get('MYSQLPASSWORD')}@"
-            f"{os.environ.get('MYSQLHOST')}:"
-            f"{os.environ.get('MYSQLPORT')}/"
-            f"{os.environ.get('MYSQLDATABASE')}"
+            f"mysql+pymysql://{mysql_user}:{mysql_password}@"
+            f"{mysql_host}:{mysql_port}/{mysql_database}"
         )
 
     SQLALCHEMY_DATABASE_URI = database_url
 
     if not SQLALCHEMY_DATABASE_URI or "None" in SQLALCHEMY_DATABASE_URI:
-        raise RuntimeError("Database environment variables are not configured")
+        raise RuntimeError("Database environment variables are not configured properly.")
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
@@ -38,11 +45,12 @@ class ProductionConfig:
         "pool_timeout": 20,
     }
 
+    # Rest of your configurations...
     GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
     GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET")
-
+    
     SESSION_COOKIE_NAME = "caremed_session"
-    SESSION_COOKIE_SECURE = True        
+    SESSION_COOKIE_SECURE = True          
     SESSION_COOKIE_HTTPONLY = True      
     SESSION_COOKIE_SAMESITE = "Lax"  
 
@@ -50,9 +58,9 @@ class ProductionConfig:
     REMEMBER_COOKIE_SECURE      = True
     REMEMBER_COOKIE_HTTPONLY    = True
     REMEMBER_COOKIE_SAMESITE = "Lax"
-    PERMANENT_SESSION_LIFETIME  = timedelta(hours=2)   
+    PERMANENT_SESSION_LIFETIME  = timedelta(hours=2) 
 
-    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024 
 
     MAIL_SERVER = "smtp.gmail.com"
     MAIL_PORT = 587
@@ -70,7 +78,6 @@ class ProductionConfig:
     MAIL_MAX_EMAILS = 5
     MAIL_TIMEOUT = 10
     MAIL_ASCII_ATTACHMENTS = False
-
 
     SECURITY_HEADERS = {
         "X-Content-Type-Options": "nosniff",
