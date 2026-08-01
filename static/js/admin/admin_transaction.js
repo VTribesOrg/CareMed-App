@@ -882,8 +882,11 @@ function resetRentModal() {
     }
     
     // Default duration setup
-    const durationInput = document.getElementById('rent-duration-months');
+    const durationInput = document.getElementById('rent-duration-value');
     if (durationInput) durationInput.value = 1;
+
+    const durationUnit = document.getElementById('rent-duration-unit');
+    if (durationUnit) durationUnit.value = 'months';
 
     // Set default start date to today
     const startInput = document.getElementById('rent-start-date');
@@ -951,7 +954,6 @@ function renderProductBasket() {
         row.className = 'selected-product-row';
         row.style = 'display: flex; align-items: center; justify-content: space-between; background: white; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);';
         
-        // FIXED: Switched from tracking array index loops to explicit product database IDs
         row.innerHTML = `
             <div style="display: flex; flex-direction: column; gap: 2px; flex: 1;">
                 <span style="font-weight: 600; font-size: 13px; color: #1e293b;">${item.name}</span>
@@ -998,7 +1000,8 @@ function renderProductBasket() {
  */
 function calculateRentalTotals() {
     const startInput = document.getElementById('rent-start-date');
-    const durationInput = document.getElementById('rent-duration-months');
+    const durationInput = document.getElementById('rent-duration-value');
+    const durationUnitInput = document.getElementById('rent-duration-unit');
     const hiddenReturnInput = document.getElementById('rent-return-date');
     const previewReturnText = document.getElementById('rent-return-date-preview');
     const cashInput = document.getElementById('rent-amount-paid');
@@ -1008,15 +1011,25 @@ function calculateRentalTotals() {
     const amountPaid = cashInput ? (parseFloat(cashInput.value) || 0) : 0;
     const deliveryFee = deliveryFeeInput ? (parseFloat(deliveryFeeInput.value) || 0) : 0;
     
-    let months = durationInput ? (parseInt(durationInput.value) || 1) : 1;
-    if (months < 1) months = 1;
+    let durationVal = durationInput ? (parseInt(durationInput.value) || 1) : 1;
+    if (durationVal < 1) durationVal = 1;
+    
+    const durationUnit = durationUnitInput ? durationUnitInput.value : 'months';
 
     // DYNAMIC DATE CALCULATION LOGIC
     if (startInput && startInput.value) {
         const start = new Date(startInput.value);
         
         if (!isNaN(start.getTime())) {
-            const targetReturnDate = new Date(start.getFullYear(), start.getMonth() + months, start.getDate());
+            let targetReturnDate = new Date(start);
+            
+            if (durationUnit === 'days') {
+                targetReturnDate.setDate(start.getDate() + durationVal);
+            } else if (durationUnit === 'weeks') {
+                targetReturnDate.setDate(start.getDate() + (durationVal * 7));
+            } else {
+                targetReturnDate.setMonth(start.getMonth() + durationVal);
+            }
             
             const yyyy = targetReturnDate.getFullYear();
             const mm = String(targetReturnDate.getMonth() + 1).padStart(2, '0');
@@ -1043,12 +1056,20 @@ function calculateRentalTotals() {
 
     productBasket.forEach(item => {
         const itemQty = parseInt(item.quantity) || 1;
-        const itemPrice = parseFloat(item.rentPrice) || 0;
+        const itemMonthlyPrice = parseFloat(item.rentPrice) || 0;
         
-        // Calculate total amount for this specific product across all months
-        const itemTotalCost = itemPrice * itemQty * months;
+        // Compute pro-rated scale factor relative to monthly base price
+        let rateMultiplier = durationVal;
+        if (durationUnit === 'days') {
+            rateMultiplier = durationVal / 30.0;
+        } else if (durationUnit === 'weeks') {
+            rateMultiplier = (durationVal * 7) / 30.0;
+        }
 
-        totalMonthlyRate += itemPrice * itemQty;
+        // Calculate total amount for this specific product based on chosen unit timeframe
+        const itemTotalCost = itemMonthlyPrice * itemQty * rateMultiplier;
+
+        totalMonthlyRate += itemMonthlyPrice * itemQty;
         totalItemsCount += itemQty;
 
         // Append line-item calculation to summary preview panel
@@ -1056,7 +1077,7 @@ function calculateRentalTotals() {
             const breakdownRow = document.createElement('div');
             breakdownRow.style = 'display: flex; justify-content: space-between; font-size: 12px; color: #64748b;';
             breakdownRow.innerHTML = `
-                <span>• ${item.name} <small>(${itemQty} × ₱${itemPrice.toLocaleString('en-US', {minimumFractionDigits: 2})}/mo)</small></span>
+                <span>• ${item.name} <small>(${itemQty} × ₱${itemMonthlyPrice.toLocaleString('en-US', {minimumFractionDigits: 2})}/mo)</small></span>
                 <span>₱${itemTotalCost.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
             `;
             breakdownContainer.appendChild(breakdownRow);
@@ -1074,15 +1095,26 @@ function calculateRentalTotals() {
         breakdownContainer.appendChild(deliveryRow);
     }
 
-    // Multiply item rate by months, then apply flat delivery fee addition
-    const totalContract = (totalMonthlyRate * months) + deliveryFee;
+    // Calculate overall duration multiplier for total contract billing
+    let contractMultiplier = durationVal;
+    if (durationUnit === 'days') {
+        contractMultiplier = durationVal / 30.0;
+    } else if (durationUnit === 'weeks') {
+        contractMultiplier = (durationVal * 7) / 30.0;
+    }
+
+    const totalContract = (totalMonthlyRate * contractMultiplier) + deliveryFee;
     const balance = totalContract - amountPaid;
 
     // ============== UI EXPANSIONS ==============
 
     const durationText = document.getElementById('rent-duration-text');
     if (durationText) {
-        durationText.textContent = `${totalItemsCount} Item${totalItemsCount !== 1 ? 's' : ''} × ${months} Month${months !== 1 ? 's' : ''}`;
+        let unitLabel = durationVal === 1 ? 'Month' : 'Months';
+        if (durationUnit === 'days') unitLabel = durationVal === 1 ? 'Day' : 'Days';
+        if (durationUnit === 'weeks') unitLabel = durationVal === 1 ? 'Week' : 'Weeks';
+
+        durationText.textContent = `${totalItemsCount} Item${totalItemsCount !== 1 ? 's' : ''} × ${durationVal} ${unitLabel}`;
     }
 
     const totalBillText = document.getElementById('rent-total-bill');
@@ -1116,7 +1148,7 @@ function calculateRentalTotals() {
         } else {
             totalDisplay.className = "total-amount-display";
             if (balanceSubText) {
-                balanceSubText.textContent = "Future monthly dues";
+                balanceSubText.textContent = durationUnit === 'months' ? "Future monthly dues" : "Due balance";
                 balanceSubText.className = "";
             }
         }
@@ -1165,20 +1197,16 @@ if (rentCustomerInput && rentCustomerDropdown) {
     });
 }
 
-// FIXED: SAFELY DELEGATE PRODUCT REMOVAL USING ID COMPLIANCE AND STOP PROPAGATION BLOCKS
 if (selectedProductsContainer) {
     selectedProductsContainer.addEventListener('click', (e) => {
         const removeBtn = e.target.closest('.btn-remove-basket-item');
         if (removeBtn) {
             e.preventDefault();
             e.stopPropagation();
-            e.stopImmediatePropagation(); // Halts any secondary duplicate listener threads completely
+            e.stopImmediatePropagation();
 
             const prodId = removeBtn.getAttribute('data-product-id');
-            
-            // Re-assign the array without the targeted item ID (Idempotent execution)
             productBasket = productBasket.filter(item => item.id !== prodId);
-            
             renderProductBasket();
         }
     });
@@ -1208,7 +1236,6 @@ rentBtns.forEach(btn => {
     });
 });
 
-// CLOSE MODAL EVENTS AND EXTERNAL CONTAINER BOUNDARY WATCHERS
 document.addEventListener('click', (e) => {
     if (rentCustomerDropdown && !e.target.closest('.customer-search-container')) {
         rentCustomerDropdown.classList.add('hidden');
@@ -1231,9 +1258,12 @@ if (rentForm) {
         if (e.target.id === 'rent-payment-method') {
             updateRentRefVisibility();
         }
+        // Catch duration changes from dropdown selection unit
+        if (e.target.id === 'rent-duration-unit') {
+            calculateRentalTotals();
+        }
     });
 
-    // FIXED: Target updates via product-id attributes instead of mutable index numbers
     rentForm.addEventListener('input', (e) => {
         if (e.target.classList.contains('basket-qty-input')) {
             const prodId = e.target.getAttribute('data-product-id');
