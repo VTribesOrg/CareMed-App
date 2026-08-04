@@ -761,9 +761,10 @@ img.user-photo-img:after {
 .cart-table-header, 
 .cart-item-row {
     display: grid;
-    grid-template-columns: 40px 4fr 2fr 2fr 1fr;
+    grid-template-columns: 40px 3fr 1.5fr 1fr 1fr 60px;
     align-items: center;
-    padding: 15px 20px; 
+    padding: 15px 20px;
+    gap: 15px;
 }
 
 .cart-table-header {

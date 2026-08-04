@@ -737,7 +737,7 @@
                         {% if product.stock > 0 %}
                             {% if current_user.is_authenticated %}
 
-                                {% if product.transaction_type in ['Rent', 'Both'] %}
+                                {% if product.transaction_type == 'Rental' %}
                                     <div class="pd-rental-config-section" style="grid-column: span 2; background: #f8fafc; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 10px;">
                                         <h5 style="font-size: 0.9rem; margin-bottom: 10px; color: #1e293b;"><i class="fa-solid fa-calendar-lines-pen"></i> Rental Period</h5>
                                         
@@ -774,7 +774,7 @@
                                     </div>
                                 {% endif %}
 
-                                {% if product.transaction_type in ['Sale', 'Both'] %}
+                                {% if product.transaction_type == 'Sale' %}
                                     <div class="pd-sale-actions" style="grid-column: span 2; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                                         {% if (product.id, 'Sale') in in_cart_items %}
                                             <button class="pd-btn-secondary" disabled style="background: #f1f5f9; color: #16a34a; border: 1px solid #16a34a; cursor: default;">
@@ -804,7 +804,7 @@
                                 <a href="{{ url_for('auth.login', next=request.path) }}"
                                 class="pd-btn-primary"
                                 style="text-decoration: none; text-align: center; grid-column: span 2;">
-                                    <i class="fa-solid fa-lock"></i> Login to Rent or Buy
+                                    <i class="fa-solid fa-lock"></i> Login to Access
                                 </a>
                             {% endif %}
 
@@ -1134,162 +1134,151 @@
                 </div>
             </div>
 
-            <div class="product-grid" id="productGrid">
-                {% for product in products %}
-                    <div class="product-card" data-name="{{ product.name }}" data-category="{{ product.equipment_type }}">
-                        
-                        <div class="card-overlays">
-                            <div class="stock-tag {% if product.stock <= 0 %}status-out{% else %}status-in{% endif %}">
+        <div class="product-grid" id="productGrid">
+            {% for product in products %}
+                {% if product.is_active %}
+                <div class="product-card" data-name="{{ product.name }}" data-category="{{ product.equipment_type }}">
+                    
+                    <div class="card-overlays">
+                        <div class="stock-tag {% if product.stock <= 0 %}status-out{% else %}status-in{% endif %}">
+                            {% if product.stock > 0 %}
+                                <i class="fa-solid fa-check"></i> IN STOCK
+                            {% else %}
+                                <i class="fa-solid fa-xmark"></i> OUT OF STOCK
+                            {% endif %}
+                        </div>
+
+                        <div class="type-tag trans-{{ product.transaction_type | lower }}">
+                            {% if product.transaction_type == 'Rental' %}
+                                Rent Only
+                            {% else %}
+                                Purchase Only
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="product-image-box">
+                        <a href="{{ url_for('user.product_detail', product_id=product.id) }}" style="text-decoration: none; color: inherit; display: block; height: 100%; width: 100%;">
+                            {% if product.image and product.image != 'None' %}
+                                <img src="{{ url_for('static', filename=product.image) }}" alt="{{ product.name }}" class="product-img-element">
+                            {% else %}
+                                <div class="placeholder-icon">
+                                    <i class="fa-solid fa-microscope"></i>
+                                    <span>IMAGE PENDING</span>
+                                </div>
+                            {% endif %}
+                        </a>
+                    </div>
+                    
+                    <div class="product-text-block">
+                        <a href="{{ url_for('user.product_detail', product_id=product.id) }}" style="text-decoration: none;">
+                            <h3 class="display-name">{{ product.name }}</h3>
+                        </a>
+                        <span class="equipment-category">{{ product.equipment_type }}</span>
+                    </div>
+
+                    <div class="pricing-container has-single">
+                        {% if product.transaction_type == 'Rental' %}
+                        <div class="price-block rent">
+                            <span class="price-label">RENTAL</span>
+                            <p class="price-amount">
+                                ₱{{ "{:,.0f}".format(product.rent_price or 0) }}
+                                <span class="period">/{{ product.rent_period or 'Month' }}</span>
+                            </p>
+                        </div>
+                        {% else %}
+                        <div class="price-block sale">
+                            <span class="price-label">PURCHASE</span>
+                            <p class="price-amount">₱{{ "{:,.0f}".format(product.sale_price or 0) }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="action-grid">
+                        {% if product.transaction_type == 'Rental' %}
+                            {% if current_user.is_authenticated %}
                                 {% if product.stock > 0 %}
-                                    <i class="fa-solid fa-check"></i> IN STOCK
-                                {% else %}
-                                    <i class="fa-solid fa-xmark"></i> OUT OF STOCK
-                                {% endif %}
-                            </div>
+                                    <button type="button" 
+                                            class="btn-action btn-rent-outline open-rental-btn" 
+                                            data-id="{{ product.id }}" 
+                                            data-name="{{ product.name }}" 
+                                            data-period="{{ product.rent_period or 'Month' }}"
+                                            data-details-url="{{ url_for('user.product_detail', product_id=product.id) }}"
+                                            data-cart-url="{{ url_for('user.add_to_cart', product_id=product.id) }}">
+                                        <i class="fa-solid fa-cart-plus"></i> Add Rental
+                                    </button>
 
-                            <div class="type-tag trans-{{ product.transaction_type | lower }}">
-                                {% if product.transaction_type == 'Rent' %}
-                                    Rent Only
-                                {% elif product.transaction_type == 'Sale' %}
-                                    Purchase Only
-                                {% else %}
-                                    Rent & Buy
-                                {% endif %}
-                            </div>
-                        </div>
-
-                        <div class="product-image-box">
-                            <a href="{{ url_for('user.product_detail', product_id=product.id) }}" style="text-decoration: none; color: inherit; display: block; height: 100%; width: 100%;">
-                                {% if product.image and product.image != 'None' %}
-                                    <img src="{{ url_for('static', filename=product.image) }}" alt="{{ product.name }}" class="product-img-element">
-                                {% else %}
-                                    <div class="placeholder-icon">
-                                        <i class="fa-solid fa-microscope"></i>
-                                        <span>IMAGE PENDING</span>
-                                    </div>
-                                {% endif %}
-                            </a>
-                        </div>
-                        
-                        <div class="product-text-block">
-                            <a href="{{ url_for('user.product_detail', product_id=product.id) }}"style="text-decoration: none;" >
-                                <h3 class="display-name">{{ product.name }}</h3>
-                            </a>
-                            <span class="equipment-category">{{ product.equipment_type }}</span>
-                        </div>
-
-                        <div class="pricing-container {% if product.transaction_type == 'Both' %}has-dual{% else %}has-single{% endif %}">
-                            {% if product.transaction_type in ['Rent', 'Both'] %}
-                            <div class="price-block rent">
-                                <span class="price-label">RENTAL</span>
-                                <p class="price-amount">
-                                    ₱{{ "{:,.0f}".format(product.rent_price or 0) }}
-                                    <span class="period">/{{ product.rent_period or 'Month' }}</span>
-                                </p>
-                            </div>
-                            {% endif %}
-
-                            {% if product.transaction_type == 'Both' %}
-                                <div class="price-separator"></div>
-                            {% endif %}
-
-                            {% if product.transaction_type in ['Sale', 'Both'] %}
-                            <div class="price-block sale">
-                                <span class="price-label">PURCHASE</span>
-                                <p class="price-amount">₱{{ "{:,.0f}".format(product.sale_price or 0) }}</p>
-                            </div>
-                            {% endif %}
-                        </div>
-
-                        <div class="action-grid">
-                            {% if product.transaction_type in ['Rent', 'Both'] %}
-                                {% if current_user.is_authenticated %}
-                                    {% if product.stock > 0 %}
-                                        <button type="button" 
-                                                class="btn-action btn-rent-outline open-rental-btn" 
-                                                data-id="{{ product.id }}" 
-                                                data-name="{{ product.name }}" 
-                                                data-period="{{ product.rent_period or 'Month' }}"
-                                                data-details-url="{{ url_for('user.product_detail', product_id=product.id) }}"
-                                                data-cart-url="{{ url_for('user.add_to_cart', product_id=product.id) }}">
-                                            <i class="fa-solid fa-cart-plus"></i> Add Rental
+                                    <form action="{{ url_for('user.add_to_cart', product_id=product.id) }}" method="POST" style="display: contents;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="hidden" name="item_type" value="Rental">
+                                        <input type="hidden" name="next_page" value="cart">
+                                        <button type="submit" class="btn-action btn-rent-outline">
+                                            <i class="fa-solid fa-calendar-day"></i> Rent Now
                                         </button>
-
-                                        <form action="{{ url_for('user.add_to_cart', product_id=product.id) }}" method="POST" style="display: contents;">
-                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                            <input type="hidden" name="item_type" value="Rental">
-                                            <input type="hidden" name="next_page" value="cart">
-                                            <button type="submit" class="btn-action btn-rent-outline">
-                                                <i class="fa-solid fa-calendar-day"></i> Rent Now
-                                            </button>
-                                        </form>
-
-                                    {% else %}
-                                        <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
-                                        class="btn-action btn-guest"
-                                        style="background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0;">
-                                            <i class="fa-solid fa-circle-info"></i> View Details
-                                        </a>
-                                    {% endif %}
+                                    </form>
                                 {% else %}
-                                    <a href="{{ url_for('auth.login') }}" class="btn-action btn-guest">
-                                        <i class="fa-solid fa-lock"></i> Login to Rent
+                                    <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
+                                    class="btn-action btn-guest"
+                                    style="background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0;">
+                                        <i class="fa-solid fa-circle-info"></i> View Details
                                     </a>
                                 {% endif %}
+                            {% else %}
+                                <a href="{{ url_for('auth.login') }}" class="btn-action btn-guest">
+                                    <i class="fa-solid fa-lock"></i> Login to Rent
+                                </a>
                             {% endif %}
+                        {% endif %}
 
-                            {% if product.transaction_type in ['Sale', 'Both'] %}
-                                {% if product.stock > 0 %}
-                                    {% if current_user.is_authenticated %}
-
-                                        {% if (product.id, 'Sale') in in_cart_items %}
-                                            <button class="btn-action" disabled style="background: #f1f5f9; color: #16a34a; border: 1px solid #16a34a; cursor: default;">
-                                                <i class="fa-solid fa-check"></i> In Cart
-                                            </button>
-                                        {% else %}
-                                            <form action="{{ url_for('user.add_to_cart', product_id=product.id) }}" method="POST" style="display: contents;">
-                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                                <input type="hidden" name="item_type" value="Sale">
-                                                <button type="submit" class="btn-action btn-buy-solid" style="background: #fff; color: #16a34a; border: 1px solid #16a34a;">
-                                                    <i class="fa-solid fa-cart-plus"></i> Add to Cart
-                                                </button>
-                                            </form>
-                                        {% endif %}
-
+                        {% if product.transaction_type == 'Sale' %}
+                            {% if product.stock > 0 %}
+                                {% if current_user.is_authenticated %}
+                                    {% if (product.id, 'Sale') in in_cart_items %}
+                                        <button class="btn-action" disabled style="background: #f1f5f9; color: #16a34a; border: 1px solid #16a34a; cursor: default;">
+                                            <i class="fa-solid fa-check"></i> In Cart
+                                        </button>
+                                    {% else %}
                                         <form action="{{ url_for('user.add_to_cart', product_id=product.id) }}" method="POST" style="display: contents;">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <input type="hidden" name="item_type" value="Sale">
-                                            <input type="hidden" name="next_page" value="cart">
-                                            <button type="submit" class="btn-action btn-buy-solid">
-                                                <i class="fa-solid fa-bolt"></i> Buy Now
+                                            <button type="submit" class="btn-action btn-buy-solid" style="background: #fff; color: #16a34a; border: 1px solid #16a34a;">
+                                                <i class="fa-solid fa-cart-plus"></i> Add to Cart
                                             </button>
                                         </form>
+                                    {% endif %}
 
-                                    {% else %}
-                                        <a href="{{ url_for('auth.login') }}"
-                                        class="btn-action btn-buy-solid">
-                                            <i class="fa-solid fa-lock"></i> Login to Buy
-                                        </a>
-                                    {% endif %}
+                                    <form action="{{ url_for('user.add_to_cart', product_id=product.id) }}" method="POST" style="display: contents;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="hidden" name="item_type" value="Sale">
+                                        <input type="hidden" name="next_page" value="cart">
+                                        <button type="submit" class="btn-action btn-buy-solid">
+                                            <i class="fa-solid fa-bolt"></i> Buy Now
+                                        </button>
+                                    </form>
                                 {% else %}
-                                    {% if product.transaction_type == 'Sale' %}
-                                        <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
-                                        class="btn-action btn-guest"
-                                        style="text-decoration: none; background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0;">
-                                            <i class="fa-solid fa-circle-info"></i> View Details
-                                        </a>
-                                    {% endif %}
+                                    <a href="{{ url_for('auth.login') }}"
+                                    class="btn-action btn-buy-solid">
+                                        <i class="fa-solid fa-lock"></i> Login to Buy
+                                    </a>
                                 {% endif %}
+                            {% else %}
+                                <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
+                                class="btn-action btn-guest"
+                                style="text-decoration: none; background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0;">
+                                    <i class="fa-solid fa-circle-info"></i> View Details
+                                </a>
                             {% endif %}
-                        </div>
+                        {% endif %}
                     </div>
-                {% else %}
-                    <div class="empty-state">
-                        <i class="fa-solid fa-magnifying-glass"></i>
-                        <p>No medical equipment currently available for display.</p>
-                    </div>
-                {% endfor %}
-            </div>
+                </div>
+                {% endif %}
+            {% else %}
+                <div class="empty-state">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <p>No medical equipment currently available for display.</p>
+                </div>
+            {% endfor %}
+        </div>
         </div>
     </main>
 

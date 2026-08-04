@@ -47,17 +47,14 @@ def admin_redirect(f):
 def homepage():
     all_products = Product.query.all()
     
-    rent_only = [p for p in all_products if p.transaction_type == 'Rent']
-    sale_only = [p for p in all_products if p.transaction_type == 'Sale']
-    both_types = [p for p in all_products if p.transaction_type == 'Both']
+    rent_only = [p for p in all_products if p.transaction_type == 'Rental' and p.is_active and p.stock > 0]
+    sale_only = [p for p in all_products if p.transaction_type == 'Sale' and p.is_active and p.stock > 0]
 
     featured_products = []
     if rent_only:
         featured_products.append(random.choice(rent_only))
     if sale_only:
         featured_products.append(random.choice(sale_only))
-    if both_types:
-        featured_products.append(random.choice(both_types))
 
     return render_template('user/homepage.html', products=featured_products)
 
@@ -496,7 +493,6 @@ def cart():
         has_items=len(items) > 0
     )
     
-
 @user_bp.route('/cart/action', methods=['POST'])
 @login_required
 def cart_actions():
@@ -508,6 +504,32 @@ def cart_actions():
     if not user_cart:
         flash("Your cart is empty.", "warning")
         return redirect(url_for('user.cart'))
+
+    # 1. Handle quantity updates from auto-submitted inputs
+    quantity_updated = False
+    for key, value in request.form.items():
+        if key.startswith('quantity_'):
+            try:
+                parts = key.split('_')
+                p_id = int(parts[1])
+                i_type = parts[2]
+                new_qty = int(value)
+
+                cart_item = CartItem.query.filter_by(
+                    cart_id=user_cart.id,
+                    product_id=p_id,
+                    item_type=i_type
+                ).first()
+
+                if cart_item and new_qty > 0:
+                    if new_qty <= cart_item.product.stock:
+                        cart_item.quantity = new_qty
+                        quantity_updated = True
+            except Exception:
+                continue
+
+    if quantity_updated:
+        db.session.commit()
 
     to_delete = []
 
@@ -527,7 +549,6 @@ def cart_actions():
         session['checkout_items'] = selected_items
         return redirect(url_for('user.checkout'))
 
-
     if to_delete:
         try:
             for item in to_delete:
@@ -541,24 +562,56 @@ def cart_actions():
                     db.session.delete(item_to_remove)
             db.session.commit()
             flash("Updated your cart successfully.", "info")
+            return redirect(url_for('user.cart'))
         except Exception as e:
             db.session.rollback()
             flash("An error occurred while updating your cart.", "error")
+            return redirect(url_for('user.cart'))
+
+    if quantity_updated and not to_delete:
+        flash("Cart quantities updated.", "success")
 
     return redirect(url_for('user.cart'))
 
 
-@user_bp.route('/checkout', methods=['GET'])
+@user_bp.route('/checkout', methods=['GET', 'POST'])
 @login_required
 def checkout():
+    user_cart = Cart.query.filter_by(user_id=current_user.id).first()
+    if not user_cart:
+        flash("Your cart is empty.", "warning")
+        return redirect(url_for('user.cart'))
+
+    if request.method == 'POST':
+        for key, value in request.form.items():
+            if key.startswith('quantity_'):
+                try:
+                    parts = key.split('_')
+                    p_id = int(parts[1])
+                    i_type = parts[2]
+                    new_qty = int(value)
+
+                    cart_item = CartItem.query.filter_by(
+                        cart_id=user_cart.id,
+                        product_id=p_id,
+                        item_type=i_type
+                    ).first()
+
+                    if cart_item and new_qty > 0:
+                        if new_qty <= cart_item.product.stock:
+                            cart_item.quantity = new_qty
+                except Exception:
+                    continue
+        
+        db.session.commit()
+        flash("Cart quantities updated.", "success")
+        return redirect(url_for('user.checkout'))
+
     selected_keys = session.get('checkout_items', [])
     
     if not selected_keys:
         flash("No items selected for checkout.", "warning")
         return redirect(url_for('user.cart'))
-
-    user_cart = Cart.query.filter_by(user_id=current_user.id).first()
-    
 
     items_to_buy = []
     total_price = Decimal('0.00')

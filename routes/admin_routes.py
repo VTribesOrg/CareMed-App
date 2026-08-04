@@ -840,7 +840,6 @@ def products():
         **stats
     )
 
-
 @admin_bp.route('/add-product', methods=['POST'])
 @login_required
 @admin_or_staff_required
@@ -860,18 +859,25 @@ def add_product():
     rent_period = request.form.get("rent_period", "Monthly").strip().title()
     condition = request.form.get("condition", "Brand New").strip()
 
-    # Validation
     try:
         stock = int(request.form.get("stock", 0))
         rent_price_raw = request.form.get("rent_price", "").strip()
         sale_price_raw = request.form.get("sale_price", "").strip()
         cost_price_raw = request.form.get("cost_price", "").strip()
-        
-        rent_price = Decimal(rent_price_raw) if rent_price_raw else Decimal("0.00")
-        sale_price = Decimal(sale_price_raw) if sale_price_raw else Decimal("0.00")
+
+        if transaction_type == 'Rental':
+            rent_price = Decimal(rent_price_raw) if rent_price_raw else Decimal("0.00")
+            sale_price = Decimal("0.00")
+        elif transaction_type == 'Sale':
+            sale_price = Decimal(sale_price_raw) if sale_price_raw else Decimal("0.00")
+            rent_price = Decimal("0.00")
+        else:
+            rent_price = Decimal(rent_price_raw) if rent_price_raw else Decimal("0.00")
+            sale_price = Decimal(sale_price_raw) if sale_price_raw else Decimal("0.00")
+
         cost_price = Decimal(cost_price_raw) if cost_price_raw else Decimal("0.00")
         
-        if transaction_type == 'Rent' and rent_price <= 0:
+        if transaction_type == 'Rental' and rent_price <= 0:
             flash("Please provide a valid rent price for 'Rent Only' items.", "warning")
             return redirect(request.referrer)
         if transaction_type == 'Sale' and sale_price <= 0:
@@ -889,7 +895,6 @@ def add_product():
         flash("The 'Equipment Type' is required. Please fill it out and try again.", "warning")
         return redirect(request.referrer)
 
-    # Handle Image Upload
     image_file = request.files.get("image")
     image_path = None
     
@@ -911,9 +916,7 @@ def add_product():
         except Exception as e:
             current_app.logger.error(f"Image Save Error: {e}")
             flash("We had trouble saving the product image. Please try uploading it again.", "error")
-            return redirect(request.referrer)
-
-    # Save to Database
+ 
     try:
         new_product = Product(
             equipment_type=equipment_type,
@@ -954,8 +957,7 @@ def add_product():
             user_name=current_user.full_name 
         )
         db.session.add(log)
-        
-        # ── Auto acquisition expense ───────────────────────────────────────
+
         if cost_price and cost_price > 0 and stock > 0:
             acq_category = get_cogs_category(new_product)
             acq_amount = (cost_price * stock).quantize(

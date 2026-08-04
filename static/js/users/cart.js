@@ -1,20 +1,24 @@
 document.addEventListener('DOMContentLoaded', function() {
-    const headerSelectAll = document.getElementById('select-all'); // Top-most master (if exists)
-    const footerSelectAll = document.getElementById('footer-select-all'); // Sticky footer master
-    const sectionCheckboxes = document.querySelectorAll('.section-checkbox'); // Rental/Purchase headers
+    const headerSelectAll = document.getElementById('select-all'); 
+    const footerSelectAll = document.getElementById('footer-select-all'); 
+    const sectionCheckboxes = document.querySelectorAll('.section-checkbox'); 
     const itemCheckboxes = document.querySelectorAll('.item-checkbox');
     const liveTotal = document.getElementById('live-total');
     const selectedCount = document.getElementById('selected-count');
 
-    // --- 1. CALCULATION LOGIC ---
     function calculateTotal() {
         let total = 0;
         let count = 0;
         itemCheckboxes.forEach(cb => {
             if (cb.checked) {
                 const row = cb.closest('.cart-item-row');
-                const price = parseFloat(row.getAttribute('data-price')) || 0;
-                total += price;
+                const basePrice = parseFloat(row.getAttribute('data-price')) || 0;
+                
+                // Find the quantity input inside this specific row
+                const qtyInput = row.querySelector('.cart-qty-input');
+                const quantity = qtyInput ? parseInt(qtyInput.value) || 1 : 1;
+                
+                total += basePrice * quantity;
                 count++;
             }
         });
@@ -23,29 +27,23 @@ document.addEventListener('DOMContentLoaded', function() {
         if (selectedCount) selectedCount.innerText = count;
     }
 
-    // --- 2. MASTER SYNC LOGIC ---
-    // Update Section Headers (Check if all items in a category are checked)
     function updateSectionHeaders() {
         sectionCheckboxes.forEach(header => {
             const sectionType = header.getAttribute('data-section');
             const items = document.querySelectorAll(`.${sectionType}-item`);
             const checkedItems = document.querySelectorAll(`.${sectionType}-item:checked`);
             
-            // Check the section header only if all items in it are checked
             header.checked = items.length > 0 && items.length === checkedItems.length;
         });
     }
 
-    // Update the Global Toggles (Check if every single item in the cart is checked)
     function updateGlobalToggles() {
         const allChecked = Array.from(itemCheckboxes).every(c => c.checked);
         if (headerSelectAll) headerSelectAll.checked = allChecked;
         if (footerSelectAll) footerSelectAll.checked = allChecked;
     }
 
-    // --- 3. EVENT LISTENERS ---
 
-    // Section Header Toggles (Rentals/Purchases)
     sectionCheckboxes.forEach(headerCheck => {
         headerCheck.addEventListener('change', function() {
             const sectionType = this.getAttribute('data-section');
@@ -60,18 +58,15 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Global Toggles (Header/Footer "Select All")
     const masterToggles = [headerSelectAll, footerSelectAll];
     masterToggles.forEach(toggle => {
         if (toggle) {
             toggle.addEventListener('change', function() {
                 const isChecked = this.checked;
                 
-                // Set every single checkbox on the page to match
                 itemCheckboxes.forEach(cb => cb.checked = isChecked);
                 sectionCheckboxes.forEach(scb => scb.checked = isChecked);
                 
-                // Sync the other global toggle
                 if (headerSelectAll) headerSelectAll.checked = isChecked;
                 if (footerSelectAll) footerSelectAll.checked = isChecked;
                 
@@ -80,7 +75,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Individual Item Checkboxes
     itemCheckboxes.forEach(cb => {
         cb.addEventListener('change', function() {
             updateSectionHeaders();
@@ -89,13 +83,24 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Run on page load
+    document.querySelectorAll('.cart-qty-input').forEach(input => {
+        input.addEventListener('input', function() {
+            calculateTotal(); 
+        });
+
+        input.addEventListener('blur', function() {
+            if (this.value === '' || parseInt(this.value) < 1) {
+                this.value = 1; 
+                calculateTotal(); 
+
+            }
+        });
+    });
+
     calculateTotal();
     updateSectionHeaders();
     updateGlobalToggles();
 
-
-    
 
     /* --------------------------------------------------
         DROPDOWN & PROFILE UI
@@ -162,29 +167,22 @@ document.addEventListener('DOMContentLoaded', function() {
         };
     });
 
-        // 1. Get URL Parameters
     const urlParams = new URLSearchParams(window.location.search);
     const addedId = urlParams.get('added_id');
     const addedType = urlParams.get('added_type');
 
     if (addedId && addedType) {
-        // 2. Construct the value to look for (matches your checkbox 'value' attribute)
         const targetValue = `${addedId}:${addedType}`;
         
-        // 3. Find the checkbox with that specific value
         const checkbox = document.querySelector(`input[name="selected_items"][value="${targetValue}"]`);
         
         if (checkbox) {
-            // 4. Check the box
             checkbox.checked = true;
 
-            // 5. Trigger the 'change' event so your Total Price calculation updates
             checkbox.dispatchEvent(new Event('change', { bubbles: true }));
 
-            // 6. Optional: Scroll the item into view if the cart is long
             checkbox.closest('.cart-item-row').scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-            // 7. Clean up the URL (Removes the parameters so a page refresh doesn't keep checking it)
             const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
             window.history.replaceState({path: cleanUrl}, '', cleanUrl);
         }
@@ -196,10 +194,8 @@ function openRentalModal(itemId, currentDate, currentDuration) {
     const modal = document.getElementById('rentalModal');
     const form = document.getElementById('update-rental-form');
     
-    // Set form action dynamically
     form.action = `/user/update_rental/${itemId}`;
     
-    // Pre-fill values
     document.getElementById('modal-start-date').value = currentDate;
     document.getElementById('modal-duration').value = currentDuration;
     
@@ -210,7 +206,6 @@ function closeModal() {
     document.getElementById('rentalModal').style.display = "none";
 }
 
-// Close modal if user clicks outside of it
 window.onclick = function(event) {
     if (event.target == document.getElementById('rentalModal')) {
         closeModal();
@@ -223,7 +218,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const updateForm = document.getElementById('update-rental-form');
     const closeBtn = document.getElementById('close-rental-modal');
     
-    // Close modal function
+    // Close modal functio
     const hideModal = () => { if(rentalModal) rentalModal.style.display = 'none'; };
 
     document.querySelectorAll('.open-rental-modal').forEach(trigger => {
@@ -233,7 +228,6 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('modal-start-date').value = this.dataset.startDate;
             document.getElementById('modal-duration').value = this.dataset.durationVal;
 
-            // Change this to match the result of 'flask routes' exactly
             updateForm.action = "/user/update_rental/" + itemId;
 
             rentalModal.style.display = 'flex';
@@ -250,23 +244,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 /*================== START OF MESSAGE NOTIFICATION ==================*/
-/**
- * Core function to create and show a toast notification
- */
+
 function showToast(message, category = 'info') {
     const container = document.getElementById('main-toast-container');
     const template = document.getElementById('toast-template');
     
     if (!container || !template) return;
 
-    // 1. Clone the template
     const toastClone = template.content.cloneNode(true);
     const toastDiv = toastClone.querySelector('.medical-toast');
 
-    // 2. Set Category Class (success, error, warning, info)
     toastDiv.classList.add(category);
 
-    // 3. Set the Icon
     const icons = { 
         success: 'check_circle', 
         error: 'error', 
@@ -276,27 +265,21 @@ function showToast(message, category = 'info') {
     const iconElement = toastDiv.querySelector('.toast-icon');
     iconElement.textContent = icons[category] || 'info';
 
-    // 4. Set Titles and Message
     const titleElement = toastDiv.querySelector('.toast-title');
     const messageElement = toastDiv.querySelector('.toast-message');
     
     titleElement.textContent = category.charAt(0).toUpperCase() + category.slice(1);
     messageElement.textContent = message;
 
-    // 5. Add to the DOM
     container.appendChild(toastDiv);
 
-    // 6. Handle Auto-Removal
     setupToastAutoRemove(toastDiv);
 }
 
-/**
- * Shared logic to handle the fade-out and removal of a toast element
- */
+
 function setupToastAutoRemove(toastElement) {
     setTimeout(() => {
         if (toastElement.parentNode) {
-            // Apply the fade-out animation via JS
             toastElement.style.animation = 'toast-fade-out 0.5s ease forwards';
             
             toastElement.addEventListener('animationend', (e) => {
@@ -305,7 +288,7 @@ function setupToastAutoRemove(toastElement) {
                 }
             });
         }
-    }, 4500); // 4.5s visible + 0.5s fade = 5s total
+    }, 4500); 
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -316,20 +299,16 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 document.addEventListener("DOMContentLoaded", function () {
-
     const container = document.getElementById("main-toast-container");
 
     if (!container) return;
 
     container.addEventListener("click", function (e) {
-
         const closeBtn = e.target.closest(".toast-close");
 
         if (closeBtn) {
             const toast = closeBtn.closest(".medical-toast");
             if (toast) toast.remove();
         }
-
     });
-
 });

@@ -358,10 +358,16 @@
                         <div class="summary-card-sticky">
                             <h3>Order Summary</h3>
                             <div class="price-breakdown">
-                                <div class="price-row">
-                                    <span>Subtotal</span>
-                                    <span>₱{{ "{:,.0f}".format(total_price) }}</span>
+                                <!-- Dynamic Itemized List -->
+                                {% for item in items %}
+                                <div class="price-row item-summary-row">
+                                    <span class="summary-item-name" title="{{ item.product.name }}">
+                                        {{ item.product.name }} <span class="summary-qty">(Qty: {{ item.quantity }})</span>
+                                    </span>
+                                    <span class="summary-item-total">₱{{ "{:,.0f}".format((item.price_at_addition or 0) * item.quantity) }}</span>
                                 </div>
+                                {% endfor %}
+
                                 <div class="price-row">
                                     <span>Shipping Fee</span>
                                     <span class="free-shipping">FREE</span>

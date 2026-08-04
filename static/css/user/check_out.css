@@ -734,6 +734,7 @@ img.user-photo-img:after {
     flex: 1;
 }
 
+
 .checkout-section-card {
     background: #ffffff;
     margin-bottom: 15px;
@@ -837,12 +838,11 @@ img.user-photo-img:after {
 }
 
 .checkout-item {
-    display: grid;
-    grid-template-columns: 60px 1fr 100px;
+    display: flex;
     align-items: center;
+    gap: 15px;
+    padding: 12px 0;
     border-bottom: 1px solid #f1f5f9;
-    padding: 10px 0;
-    gap: 10px;
 }
 
 .checkout-item:last-child { border-bottom: none; }
@@ -885,6 +885,10 @@ img.user-photo-img:after {
     font-weight: 600;
 }
 
+.item-description {
+    flex-grow: 1;
+}
+
 .item-tags {
     display: flex;
     align-items: center;
@@ -909,10 +913,9 @@ img.user-photo-img:after {
 }
 
 .item-subtotal {
+    white-space: nowrap;
     text-align: right;
-    font-weight: 700;
-    color: #1e293b;
-    font-size: 0.95rem;
+    font-weight: 600;
 }
 
 /* --- Payment Method --- */

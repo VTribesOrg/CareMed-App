@@ -234,6 +234,7 @@
                     <div class="col-check"></div> 
                     <div class="col-product">Product Details</div>
                     <div class="text-center">Rental Schedule</div>
+                    <div class="text-center">Quantity</div>
                     <div class="text-center">Monthly Rate</div>
                     <div class="text-center">Action</div>
                 </div>
@@ -259,6 +260,18 @@
                                 <p><small>Duration:</small> <strong>{{ item.rental_duration }} Month(s)</strong></p>
                                 <span class="edit-link"><i class="fa-solid fa-pen-to-square"></i> Change</span>
                             </div>
+                        </div>
+
+                        <div class="text-center">
+                            <input type="number" 
+                                    name="quantity_{{ item.product.id }}_Rental" 
+                                    value="{{ item.quantity }}" 
+                                    min="1" 
+                                    max="{{ item.product.stock }}" 
+                                    required
+                                    oninput="if(this.value < 1) this.value = 1;"
+                                    class="cart-qty-input" 
+                                    style="width: 60px; padding: 4px 8px; text-align: center; border: 1px solid #cbd5e1; border-radius: 6px;">
                         </div>
 
                         <div class="price-col">
@@ -290,6 +303,7 @@
                     <div class="col-check"></div> 
                     <div class="col-product">Product Details</div>
                     <div class="text-center">Ownership</div>
+                    <div class="text-center">Quantity</div>
                     <div class="text-center">Price</div>
                     <div class="text-center">Action</div>
                 </div>
@@ -307,6 +321,16 @@
 
                         <div class="text-center">
                             <span class="status-tag">One-time Payment</span>
+                        </div>
+
+                        <div class="text-center">
+                            <input type="number" 
+                                   name="quantity_{{ item.product.id }}_Sale" 
+                                   value="{{ item.quantity }}" 
+                                   min="1" 
+                                   max="{{ item.product.stock }}" 
+                                   class="cart-qty-input" 
+                                   style="width: 60px; padding: 4px 8px; text-align: center; border: 1px solid #cbd5e1; border-radius: 6px;">
                         </div>
 
                         <div class="price-col">

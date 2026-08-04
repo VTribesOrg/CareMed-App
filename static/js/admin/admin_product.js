@@ -872,13 +872,15 @@ document.addEventListener("DOMContentLoaded", function () {
 /*============= END OF FLASK MESSAGE =============*/
 
 
-
 /*============= START OF PRODUCT TYPE =============*/
 document.addEventListener('DOMContentLoaded', function() {
     const offerTypeSelect = document.getElementById('reg-offer-type');
     const pricingRow = document.getElementById('pricing-row-container');
     const rentField = document.getElementById('rent-field');
     const saleField = document.getElementById('sale-field');
+
+    const rentInput = rentField ? rentField.querySelector('input[name="rent_price"]') : null;
+    const saleInput = saleField ? saleField.querySelector('input[name="sale_price"]') : null;
 
     if (offerTypeSelect && pricingRow) {
         offerTypeSelect.addEventListener('change', function() {
@@ -889,10 +891,12 @@ document.addEventListener('DOMContentLoaded', function() {
             if (val === 'Rental') {
                 rentField.style.display = 'block';
                 pricingRow.style.gridTemplateColumns = '200px 260px'; 
+                if (saleInput) saleInput.value = ''; 
             } 
             else if (val === 'Sale') {
                 saleField.style.display = 'block';
                 pricingRow.style.gridTemplateColumns = '200px 180px'; 
+                if (rentInput) rentInput.value = ''; 
             } 
             else if (val === 'Both') {
                 rentField.style.display = 'block';
@@ -912,6 +916,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const editRentField = document.getElementById('edit-rent-field');
     const editSaleField = document.getElementById('edit-sale-field');
 
+    const editRentInput = editRentField ? editRentField.querySelector('input[name="rent_price"]') : null;
+    const editSaleInput = editSaleField ? editSaleField.querySelector('input[name="sale_price"]') : null;
+
     if (editOfferType && editPricingRow) {
         editOfferType.addEventListener('change', function() {
             const val = this.value;
@@ -921,10 +928,12 @@ document.addEventListener('DOMContentLoaded', function() {
             if (val === 'Rental') {
                 editRentField.style.display = 'block';
                 editPricingRow.style.gridTemplateColumns = '200px 260px'; 
+                if (editSaleInput) editSaleInput.value = ''; 
             } 
             else if (val === 'Sale') {
                 editSaleField.style.display = 'block';
                 editPricingRow.style.gridTemplateColumns = '200px 180px'; 
+                if (editRentInput) editRentInput.value = '';
             } 
             else if (val === 'Both') {
                 editRentField.style.display = 'block';

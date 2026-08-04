@@ -350,7 +350,7 @@
             
             <header class="header-row" id="headerRow" style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 40px; border-left: 5px solid #38BDF8; padding-left: 20px;">
                 <div class="header-titles">
-                    <h2 class="section-title">Available Equipment for Rent</h2>
+                    <h2 class="section-title">Available Equipment for Rent & Purchase</h2>
                     <p class="section-subtitle">Browse and rent medical equipment for home care with fast delivery and setup</p>
                 </div>
                 
@@ -360,7 +360,7 @@
             </header>
 
             <div class="product-grid" id="productGrid">
-                {% for product in products %}
+                {% for product in (products | selectattr('is_active') | list)[:3] %}
                     <div class="product-card" data-name="{{ product.name }}" data-category="{{ product.equipment_type }}">
                         
                         <div class="card-overlays">
@@ -373,12 +373,10 @@
                             </div>
 
                             <div class="type-tag trans-{{ product.transaction_type | lower }}">
-                                {% if product.transaction_type == 'Rent' %}
+                                {% if product.transaction_type == 'Rental' %}
                                     Rent Only
-                                {% elif product.transaction_type == 'Sale' %}
-                                    Purchase Only
                                 {% else %}
-                                    Rent & Buy
+                                    Purchase Only
                                 {% endif %}
                             </div>
                         </div>
@@ -397,14 +395,14 @@
                         </div>
                         
                         <div class="product-text-block">
-                            <a href="{{ url_for('user.product_detail', product_id=product.id) }}"style="text-decoration: none;" >
+                            <a href="{{ url_for('user.product_detail', product_id=product.id) }}" style="text-decoration: none;">
                                 <h3 class="display-name">{{ product.name }}</h3>
                             </a>
                             <span class="equipment-category">{{ product.equipment_type }}</span>
                         </div>
 
-                        <div class="pricing-container {% if product.transaction_type == 'Both' %}has-dual{% else %}has-single{% endif %}">
-                            {% if product.transaction_type in ['Rental', 'Both'] %}
+                        <div class="pricing-container has-single">
+                            {% if product.transaction_type == 'Rental' %}
                             <div class="price-block rent">
                                 <span class="price-label">RENTAL</span>
                                 <p class="price-amount">
@@ -412,13 +410,7 @@
                                     <span class="period">/{{ product.rent_period or 'Month' }}</span>
                                 </p>
                             </div>
-                            {% endif %}
-
-                            {% if product.transaction_type == 'Both' %}
-                                <div class="price-separator"></div>
-                            {% endif %}
-
-                            {% if product.transaction_type in ['Sale', 'Both'] %}
+                            {% else %}
                             <div class="price-block sale">
                                 <span class="price-label">PURCHASE</span>
                                 <p class="price-amount">₱{{ "{:,.0f}".format(product.sale_price or 0) }}</p>
@@ -427,10 +419,9 @@
                         </div>
 
                         <div class="action-grid">
-                            {% if product.transaction_type in ['Rent', 'Both'] %}
+                            {% if product.transaction_type == 'Rental' %}
                                 {% if current_user.is_authenticated %}
                                     {% if product.stock > 0 %}
-
                                         <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
                                         class="btn-action btn-rent-outline">
                                             <i class="fa-solid fa-cart-plus"></i> Add Rental
@@ -440,7 +431,6 @@
                                         class="btn-action btn-rent-outline">
                                             <i class="fa-solid fa-calendar-day"></i> Rent Now
                                         </a>
-
                                     {% else %}
                                         <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
                                         class="btn-action btn-guest"
@@ -455,29 +445,27 @@
                                 {% endif %}
                             {% endif %}
 
-                            {% if product.transaction_type in ['Sale', 'Both'] %}
+                            {% if product.transaction_type == 'Sale' %}
                                 {% if product.stock > 0 %}
                                     {% if current_user.is_authenticated %}
-
-                                    {% if (product.id, 'Sale') in in_cart_items %}
-                                        <button class="btn-action" disabled style="background: #f1f5f9; color: #16a34a; border: 1px solid #16a34a; cursor: default;">
-                                            <i class="fa-solid fa-check"></i> In Cart
-                                        </button>
-                                    {% else %}
-                                        <form action="{{ url_for('user.add_to_cart', product_id=product.id) }}" method="POST" style="display: contents;">
-                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                            <input type="hidden" name="item_type" value="Sale">
-                                            <button type="submit"  class="btn-action btn-buy-solid" style="background: #fff; color: #16a34a; border: 1px solid #16a34a;">
-                                                <i class="fa-solid fa-cart-plus"></i> Add to Cart
+                                        {% if (product.id, 'Sale') in in_cart_items %}
+                                            <button class="btn-action" disabled style="background: #f1f5f9; color: #16a34a; border: 1px solid #16a34a; cursor: default;">
+                                                <i class="fa-solid fa-check"></i> In Cart
                                             </button>
-                                        </form>
-                                    {% endif %}
+                                        {% else %}
+                                            <form action="{{ url_for('user.add_to_cart', product_id=product.id) }}" method="POST" style="display: contents;">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <input type="hidden" name="item_type" value="Sale">
+                                                <button type="submit" class="btn-action btn-buy-solid" style="background: #fff; color: #16a34a; border: 1px solid #16a34a;">
+                                                    <i class="fa-solid fa-cart-plus"></i> Add to Cart
+                                                </button>
+                                            </form>
+                                        {% endif %}
 
                                         <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
                                         class="btn-action btn-buy-solid">
                                             <i class="fa-solid fa-bolt"></i> Buy Now
                                         </a>
-
                                     {% else %}
                                         <a href="{{ url_for('auth.login') }}"
                                         class="btn-action btn-buy-solid">
@@ -485,13 +473,11 @@
                                         </a>
                                     {% endif %}
                                 {% else %}
-                                    {% if product.transaction_type == 'Sale' %}
-                                        <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
-                                        class="btn-action btn-guest"
-                                        style="text-decoration: none; background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0;">
-                                            <i class="fa-solid fa-circle-info"></i> View Details
-                                        </a>
-                                    {% endif %}
+                                    <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
+                                    class="btn-action btn-guest"
+                                    style="text-decoration: none; background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0;">
+                                        <i class="fa-solid fa-circle-info"></i> View Details
+                                    </a>
                                 {% endif %}
                             {% endif %}
                         </div>
