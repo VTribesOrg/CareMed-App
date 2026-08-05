@@ -194,7 +194,6 @@ def login():
 
         user = User.query.filter_by(email=email).first()
 
-        # -- Unknown email
         if not user:
             passhasher.hash("dummy_password")
 

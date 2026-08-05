@@ -52,63 +52,80 @@
 
 {% block content %}
 
-<div class="dashboard-stats-grid">
-    <div class="stat-card">
-        <div class="stat-icon blue"><span class="material-symbols-rounded">payments</span></div>
+<div class="dashboard-grid-layout">
+    <div class="stat-card overall-income-card">
+        <div class="stat-icon emerald"><span class="material-symbols-rounded">account_balance_wallet</span></div>
         <div class="stat-info">
-            <span class="stat-label">Total Sales</span>
-            <span class="stat-value">₱{{ "{:,.0f}".format(total_sales) }}</span>
-        </div>
-    </div>
-    
-    <div class="stat-card">
-        <div class="stat-icon purple"><span class="material-symbols-rounded">water_drop</span></div>
-        <div class="stat-info">
-            <span class="stat-label">Total Refill</span>
-            <span class="stat-value">₱{{ "{:,.0f}".format(total_refill_profit) }}</span>
+            <span class="stat-label">Overall Income</span>
+            {% set overall_income = total_sales + total_rentals + total_refill_profit %}
+            <span class="stat-value">₱{{ "{:,.0f}".format(overall_income) }}</span>
+            <small style="color: #64748b; display: block; margin-top: 2px;">Combined Sales, Rentals & Refills</small>
+            
+            {% set net = overall_income - total_expenses %}
+            <div style="margin-top: 14px; padding-top: 10px; border-top: 1px solid #e2e8f0;">
+                <span style="font-size: 0.8rem; display: block; color: #64748b;">Net Profit (Less Expenses)</span>
+                {% if net >= 0 %}
+                    <strong style="color:#10b981; font-size: 1.1rem;">₱{{ "{:,.0f}".format(net) }}</strong>
+                {% else %}
+                    <strong style="color:#ef4444; font-size: 1.1rem;">−₱{{ "{:,.0f}".format(net | abs) }}</strong>
+                {% endif %}
+            </div>
         </div>
     </div>
 
-    <div class="stat-card">
-        <div class="stat-icon green"><span class="material-symbols-rounded">calendar_month</span></div>
-        <div class="stat-info">
-            <span class="stat-label">Total Rentals</span>
-            <span class="stat-value">₱{{ "{:,.0f}".format(total_rentals) }}</span>
+
+    <div class="right-cards-grid">
+        <div class="stat-card">
+            <div class="stat-icon blue"><span class="material-symbols-rounded">payments</span></div>
+            <div class="stat-info">
+                <span class="stat-label">Total Sold</span>
+                <span class="stat-value">₱{{ "{:,.0f}".format(total_sales) }}</span>
+            </div>
         </div>
-    </div>
-    
-    <div class="stat-card">
-        <div class="stat-icon orange"><span class="material-symbols-rounded">receipt_long</span></div>
-        <div class="stat-info">
-            <span class="stat-label">Total Expenses</span>
-            <span class="stat-value">₱{{ "{:,.0f}".format(total_expenses) }}</span>
-            {% set net = total_sales + total_rentals + total_refill_profit - total_expenses %}
-            {% if net >= 0 %}
-                <small style="color:#10b981;">Net ₱{{ "{:,.0f}".format(net) }}</small>
-            {% else %}
-                <small style="color:#ef4444;">Net −₱{{ "{:,.0f}".format(net | abs) }}</small>
-            {% endif %}
+        
+        <div class="stat-card">
+            <div class="stat-icon purple"><span class="material-symbols-rounded">water_drop</span></div>
+            <div class="stat-info">
+                <span class="stat-label">Total Refill Income</span>
+                <span class="stat-value">₱{{ "{:,.0f}".format(total_refill_profit) }}</span>
+            </div>
         </div>
-    </div>
-    
-    <div class="stat-card">
-        <div class="stat-icon orange"><span class="material-symbols-rounded">vitals</span></div>
-        <div class="stat-info">
-            <span class="stat-label">Active Rentals</span>
-            <span class="stat-value">{{ active_rentals_count }} Units</span>
+
+        <div class="stat-card">
+            <div class="stat-icon green"><span class="material-symbols-rounded">calendar_month</span></div>
+            <div class="stat-info">
+                <span class="stat-label">Total Rentals Income</span>
+                <span class="stat-value">₱{{ "{:,.0f}".format(total_rentals) }}</span>
+            </div>
         </div>
-    </div>
-    
-    <div class="stat-card">
-        <div class="stat-icon red"><span class="material-symbols-rounded">inventory_2</span></div>
-        <div class="stat-info">
-            <span class="stat-label">Inventory</span>
-            <span class="stat-value">{{ total_inventory }} Total</span>
-            {% if low_stock_count > 0 %}
-                <small style="color:#ef4444;">{{ low_stock_count }} Low stock items</small>
-            {% else %}
-                <small style="color:#10b981;">Stock levels healthy</small>
-            {% endif %}
+        
+        <div class="stat-card">
+            <div class="stat-icon orange"><span class="material-symbols-rounded">receipt_long</span></div>
+            <div class="stat-info">
+                <span class="stat-label">Total Expenses</span>
+                <span class="stat-value">₱{{ "{:,.0f}".format(total_expenses) }}</span>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon orange"><span class="material-symbols-rounded">vitals</span></div>
+            <div class="stat-info">
+                <span class="stat-label">Active Rentals</span>
+                <span class="stat-value">{{ active_rentals_count }} Units</span>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon red"><span class="material-symbols-rounded">inventory_2</span></div>
+            <div class="stat-info">
+                <span class="stat-label">Inventory</span>
+                <span class="stat-value">{{ total_inventory }} Total</span>
+                {% if low_stock_count > 0 %}
+                    <small style="color:#ef4444;">{{ low_stock_count }} Low stock items</small>
+                {% else %}
+                    <small style="color:#10b981;">Stock levels healthy</small>
+                {% endif %}
+            </div>
         </div>
     </div>
 </div>
@@ -136,7 +153,6 @@
                         <th style="text-align: center;">Rented</th>
                         <th style="text-align: center;">Full Tank</th>
                         <th style="text-align: center;">Empty Tank</th>
-                        <th style="text-align: center;">Action</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -152,22 +168,10 @@
                         <td style="text-align: center;"><span class="pill-orange">{{ tank.rented_out }}</span></td>
                         <td style="text-align: center;"><span class="pill-green">{{ tank.full_in_stock }}</span></td>
                         <td style="text-align: center;"><span class="pill-gray">{{ tank.empty_in_stock }}</span></td>
-                        
-                        <td style="text-align: center;">
-                            <div style="display: flex; justify-content: center;">
-                                <button type="button" class="icon-btn btn-refill-trigger" 
-                                        style="width: auto; padding: 6px 12px; gap: 6px; border-radius: 8px; font-size: 0.85rem; display: flex; align-items: center;"
-                                        data-product-id="{{ tank.product_id }}"
-                                        data-product-name="{{ tank.name }} {{ tank.size or '' }}">
-                                    <span class="material-symbols-rounded" style="font-size: 18px;">water_drop</span>
-                                    Refill Request
-                                </button>
-                            </div>
-                        </td>
                     </tr>
                     {% else %}
                     <tr class="table-empty-row">
-                        <td colspan="6" style="text-align: center; padding: 20px; color: #64748b;">
+                        <td colspan="5" style="text-align: center; padding: 20px; color: #64748b;">
                             No oxygen tank metrics configured.
                         </td>
                     </tr>
@@ -200,7 +204,7 @@
                     </tr>
                     {% else %}
                     <tr class="table-empty-row">
-                        <td colspan="5">No standard asset records found.</td>
+                        <td colspan="5" style="text-align: center; padding: 20px; color: #64748b;">No standard asset records found.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

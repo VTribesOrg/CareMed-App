@@ -578,7 +578,62 @@ body.ready .viewport-container {
     display: flex;
     flex-direction: column;
 }
+.dashboard-grid-layout {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 20px;
+    grid-template-rows: repeat(2, auto);
+    align-items: start;
+    margin-bottom: 20px;
+}
 
+
+.overall-income-card {
+    grid-row: span 2;
+    height: 100%;
+    display: flex;
+    flex-direction: row !important;
+    align-items: center;
+    gap: 16px;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border: 2px solid #e2e8f0;
+}
+
+
+.right-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    gap: 15px;
+}
+
+.stat-icon.emerald {
+    background-color: #ecfdf5;
+    color: #10b981;
+}
+
+
+@media (max-width: 1200px) {
+    .right-cards-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 900px) {
+    .dashboard-grid-layout {
+        grid-template-columns: 1fr;
+    }
+    .overall-income-card {
+        grid-row: auto;
+        height: auto;
+    }
+    .right-cards-grid {
+        grid-column: 1;
+        grid-row: auto;
+        grid-template-columns: 1fr;
+    }
+}
 
 .dashboard-stats-grid {
     display: grid !important; 

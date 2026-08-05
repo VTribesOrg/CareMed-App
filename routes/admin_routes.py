@@ -321,7 +321,7 @@ def request_refill():
 @admin_or_staff_required
 def process_refill_transaction():
     buyer_type = request.form.get('refill_buyer_type')
-    tank_size = request.form.get('tank_size')
+    tank_size = request.form.get('tank_size') # Fallback or select value depending on implementation
     quantity = request.form.get('quantity', type=int)
     serial_input = request.form.get('serial_numbers', '')
     serial_list = [sn.strip() for sn in serial_input.split(',') if sn.strip()]
@@ -329,7 +329,7 @@ def process_refill_transaction():
     
     REFILL_COST = Decimal("50.00") 
 
-    if not tank_size or not amount or not quantity or quantity <= 0:
+    if not amount or not quantity or quantity <= 0:
         flash("Transaction failed: Please ensure all fields are filled correctly.", "error")
         return redirect(url_for('admin.dashboard'))
 
@@ -338,9 +338,9 @@ def process_refill_transaction():
         return redirect(url_for('admin.dashboard'))
 
     try:
-        product = Product.query.filter_by(name=tank_size, is_refillable=True).first()
         customer_id = None
         display_name = "Walk-in Customer"
+        product = None
         
         if buyer_type == 'registered':
             customer_id = request.form.get('refill_customer_id')
@@ -350,16 +350,37 @@ def process_refill_transaction():
                 return redirect(url_for('admin.dashboard'))
             display_name = customer.full_name
             
+            # Retrieve selected active rental serial being swapped out (if any)
+            swapped_serial = request.form.get('swapped_rental_serial')
+            
+            if swapped_serial:
+                # Find active rental associated with this serial number to swap
+                active_rental = Rental.query.filter_by(serial_number=swapped_serial, status="Active").first()
+                if active_rental:
+                    product = active_rental.product
+                    # Update rental record serial number swap
+                    active_rental.serial_number = serial_list[0] if serial_list else active_rental.serial_number
+            
+            if not product:
+                # Fallback to finding product via form selection if not derived from active rental
+                selected_tank_val = request.form.get('tank_size_select', '')
+                product_name = selected_tank_val.split(' - ')[0] if ' - ' in selected_tank_val else selected_tank_val
+                product = Product.query.filter_by(name=product_name, is_refillable=True).first()
+
             if product:
                 tank_status = TankStatus.query.filter_by(product_id=product.id).first()
-                if not tank_status or tank_status.empty_in_stock < quantity:
-                    flash(f"Inventory Alert: Insufficient empty tanks in stock for {product.name}.", "error")
+                if not tank_status or tank_status.full_in_stock < quantity:
+                    flash(f"Inventory Alert: Insufficient full tanks in stock for {product.name}.", "error")
                     return redirect(url_for('admin.dashboard'))
                 
-                tank_status.empty_in_stock -= quantity
-                tank_status.full_in_stock += quantity
+                # Minus full, add empty
+                tank_status.full_in_stock -= quantity
+                tank_status.empty_in_stock += quantity
         else:
             display_name = request.form.get('unregistered_customer_name', '').strip() or "Walk-in Customer"
+            selected_tank_val = request.form.get('tank_size_select', '')
+            product_name = selected_tank_val.split(' - ')[0] if ' - ' in selected_tank_val else selected_tank_val
+            product = Product.query.filter_by(name=product_name, is_refillable=True).first()
 
         new_transaction = RefillTransaction(
             product_id=product.id if product else None,
@@ -376,16 +397,16 @@ def process_refill_transaction():
 
         log = InventoryLog(
             product_id=product.id if product else None,
-            action="Refill Service Completed",
+            action="Refill Service Completed & Swapped",
             quantity=quantity,
-            note=f"Processed refill for {display_name}. Total: {amount} PHP. (SNs: {', '.join(serial_list) if buyer_type == 'registered' else 'N/A'})",
+            note=f"Processed refill swap for {display_name}. Total: {amount} PHP.",
             user_id=current_user.id,
             user_name=current_user.full_name
         )
         db.session.add(log)
         
         db.session.commit()
-        flash(f"Refill successfully processed for {display_name}. Transaction recorded.", "success")
+        flash(f"Refill and tank swap successfully processed for {display_name}.", "success")
 
     except Exception as e:
         db.session.rollback()
