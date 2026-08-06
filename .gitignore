@@ -13,10 +13,18 @@ venv/
 env/
 ENV/
 
-# Large Binaries / Installers
+# Large Binaries / Installers / Temp Files
 *.msi
 *.exe
 *.zip
 backups/
 *.sql
 old.env
+temp products/
+uploads/
+
+# OS & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
