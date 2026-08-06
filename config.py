@@ -10,14 +10,20 @@ class Config:
     if not SECRET_KEY:
         raise RuntimeError("SECRET_KEY environment variable is not set")
 
-    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
-    if not SQLALCHEMY_DATABASE_URI:
+    uri = os.environ.get("DATABASE_URL")
+    if not uri:
         raise RuntimeError("DATABASE_URL environment variable is not set")
+    # Fix for SQLAlchemy scheme incompatibility with DigitalOcean/Heroku postgres URLs
+    if uri.startswith("postgres://"):
+        uri = uri.replace("postgres://", "postgresql://", 1)
+    SQLALCHEMY_DATABASE_URI = uri
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
         "pool_pre_ping": True,
         "pool_recycle": 280,
+        "pool_size": 10,
+        "max_overflow": 20,
     }
 
     GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
@@ -26,13 +32,12 @@ class Config:
     SESSION_COOKIE_NAME = "caremed_session"
     SESSION_COOKIE_SECURE = True        
     SESSION_COOKIE_HTTPONLY = True      
-    SESSION_COOKIE_SAMESITE = "Strict"  
-    PERMANENT_SESSION_LIFETIME = 3600   
-
+    SESSION_COOKIE_SAMESITE = "Lax"  # Changed from Strict to Lax to prevent Google OAuth redirect session drops
+    
     REMEMBER_COOKIE_DURATION    = timedelta(hours=8)  
     REMEMBER_COOKIE_SECURE      = True
     REMEMBER_COOKIE_HTTPONLY    = True
-    REMEMBER_COOKIE_SAMESITE    = "Strict"
+    REMEMBER_COOKIE_SAMESITE    = "Lax"
     PERMANENT_SESSION_LIFETIME  = timedelta(hours=2)   
 
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  
@@ -54,7 +59,6 @@ class Config:
     MAIL_TIMEOUT = 10
     MAIL_ASCII_ATTACHMENTS = False
 
-
     SECURITY_HEADERS = {
         "X-Content-Type-Options": "nosniff",
         "X-Frame-Options": "SAMEORIGIN",
@@ -62,17 +66,17 @@ class Config:
     }
     
     
-    
-
 class DevConfig:
 
     DEBUG = True
     TESTING = False
 
-    SECRET_KEY = os.environ.get("SECRET_KEY")
+    SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key")
 
-
-    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
+    uri = os.environ.get("DATABASE_URL", "sqlite:///dev.db")
+    if uri.startswith("postgres://"):
+        uri = uri.replace("postgres://", "postgresql://", 1)
+    SQLALCHEMY_DATABASE_URI = uri
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
@@ -80,27 +84,23 @@ class DevConfig:
         "pool_pre_ping": True,
     }
 
-
     GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
     GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET")
 
-
     SESSION_COOKIE_NAME = "caremed_dev_session"
 
-    SESSION_COOKIE_SECURE = False     
+    SESSION_COOKIE_SECURE = False    
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
 
-    PERMANENT_SESSION_LIFETIME = 3600
+    PERMANENT_SESSION_LIFETIME = timedelta(hours=2)
 
     REMEMBER_COOKIE_DURATION    = timedelta(hours=8)
     REMEMBER_COOKIE_SECURE      = False
     REMEMBER_COOKIE_HTTPONLY    = True
-    PERMANENT_SESSION_LIFETIME  = timedelta(hours=2)
-
+    REMEMBER_COOKIE_SAMESITE    = "Lax"
 
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024
-
 
     MAIL_SERVER = "smtp.gmail.com"
     MAIL_PORT = 587
@@ -118,7 +118,6 @@ class DevConfig:
     MAIL_TIMEOUT = 10
 
     MAIL_SUPPRESS_SEND = False
-
 
     SECURITY_HEADERS = {
         "X-Content-Type-Options": "nosniff",

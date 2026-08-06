@@ -12,6 +12,7 @@ import atexit
 from flask_login import current_user, logout_user
 from datetime import datetime, timezone, timedelta
 from flask import session
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 
 app = Flask(__name__)
@@ -21,6 +22,9 @@ if os.environ.get('FLASK_ENV') == 'development':
     app.config.from_object('config.DevConfig')
 else:
     app.config.from_object('config.Config')
+
+# Trust proxy headers (Essential for Nginx / reverse proxy setup on DigitalOcean)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 db.init_app(app)
 migrate.init_app(app, db)
@@ -48,6 +52,7 @@ csp = {
     "frame-ancestors": ["'self'"],
     "object-src": ["'none'"]
 }
+
 Talisman(
     app,
     content_security_policy=csp,
@@ -55,7 +60,7 @@ Talisman(
     strict_transport_security=True,
     strict_transport_security_max_age=31536000,
     strict_transport_security_include_subdomains=True,
-    session_cookie_secure=False,
+    session_cookie_secure=app.config.get('SESSION_COOKIE_SECURE', True),
     session_cookie_http_only=True,
     frame_options="SAMEORIGIN",
 )
@@ -75,7 +80,7 @@ def check_blocked_ip():
     ip = request.remote_addr
     blocked = BlockedIP.query.filter_by(ip_address=ip, is_active=True).first()
     if blocked:
-        from datetime import datetime, date
+        from datetime import datetime
         if blocked.blocked_until and blocked.blocked_until < datetime.utcnow():
             # Temporary block has expired — deactivate it
             blocked.is_active = False
