@@ -1,0 +1,24 @@
+services:
+  web:
+    build: .
+    restart: always
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    depends_on:
+      - db
+
+  db:
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_DATABASE: caremed_db
+      MYSQL_USER: caremed_user
+      MYSQL_PASSWORD: C@reMed_@2026@ppMYSQL
+      MYSQL_ROOT_PASSWORD: MYSQLrootp@ssword@2123
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+volumes:
+  mysql_data:
