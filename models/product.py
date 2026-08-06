@@ -296,7 +296,6 @@ class Rental(db.Model):
 
     quantity = db.Column(db.Integer, nullable=False)
     quantity_returned = db.Column(db.Integer, nullable=False, default=0)
-    serial_number = db.Column(db.String(100), nullable=True)
     
     status = db.Column(db.String(50), default="Active")
     return_condition_notes = db.Column(db.Text)
@@ -338,7 +337,29 @@ class Rental(db.Model):
 
             current_period_start = next_period_start
             
-            
+class RentalTank(db.Model):
+    __tablename__ = "rental_tank"
+
+    id = db.Column(db.Integer, primary_key=True)
+    rental_id = db.Column(
+        db.Integer,
+        db.ForeignKey("rental.id"),
+        nullable=False
+    )
+    serial_number = db.Column(db.String(100), nullable=False)
+    status = db.Column(
+        db.String(20),
+        default="Active"
+    )
+
+    rental = db.relationship(
+        "Rental",
+        backref=db.backref(
+            "tanks",
+            cascade="all, delete-orphan"
+        )
+    )
+    
 class RentalInvoice(db.Model):
     __tablename__ = "rental_invoice"
     

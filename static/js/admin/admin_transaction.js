@@ -80,6 +80,13 @@ document.addEventListener('DOMContentLoaded', function() {
             if (e.key === 'Enter') handleJump();
         });
         }
+
+
+});
+
+/*============= END OF PAGINATION =============*/
+/*============= START OF REFILL PROCESS =============*/
+document.addEventListener('DOMContentLoaded', () => {
     const refillSearchInput = document.getElementById('refill-search-input');
     const refillDropdown = document.getElementById('refill-customer-dropdown-list');
     const refillOptions = document.querySelectorAll('.refill-option-item');
@@ -91,34 +98,102 @@ document.addEventListener('DOMContentLoaded', function() {
     const tankText = document.getElementById('refill-tank-text');
     const labelReg = document.getElementById('label-tank-registered');
     const labelUnreg = document.getElementById('label-tank-unregistered');
+    
+    const quantityInput = document.getElementById('refill-quantity');
+    const dynamicRowsContainer = document.getElementById('refill-dynamic-rows-container');
 
-    // New variables for the serial field
-    const serialContainer = document.getElementById('refill-serial-container');
-    const serialTextarea = document.getElementById('refill-serial-numbers');
+    // Parse active oxygen rentals JSON dataset from template
+    let activeOxygenRentals = [];
+    try {
+        const scriptTag = document.getElementById('active-oxygen-rentals-data');
+        if (scriptTag) {
+            activeOxygenRentals = JSON.parse(scriptTag.textContent);
+        }
+    } catch (e) {
+        console.error("Failed to parse active oxygen rentals JSON", e);
+    }
 
-    // 1. Toggle Groups & Tank Inputs
+    function renderDynamicRows() {
+        const qty = Math.max(1, parseInt(quantityInput.value) || 1);
+        const buyerType = document.querySelector('input[name="refill_buyer_type"]:checked').value;
+        const isRegistered = buyerType === 'registered';
+        const currentCustomerId = refillIdInput.value;
+
+        // Capture existing values before clearing to prevent loss on input change
+        const existingRows = Array.from(dynamicRowsContainer.children);
+        const savedValues = existingRows.map(row => {
+            const select = row.querySelector('select[name="swapped_rental_serial"]');
+            const input = row.querySelector('input[name="serial_numbers"]');
+            return {
+                selectedRental: select ? select.value : '',
+                incomingSerial: input ? input.value : ''
+            };
+        });
+
+        dynamicRowsContainer.innerHTML = '';
+
+        if (!isRegistered) {
+            for (let i = 1; i <= qty; i++) {
+                const prevVal = savedValues[i - 1] ? savedValues[i - 1].incomingSerial : '';
+                const row = document.createElement('div');
+                row.className = 'form-field';
+                row.style.marginBottom = '10px';
+                row.innerHTML = `
+                    <label style="font-weight: 600; color: #1e293b; margin-bottom: 4px; display: block; font-size: 0.8rem;">Incoming Tank Serial #${i}</label>
+                    <input type="text" name="serial_numbers" value="${prevVal}" placeholder="e.g. OX-10L-NEW0${i}" required 
+                        style="width: 100%; height: 38px; padding: 0 12px; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #1e293b; font-size: 0.85rem; outline: none; box-sizing: border-box;">
+                `;
+                dynamicRowsContainer.appendChild(row);
+            }
+            return;
+        }
+
+        const customerRentals = activeOxygenRentals.filter(r => String(r.customer_id) === String(currentCustomerId));
+
+        for (let i = 1; i <= qty; i++) {
+            const prevData = savedValues[i - 1] || { selectedRental: '', incomingSerial: '' };
+            const row = document.createElement('div');
+            row.style.cssText = 'display: flex; gap: 10px; width: 100%; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0; align-items: flex-end; box-sizing: border-box;';
+            
+            let rentalOptionsHtml = '<option value="">Select tank to return...</option>';
+            customerRentals.forEach(rental => {
+                const isSelected = rental.serial_number === prevData.selectedRental ? 'selected' : '';
+                rentalOptionsHtml += `<option value="${rental.serial_number}" ${isSelected}>${rental.product_name} (${rental.product_size}) - SN: ${rental.serial_number}</option>`;
+            });
+
+            row.innerHTML = `
+                <div style="flex: 1.1; min-width: 0;">
+                    <label style="font-weight: 700; color: #1e293b; margin-bottom: 4px; display: block; font-size: 0.8rem;">Outgoing Tank #${i} (To Return)</label>
+                    <select name="swapped_rental_serial" class="medical-select" required
+                            style="width: 100%; height: 38px; padding: 0 10px; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #1e293b; font-size: 0.85rem; outline: none; box-sizing: border-box;">
+                        ${rentalOptionsHtml}
+                    </select>
+                </div>
+                <div style="flex: 0.9; min-width: 0;">
+                    <label style="font-weight: 700; color: #1e293b; margin-bottom: 4px; display: block; font-size: 0.8rem;">Incoming Tank #${i} (New SN)</label>
+                    <input type="text" name="serial_numbers" value="${prevData.incomingSerial}" placeholder="e.g. OX-NEW0${i}" required 
+                        style="width: 100%; height: 38px; padding: 0 12px; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #1e293b; font-size: 0.85rem; outline: none; box-sizing: border-box;">
+                </div>
+            `;
+            dynamicRowsContainer.appendChild(row);
+        }
+    }
+
+    // 1. Toggle Buyer Type UI
     document.querySelectorAll('input[name="refill_buyer_type"]').forEach(radio => {
         radio.addEventListener('change', (e) => {
             const isRegistered = e.target.value === 'registered';
             
-            // Toggle UI groups
             document.getElementById('refill-registered-group').style.display = isRegistered ? 'block' : 'none';
             document.getElementById('refill-unregistered-group').style.display = isRegistered ? 'none' : 'block';
             
-            // Toggle Serial Number field (Hide if walk-in)
             if (isRegistered) {
-                serialContainer.style.display = 'block';
-                serialTextarea.setAttribute('required', 'required');
-                unregNameInput.value = ''; // Clear walk-in name
+                unregNameInput.value = '';
             } else {
-                serialContainer.style.display = 'none';
-                serialTextarea.removeAttribute('required'); // Prevent form validation errors
-                serialTextarea.value = ''; // Clear input if switching
-                refillSearchInput.value = ''; // Clear search input
-                refillIdInput.value = '';    // Clear hidden ID
+                refillSearchInput.value = '';
+                refillIdInput.value = '';
             }
             
-            // Toggle Tank Input
             if (isRegistered) {
                 tankSelect.style.display = 'block';
                 tankSelect.setAttribute('name', 'tank_size');
@@ -134,10 +209,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 labelReg.style.display = 'none';
                 labelUnreg.style.display = 'inline';
             }
+            renderDynamicRows();
         });
     });
 
-    // 2. Search Filter
+    // 2. Search Filter for Customers
     refillSearchInput.addEventListener('input', () => {
         const term = refillSearchInput.value.toLowerCase();
         refillDropdown.classList.remove('hidden');
@@ -151,34 +227,54 @@ document.addEventListener('DOMContentLoaded', function() {
         noMatch.style.display = hasMatch ? 'none' : 'block';
     });
 
-    // 3. Selection
+    // 3. Selection of Customer
     refillOptions.forEach(opt => {
         opt.addEventListener('click', () => {
             refillSearchInput.value = opt.dataset.name;
             refillIdInput.value = opt.dataset.id;
             refillDropdown.classList.add('hidden');
+            renderDynamicRows();
         });
     });
 
-    // 4. Close when clicking outside
-    document.addEventListener('click', (event) => {
-        const isClickInsideInput = refillSearchInput.contains(event.target);
-        const isClickInsideDropdown = refillDropdown.contains(event.target);
+    // 4. Quantity Change Event
+    quantityInput.addEventListener('input', renderDynamicRows);
+    quantityInput.addEventListener('change', renderDynamicRows);
 
-        if (!isClickInsideInput && !isClickInsideDropdown) {
+    // 5. Close dropdown when clicking outside
+    document.addEventListener('click', (event) => {
+        if (!refillSearchInput.contains(event.target) && !refillDropdown.contains(event.target)) {
             refillDropdown.classList.add('hidden');
         }
     });
 
-    // 5. Initialize UI state on page load
+    // 6. Initialize UI state on page load
     const checkedRadio = document.querySelector('input[name="refill_buyer_type"]:checked');
     if (checkedRadio) {
         checkedRadio.dispatchEvent(new Event('change'));
     }
-
 });
 
-/*============= END OF PAGINATION =============*/
+document.addEventListener("DOMContentLoaded", function() {
+    const regRadio = document.getElementById("refill-buyer-registered");
+    const unregRadio = document.getElementById("refill-buyer-unregistered");
+    const tankContainer = document.getElementById("refill-tank-selection-container");
+
+    function updateTankVisibility() {
+        if (regRadio.checked) {
+            tankContainer.style.display = "none";
+        } else {
+            tankContainer.style.display = "block";
+        }
+    }
+
+    if (regRadio && unregRadio && tankContainer) {
+        regRadio.addEventListener("change", updateTankVisibility);
+        unregRadio.addEventListener("change", updateTankVisibility);
+        updateTankVisibility();
+    }
+});
+/*============= END OF REFILL PROCESS =============*/
 
 /*============= START OF TRANSACTION MODAL =============*/
 
@@ -793,7 +889,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-
 /*============= START OF RENTMODAL MULTI-PRODUCT SYSTEM =============*/
 
 const rentModal = document.getElementById('rentAssetModal');
@@ -899,21 +994,27 @@ function resetRentModal() {
     const deliveryFeeInput = document.getElementById('rent-delivery-fee');
     if (deliveryFeeInput) deliveryFeeInput.value = '0.00';
     
-    // Reset Oxygen tracking field element states
-    const serialGroup = document.getElementById('rent-serial-number-group');
-    const serialInput = document.getElementById('rent-asset-serial');
-    if (serialGroup) serialGroup.style.display = 'none';
-    if (serialInput) {
-        serialInput.value = '';
-        serialInput.required = false;
-    }
-
     productBasket = [];
     renderProductBasket();
     if (productSearchInput) productSearchInput.value = '';
     
     resetGlobalCustomerSelection();
     calculateRentalTotals();
+}
+
+/**
+ * Helper to verify if an item is strictly oxygen-related equipment
+ */
+function isOxygenEquipment(item) {
+    const itemNameLower = (item.name || "").toLowerCase();
+    const itemCategoryLower = (item.category || "").toLowerCase();
+    
+    return (
+        itemNameLower.includes('oxygen') || 
+        itemNameLower.includes('o2') || 
+        itemNameLower.includes('concentrator') ||
+        itemCategoryLower.includes('oxygen')
+    );
 }
 
 /**
@@ -926,73 +1027,103 @@ function renderProductBasket() {
     
     if (productBasket.length === 0) {
         if (emptyBasketPlaceholder) selectedProductsContainer.appendChild(emptyBasketPlaceholder);
-        
-        // Hide serial number fields when there are no items left in the basket
-        const serialGroup = document.getElementById('rent-serial-number-group');
-        const serialInput = document.getElementById('rent-asset-serial');
-        if (serialGroup) serialGroup.style.display = 'none';
-        if (serialInput) {
-            serialInput.value = '';
-            serialInput.required = false;
-        }
-
         calculateRentalTotals();
         return;
     }
 
-    // Dynamic state trackers for oxygen criteria matching
-    let containsOxygenEquipment = false;
-
     productBasket.forEach((item) => {
-        // Evaluate product titles for oxygen components
-        const itemNameLower = item.name.toLowerCase();
-        if (itemNameLower.includes('oxygen') || itemNameLower.includes('o2') || itemNameLower.includes('concentrator')) {
-            containsOxygenEquipment = true;
-        }
+        const isOxygen = isOxygenEquipment(item);
+        const qty = parseInt(item.quantity) || 1;
 
         const row = document.createElement('div');
         row.className = 'selected-product-row';
-        row.style = 'display: flex; align-items: center; justify-content: space-between; background: white; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.02);';
+        row.style = 'display: flex; flex-direction: column; gap: 8px; background: white; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.02); margin-bottom: 8px;';
         
-        row.innerHTML = `
-            <div style="display: flex; flex-direction: column; gap: 2px; flex: 1;">
-                <span style="font-weight: 600; font-size: 13px; color: #1e293b;">${item.name}</span>
-                <span style="font-size: 11px; color: #64748b;">₱${parseFloat(item.rentPrice).toLocaleString('en-US', {minimumFractionDigits: 2})}/month</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 12px;">
-                <input type="hidden" name="product_id[]" value="${item.id}">
-                <input type="hidden" name="unit_price[]" value="${item.rentPrice}">
-                <div style="display: flex; align-items: center; gap: 4px;">
-                    <label style="font-size: 11px; color: #64748b;">Qty:</label>
-                    <input type="number" name="quantity[]" class="clinical-input basket-qty-input" 
-                           value="${item.quantity}" min="1" max="${item.maxStock}" 
-                           data-product-id="${item.id}" 
-                           style="width: 60px; height: 32px; padding: 0 6px; font-size: 13px; text-align: center;">
+        // Top line item details & controls
+        let rowInnerHtml = `
+            <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                <div style="display: flex; flex-direction: column; gap: 2px; flex: 1;">
+                    <span style="font-weight: 600; font-size: 13px; color: #1e293b;">${item.name}</span>
+                    <span style="font-size: 11px; color: #64748b;">₱${parseFloat(item.rentPrice).toLocaleString('en-US', {minimumFractionDigits: 2})}/month</span>
                 </div>
-                <button type="button" class="btn-remove-basket-item" data-product-id="${item.id}" 
-                        style="background: none; border: none; color: #ef4444; cursor: pointer; display: flex; align-items: center; padding: 4px;">
-                    <span class="material-symbols-rounded" style="font-size: 18px;">delete</span>
-                </button>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <input type="hidden" name="product_ids" value="${item.id}">
+                    <input type="hidden" name="unit_price_${item.id}" value="${item.rentPrice}">
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                        <label style="font-size: 11px; color: #64748b;">Qty:</label>
+                        <input type="number" name="quantity_${item.id}" class="clinical-input basket-qty-input" 
+                               value="${qty}" min="1" max="${item.maxStock}" 
+                               data-product-id="${item.id}" 
+                               style="width: 60px; height: 32px; padding: 0 6px; font-size: 13px; text-align: center;">
+                    </div>
+                    <button type="button" class="btn-remove-basket-item" data-product-id="${item.id}" 
+                            style="background: none; border: none; color: #ef4444; cursor: pointer; display: flex; align-items: center; padding: 4px;">
+                        <span class="material-symbols-rounded" style="font-size: 18px;">delete</span>
+                    </button>
+                </div>
             </div>
         `;
+
+        // Append dynamic sub-inputs for serial numbers ONLY if it's an oxygen tank/equipment
+        if (isOxygen) {
+            let serialInputsHTML = `
+                <div style="margin-top: 4px; padding-top: 6px; border-top: 1px dashed #cbd5e1; display: flex; flex-direction: column; gap: 4px;">
+                    <small style="color: #0284c7; font-weight: 600; font-size: 11px;">Enter Serial Number(s) for Oxygen Unit(s):</small>
+            `;
+
+            for (let i = 0; i < qty; i++) {
+                const existingSerial = (item.serials && item.serials[i]) ? item.serials[i] : '';
+                serialInputsHTML += `
+                    <input type="text" name="serial_number_${item.id}_${i}" 
+                           class="clinical-input oxygen-serial-field" 
+                           style="height: 32px; font-size: 12px; padding: 0 8px;" 
+                           placeholder="Oxygen Tank Serial # for unit ${i + 1}" 
+                           value="${existingSerial}" required>
+                `;
+            }
+            serialInputsHTML += `</div>`;
+            rowInnerHtml += serialInputsHTML;
+        }
+
+        row.innerHTML = rowInnerHtml;
         selectedProductsContainer.appendChild(row);
     });
 
-    // Handle oxygen asset serial form validation and visibility toggles
-    const serialGroup = document.getElementById('rent-serial-number-group');
-    const serialInput = document.getElementById('rent-asset-serial');
-    if (serialGroup && serialInput) {
-        if (containsOxygenEquipment) {
-            serialGroup.style.display = 'block';
-            serialInput.required = true;
-        } else {
-            serialGroup.style.display = 'none';
-            serialInput.required = false;
-            serialInput.value = '';
-        }
-    }
-
     calculateRentalTotals();
+}
+
+// Listen for quantity changes inside the selected equipment basket
+if (selectedProductsContainer) {
+    selectedProductsContainer.addEventListener('input', function(e) {
+        if (e.target && e.target.classList.contains('basket-qty-input')) {
+            const productId = e.target.getAttribute('data-product-id');
+            const newQty = parseInt(e.target.value) || 1;
+            
+            const targetItem = productBasket.find(i => String(i.id) === String(productId));
+            if (targetItem) {
+                // Capture existing serial numbers before re-rendering so typing isn't lost
+                const rowElement = e.target.closest('.selected-product-row');
+                if (rowElement) {
+                    const serialInputs = rowElement.querySelectorAll('.oxygen-serial-field');
+                    targetItem.serials = [];
+                    serialInputs.forEach(input => {
+                        targetItem.serials.push(input.value);
+                    });
+                }
+                
+                // Update quantity state and re-render dynamic fields
+                targetItem.quantity = newQty;
+                renderProductBasket();
+                
+                // Restore focus to the quantity input field
+                const activeInput = selectedProductsContainer.querySelector(`input[data-product-id="${productId}"].basket-qty-input`);
+                if (activeInput) {
+                    activeInput.focus();
+                    activeInput.setSelectionRange(activeInput.value.length, activeInput.value.length);
+                }
+            }
+        }
+    });
 }
 
 /**
@@ -1586,31 +1717,41 @@ document.addEventListener('DOMContentLoaded', function() {
 
 /*=================================== START OF PRIMEGAS ===================================*/
 
-// 1. Open Modal
+const primegasModal = document.getElementById('primegasModal');
+const productSelect = document.getElementById('primegasProductSelect');
+const maxStockSpan = document.getElementById('maxEmptyStock');
+const qtyInput = document.getElementById('primegasQty');
+
+// 1. Open Modal & Reset Form
 document.querySelector('.type-choice-btn.primegas').addEventListener('click', () => {
     document.getElementById('txnSelectionModal').classList.add('hidden');
-    document.getElementById('primegasModal').classList.remove('hidden');
+    primegasModal.classList.remove('hidden');
+    
+    // Reset fields on open
+    productSelect.value = "";
+    maxStockSpan.textContent = "0";
+    qtyInput.value = "";
+    qtyInput.removeAttribute('max');
 });
 
-// 2. Update Max Limit dynamically
-document.getElementById('primegasProductSelect').addEventListener('change', function() {
+// 2. Update Max Limit dynamically on change
+productSelect.addEventListener('change', function() {
     const selectedOption = this.options[this.selectedIndex];
-    const maxStock = selectedOption.getAttribute('data-max') || 0;
+    const maxStock = parseInt(selectedOption.getAttribute('data-max')) || 0;
     
-    document.getElementById('maxEmptyStock').textContent = maxStock;
-    
-    const qtyInput = document.getElementById('primegasQty');
+    // Update display text and input max attribute
+    maxStockSpan.textContent = maxStock;
     qtyInput.max = maxStock;
     
-    // Optional: Reset value if it's too high for the new selection
-    if (parseInt(qtyInput.value) > parseInt(maxStock)) {
+    // Reset quantity if it exceeds the new maximum
+    if (qtyInput.value && parseInt(qtyInput.value) > maxStock) {
         qtyInput.value = maxStock;
     }
 });
 
 // 3. Close Modal
 const closePrimegas = () => {
-    document.getElementById('primegasModal').classList.add('hidden');
+    primegasModal.classList.add('hidden');
 };
 document.getElementById('close-primegas-modal').addEventListener('click', closePrimegas);
 document.getElementById('close-primegas-modal-btn').addEventListener('click', closePrimegas);

@@ -5,7 +5,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy import func, or_, and_
 from flask_login import login_required
 from functools import wraps
-from models.product import Product, InventoryLog, Transaction, Purchase, Payment, Rental, RefillTransaction, RentalInvoice, Expense, PaymentProof, TankStatus
+from models.product import Product, InventoryLog, Transaction, Purchase, Payment, Rental, RefillTransaction, RentalInvoice, Expense, PaymentProof, TankStatus, RentalTank
 from models.customer import Customer
 from models.users import User, SecurityLog, BlockedIP, Permission
 from flask_mail import Message
@@ -321,12 +321,13 @@ def request_refill():
 @admin_or_staff_required
 def process_refill_transaction():
     buyer_type = request.form.get('refill_buyer_type')
-    tank_size = request.form.get('tank_size') # Fallback or select value depending on implementation
+    tank_size = request.form.get('tank_size') 
     quantity = request.form.get('quantity', type=int)
-    serial_input = request.form.get('serial_numbers', '')
-    serial_list = [sn.strip() for sn in serial_input.split(',') if sn.strip()]
-    amount = request.form.get('amount', type=Decimal)
     
+    serial_list = request.form.getlist('serial_numbers')
+    swapped_serials = request.form.getlist('swapped_rental_serial')
+    
+    amount = request.form.get('amount', type=Decimal)
     REFILL_COST = Decimal("50.00") 
 
     if not amount or not quantity or quantity <= 0:
@@ -334,7 +335,7 @@ def process_refill_transaction():
         return redirect(url_for('admin.dashboard'))
 
     if buyer_type == 'registered' and len(serial_list) != quantity:
-        flash(f"Data Mismatch: You specified {quantity} tank(s), but only entered {len(serial_list)} serial number(s).", "error")
+        flash(f"Data Mismatch: You specified {quantity} tank(s), but only entered {len(serial_list)} incoming serial number(s).", "error")
         return redirect(url_for('admin.dashboard'))
 
     try:
@@ -349,54 +350,66 @@ def process_refill_transaction():
                 flash("System Error: Could not verify the registered customer.", "error")
                 return redirect(url_for('admin.dashboard'))
             display_name = customer.full_name
-            
-            # Retrieve selected active rental serial being swapped out (if any)
-            swapped_serial = request.form.get('swapped_rental_serial')
-            
-            if swapped_serial:
-                # Find active rental associated with this serial number to swap
-                active_rental = Rental.query.filter_by(serial_number=swapped_serial, status="Active").first()
-                if active_rental:
-                    product = active_rental.product
-                    # Update rental record serial number swap
-                    active_rental.serial_number = serial_list[0] if serial_list else active_rental.serial_number
-            
-            if not product:
-                # Fallback to finding product via form selection if not derived from active rental
-                selected_tank_val = request.form.get('tank_size_select', '')
-                product_name = selected_tank_val.split(' - ')[0] if ' - ' in selected_tank_val else selected_tank_val
-                product = Product.query.filter_by(name=product_name, is_refillable=True).first()
 
-            if product:
-                tank_status = TankStatus.query.filter_by(product_id=product.id).first()
-                if not tank_status or tank_status.full_in_stock < quantity:
-                    flash(f"Inventory Alert: Insufficient full tanks in stock for {product.name}.", "error")
-                    return redirect(url_for('admin.dashboard'))
-                
-                # Minus full, add empty
-                tank_status.full_in_stock -= quantity
-                tank_status.empty_in_stock += quantity
+            # Handle registered swap/refill updating normalized RentalTank rows
+            if swapped_serials and serial_list:
+                for target_serial, new_serial in zip(swapped_serials, serial_list):
+                    # Find the specific active tank mapping via Rental relationship join or direct query
+                    rental_tank = RentalTank.query.join(Rental).filter(
+                        Rental.customer_id == customer_id,
+                        RentalTank.serial_number == target_serial.strip(),
+                        RentalTank.status == "Active"
+                    ).first()
+                    
+                    if rental_tank:
+                        if not product:
+                            product = rental_tank.rental.product
+                        # Safely update the normalized table's serial value
+                        rental_tank.serial_number = new_serial.strip()
+                        db.session.add(rental_tank)
+
+            if not product:
+                selected_tank_val = request.form.get('tank_size_select', '') or tank_size
+                product_name = selected_tank_val.split(' - ')[0] if ' - ' in selected_tank_val else selected_tank_val
+                product = Product.query.filter_by(name=product_name.strip(), is_refillable=True).first()
+
         else:
             display_name = request.form.get('unregistered_customer_name', '').strip() or "Walk-in Customer"
-            selected_tank_val = request.form.get('tank_size_select', '')
+            selected_tank_val = tank_size or ''
             product_name = selected_tank_val.split(' - ')[0] if ' - ' in selected_tank_val else selected_tank_val
-            product = Product.query.filter_by(name=product_name, is_refillable=True).first()
+            product = Product.query.filter_by(name=product_name.strip(), is_refillable=True).first()
+
+        if product:
+            tank_status = TankStatus.query.filter_by(product_id=product.id).first()
+            if not tank_status:
+                tank_status = TankStatus(product_id=product.id, full_in_stock=0, empty_in_stock=0)
+                db.session.add(tank_status)
+
+            if tank_status.full_in_stock < quantity:
+                flash(f"Inventory Alert: Insufficient full tanks in stock for {product.name}. Available full: {tank_status.full_in_stock}", "error")
+                return redirect(url_for('admin.dashboard'))
+            
+            tank_status.full_in_stock -= quantity
+            tank_status.empty_in_stock += quantity
+        else:
+            flash("Inventory Error: Could not match refillable product inventory item.", "error")
+            return redirect(url_for('admin.dashboard'))
 
         new_transaction = RefillTransaction(
-            product_id=product.id if product else None,
+            product_id=product.id,
             customer_id=customer_id,
             walk_in_name=display_name if buyer_type != 'registered' else None,
-            walk_in_tank_size=tank_size if not product else None,
+            walk_in_tank_size=tank_size if buyer_type != 'registered' else None,
             quantity=quantity,
             total_revenue=amount,
             refill_cost_per_unit=REFILL_COST,
-            serial_numbers=", ".join(serial_list) if buyer_type == 'registered' else "N/A",
+            serial_numbers=", ".join([s.strip() for s in serial_list]) if serial_list else "N/A",
             processed_by_id=current_user.id
         )
         db.session.add(new_transaction)
 
         log = InventoryLog(
-            product_id=product.id if product else None,
+            product_id=product.id,
             action="Refill Service Completed & Swapped",
             quantity=quantity,
             note=f"Processed refill swap for {display_name}. Total: {amount} PHP.",
@@ -410,9 +423,10 @@ def process_refill_transaction():
 
     except Exception as e:
         db.session.rollback()
-        flash("An unexpected error occurred while saving the transaction. Please try again.", "error")
+        flash(f"An unexpected error occurred while saving the transaction: {str(e)}", "error")
 
     return redirect(url_for('admin.dashboard'))
+
 
 @admin_bp.route('/customers')
 @login_required
@@ -1512,11 +1526,11 @@ def process_purchase():
 @permission_required('can_process_transactions')
 def process_rental():
     try:
-        product_ids = request.form.getlist('product_id[]') or request.form.getlist('product_id')
-        quantities = request.form.getlist('quantity[]') or request.form.getlist('quantity')
-        unit_prices = request.form.getlist('unit_price[]') or request.form.getlist('unit_price')
-
-        serial_number = request.form.get('serial_number')
+        product_ids = (
+            request.form.getlist('product_ids') or 
+            request.form.getlist('product_id[]') or 
+            request.form.getlist('product_id')
+        )
 
         if not product_ids:
             flash("No products selected.", "danger")
@@ -1525,8 +1539,15 @@ def process_rental():
         fulfillment_type = request.form.get('fulfillment_type', 'Walk-In')
         amount_paid = Decimal(request.form.get('amount_paid', '0').replace(',', '') or '0')
 
-        start_date = datetime.strptime(request.form.get('start_date'), "%Y-%m-%d").date()
-        expected_return = datetime.strptime(request.form.get('return_date'), "%Y-%m-%d").date()
+        start_date_str = request.form.get('start_date')
+        return_date_str = request.form.get('return_date')
+
+        if not start_date_str or not return_date_str:
+            flash("Start date and return date are required.", "danger")
+            return redirect(request.referrer)
+
+        start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+        expected_return = datetime.strptime(return_date_str, "%Y-%m-%d").date()
 
         if expected_return < start_date:
             flash("Invalid return date.", "danger")
@@ -1550,13 +1571,44 @@ def process_rental():
 
         for i, pid in enumerate(product_ids):
             product = Product.query.get_or_404(pid)
-            qty = int(quantities[i])
-            price = Decimal(unit_prices[i])
+            
+            # Flexible quantity retrieval
+            qty_raw = (
+                request.form.get(f'quantity_{product.id}') or 
+                (request.form.getlist('quantity[]')[i] if i < len(request.form.getlist('quantity[]')) else None) or
+                (request.form.getlist('quantity')[i] if i < len(request.form.getlist('quantity')) else '1')
+            )
+            qty = int(qty_raw)
+
+            # Flexible unit price retrieval
+            price_raw = (
+                request.form.get(f'unit_price_{product.id}') or 
+                (request.form.getlist('unit_price[]')[i] if i < len(request.form.getlist('unit_price[]')) else None) or
+                (request.form.getlist('unit_price')[i] if i < len(request.form.getlist('unit_price')) else str(product.rent_price))
+            )
+            price = Decimal(str(price_raw).replace(',', '') or '0')
 
             if qty <= 0:
                 db.session.rollback()
                 flash(f"Invalid quantity for {product.name}", "danger")
                 return redirect(request.referrer)
+
+            # Check if product is oxygen-related for serial number collection
+            product_name_lower = (product.name or "").lower()
+            product_cat_lower = (product.category or "").lower()
+            is_oxygen = (
+                "oxygen" in product_name_lower or 
+                "o2" in product_name_lower or 
+                "concentrator" in product_name_lower or 
+                "oxygen" in product_cat_lower
+            )
+
+            serials = []
+            if is_oxygen:
+                for j in range(qty):
+                    serial_val = request.form.get(f'serial_number_{product.id}_{j}')
+                    if serial_val and serial_val.strip():
+                        serials.append(serial_val.strip())
 
             if product.is_refillable:
                 if not product.tank_status:
@@ -1591,11 +1643,21 @@ def process_rental():
                 expected_return_date=expected_return,
                 monthly_rate=price,
                 quantity=qty,
-                serial_number=serial_number,
                 status="Active"
             )
 
             db.session.add(rental)
+            db.session.flush() # Flush to get rental.id for RentalTank creation
+
+            # Create individual RentalTank records normalized in the database
+            for s_val in serials:
+                rental_tank = RentalTank(
+                    rental_id=rental.id,
+                    serial_number=s_val,
+                    status="Active"
+                )
+                db.session.add(rental_tank)
+
             rentals.append(rental)
 
             db.session.add(InventoryLog(
@@ -1616,14 +1678,10 @@ def process_rental():
         db.session.expire(new_txn, ['payments'])
         
         # ── Record initial payment if provided ────────────────────────────
-        amount_paid_raw = request.form.get('amount_paid', '0').replace(',', '') or '0'
-        amount_paid = Decimal(amount_paid_raw)
-
         if amount_paid > 0:
             payment_method = request.form.get('payment_method', 'Cash').strip()
             reference_number = request.form.get('reference_number', '').strip() or None
 
-            # Distribute initial payment across first unpaid invoice(s)
             remaining = amount_paid
             all_invoices = []
             for r in rentals:
@@ -1663,7 +1721,6 @@ def process_rental():
         current_app.logger.error(f"RENTAL_ERROR: {str(e)}")
         flash("Rental processing failed.", "danger")
         return redirect(request.referrer)
-    
      
 @admin_bp.route('/product/<int:product_id>/history')
 @login_required
@@ -1827,15 +1884,38 @@ def transactions():
         else:
             equipment.available_stock = equipment.stock or 0
 
-    raw_refillables = Product.query.join(TankStatus).filter(Product.is_active == True).all()
+    # Fetch active refillable products with their tank statuses joined, keeping unique name/size combinations as Product instances
+    raw_refillables = Product.query.options(
+        joinedload(Product.tank_status)
+    ).join(TankStatus).filter(Product.is_active == True).all()
+    
     grouped_refills = {}
     for p in raw_refillables:
         key = (p.name, p.size)
         if key not in grouped_refills:
-            grouped_refills[key] = {'name': p.name, 'size': p.size}
+            grouped_refills[key] = p
     
     unique_refillable_products = list(grouped_refills.values())
 
+    # Flatten active oxygen rentals so comma-separated serial numbers become individual units
+    raw_active_rentals = Rental.query.join(Product).filter(
+        Rental.status == 'Active',
+        Product.name.ilike('%Oxygen%')
+    ).all()
+
+    active_rentals_list = []
+    for rental in raw_active_rentals:
+        for tank in rental.tanks:
+            if tank.status == "Active" and tank.serial_number:
+                clean_sn = tank.serial_number.strip()
+                if clean_sn:
+                    active_rentals_list.append({
+                        'customer_id': rental.customer_id,
+                        'serial_number': clean_sn,
+                        'product_name': rental.product.name if rental.product else 'Oxygen Tank',
+                        'product_size': rental.product.size if rental.product and rental.product.size else 'Standard'
+                    })
+    
     return render_template(
         "admin/transactions.html",
         transactions=pagination.items,
@@ -1848,6 +1928,7 @@ def transactions():
         customers=customers,
         all_equipment=all_equipment,
         refillable_products=unique_refillable_products,
+        active_rentals_list=active_rentals_list,
         datetime_now_date=current_date,
         **stats
     )
@@ -2331,21 +2412,38 @@ def process_return(txn_id):
 
 @admin_bp.route('/process-primegas', methods=['POST'])
 @login_required
+@admin_or_staff_required
 def process_primegas():
     product_id = request.form.get('product_id')
-    quantity = int(request.form.get('quantity', 0))
-
-    tank_status = TankStatus.query.filter_by(product_id=product_id).first()
-
-    if not tank_status or tank_status.empty_in_stock < quantity:
-        flash('Insufficient empty stock.', 'danger')
+    
+    try:
+        quantity = int(request.form.get('quantity', 0))
+    except (TypeError, ValueError):
+        flash('Invalid quantity provided.', 'danger')
         return redirect(url_for('admin.transactions'))
 
+    if not product_id or quantity <= 0:
+        flash('Please select a valid product and quantity.', 'warning')
+        return redirect(url_for('admin.transactions'))
+
+    # Fetch the tank status record for the product
+    tank_status = TankStatus.query.filter_by(product_id=product_id).first()
+
+    if not tank_status:
+        flash('Tank status tracking not found for this product.', 'danger')
+        return redirect(url_for('admin.transactions'))
+
+    if tank_status.empty_in_stock < quantity:
+        flash(f'Insufficient empty stock. Only {tank_status.empty_in_stock} empty tanks available.', 'danger')
+        return redirect(url_for('admin.transactions'))
+
+    # Perform the conversion: decrease empty, increase full
     tank_status.empty_in_stock -= quantity
     tank_status.full_in_stock += quantity
     
     db.session.commit()
-    flash('Inventory updated successfully!', 'success')
+    
+    flash(f'Successfully refilled {quantity} tank(s) from empty to full!', 'success')
     return redirect(url_for('admin.transactions'))
 
 @admin_bp.route('/system_logs')

@@ -72,7 +72,6 @@
 
     <section class="details-main-content">
 
-        <!-- Items Table -->
         <div class="action-card">
             <header class="card-header-custom">
                 <span class="header-label-text">Purchased / Rented Items</span>
@@ -97,7 +96,12 @@
                             <tr>
                                 <td>
                                     <div class="item-title">
-                                        {{ item.product.name }}{% if item.serial_number and item.product.is_refillable %} ({{ item.serial_number }}){% endif %}
+                                        {{ item.product.name }}
+                                        {% if item.tanks %}
+                                            <span class="text-muted font-monospace" style="font-size: 0.85rem;">
+                                                (SN: {% for tank in item.tanks %}{{ tank.serial_number }}{% if not loop.last %}, {% endif %}{% endfor %})
+                                            </span>
+                                        {% endif %}
                                     </div>
                                 </td>
                                 <td>{{ item.quantity }}</td>
@@ -110,7 +114,10 @@
                             <tr>
                                 <td>
                                     <div class="item-title">
-                                        {{ item.product.name }}{% if item.serial_number and item.product.is_refillable %} ({{ item.serial_number }}){% endif %}
+                                        {{ item.product.name }}
+                                        {% if item.serial_number %}
+                                            <span class="text-muted font-monospace" style="font-size: 0.85rem;">(SN: {{ item.serial_number }})</span>
+                                        {% endif %}
                                     </div>
                                 </td>
                                 <td>{{ item.quantity }}</td>
@@ -284,7 +291,12 @@
                                     <input type="checkbox" name="returned_items" value="{{ item.id }}">
                                 </td>
                                 <td style="padding: 10px; vertical-align: middle;">
-                                    <div>{{ item.product.name }}</div>
+                                    <div>
+                                        {{ item.product.name }}
+                                        {% if item.serial_number %}
+                                            <span class="text-muted font-monospace" style="font-size: 0.85rem;">(SN: {{ item.serial_number }})</span>
+                                        {% endif %}
+                                    </div>
                                     <small class="text-muted">Remaining: {{ item.remaining_to_return }}</small>
                                 </td>
                                 <td style="padding: 10px; text-align: center; vertical-align: middle;">
