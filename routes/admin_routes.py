@@ -3684,10 +3684,22 @@ def backup_page():
         flash("Access restricted to Administrators only.", "danger")
         return redirect(url_for('admin.dashboard'))
     
-    backups = get_all_backups()
-    total_size = sum(b['size_kb'] for b in backups)
-    return render_template('admin/backup.html', backups=backups, total_size=round(total_size, 2))
-
+    backup_dir = 'backups'
+    os.makedirs(backup_dir, exist_ok=True)
+    
+    backups = []
+    with os.scandir(backup_dir) as entries:
+        for entry in entries:
+            if entry.is_file() and entry.name.endswith('.sql'):
+                stats = entry.stat()
+                backups.append({
+                    'filename': entry.name,
+                    'size': round(stats.st_size / (1024 * 1024), 2),
+                    'created_at': datetime.fromtimestamp(stats.st_mtime).strftime('%Y-%m-%d %H:%M:%S')
+                })
+    
+    backups = sorted(backups, key=lambda x: x['created_at'], reverse=True)
+    return render_template('admin/backup.html', backups=backups)
 
 @admin_bp.route('/backup/create', methods=['POST'])
 @login_required
