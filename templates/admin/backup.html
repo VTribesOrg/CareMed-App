@@ -207,5 +207,8 @@
 </div>
 
 
-<script src="{{ url_for('static', filename='backup.js') }}"></script>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/admin/backup.js') }}" nonce="{{ csp_nonce() }}"></script>
 {% endblock %}
