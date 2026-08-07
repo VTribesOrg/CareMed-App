@@ -3683,6 +3683,15 @@ def backup_page():
     if current_user.role.strip() != 'Administrator':
         flash("Access restricted to Administrators only.", "danger")
         return redirect(url_for('admin.dashboard'))
+
+    return render_template('admin/backup.html')
+
+
+@admin_bp.route('/backup/data')
+@login_required
+def backup_data():
+    if current_user.role.strip() != 'Administrator':
+        return jsonify({'error': 'Unauthorized'}), 403
     
     backup_dir = 'backups'
     os.makedirs(backup_dir, exist_ok=True)
@@ -3697,9 +3706,9 @@ def backup_page():
                     'size': round(stats.st_size / (1024 * 1024), 2),
                     'created_at': datetime.fromtimestamp(stats.st_mtime).strftime('%Y-%m-%d %H:%M:%S')
                 })
-    
+
     backups = sorted(backups, key=lambda x: x['created_at'], reverse=True)
-    return render_template('admin/backup.html', backups=backups)
+    return jsonify(backups)
 
 @admin_bp.route('/backup/create', methods=['POST'])
 @login_required
