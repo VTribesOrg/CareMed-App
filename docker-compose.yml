@@ -9,6 +9,9 @@ services:
     depends_on:
       - db
       - redis
+    volumes:
+      - .:/app
+      - ./static/uploads:/app/caremed/static/uploads
 
   db:
     image: mysql:8.0
