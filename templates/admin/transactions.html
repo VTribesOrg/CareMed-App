@@ -342,13 +342,11 @@
 <div id="refillAssetModal" class="medical-modal-overlay hidden">
     <div class="medical-modal-content" style="max-width: 600px; width: 100%; max-height: 85vh; position: relative; padding: 24px; display: flex; flex-direction: column; overflow: hidden; box-sizing: border-box;">
         
-        <!-- Close Button -->
         <button class="modal-close-btn" id="close-refill-modal" type="button" 
                 style="position: absolute; top: 16px; right: 16px; background: transparent; border: none; color: #64748b; cursor: pointer; padding: 8px; display: flex; align-items: center; justify-content: center; transition: color 0.15s ease; outline: none; z-index: 50 !important; pointer-events: auto !important;">
             <span class="material-symbols-rounded" style="font-size: 22px; pointer-events: none;">close</span>
         </button>
 
-        <!-- Header (Fixed) -->
         <div class="modal-header-tnx-row" style="border-bottom: 1px solid #e2e8f0; padding-bottom: 14px; flex-shrink: 0; padding-right: 30px;">
             <h2 class="modal-header" style="display: flex; align-items: center; gap: 10px; color: #0f172a; font-size: 1.25rem; font-weight: 700; margin: 0;">
                 <span class="material-symbols-rounded" style="color: #0d9488; font-size: 24px;">discover_tune</span>
@@ -359,7 +357,6 @@
         <form id="refill-transaction-form" method="POST" action="{{ url_for('admin.process_refill_transaction') }}" style="display: flex; flex-direction: column; flex: 1; overflow: hidden; margin-top: 16px;">
             <input type="hidden" name="csrf_token" id="rent_csrf_token" value="{{ csrf_token() }}">
             
-            <!-- Scrollable Body Container -->
             <div style="overflow-y: auto; flex: 1; padding-right: 4px; display: flex; flex-direction: column; gap: 16px;">
                 
                 <div class="form-field full-width" style="margin-bottom: 0;">
@@ -412,7 +409,6 @@
                     <input type="text" name="unregistered_customer_name" class="medical-input" placeholder="Enter complete full name" style="width: 100%; height: 44px; padding: 0 16px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
                 </div>
 
-                <!-- Cylinder Size / Description block (Hidden for Registered, shown for Unregistered) -->
                 <div class="form-field" id="refill-tank-selection-container" style="margin-bottom: 0;">
                     <label style="font-weight: 700; color: #1e293b; margin-bottom: 6px; display: block; font-size: 0.9rem;">
                         <span id="label-tank-registered" style="display: none;">Cylinder Size / Capacity</span>
@@ -445,20 +441,28 @@
                     </div>
                 </div>
 
-                <!-- Dynamic rows container that expands and triggers scrolling -->
                 <div id="refill-dynamic-rows-container" style="display: flex; flex-direction: column; gap: 12px;"></div>
 
-                <div class="form-field" style="margin-bottom: 0;">
-                    <label style="font-weight: 700; color: #1e293b; margin-bottom: 6px; display: block; font-size: 0.9rem;">Refill Amount Cost (PHP)</label>
-                    <div style="position: relative;">
-                        <input type="number" step="0.01" name="amount" id="refill-amount-cost" placeholder="0.00" value="450.00" required style="width: 100%; height: 44px; padding: 0 16px 0 40px; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #1e293b; font-size: 0.95rem; outline: none; box-sizing: border-box;">
-                        <span class="material-symbols-rounded" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #64748b; pointer-events: none; font-size: 20px;">payments</span>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;" class="full-width">
+                    <div class="form-field" style="margin-bottom: 0;">
+                        <label style="font-weight: 700; color: #1e293b; margin-bottom: 6px; display: block; font-size: 0.9rem;">Refill Amount Cost (PHP)</label>
+                        <div style="position: relative;">
+                            <input type="number" step="0.01" name="amount" id="refill-amount-cost" placeholder="0.00" value="450.00" required style="width: 100%; height: 44px; padding: 0 16px 0 40px; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #1e293b; font-size: 0.95rem; outline: none; box-sizing: border-box;">
+                            <span class="material-symbols-rounded" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #64748b; pointer-events: none; font-size: 20px;">payments</span>
+                        </div>
+                    </div>
+
+                    <div class="form-field" style="margin-bottom: 0;">
+                        <label style="font-weight: 700; color: #1e293b; margin-bottom: 6px; display: block; font-size: 0.9rem;">Voucher / Discount (PHP)</label>
+                        <div style="position: relative;">
+                            <input type="number" step="0.01" min="0" name="voucher_amount" id="refill-voucher-amount" placeholder="0.00" value="0.00" style="width: 100%; height: 44px; padding: 0 16px 0 40px; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #1e293b; font-size: 0.95rem; outline: none; box-sizing: border-box;">
+                            <span class="material-symbols-rounded" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #64748b; pointer-events: none; font-size: 20px;">confirmation_number</span>
+                        </div>
                     </div>
                 </div>
 
             </div>
 
-            <!-- Footer Buttons (Fixed at bottom) -->
             <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 16px; border-top: 1px solid #e2e8f0; padding-top: 16px; flex-shrink: 0; background: #ffffff;">
                 <button type="button" id="cancel-refill-modal" style="padding: 10px 18px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #475569; font-size: 0.9rem; font-weight: 600; cursor: pointer;">Cancel</button>
                 <button type="submit" style="padding: 10px 22px; border-radius: 6px; border: none; background: #0d9488; color: #ffffff; font-size: 0.9rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">

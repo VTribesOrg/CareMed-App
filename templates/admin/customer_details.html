@@ -34,9 +34,9 @@
             </div>
         </div>
         <div class="cdp-actions">
-            <button class="btn-primary js-open-edit" data-id="{{ customer.id }}">
+            <!--<button class="btn-primary js-open-edit" data-id="{{ customer.id }}">
                 <span class="material-symbols-rounded">edit</span> Edit Profile
-            </button>
+            </button>-->
             <a href="{{ url_for('admin.customers') }}" class="btn-secondary">
                 <span class="material-symbols-rounded">arrow_back</span> Back
             </a>
@@ -169,18 +169,30 @@
                             </a>
                         </td>
                         <td>{{ transaction.description }}</td>
-                        <td>
-                            {% if transaction.rentals %}
-                                {% for rental in transaction.rentals %}
-                                    {% if rental.serial_number %}
-                                        <div style="font-size: 0.75rem; color: #64748b;">
-                                            {{ rental.serial_number }}
-                                        </div>
-                                    {% endif %}
-                                {% endfor %}
-                            {% else %}
-                                <span class="text-muted" style="font-size: 0.7rem;">N/A</span>
-                            {% endif %}
+<td>
+                            <div style="max-width: 220px; overflow-x: auto; white-space: nowrap; padding-bottom: 2px;">
+                                {% if transaction.transaction_type == "Refill" and transaction.serial_numbers %}
+                                    <div style="font-size: 0.75rem; color: #64748b; display: inline-block;">
+                                        {{ transaction.serial_numbers }}
+                                    </div>
+                                {% elif transaction.rentals %}
+                                    {% for rental in transaction.rentals %}
+                                        {% if rental.tank_logs %}
+                                            {% for log in rental.tank_logs %}
+                                                <div style="font-size: 0.75rem; color: #64748b; display: inline-flex; align-items: center; gap: 6px; margin-right: 8px;">
+                                                    <span style="text-decoration: line-through; color: #94a3b8;">{{ log.old_serial_number or 'N/A' }}</span>
+                                                    &rarr; 
+                                                    <strong style="color: #0d9488;">{{ log.new_serial_number }}</strong>
+                                                    <span style="font-size: 0.65rem; color: #94a3b8;">({{ log.created_at.strftime('%b %d, %Y') }})</span>
+                                                </div>
+                                            {% endfor %}
+                                        {% endif %}
+                                        
+                                    {% endfor %}
+                                {% else %}
+                                    <span class="text-muted" style="font-size: 0.7rem;">N/A</span>
+                                {% endif %}
+                            </div>
                         </td>
                         <td class="font-bold">{{ transaction.display_amount | currency }}</td>
                         <td>

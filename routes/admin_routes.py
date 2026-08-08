@@ -5,7 +5,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy import func, or_, and_
 from flask_login import login_required
 from functools import wraps
-from models.product import Product, InventoryLog, Transaction, Purchase, Payment, Rental, RefillTransaction, RentalInvoice, Expense, PaymentProof, TankStatus, RentalTank
+from models.product import Product, InventoryLog, Transaction, Purchase, Payment, Rental, RefillTransaction, RentalInvoice, Expense, PaymentProof, TankStatus, RentalTank, RentalTankLog
 from models.customer import Customer
 from models.users import User, SecurityLog, BlockedIP, Permission
 from flask_mail import Message
@@ -351,10 +351,8 @@ def process_refill_transaction():
                 return redirect(url_for('admin.dashboard'))
             display_name = customer.full_name
 
-            # Handle registered swap/refill updating normalized RentalTank rows
             if swapped_serials and serial_list:
                 for target_serial, new_serial in zip(swapped_serials, serial_list):
-                    # Find the specific active tank mapping via Rental relationship join or direct query
                     rental_tank = RentalTank.query.join(Rental).filter(
                         Rental.customer_id == customer_id,
                         RentalTank.serial_number == target_serial.strip(),
@@ -364,9 +362,23 @@ def process_refill_transaction():
                     if rental_tank:
                         if not product:
                             product = rental_tank.rental.product
-                        # Safely update the normalized table's serial value
-                        rental_tank.serial_number = new_serial.strip()
-                        db.session.add(rental_tank)
+                        
+                        old_serial = rental_tank.serial_number
+                        new_serial_clean = new_serial.strip()
+
+                        if old_serial != new_serial_clean:
+                            tank_log = RentalTankLog(
+                                rental_id=rental_tank.rental_id,
+                                tank_id=rental_tank.id,
+                                old_serial_number=old_serial,
+                                new_serial_number=new_serial_clean,
+                                reason="Tank Refill / Asset Exchange",
+                                changed_by_id=current_user.id
+                            )
+                            db.session.add(tank_log)
+
+                            rental_tank.serial_number = new_serial_clean
+                            db.session.add(rental_tank)
 
             if not product:
                 selected_tank_val = request.form.get('tank_size_select', '') or tank_size
@@ -426,7 +438,6 @@ def process_refill_transaction():
         flash(f"An unexpected error occurred while saving the transaction: {str(e)}", "error")
 
     return redirect(url_for('admin.dashboard'))
-
 
 @admin_bp.route('/customers')
 @login_required
@@ -566,7 +577,14 @@ def get_customer(id):
 def customer_details(id):
     customer = Customer.query.get_or_404(id)
 
-    transactions = (Transaction.query .filter_by(customer_id=id) .order_by(Transaction.created_at.desc()).all())
+    regular_txns = Transaction.query.filter_by(customer_id=id).all()
+    refill_txns = RefillTransaction.query.filter_by(customer_id=id).all()
+
+    transactions = sorted(
+        list(regular_txns) + list(refill_txns),
+        key=lambda x: x.created_at if x.created_at else datetime.min,
+        reverse=True
+    )
 
     return render_template('admin/customer_details.html', customer=customer, transactions=transactions)
 
@@ -1333,6 +1351,14 @@ def process_purchase():
         except (ValueError, TypeError, InvalidOperation):
             return handle_response(False, "Invalid numeric input for amount paid.", status_code=400)
 
+        try:
+            voucher_amount = Decimal(str(data.get('voucher_amount', '0.00') or '0.00'))
+        except (ValueError, TypeError, InvalidOperation):
+            return handle_response(False, "Invalid numeric input for voucher amount.", status_code=400)
+
+        if voucher_amount < 0:
+            return handle_response(False, "Voucher or discount amount cannot be negative.", status_code=400)
+
         buyer_type = data.get('buyer_type', 'registered')
         customer_id = data.get('customer_id')
 
@@ -1373,6 +1399,7 @@ def process_purchase():
             processed_by=current_user.id,
             transaction_type="Sale",
             total_amount=Decimal("0.00"),
+            voucher_amount=voucher_amount,
             fulfillment_type=fulfillment,
             delivery_address=data.get("delivery_address") if fulfillment == "Delivery" else None,
             landmark=data.get("landmark") if fulfillment == "Delivery" else None,
@@ -1423,7 +1450,6 @@ def process_purchase():
             else:
                 product.status = "Available"
                 
-            # ── Sync TankStatus for refillable products on sale ───────────
             if product.is_refillable and product.tank_status:
                 product.tank_status.full_in_stock = max(
                     (product.tank_status.full_in_stock or 0) - quantity, 0
@@ -1462,22 +1488,16 @@ def process_purchase():
                 user_name=getattr(current_user, 'full_name', 'System Administrator')
             ))
 
-
-
-        new_transaction.total_amount = total_transaction_price
+        final_transaction_total = max(total_transaction_price - voucher_amount, Decimal("0.00"))
+        new_transaction.total_amount = final_transaction_total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
         if amount_paid > 0:
-
             payment_method = (data.get("payment_method") or "Cash").strip()
-
             reference_number = ((data.get("reference_number") or "").strip())
-
 
             if payment_method.lower() == "cash":
                 reference_number = None
-
             else:
-
                 if not reference_number:
                     db.session.rollback()
                     return handle_response(
@@ -1518,7 +1538,7 @@ def process_purchase():
         db.session.rollback()
         current_app.logger.error(f"PURCHASE_ERROR: {str(e)}")
         return handle_response(False, f"Server error occurred during purchase processing sequence.", status_code=500)
-       
+    
        
 @admin_bp.route('/process-rental', methods=['POST'])
 @login_required
@@ -1538,6 +1558,8 @@ def process_rental():
 
         fulfillment_type = request.form.get('fulfillment_type', 'Walk-In')
         amount_paid = Decimal(request.form.get('amount_paid', '0').replace(',', '') or '0')
+        voucher_amount = Decimal(request.form.get('voucher_amount', '0').replace(',', '') or '0')
+        delivery_fee = Decimal(request.form.get('delivery_fee', '0').replace(',', '') or '0')
 
         start_date_str = request.form.get('start_date')
         return_date_str = request.form.get('return_date')
@@ -1560,6 +1582,8 @@ def process_rental():
             customer_id=request.form.get('customer_id'),
             transaction_type="Rental",
             total_amount=Decimal("0.00"),
+            voucher_amount=voucher_amount if hasattr(Transaction, 'voucher_amount') else None,
+            delivery_fee=delivery_fee if hasattr(Transaction, 'delivery_fee') else None,
             fulfillment_type=fulfillment_type,
             status="Open"
         )
@@ -1571,8 +1595,7 @@ def process_rental():
 
         for i, pid in enumerate(product_ids):
             product = Product.query.get_or_404(pid)
-            
-            # Flexible quantity retrieval
+
             qty_raw = (
                 request.form.get(f'quantity_{product.id}') or 
                 (request.form.getlist('quantity[]')[i] if i < len(request.form.getlist('quantity[]')) else None) or
@@ -1580,7 +1603,6 @@ def process_rental():
             )
             qty = int(qty_raw)
 
-            # Flexible unit price retrieval
             price_raw = (
                 request.form.get(f'unit_price_{product.id}') or 
                 (request.form.getlist('unit_price[]')[i] if i < len(request.form.getlist('unit_price[]')) else None) or
@@ -1593,7 +1615,6 @@ def process_rental():
                 flash(f"Invalid quantity for {product.name}", "danger")
                 return redirect(request.referrer)
 
-            # Check if product is oxygen-related for serial number collection
             product_name_lower = (product.name or "").lower()
             product_cat_lower = (product.category or "").lower()
             is_oxygen = (
@@ -1647,9 +1668,8 @@ def process_rental():
             )
 
             db.session.add(rental)
-            db.session.flush() # Flush to get rental.id for RentalTank creation
+            db.session.flush() 
 
-            # Create individual RentalTank records normalized in the database
             for s_val in serials:
                 rental_tank = RentalTank(
                     rental_id=rental.id,
@@ -1676,8 +1696,13 @@ def process_rental():
 
         db.session.flush()
         db.session.expire(new_txn, ['payments'])
-        
-        # ── Record initial payment if provided ────────────────────────────
+
+        if hasattr(new_txn, 'voucher_amount'):
+            new_txn.voucher_amount = voucher_amount
+
+        if hasattr(new_txn, 'delivery_fee'):
+            new_txn.delivery_fee = delivery_fee
+
         if amount_paid > 0:
             payment_method = request.form.get('payment_method', 'Cash').strip()
             reference_number = request.form.get('reference_number', '').strip() or None
@@ -1721,7 +1746,7 @@ def process_rental():
         current_app.logger.error(f"RENTAL_ERROR: {str(e)}")
         flash("Rental processing failed.", "danger")
         return redirect(request.referrer)
-     
+    
 @admin_bp.route('/product/<int:product_id>/history')
 @login_required
 @admin_or_staff_required

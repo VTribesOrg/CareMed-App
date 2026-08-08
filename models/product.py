@@ -41,7 +41,6 @@ class RefillTransaction(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     
-
     product_id = db.Column(db.Integer, db.ForeignKey("product.id"), nullable=True) 
     customer_id = db.Column(db.Integer, db.ForeignKey("customer.id"), nullable=True)
 
@@ -66,6 +65,48 @@ class RefillTransaction(db.Model):
     @property
     def net_profit(self):
         return self.total_revenue - self.total_cost
+
+    @property
+    def reference_no(self):
+        return f"RFL-{self.id:06d}"
+
+    @property
+    def display_amount(self):
+        return self.total_revenue or Decimal("0.00")
+
+    @property
+    def display_date(self):
+        if not self.created_at:
+            return "N/A"
+        return self.created_at.strftime('%b %d, %Y')
+
+    @property
+    def description(self):
+        tank_desc = f" ({self.walk_in_tank_size})" if self.walk_in_tank_size else ""
+        prod_name = self.product.name if self.product else "Tank Refill"
+        return f"Refill: {prod_name}{tank_desc} x{self.quantity}"
+
+    @property
+    def transaction_type(self):
+        return "Refill"
+
+    @property
+    def status(self):
+        return "Closed"
+
+    @property
+    def status_badge(self):
+        return "badge-success"
+
+    @property
+    def payment_status(self):
+        return "Fully Paid"
+
+    @property
+    def customer_name(self):
+        if self.customer and hasattr(self.customer, 'name'):
+            return self.customer.name
+        return self.walk_in_name or "Walk-in Customer"
     
 class TankStatus(db.Model):
     __tablename__ = "tank_status"
@@ -84,6 +125,23 @@ class TankStatus(db.Model):
     def total_available(self):
         return (self.full_in_stock or 0) + (self.empty_in_stock or 0)
 
+class RentalTankLog(db.Model):
+    __tablename__ = "rental_tank_log"
+
+    id = db.Column(db.Integer, primary_key=True)
+    rental_id = db.Column(db.Integer, db.ForeignKey("rental.id", ondelete="CASCADE"), nullable=False)
+    tank_id = db.Column(db.Integer, db.ForeignKey("rental_tank.id", ondelete="SET NULL"), nullable=True)
+    
+    old_serial_number = db.Column(db.String(100), nullable=True)
+    new_serial_number = db.Column(db.String(100), nullable=False)
+    
+    reason = db.Column(db.String(255), nullable=True)
+    changed_by_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
+
+    rental = db.relationship("Rental", backref=db.backref("tank_logs", cascade="all, delete-orphan"))
+    changed_by = db.relationship("User")
+    
 class Purchase(db.Model):
     __tablename__ = "purchase"
 
@@ -124,7 +182,6 @@ class Purchase(db.Model):
 
     customer = db.relationship("Customer", back_populates="purchases")
 
-
 class Transaction(db.Model):
     __tablename__ = "transaction"
 
@@ -138,6 +195,7 @@ class Transaction(db.Model):
     transaction_type = db.Column(db.String(20), nullable=False) 
     
     total_amount = db.Column(db.Numeric(10, 2), nullable=False, default=0.00)
+    voucher_amount = db.Column(db.Numeric(10, 2), nullable=False, default=0.00)
     amount_paid = db.Column(db.Numeric(10, 2), default=0.00)
     balance_due = db.Column(db.Numeric(10, 2), default=0.00)
     
@@ -195,7 +253,6 @@ class Transaction(db.Model):
         return "badge-success" if self.status == "Closed" else "badge-warning"
 
     def update_totals(self):
-
             total_paid = sum(
                 (Decimal(str(p.amount)) for p in self.payments if p.status == "Completed"),
                 Decimal("0.00")
@@ -208,7 +265,10 @@ class Transaction(db.Model):
                     for inv in rental.invoices:
                         total_invoice_sum += Decimal(str(inv.amount_due or 0)) + Decimal(str(inv.late_fee or 0))
 
-                self.total_amount = total_invoice_sum
+                delivery_fee = Decimal(str(getattr(self, 'delivery_fee', 0) or 0))
+                voucher_amount = Decimal(str(getattr(self, 'voucher_amount', 0) or 0))
+
+                self.total_amount = max(total_invoice_sum + delivery_fee - voucher_amount, Decimal("0.00"))
             
             current_total = Decimal(str(self.total_amount or 0))
 
@@ -243,7 +303,7 @@ class Transaction(db.Model):
             else:
                 if self.status == "Closed":
                     self.status = "Open"
-                        
+                            
 class Payment(db.Model):
     __tablename__ = "payments"
 

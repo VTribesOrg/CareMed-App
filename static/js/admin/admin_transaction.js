@@ -85,6 +85,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 /*============= END OF PAGINATION =============*/
+
 /*============= START OF REFILL PROCESS =============*/
 document.addEventListener('DOMContentLoaded', () => {
     const refillSearchInput = document.getElementById('refill-search-input');
@@ -163,14 +164,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             row.innerHTML = `
                 <div style="flex: 1.1; min-width: 0;">
-                    <label style="font-weight: 700; color: #1e293b; margin-bottom: 4px; display: block; font-size: 0.8rem;">Outgoing Tank #${i} (To Return)</label>
+                    <label style="font-weight: 700; color: #1e293b; margin-bottom: 4px; display: block; font-size: 0.8rem;">Empty Tank #${i} (SN.)</label>
                     <select name="swapped_rental_serial" class="medical-select" required
                             style="width: 100%; height: 38px; padding: 0 10px; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #1e293b; font-size: 0.85rem; outline: none; box-sizing: border-box;">
                         ${rentalOptionsHtml}
                     </select>
                 </div>
                 <div style="flex: 0.9; min-width: 0;">
-                    <label style="font-weight: 700; color: #1e293b; margin-bottom: 4px; display: block; font-size: 0.8rem;">Incoming Tank #${i} (New SN)</label>
+                    <label style="font-weight: 700; color: #1e293b; margin-bottom: 4px; display: block; font-size: 0.8rem;">Full Tank #${i} (SN.)</label>
                     <input type="text" name="serial_numbers" value="${prevData.incomingSerial}" placeholder="e.g. OX-NEW0${i}" required 
                         style="width: 100%; height: 38px; padding: 0 12px; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #1e293b; font-size: 0.85rem; outline: none; box-sizing: border-box;">
                 </div>
@@ -693,9 +694,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    /*============= FINANCIAL AND CALCULATIONS LOGIC =============*/
+/*============= FINANCIAL AND CALCULATIONS LOGIC =============*/
     const amountPaidInput = document.getElementById('purchase-amount-paid');
+    const voucherInput = document.getElementById('purchase-voucher-amount');
+    
     amountPaidInput?.addEventListener('input', updatePurchaseBillingSummary);
+    voucherInput?.addEventListener('input', updatePurchaseBillingSummary);
 
     function updatePurchaseBillingSummary() {
         const countText = document.getElementById('purchase-items-count-text');
@@ -731,23 +735,44 @@ document.addEventListener('DOMContentLoaded', function() {
         if (countText) countText.innerText = `${totalItemsCount} Item(s) Selected`;
         if (grossBillDisplay) grossBillDisplay.innerText = `₱${grossTotalContract.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+        // 1. Get and handle Voucher / Discount amount display
+        let voucherAmount = cleanFloat(voucherInput?.value);
+        const voucherSummaryRow = document.getElementById('purchase-voucher-summary-row');
+        const voucherSummaryVal = document.getElementById('purchase-summary-voucher-val');
+
+        if (voucherSummaryRow) {
+            if (voucherAmount > 0) {
+                voucherSummaryRow.style.display = 'flex';
+                if (voucherSummaryVal) {
+                    voucherSummaryVal.innerText = `- ₱${voucherAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                }
+            } else {
+                voucherSummaryRow.style.display = 'none';
+            }
+        }
+
+        // 2. Calculate Net Total after voucher deduction (cannot be lower than 0)
+        let netTotal = Math.max(0, grossTotalContract - voucherAmount);
+
+        // 3. Handle Amount Paid auto-fill logic based on the net total
         let amountPaid = cleanFloat(amountPaidInput?.value);
         
         if (amountPaidInput && (amountPaidInput.value === "0.00" || amountPaidInput.value === "" || amountPaidInput.dataset.autoFilled === "true")) {
-            amountPaid = grossTotalContract;
-            amountPaidInput.value = grossTotalContract.toFixed(2);
+            amountPaid = netTotal;
+            amountPaidInput.value = netTotal.toFixed(2);
             amountPaidInput.dataset.autoFilled = "true";
         }
 
         if (summaryPaidDisplay) summaryPaidDisplay.innerText = `- ₱${amountPaid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-        const remainingBalance = Math.max(0, grossTotalContract - amountPaid);
+        // 4. Calculate Remaining Balance using Net Total minus Amount Paid
+        const remainingBalance = Math.max(0, netTotal - amountPaid);
         const balanceSubText = document.getElementById('purchase-balance-label');
         
         if (totalDisplay) {
             totalDisplay.innerText = `₱${remainingBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-            if (remainingBalance <= 0 && grossTotalContract > 0) {
+            if (remainingBalance <= 0 && netTotal > 0) {
                 totalDisplay.className = "total-amount-display status-paid";
                 if (balanceSubText) {
                     balanceSubText.textContent = "Fully Settled";
@@ -1136,10 +1161,12 @@ function calculateRentalTotals() {
     const hiddenReturnInput = document.getElementById('rent-return-date');
     const previewReturnText = document.getElementById('rent-return-date-preview');
     const cashInput = document.getElementById('rent-amount-paid');
+    const voucherInput = document.getElementById('rent-voucher-amount');
     const deliveryFeeInput = document.getElementById('rent-delivery-fee');
     const breakdownContainer = document.getElementById('rent-summary-items-breakdown');
 
     const amountPaid = cashInput ? (parseFloat(cashInput.value) || 0) : 0;
+    const voucherAmount = voucherInput ? (parseFloat(voucherInput.value) || 0) : 0;
     const deliveryFee = deliveryFeeInput ? (parseFloat(deliveryFeeInput.value) || 0) : 0;
     
     let durationVal = durationInput ? (parseInt(durationInput.value) || 1) : 1;
@@ -1234,7 +1261,9 @@ function calculateRentalTotals() {
         contractMultiplier = (durationVal * 7) / 30.0;
     }
 
-    const totalContract = (totalMonthlyRate * contractMultiplier) + deliveryFee;
+    const subtotalContract = (totalMonthlyRate * contractMultiplier) + deliveryFee;
+    const finalVoucher = Math.min(voucherAmount, subtotalContract);
+    const totalContract = Math.max(subtotalContract - finalVoucher, 0);
     const balance = totalContract - amountPaid;
 
     // ============== UI EXPANSIONS ==============
@@ -1250,7 +1279,19 @@ function calculateRentalTotals() {
 
     const totalBillText = document.getElementById('rent-total-bill');
     if (totalBillText) {
-        totalBillText.textContent = `₱${totalContract.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+        totalBillText.textContent = `₱${subtotalContract.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+    }
+
+    // Show/hide voucher row dynamically
+    const voucherRow = document.getElementById('summary-voucher-row');
+    const summaryVoucherValText = document.getElementById('summary-voucher-val');
+    if (voucherRow && summaryVoucherValText) {
+        if (finalVoucher > 0) {
+            voucherRow.style.display = 'flex';
+            summaryVoucherValText.textContent = `- ₱${finalVoucher.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+        } else {
+            voucherRow.style.display = 'none';
+        }
     }
 
     const summaryPaidValText = document.getElementById('summary-paid-val');

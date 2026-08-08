@@ -955,7 +955,7 @@ body.ready .viewport-container {
 }
 
 .register-asset-btn {
-    background: #52B788;
+    background: linear-gradient(135deg, #1B4332 0%, #2D6A4F 100%);
     color: white;
     border: none;
     padding: 0 20px;
@@ -966,7 +966,8 @@ body.ready .viewport-container {
     align-items: center;
     gap: 8px;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 12px rgba(27, 67, 50, 0.2);
     margin-left: auto;
     order: 2;
 }
