@@ -135,14 +135,12 @@ class Transaction(db.Model):
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
-    # --- Refill Specific Columns ---
     product_id = db.Column(db.Integer, db.ForeignKey("product.id", ondelete="SET NULL"), nullable=True)
     quantity = db.Column(db.Integer, nullable=True)
     refill_cost_per_unit = db.Column(db.Numeric(10, 2), nullable=True, default=0.00)
     serial_numbers = db.Column(db.Text, nullable=True)
     walk_in_tank_size = db.Column(db.String(50), nullable=True)
 
-    # Relationships
     customer = db.relationship("Customer", back_populates="transactions")
     admin = db.relationship("User", backref="processed_transactions")
     product = db.relationship("Product", backref="product_refills")
