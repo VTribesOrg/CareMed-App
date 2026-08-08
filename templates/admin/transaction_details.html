@@ -651,7 +651,7 @@
             <div class="ra-party-note">hereinafter referred to as the Lessee.</div>
         </div>
 
-        {# ── Section 1: Equipment Details ── #}
+{# ── Section 1: Equipment Details ── #}
         <div class="ra-section-title">1. Equipment Details</div>
         <table class="ra-equipment-table">
             <colgroup>
@@ -671,35 +671,68 @@
             <tbody>
                 {% set ns = namespace(total_rows=0) %}
                 {% if txn.rentals %}
+                    {# Step 1: Aggregate items strictly by Product Name, Size, Rate, and Duration into a single row #}
+                    {% set consolidated = {} %}
                     {% for item in txn.rentals %}
-                        {% set serials = (item.serial_number.replace(',', '/').split('/') if item.serial_number else [])|map('trim')|reject('equalto', '')|list %}
                         {% set duration %}{% if item.start_date and item.expected_return_date %}{{ item.start_date.strftime('%b %d') }} – {{ item.expected_return_date.strftime('%b %d, %Y') }}{% endif %}{% endset %}
-                        {% if serials|length == item.quantity and item.quantity > 1 %}
-                            {% for serial in serials %}
-                            <tr>
-                                <td>1</td>
-                                <td>{{ item.product.name if item.product else '—' }}</td>
-                                <td>{{ serial }}</td>
-                                <td></td>
-                                <td></td>
-                                <td>₱{{ "{:,.2f}".format(item.monthly_rate or 0) }}/mo</td>
-                                <td>{{ duration }}</td>
-                            </tr>
-                            {% set ns.total_rows = ns.total_rows + 1 %}
-                            {% endfor %}
+                        {% set prod_name = item.product.name if item.product else '—' %}
+                        {% set prod_size = item.product.size if item.product and item.product.size else (item.size or '') %}
+                        {% set rate = item.monthly_rate or 0 %}
+
+                        {# Define a grouping key based ONLY on product name, size, rate, and duration #}
+                        {% set key = prod_name ~ '|' ~ prod_size ~ '|' ~ rate ~ '|' ~ duration %}
+
+                        {# Gather serials for this item #}
+                        {% set item_serials = [] %}
+                        {% if item.tanks %}
+                            {% for tank in item.tanks %}{% set _ = item_serials.append(tank.serial_number) %}{% endfor %}
+                        {% elif txn.tanks and loop.first %}
+                            {% for tank in txn.tanks %}{% set _ = item_serials.append(tank.serial_number) %}{% endfor %}
+                        {% elif item.serial_numbers %}
+                            {% set item_serials = (item.serial_numbers.replace(',', '/').split('/')|map('trim')|reject('equalto', '')|list) %}
+                        {% elif txn.serial_numbers %}
+                            {% set item_serials = (txn.serial_numbers.replace(',', '/').split('/')|map('trim')|reject('equalto', '')|list) %}
+                        {% endif %}
+
+                        {% set item_qty = item.quantity if item.quantity else (item_serials|length if item_serials|length > 0 else 1) %}
+
+                        {% if key not in consolidated %}
+                            {% set _ = consolidated.update({
+                                key: {
+                                    'qty': item_qty, 
+                                    'name': prod_name, 
+                                    'size': prod_size, 
+                                    'serials': item_serials, 
+                                    'rate': rate, 
+                                    'duration': duration
+                                }
+                            }) %}
                         {% else %}
-                            <tr>
-                                <td>{{ item.quantity }}</td>
-                                <td>{{ item.product.name if item.product else '—' }}</td>
-                                <td>{{ item.serial_number or '—' }}</td>
-                                <td></td>
-                                <td></td>
-                                <td>₱{{ "{:,.2f}".format(item.monthly_rate or 0) }}/mo</td>
-                                <td>{{ duration }}</td>
-                            </tr>
-                            {% set ns.total_rows = ns.total_rows + 1 %}
+                            {% set existing = consolidated[key] %}
+                            {% set _ = existing.update({'qty': existing.qty + item_qty}) %}
+                            {% for s in item_serials %}
+                                {% if s not in existing.serials %}
+                                    {% set _ = existing.serials.append(s) %}
+                                {% endif %}
+                            {% endfor %}
                         {% endif %}
                     {% endfor %}
+
+                    {# Step 2: Render consolidated rows #}
+                    {% for key, data in consolidated.items() %}
+                    <tr>
+                        <td>{{ data.qty }}</td>
+                        <td>{{ data.name }}{% if data.size %} ({{ data.size }}){% endif %}</td>
+                        <td>{{ data.serials|join(', ') if data.serials|length > 0 else '—' }}</td>
+                        <td></td>
+                        <td></td>
+                        <td>₱{{ "{:,.2f}".format(data.rate) }}/mo</td>
+                        <td>{{ data.duration }}</td>
+                    </tr>
+                    {% set ns.total_rows = ns.total_rows + 1 %}
+                    {% endfor %}
+
+                    {# Pad remaining rows up to 6 to keep layout consistent #}
                     {% for i in range([6 - ns.total_rows, 0]|max) %}
                     <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
                     {% endfor %}

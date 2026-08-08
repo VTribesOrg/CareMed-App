@@ -1744,8 +1744,8 @@ input[type="number"].form-control {
 /*================== END OF MESSAGE NOTIFICATION ==================*/
 
 /* ═══════════════════════════════════════════════
-   PRINT RENTAL AGREEMENT STYLES
-   ═══════════════════════════════════════════════ */
+    PRINT RENTAL AGREEMENT STYLES
+    ═══════════════════════════════════════════════ */
 
 .print-receipt { display: none; }
 
@@ -1783,13 +1783,19 @@ input[type="number"].form-control {
 
     html, body {
         width: 100% !important;
-        height: auto !important;
+        height: 100% !important;
         margin: 0 !important;
         padding: 0 !important;
         background: white !important;
     }
 
-    body,
+    /* Use flexbox on body to center the print receipt horizontally */
+    body {
+        display: flex !important;
+        justify-content: center !important;
+        align-items: flex-start !important;
+    }
+
     .main-wrapper,
     .viewport-container,
     .content-area {
@@ -1808,8 +1814,9 @@ input[type="number"].form-control {
         font-size: 8.5pt;
         color: #111;
         padding: 0;
-        margin: 0;
+        margin: 0 auto !important;
         width: 100% !important;
+        max-width: 210mm !important; /* Locks width to A4 for proper centering */
     }
 
     /* ══════════════════════════════════════════
@@ -1817,7 +1824,7 @@ input[type="number"].form-control {
        ══════════════════════════════════════════ */
     .ra-wrapper {
         width: 100%;
-        margin: 0;
+        margin: 0 auto;
         padding: 0;
     }
 
@@ -1915,7 +1922,6 @@ input[type="number"].form-control {
         padding-top: 3px;
     }
 
-    /* Row: Name of Renter (left, full-ish) | Primary Contact (right) */
     .ra-party-row-top {
         display: flex;
         align-items: baseline;
@@ -1924,7 +1930,6 @@ input[type="number"].form-control {
         font-size: 8.5pt;
     }
 
-    /* Row: Address (left) | Secondary Contact (right) */
     .ra-party-row-mid {
         display: flex;
         align-items: baseline;
@@ -2010,7 +2015,6 @@ input[type="number"].form-control {
 
     .ra-equipment-table tbody tr { height: 20px; }
 
-    /* Column widths */
     .ra-equipment-table col:nth-child(1) { width: 9%; }
     .ra-equipment-table col:nth-child(2) { width: 31%; }
     .ra-equipment-table col:nth-child(3) { width: 12%; }
