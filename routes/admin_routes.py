@@ -5,7 +5,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy import func, or_, and_
 from flask_login import login_required
 from functools import wraps
-from models.product import Product, InventoryLog, Transaction, Purchase, Payment, Rental, RefillTransaction, RentalInvoice, Expense, PaymentProof, TankStatus, RentalTank, RentalTankLog
+from models.product import Product, InventoryLog, Transaction, Purchase, Payment, Rental, RentalInvoice, Expense, PaymentProof, TankStatus, RentalTank, RentalTankLog
 from models.customer import Customer
 from models.users import User, SecurityLog, BlockedIP, Permission
 from flask_mail import Message
@@ -144,10 +144,10 @@ def dashboard():
         Payment.status == 'Completed'
     ).scalar() or 0
 
-    # Calculate total refill profit
-    total_refill_profit = db.session.query(
-        func.sum(RefillTransaction.total_revenue)
-    ).scalar() or 0
+    # Compute refill revenue and profit using the unified Transaction model
+    refill_txns = Transaction.query.filter_by(transaction_type="Refill").all()
+    total_refill_rev = sum((t.total_amount for t in refill_txns), Decimal("0.00"))
+    total_refill_profit = sum((t.net_profit for t in refill_txns), Decimal("0.00"))
 
     active_rentals_count = Rental.query.filter_by(status='Active').count()
     
@@ -162,14 +162,12 @@ def dashboard():
         Product.is_refillable == False
     ).scalar() or 0
 
-    # ── Aggregate Tank Statuses ──────────────────────────────────────────
     raw_tank_data = TankStatus.query.join(Product).filter(Product.is_active == True).all()
     
     tank_aggregation = {}
     total_tank_count = 0
     
     for tank in raw_tank_data:
-        # Create a unique key based on name and size
         key = (tank.product.name, tank.product.size)
         
         if key not in tank_aggregation:
@@ -188,7 +186,6 @@ def dashboard():
         tank_aggregation[key]['full_in_stock'] += tank.full_in_stock
         tank_aggregation[key]['empty_in_stock'] += tank.empty_in_stock
         
-        # Add to total for inventory calculation
         total_tank_count += (tank.full_in_stock + tank.empty_in_stock + tank.rented_out)
 
     combined_tank_statuses = list(tank_aggregation.values())
@@ -253,7 +250,8 @@ def dashboard():
         'admin/dashboard.html',
         total_sales=total_sales,
         total_rentals=total_rentals,
-        total_refill_profit=total_refill_profit, # New variable added
+        total_refill_rev=total_refill_rev,
+        total_refill_profit=total_refill_profit,
         active_rentals_count=active_rentals_count,
         total_inventory=total_inventory,
         low_stock_count=low_stock_count,
@@ -342,6 +340,7 @@ def process_refill_transaction():
         customer_id = None
         display_name = "Walk-in Customer"
         product = None
+        serial_display_parts = []
         
         if buyer_type == 'registered':
             customer_id = request.form.get('refill_customer_id')
@@ -379,6 +378,10 @@ def process_refill_transaction():
 
                             rental_tank.serial_number = new_serial_clean
                             db.session.add(rental_tank)
+                            
+                            serial_display_parts.append(f"{old_serial} → {new_serial_clean}")
+                        else:
+                            serial_display_parts.append(new_serial_clean)
 
             if not product:
                 selected_tank_val = request.form.get('tank_size_select', '') or tank_size
@@ -390,6 +393,8 @@ def process_refill_transaction():
             selected_tank_val = tank_size or ''
             product_name = selected_tank_val.split(' - ')[0] if ' - ' in selected_tank_val else selected_tank_val
             product = Product.query.filter_by(name=product_name.strip(), is_refillable=True).first()
+            if serial_list:
+                serial_display_parts = [s.strip() for s in serial_list if s.strip()]
 
         if product:
             tank_status = TankStatus.query.filter_by(product_id=product.id).first()
@@ -407,18 +412,30 @@ def process_refill_transaction():
             flash("Inventory Error: Could not match refillable product inventory item.", "error")
             return redirect(url_for('admin.dashboard'))
 
-        new_transaction = RefillTransaction(
-            product_id=product.id,
+        final_serials_str = ", ".join(serial_display_parts) if serial_display_parts else "N/A"
+        
+        new_transaction = Transaction(
+            reference_no="TEMP",  
+            transaction_type="Refill",
+            product_id=product.id if product else None,
             customer_id=customer_id,
-            walk_in_name=display_name if buyer_type != 'registered' else None,
+            customer_name=display_name,
             walk_in_tank_size=tank_size if buyer_type != 'registered' else None,
             quantity=quantity,
-            total_revenue=amount,
+            total_amount=amount,
+            amount_paid=amount,
+            balance_due=Decimal("0.00"),
             refill_cost_per_unit=REFILL_COST,
-            serial_numbers=", ".join([s.strip() for s in serial_list]) if serial_list else "N/A",
-            processed_by_id=current_user.id
+            serial_numbers=final_serials_str,
+            payment_status="Fully Paid",
+            status="Closed",
+            fulfillment_type="Walk-in",
+            processed_by=current_user.id
         )
         db.session.add(new_transaction)
+        db.session.flush() 
+
+        new_transaction.reference_no = f"RFL-{new_transaction.id:06d}"
 
         log = InventoryLog(
             product_id=product.id,
@@ -578,11 +595,17 @@ def customer_details(id):
     customer = Customer.query.get_or_404(id)
 
     regular_txns = Transaction.query.filter_by(customer_id=id).all()
-    refill_txns = RefillTransaction.query.filter_by(customer_id=id).all()
+    refill_txns = Transaction.query.filter_by(customer_id=id, transaction_type="Refill").all()
+
+    for tx in regular_txns:
+        if not hasattr(tx, 'transaction_type'):
+            tx.transaction_type = "Standard"
+
+    combined_list = list(regular_txns) + list(refill_txns)
 
     transactions = sorted(
-        list(regular_txns) + list(refill_txns),
-        key=lambda x: x.created_at if x.created_at else datetime.min,
+        combined_list,
+        key=lambda x: x.created_at if getattr(x, 'created_at', None) else datetime.min,
         reverse=True
     )
 
@@ -1334,63 +1357,92 @@ def delete_product(product_id):
 def process_purchase():
     from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
     
-    is_ajax = request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
-    data = request.get_json() or request.form or {}
-
-    def handle_response(success, message, redirect_url=None, status_code=200):
-        """Helper to seamlessly manage both AJAX and traditional HTML Form responses."""
-        if is_ajax:
-            return jsonify({"success": success, "message": message}), status_code
-        else:
-            flash(message, "success" if success else "error")
-            return redirect(redirect_url or url_for('admin.transactions'))
-
     try:
         try:
-            amount_paid = Decimal(str(data.get('amount_paid', '0.00') or '0.00'))
+            raw_amount_paid = request.form.get('amount_paid')
+            if isinstance(raw_amount_paid, list):
+                raw_amount_paid = raw_amount_paid[0]
+            amount_paid = Decimal(str(raw_amount_paid or request.form.get('paid_amount') or '0.00'))
         except (ValueError, TypeError, InvalidOperation):
-            return handle_response(False, "Invalid numeric input for amount paid.", status_code=400)
+            flash("Invalid numeric input for amount paid.", "danger")
+            return redirect(request.referrer or url_for('admin.transactions'))
 
         try:
-            voucher_amount = Decimal(str(data.get('voucher_amount', '0.00') or '0.00'))
+            raw_voucher = request.form.get('voucher_amount') or request.form.get('voucher') or request.form.get('discount') or '0.00'
+            if isinstance(raw_voucher, list):
+                raw_voucher = raw_voucher[0]
+            voucher_amount = Decimal(str(raw_voucher))
         except (ValueError, TypeError, InvalidOperation):
-            return handle_response(False, "Invalid numeric input for voucher amount.", status_code=400)
+            flash("Invalid numeric input for voucher amount.", "danger")
+            return redirect(request.referrer or url_for('admin.transactions'))
 
         if voucher_amount < 0:
-            return handle_response(False, "Voucher or discount amount cannot be negative.", status_code=400)
+            flash("Voucher or discount amount cannot be negative.", "danger")
+            return redirect(request.referrer or url_for('admin.transactions'))
 
-        buyer_type = data.get('buyer_type', 'registered')
-        customer_id = data.get('customer_id')
+        buyer_type = request.form.get('buyer_type', 'registered')
+        if isinstance(buyer_type, list):
+            buyer_type = buyer_type[0]
+            
+        customer_id = request.form.get('customer_id')
+        if isinstance(customer_id, list):
+            customer_id = customer_id[0]
 
-        customer_name = (data.get('unregistered_customer_name') or data.get('customer_name') or '').strip()
+        customer_name_raw = request.form.get('unregistered_customer_name') or request.form.get('customer_name') or ''
+        if isinstance(customer_name_raw, list):
+            customer_name_raw = customer_name_raw[0]
+        customer_name = customer_name_raw.strip()
 
         if buyer_type == 'registered':
             if not customer_id:
-                return handle_response(False, "Registered customer selection is required.", status_code=400)
+                flash("Registered customer selection is required.", "danger")
+                return redirect(request.referrer or url_for('admin.transactions'))
             
             customer = db.session.get(Customer, int(customer_id))
             if not customer:
-                return handle_response(False, "Selected customer profile not found.", status_code=404)
+                flash("Selected customer profile not found.", "danger")
+                return redirect(request.referrer or url_for('admin.transactions'))
 
             customer_name = customer.full_name
         else:
             if not customer_name:
-                return handle_response(False, "Walk-In Buyer / Patient full name is required.", status_code=400)
+                flash("Walk-In Buyer / Patient full name is required.", "danger")
+                return redirect(request.referrer or url_for('admin.transactions'))
             customer_id = None
 
-        items_data = data.get('items', [])
+        items_data = request.form.get('items', [])
+        if isinstance(items_data, list) and len(items_data) == 1 and isinstance(items_data[0], str):
+            try:
+                items_data = json.loads(items_data[0])
+            except (json.JSONDecodeError, TypeError):
+                pass
+
         if isinstance(items_data, str):
             try:
                 items_data = json.loads(items_data)
             except (json.JSONDecodeError, TypeError):
-                return handle_response(False, "Failed to decode basket collection elements.", status_code=400)
+                flash("Failed to decode basket collection elements.", "danger")
+                return redirect(request.referrer or url_for('admin.transactions'))
 
         if not items_data or not isinstance(items_data, list):
-            return handle_response(False, "Please select at least one item to purchase.", status_code=400)
+            flash("Please select at least one item to purchase.", "danger")
+            return redirect(request.referrer or url_for('admin.transactions'))
 
         now = datetime.now()
         ref_no = f"PUR-{now:%m%d%Y}-{now:%H%M%S}-{''.join(random.choices(string.ascii_uppercase + string.digits, k=4))}"
-        fulfillment = data.get("fulfillment_type", "Walk-In")
+        
+        fulfillment_raw = request.form.get("fulfillment_type", "Walk-In")
+        if isinstance(fulfillment_raw, list):
+            fulfillment_raw = fulfillment_raw[0]
+        fulfillment = fulfillment_raw
+
+        delivery_addr_raw = request.form.get("delivery_address")
+        if isinstance(delivery_addr_raw, list):
+            delivery_addr_raw = delivery_addr_raw[0]
+            
+        landmark_raw = request.form.get("landmark")
+        if isinstance(landmark_raw, list):
+            landmark_raw = landmark_raw[0]
 
         new_transaction = Transaction(
             reference_no=ref_no,
@@ -1401,16 +1453,15 @@ def process_purchase():
             total_amount=Decimal("0.00"),
             voucher_amount=voucher_amount,
             fulfillment_type=fulfillment,
-            delivery_address=data.get("delivery_address") if fulfillment == "Delivery" else None,
-            landmark=data.get("landmark") if fulfillment == "Delivery" else None,
+            delivery_address=delivery_addr_raw if fulfillment == "Delivery" else None,
+            landmark=landmark_raw if fulfillment == "Delivery" else None,
             delivery_status="Pending" if fulfillment == "Delivery" else "N/A",
+            tracking_status="SUBMITTED",
             status="Open"
         )
 
         db.session.add(new_transaction)
         db.session.flush() 
-
-        total_transaction_price = Decimal('0.00')
 
         for item in items_data:
             try:
@@ -1419,28 +1470,32 @@ def process_purchase():
                 unit_price = Decimal(str(item.get('price', '0.00')))
             except (ValueError, TypeError, InvalidOperation):
                 db.session.rollback()
-                return handle_response(False, "Invalid numeric values detected inside basket components.", status_code=400)
+                flash("Invalid numeric values detected inside basket components.", "danger")
+                return redirect(request.referrer or url_for('admin.transactions'))
 
             if quantity <= 0:
                 db.session.rollback()
-                return handle_response(False, "Quantity must be at least 1 for all selected products.", status_code=400)
+                flash("Quantity must be at least 1 for all selected products.", "danger")
+                return redirect(request.referrer or url_for('admin.transactions'))
 
             product = Product.query.filter_by(id=product_id).with_for_update().first()
 
             if not product:
                 db.session.rollback()
-                return handle_response(False, f"Product entry unique ID {product_id} is unavailable.", status_code=404)
+                flash(f"Product entry unique ID {product_id} is unavailable.", "danger")
+                return redirect(request.referrer or url_for('admin.transactions'))
 
             if not product.is_active:
                 db.session.rollback()
-                return handle_response(False, f"'{product.name}' has been archived.", status_code=400)
+                flash(f"'{product.name}' has been archived.", "danger")
+                return redirect(request.referrer or url_for('admin.transactions'))
 
             if product.stock < quantity:
                 db.session.rollback()
-                return handle_response(False, f"Only {product.stock} units left in stock for '{product.name}'.", status_code=400)
+                flash(f"Only {product.stock} units left in stock for '{product.name}'.", "danger")
+                return redirect(request.referrer or url_for('admin.transactions'))
 
             item_total_price = (unit_price * quantity).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-            total_transaction_price += item_total_price
 
             product.stock -= quantity
 
@@ -1458,6 +1513,10 @@ def process_purchase():
                     (product.tank_status.total_owned or 0) - quantity, 0
                 )
 
+            notes_raw = request.form.get("warranty_or_notes", "")
+            if isinstance(notes_raw, list):
+                notes_raw = notes_raw[0]
+
             db.session.add(Purchase(
                 transaction_id=new_transaction.id,
                 product_id=product.id,
@@ -1465,7 +1524,7 @@ def process_purchase():
                 quantity=quantity,
                 unit_price=unit_price,
                 total_price=item_total_price,
-                warranty_or_notes=(data.get("warranty_or_notes") or "").strip(),
+                warranty_or_notes=(notes_raw or "").strip(),
                 product_name=product.name,
                 product_asset_tag=product.asset_tag,
                 product_type=getattr(product, 'equipment_type', None) or getattr(product, 'product_type', None),
@@ -1488,23 +1547,24 @@ def process_purchase():
                 user_name=getattr(current_user, 'full_name', 'System Administrator')
             ))
 
-        final_transaction_total = max(total_transaction_price - voucher_amount, Decimal("0.00"))
-        new_transaction.total_amount = final_transaction_total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
         if amount_paid > 0:
-            payment_method = (data.get("payment_method") or "Cash").strip()
-            reference_number = ((data.get("reference_number") or "").strip())
+            pm_raw = request.form.get("payment_method", "Cash")
+            if isinstance(pm_raw, list):
+                pm_raw = pm_raw[0]
+            payment_method = (pm_raw or "Cash").strip()
+            
+            ref_num_raw = request.form.get("reference_number", "")
+            if isinstance(ref_num_raw, list):
+                ref_num_raw = ref_num_raw[0]
+            reference_number = (ref_num_raw or "").strip()
 
             if payment_method.lower() == "cash":
                 reference_number = None
             else:
                 if not reference_number:
                     db.session.rollback()
-                    return handle_response(
-                        False,
-                        "Reference number is required for non-cash payments.",
-                        status_code=400
-                    )
+                    flash("Reference number is required for non-cash payments.", "danger")
+                    return redirect(request.referrer or url_for('admin.transactions'))
 
                 existing_payment = Payment.query.filter_by(
                     reference_number=reference_number
@@ -1512,11 +1572,10 @@ def process_purchase():
 
                 if existing_payment:
                     db.session.rollback()
-                    return handle_response(
-                        False,
-                        "Payment reference number already exists.",
-                        status_code=400
-                    )
+                    flash("Payment reference number already exists.", "danger")
+                    return redirect(request.referrer or url_for('admin.transactions'))
+
+            new_transaction.payment_method = payment_method
 
             db.session.add(Payment(
                 transaction_id=new_transaction.id,
@@ -1528,18 +1587,18 @@ def process_purchase():
                 verified_at=datetime.utcnow()
             ))
 
-        if hasattr(new_transaction, 'update_totals'):
-            new_transaction.update_totals()
+        new_transaction.update_totals()
             
         db.session.commit()
-        return handle_response(True, f"Purchase {ref_no} completed successfully!")
+        flash(f"Purchase created: {ref_no}", "success")
+        return redirect(url_for("admin.transactions"))
 
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"PURCHASE_ERROR: {str(e)}")
-        return handle_response(False, f"Server error occurred during purchase processing sequence.", status_code=500)
-    
-       
+        flash("Purchase processing failed.", "danger")
+        return redirect(request.referrer or url_for('admin.transactions'))
+        
 @admin_bp.route('/process-rental', methods=['POST'])
 @login_required
 @admin_or_staff_required
@@ -1579,11 +1638,11 @@ def process_rental():
 
         new_txn = Transaction(
             reference_no=ref_no,
-            customer_id=request.form.get('customer_id'),
+            customer_id=request.form.get('customer_id') or None,
             transaction_type="Rental",
             total_amount=Decimal("0.00"),
-            voucher_amount=voucher_amount if hasattr(Transaction, 'voucher_amount') else None,
-            delivery_fee=delivery_fee if hasattr(Transaction, 'delivery_fee') else None,
+            voucher_amount=voucher_amount,
+            delivery_fee=delivery_fee,
             fulfillment_type=fulfillment_type,
             status="Open"
         )
@@ -1696,12 +1755,6 @@ def process_rental():
 
         db.session.flush()
         db.session.expire(new_txn, ['payments'])
-
-        if hasattr(new_txn, 'voucher_amount'):
-            new_txn.voucher_amount = voucher_amount
-
-        if hasattr(new_txn, 'delivery_fee'):
-            new_txn.delivery_fee = delivery_fee
 
         if amount_paid > 0:
             payment_method = request.form.get('payment_method', 'Cash').strip()
@@ -1957,6 +2010,7 @@ def transactions():
         datetime_now_date=current_date,
         **stats
     )
+    
     
 @admin_bp.route('/active-rentals')
 @login_required

@@ -138,14 +138,15 @@
                         </a>
                     </li>
 
-                    {# ── Inventory ── #}
-                    {% set can_products = current_user.role.strip() == 'Administrator' or (current_user.permissions and current_user.permissions.can_manage_products) %}
-                    <li class="nav-item" title="Inventory">
-                        <a href="{{ url_for('admin.products') if can_products else 'javascript:void(0)' }}"
-                            class="nav-link {% if request.endpoint == 'admin.products' %}active{% endif %} {% if not can_products %}nav-locked{% endif %}">
-                            <span class="material-symbols-rounded">inventory_2</span>
-                            <span class="nav-label">Inventory</span>
-                            {% if not can_products %}<span class="material-symbols-rounded nav-lock-icon">lock</span>{% endif %}
+                    
+                    {# ── Transactions ── #}
+                    {% set can_transactions = current_user.role.strip() == 'Administrator' or (current_user.permissions and current_user.permissions.can_process_transactions) %}
+                    <li class="nav-item" title="Transactions">
+                        <a href="{{ url_for('admin.transactions') if can_transactions else 'javascript:void(0)' }}"
+                            class="nav-link {% if request.endpoint in ['admin.transactions', 'admin.transaction_details'] %}active{% endif %} {% if not can_transactions %}nav-locked{% endif %}">
+                            <span class="material-symbols-rounded">receipt_long</span>
+                            <span class="nav-label">Transactions</span>
+                            {% if not can_transactions %}<span class="material-symbols-rounded nav-lock-icon">lock</span>{% endif %}
                         </a>
                     </li>
 
@@ -160,14 +161,14 @@
                         </a>
                     </li>
 
-                    {# ── Transactions ── #}
-                    {% set can_transactions = current_user.role.strip() == 'Administrator' or (current_user.permissions and current_user.permissions.can_process_transactions) %}
-                    <li class="nav-item" title="Transactions">
-                        <a href="{{ url_for('admin.transactions') if can_transactions else 'javascript:void(0)' }}"
-                            class="nav-link {% if request.endpoint in ['admin.transactions', 'admin.transaction_details'] %}active{% endif %} {% if not can_transactions %}nav-locked{% endif %}">
-                            <span class="material-symbols-rounded">receipt_long</span>
-                            <span class="nav-label">Transactions</span>
-                            {% if not can_transactions %}<span class="material-symbols-rounded nav-lock-icon">lock</span>{% endif %}
+                    {# ── Inventory ── #}
+                    {% set can_products = current_user.role.strip() == 'Administrator' or (current_user.permissions and current_user.permissions.can_manage_products) %}
+                    <li class="nav-item" title="Inventory">
+                        <a href="{{ url_for('admin.products') if can_products else 'javascript:void(0)' }}"
+                            class="nav-link {% if request.endpoint == 'admin.products' %}active{% endif %} {% if not can_products %}nav-locked{% endif %}">
+                            <span class="material-symbols-rounded">inventory_2</span>
+                            <span class="nav-label">Inventory</span>
+                            {% if not can_products %}<span class="material-symbols-rounded nav-lock-icon">lock</span>{% endif %}
                         </a>
                     </li>
 

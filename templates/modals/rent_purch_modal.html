@@ -327,8 +327,8 @@
                     </div>
 
                 <div id="purchase-customer-dropdown-list" class="custom-search-dropdown hidden" style="position: absolute; top: 100%; left: 0; width: 100%; z-index: 1050; max-height: 200px; margin-top: 4px; overflow-y: auto; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; box-shadow: 0px 4px 12px rgba(0,0,0,0.1);">
-                    {% if customers %}  {# <-- Changed from all_customers #}
-                        {% for customer in customers %}  {# <-- Changed from all_customers #}
+                    {% if customers %}
+                        {% for customer in customers %}
                             <div class="purchase-customer-option-item" 
                                 data-id="{{ customer.id }}" 
                                 data-name="{{ customer.full_name }}" 

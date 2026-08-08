@@ -151,44 +151,90 @@
             <table class="cdp-table">
                 <thead>
                     <tr>
-                        <th>Date</th>
+                        <th>Date & Time</th>
                         <th>Transaction ID</th>
                         <th>Description</th>
-                        <th>Serial #</th> <th>Amount</th>
+                        <th>Serial #</th> 
+                        <th>Amount</th>
                         <th>Status</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for transaction in transactions %}
-                    <tr class="clickable-row" data-href="{{ url_for('admin.transaction_details', id=transaction.id) }}">
-                        <td>{{ transaction.display_date }}</td>
+                    <tr class="clickable-row" data-href="{% if transaction.transaction_type == 'Refill' %}#{% else %}{{ url_for('admin.transaction_details', id=transaction.id) }}{% endif %}">
                         <td>
-                            <a href="{{ url_for('admin.transaction_details', id=transaction.id) }}" class="tx-link">
-                                <code class="tx-id">#{{ transaction.id }}</code>
-                                <span class="material-symbols-rounded">open_in_new</span>
-                            </a>
+                            {% if transaction.created_at %}
+                                <div style="display: flex; flex-direction: column; white-space: nowrap; line-height: 1.2;">
+                                    <span style="font-weight: 500; color: #1e293b;">{{ transaction.created_at.strftime('%b %d, %Y') }}</span>
+                                    <span style="font-size: 0.75rem; color: #64748b; margin-top: 2px;">{{ transaction.created_at.strftime('%I:%M %p') }}</span>
+                                </div>
+                            {% else %}
+                                <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if transaction.transaction_type == 'Refill' %}
+                                <span class="tx-link" style="text-decoration: none; color: inherit;">
+                                    <code class="tx-id">#REF-{{ transaction.id }}</code>
+                                </span>
+                            {% else %}
+                                <a href="{{ url_for('admin.transaction_details', id=transaction.id) }}" class="tx-link">
+                                    <code class="tx-id">#{{ transaction.id }}</code>
+                                    <span class="material-symbols-rounded">open_in_new</span>
+                                </a>
+                            {% endif %}
                         </td>
                         <td>{{ transaction.description }}</td>
-<td>
-                            <div style="max-width: 220px; overflow-x: auto; white-space: nowrap; padding-bottom: 2px;">
-                                {% if transaction.transaction_type == "Refill" and transaction.serial_numbers %}
-                                    <div style="font-size: 0.75rem; color: #64748b; display: inline-block;">
-                                        {{ transaction.serial_numbers }}
+                        <td>
+                            <div style="max-width: 150px; overflow-x: auto; white-space: nowrap; padding-bottom: 2px;">
+                                {% if transaction.transaction_type == "Refill" and transaction.serial_numbers and transaction.serial_numbers != "N/A" %}
+                                    <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                                        {% for s in transaction.serial_numbers.split(',') %}
+                                            {% set clean_s = s.strip() %}
+                                            {% if '→' in clean_s %}
+                                                {% set parts = clean_s.split('→') %}
+                                                <span style="font-size: 0.75rem; background: #f1f5f9; color: #64748b; padding: 2px 6px; border-radius: 4px; font-weight: 500; display: inline-flex; align-items: center; gap: 4px;">
+                                                    <span style="text-decoration: line-through; color: #94a3b8;">{{ parts[0].strip() }}</span>
+                                                    &rarr;
+                                                    <strong style="color: #0d9488;">{{ parts[1].strip() }}</strong>
+                                                </span>
+                                            {% else %}
+                                                <span style="font-size: 0.75rem; background: #f1f5f9; color: #0d9488; padding: 2px 6px; border-radius: 4px; font-weight: 500;">
+                                                    {{ clean_s }}
+                                                </span>
+                                            {% endif %}
+                                        {% endfor %}
                                     </div>
                                 {% elif transaction.rentals %}
+                                    {% set has_logs = namespace(value=false) %}
                                     {% for rental in transaction.rentals %}
                                         {% if rental.tank_logs %}
+                                            {% set has_logs.value = true %}
                                             {% for log in rental.tank_logs %}
                                                 <div style="font-size: 0.75rem; color: #64748b; display: inline-flex; align-items: center; gap: 6px; margin-right: 8px;">
                                                     <span style="text-decoration: line-through; color: #94a3b8;">{{ log.old_serial_number or 'N/A' }}</span>
                                                     &rarr; 
                                                     <strong style="color: #0d9488;">{{ log.new_serial_number }}</strong>
-                                                    <span style="font-size: 0.65rem; color: #94a3b8;">({{ log.created_at.strftime('%b %d, %Y') }})</span>
                                                 </div>
                                             {% endfor %}
                                         {% endif %}
-                                        
                                     {% endfor %}
+                                    
+                                    {% if not has_logs.value %}
+                                        <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                                            {% for rental in transaction.rentals %}
+                                                {% if rental.serial_number %}
+                                                    <span style="font-size: 0.75rem; background: #f1f5f9; color: #0d9488; padding: 2px 6px; border-radius: 4px; font-weight: 500;">
+                                                        {{ rental.serial_number }}
+                                                    </span>
+                                                {% elif rental.tank and rental.tank.serial_number %}
+                                                    <span style="font-size: 0.75rem; background: #f1f5f9; color: #0d9488; padding: 2px 6px; border-radius: 4px; font-weight: 500;">
+                                                        {{ rental.tank.serial_number }}
+                                                    </span>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
                                 {% else %}
                                     <span class="text-muted" style="font-size: 0.7rem;">N/A</span>
                                 {% endif %}

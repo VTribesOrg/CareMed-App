@@ -36,78 +36,6 @@ class Product(db.Model):
     tank_status = db.relationship("TankStatus", back_populates="product", uselist=False, cascade="all, delete-orphan")
     inventory_logs = db.relationship("InventoryLog", back_populates="product", passive_deletes=True)
     
-class RefillTransaction(db.Model):
-    __tablename__ = "refill_transaction"
-
-    id = db.Column(db.Integer, primary_key=True)
-    
-    product_id = db.Column(db.Integer, db.ForeignKey("product.id"), nullable=True) 
-    customer_id = db.Column(db.Integer, db.ForeignKey("customer.id"), nullable=True)
-
-    walk_in_name = db.Column(db.String(255), nullable=True)
-    walk_in_tank_size = db.Column(db.String(50), nullable=True)
-    
-    quantity = db.Column(db.Integer, nullable=False)
-    total_revenue = db.Column(db.Numeric(10, 2), nullable=False)
-    refill_cost_per_unit = db.Column(db.Numeric(10, 2), default=0.00)
-
-    serial_numbers = db.Column(db.Text, nullable=False)
-    processed_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
-    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
-
-    product = db.relationship("Product", backref="refill_transactions")
-    customer = db.relationship("Customer", backref="refill_transactions")
-
-    @property
-    def total_cost(self):
-        return self.quantity * self.refill_cost_per_unit
-
-    @property
-    def net_profit(self):
-        return self.total_revenue - self.total_cost
-
-    @property
-    def reference_no(self):
-        return f"RFL-{self.id:06d}"
-
-    @property
-    def display_amount(self):
-        return self.total_revenue or Decimal("0.00")
-
-    @property
-    def display_date(self):
-        if not self.created_at:
-            return "N/A"
-        return self.created_at.strftime('%b %d, %Y')
-
-    @property
-    def description(self):
-        tank_desc = f" ({self.walk_in_tank_size})" if self.walk_in_tank_size else ""
-        prod_name = self.product.name if self.product else "Tank Refill"
-        return f"Refill: {prod_name}{tank_desc} x{self.quantity}"
-
-    @property
-    def transaction_type(self):
-        return "Refill"
-
-    @property
-    def status(self):
-        return "Closed"
-
-    @property
-    def status_badge(self):
-        return "badge-success"
-
-    @property
-    def payment_status(self):
-        return "Fully Paid"
-
-    @property
-    def customer_name(self):
-        if self.customer and hasattr(self.customer, 'name'):
-            return self.customer.name
-        return self.walk_in_name or "Walk-in Customer"
-    
 class TankStatus(db.Model):
     __tablename__ = "tank_status"
 
@@ -192,10 +120,11 @@ class Transaction(db.Model):
     customer_name = db.Column(db.String(255))
     processed_by = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     
-    transaction_type = db.Column(db.String(20), nullable=False) 
+    transaction_type = db.Column(db.String(20), nullable=False) # "Sale", "Rental", "Refill"
     
     total_amount = db.Column(db.Numeric(10, 2), nullable=False, default=0.00)
     voucher_amount = db.Column(db.Numeric(10, 2), nullable=False, default=0.00)
+    delivery_fee = db.Column(db.Numeric(10, 2), nullable=False, default=0.00)
     amount_paid = db.Column(db.Numeric(10, 2), default=0.00)
     balance_due = db.Column(db.Numeric(10, 2), default=0.00)
     
@@ -206,8 +135,17 @@ class Transaction(db.Model):
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
+    # --- Refill Specific Columns ---
+    product_id = db.Column(db.Integer, db.ForeignKey("product.id", ondelete="SET NULL"), nullable=True)
+    quantity = db.Column(db.Integer, nullable=True)
+    refill_cost_per_unit = db.Column(db.Numeric(10, 2), nullable=True, default=0.00)
+    serial_numbers = db.Column(db.Text, nullable=True)
+    walk_in_tank_size = db.Column(db.String(50), nullable=True)
+
+    # Relationships
     customer = db.relationship("Customer", back_populates="transactions")
     admin = db.relationship("User", backref="processed_transactions")
+    product = db.relationship("Product", backref="product_refills")
     purchases = db.relationship("Purchase", back_populates="transaction", cascade="all, delete-orphan")
     rentals = db.relationship("Rental", back_populates="transaction", cascade="all, delete-orphan")
     
@@ -220,6 +158,24 @@ class Transaction(db.Model):
     delivery_address = db.Column(db.Text, nullable=True)
     landmark = db.Column(db.String(255), nullable=True) 
 
+    # --- Refill Specific Financial Properties ---
+    @property
+    def total_cost(self):
+        if self.transaction_type == "Refill" and self.quantity and self.refill_cost_per_unit:
+            return Decimal(str(self.quantity)) * Decimal(str(self.refill_cost_per_unit))
+        return Decimal("0.00")
+
+    @property
+    def net_profit(self):
+        if self.transaction_type == "Refill":
+            revenue = Decimal(str(self.total_amount or 0))
+            return revenue - self.total_cost
+        return Decimal("0.00")
+
+    @property
+    def gross_amount(self):
+        return (self.total_amount or Decimal("0.00")) + (self.voucher_amount or Decimal("0.00"))
+
     @property
     def display_amount(self):
         return self.total_amount or Decimal("0.00")
@@ -228,6 +184,8 @@ class Transaction(db.Model):
     def display_date(self):
         if not self.created_at:
             return "N/A"
+        if self.transaction_type == "Refill":
+            return self.created_at.strftime('%b %d, %Y %I:%M %p')
         return self.created_at.strftime('%b %d, %Y')
 
     @property
@@ -236,74 +194,90 @@ class Transaction(db.Model):
             return "Product Purchase"
         elif self.transaction_type == "Rental":
             return "Rental Transaction"
+        elif self.transaction_type == "Refill":
+            tank_desc = f" ({self.walk_in_tank_size})" if self.walk_in_tank_size else ""
+            prod_name = self.product.name if self.product else "Tank Refill"
+            qty = self.quantity or 1
+            return f"Refill: {prod_name}{tank_desc} x{qty}"
         return "Transaction"
     
     @property
     def tracking_stage(self):
         if self.status and self.status.lower() == "cancelled":
             return "CANCELLED"
-
         if self.tracking_status:
             return self.tracking_status.upper()
-
         return "SUBMITTED"
 
     @property
     def status_badge(self):
+        if self.transaction_type == "Refill":
+            return "badge-success"
         return "badge-success" if self.status == "Closed" else "badge-warning"
 
     def update_totals(self):
-            total_paid = sum(
-                (Decimal(str(p.amount)) for p in self.payments if p.status == "Completed"),
+        if self.transaction_type == "Refill":
+            self.balance_due = Decimal("0.00")
+            self.payment_status = "Fully Paid"
+            self.status = "Closed"
+            return
+
+        total_paid = sum(
+            (Decimal(str(p.amount)) for p in self.payments if p.status == "Completed"),
+            Decimal("0.00")
+        )
+        self.amount_paid = total_paid
+
+        delivery_fee = Decimal(str(self.delivery_fee or 0))
+        voucher_amount = Decimal(str(self.voucher_amount or 0))
+
+        if self.transaction_type == "Rental":
+            total_invoice_sum = Decimal("0.00")
+            for rental in self.rentals:
+                for inv in rental.invoices:
+                    total_invoice_sum += Decimal(str(inv.amount_due or 0)) + Decimal(str(inv.late_fee or 0))
+
+            self.total_amount = max(total_invoice_sum + delivery_fee - voucher_amount, Decimal("0.00"))
+            
+        elif self.transaction_type == "Sale":
+            subtotal = sum(
+                (Decimal(str(p.total_price or (Decimal(str(p.unit_price or 0)) * Decimal(str(p.quantity or 0))))) for p in self.purchases),
                 Decimal("0.00")
             )
-            self.amount_paid = total_paid
+            self.total_amount = max(subtotal + delivery_fee - voucher_amount, Decimal("0.00"))
 
-            if self.transaction_type == "Rental":
-                total_invoice_sum = Decimal("0.00")
-                for rental in self.rentals:
-                    for inv in rental.invoices:
-                        total_invoice_sum += Decimal(str(inv.amount_due or 0)) + Decimal(str(inv.late_fee or 0))
+        current_total = Decimal(str(self.total_amount or 0))
+        self.balance_due = max(current_total - total_paid, Decimal("0.00"))
 
-                delivery_fee = Decimal(str(getattr(self, 'delivery_fee', 0) or 0))
-                voucher_amount = Decimal(str(getattr(self, 'voucher_amount', 0) or 0))
+        if total_paid <= 0:
+            self.payment_status = "Unpaid"
+        elif total_paid < current_total:
+            self.payment_status = "Partially Paid"
+        else:
+            self.payment_status = "Fully Paid"
 
-                self.total_amount = max(total_invoice_sum + delivery_fee - voucher_amount, Decimal("0.00"))
-            
-            current_total = Decimal(str(self.total_amount or 0))
-
-            self.balance_due = max(current_total - total_paid, Decimal("0.00"))
-
-            if total_paid <= 0:
-                self.payment_status = "Unpaid"
-            elif total_paid < current_total:
-                self.payment_status = "Partially Paid"
-            else:
-                self.payment_status = "Fully Paid"
-
-            if self.payment_status == "Fully Paid":
-                if self.transaction_type == "Sale":
-                    if self.fulfillment_type == "Delivery":
-                        if (self.delivery_status == "Delivered"
-                                or self.tracking_status == "DELIVERED"):
-                            self.status = "Closed"
-                            self.delivery_status = "Delivered"  
+        if self.payment_status == "Fully Paid":
+            if self.transaction_type == "Sale":
+                if self.fulfillment_type == "Delivery":
+                    if (self.delivery_status == "Delivered" or self.tracking_status == "DELIVERED"):
+                        self.status = "Closed"
+                        self.delivery_status = "Delivered"  
                     else:  
                         if self.delivery_status in ["Walk-in", "N/A"]:
                             self.status = "Closed"
 
-                elif self.transaction_type == "Rental":
-                    if self.rentals and all(r.status == "Returned" for r in self.rentals):
-                        all_invoices_paid = all(
-                            all(inv.status == "Paid" for inv in r.invoices) 
-                            for r in self.rentals
-                        )
-                        if all_invoices_paid:
-                            self.status = "Closed"
-            else:
-                if self.status == "Closed":
-                    self.status = "Open"
-                            
+            elif self.transaction_type == "Rental":
+                if self.rentals and all(r.status == "Returned" for r in self.rentals):
+                    all_invoices_paid = all(
+                        all(inv.status == "Paid" for inv in r.invoices) 
+                        for r in self.rentals
+                    )
+                    if all_invoices_paid:
+                        self.status = "Closed"
+        else:
+            if self.status == "Closed":
+                self.status = "Open"
+                                       
 class Payment(db.Model):
     __tablename__ = "payments"
 

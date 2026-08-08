@@ -820,7 +820,6 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
 
             const submitBtn = this.querySelector('button[type="submit"]');
-            const formData = new FormData(this);
 
             if (purchaseBasket.length === 0) {
                 alert("Error: Please select at least one component or product item to purchase.");
@@ -830,9 +829,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const buyerTypeEle = this.querySelector('input[name="buyer_type"]:checked');
             const buyerType = buyerTypeEle ? buyerTypeEle.value : 'registered';
             
-            let customerIdPayload = null;
-            let customerNamePayload = null;
-
             if (buyerType === 'registered') {
                 const customerId = document.getElementById('purchase-customer-id')?.value;
                 const customerName = customerSearchInput?.value?.trim();
@@ -841,67 +837,34 @@ document.addEventListener('DOMContentLoaded', function() {
                     alert("Please search and select the name of the customer from the options list.");
                     return;
                 }
-                customerIdPayload = /^\d+$/.test(customerId) ? parseInt(customerId, 10) : customerId;
-                customerNamePayload = customerName;
             } else {
-                const walkInName = customNameInput?.value?.trim(); // Fixed lookup pointer variable link
+                const walkInName = customNameInput?.value?.trim();
                 if (!walkInName) {
                     alert("Please enter the name of the customer.");
                     return;
                 }
-                customerNamePayload = walkInName;
             }
 
-            const amountPaid = cleanFloat(document.getElementById('purchase-amount-paid')?.value);
-
-            const payload = {
-                buyer_type: buyerType,
-                customer_id: customerIdPayload,
-                customer_name: customerNamePayload,
-                items: purchaseBasket.map(i => ({ 
-                    id: /^\d+$/.test(i.id) ? parseInt(i.id, 10) : i.id, 
-                    quantity: cleanInt(i.quantity), 
-                    price: cleanFloat(i.price) 
-                })),
-                payment_method: formData.get('payment_method'),
-                amount_paid: amountPaid,
-                reference_number: formData.get('reference_number') || "",
-                fulfillment_type: formData.get('fulfillment_type'),
-                delivery_address: formData.get('delivery_address') || "",
-                landmark: formData.get('landmark') || "",
-                warranty_or_notes: formData.get('warranty_or_notes')?.trim() || ""
-            };
+            // Temporarily inject the serialized basket items into a hidden form field 
+            // so request.form can read it just like a traditional form submission.
+            let itemsInput = this.querySelector('input[name="items"]');
+            if (!itemsInput) {
+                itemsInput = document.createElement('input');
+                itemsInput.type = 'hidden';
+                itemsInput.name = 'items';
+                this.appendChild(itemsInput);
+            }
+            itemsInput.value = JSON.stringify(purchaseBasket.map(i => ({ 
+                id: /^\d+$/.test(i.id) ? parseInt(i.id, 10) : i.id, 
+                quantity: cleanInt(i.quantity), 
+                price: cleanFloat(i.price) 
+            })));
 
             submitBtn.disabled = true;
             submitBtn.innerText = "Processing Transaction...";
 
-            fetch(this.getAttribute('action') || '/admin/process-purchase', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': document.getElementById('purchase_csrf_token')?.value || ''
-                },
-                body: JSON.stringify(payload)
-            })
-            .then(async response => {
-                const data = await response.json();
-                if (!response.ok) throw new Error(data.message || "Server error occurred during execution structural processing");
-                return data;
-            })
-            .then(data => {
-                if (data.success) {
-                    window.location.reload();
-                } else {
-                    alert(data.message);
-                    submitBtn.disabled = false;
-                    submitBtn.innerText = "Complete Purchase";
-                }
-            })
-            .catch(error => {
-                alert(error.message || "A transaction execution system error occurred.");
-                submitBtn.disabled = false;
-                submitBtn.innerText = "Complete Purchase";
-            });
+            // Submit as a standard form request so Flask's redirect() and flash() work normally
+            this.submit();
         });
     }
 
