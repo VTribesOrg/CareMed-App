@@ -57,7 +57,7 @@
 {% block content %}
 
 
-<div class="asset-registry-card">
+<div class="asset-registry-card" style="display: flex; flex-direction: column; min-height: 650px;">
     <div class="registry-controls">
         <button class="register-asset-btn" data-action="open-register">
             <span class="material-symbols-rounded">person_add</span><span>Register Customer</span>
@@ -71,7 +71,7 @@
         </div>
     </div>
 
-    <section class="table-scroll-container">
+    <section class="table-scroll-container" style="overflow-x: auto; flex-grow: 1;">
         <table class="medical-data-table">
             <thead>
                 <tr>
@@ -206,7 +206,7 @@
         </table>
     </section>
 
-    <div class="pagination-footer">
+    <div class="pagination-footer" style="margin-top: auto;">
         <div class="table-limit-control">
             <span class="limit-label">Show</span>
             <select class="medical-select" id="row-limit-select">
@@ -216,42 +216,36 @@
             </select>
             <span class="limit-label">entries</span>
         </div>
-
+ 
         <div class="pagination-info">
-            Showing
-            <strong>{{ (pagination.page - 1) * pagination.per_page + 1 }}</strong> to
-            <strong>{{ [pagination.page * pagination.per_page, pagination.total]|min }}</strong> of
-            <strong>{{ pagination.total }}</strong> entries
+            Showing <strong>{{ (pagination.page - 1) * pagination.per_page + 1 }}</strong> to
+            <strong>{{ [pagination.page * pagination.per_page, pagination.total]|min }}</strong>
+            of <strong>{{ pagination.total }}</strong> transactions
         </div>
-
+ 
         <div class="pagination-controls">
             {% if pagination.has_prev %}
-            <a href="{{ url_for('admin.customers', page=pagination.prev_num, limit=current_limit, q=search_query) }}" class="pag-btn">
+            <a href="{{ url_for('admin.transactions', page=pagination.prev_num, limit=current_limit, q=search_query, type=current_type, fulfillment=current_fulfillment, status=current_status) }}" class="pag-btn">
                 <span class="material-symbols-rounded">chevron_left</span>
             </a>
             {% else %}
-            <div class="pag-btn disabled" style="opacity:0.4;">
-                <span class="material-symbols-rounded">chevron_left</span>
-            </div>
+            <div class="pag-btn disabled" style="opacity: 0.4;"><span class="material-symbols-rounded">chevron_left</span></div>
             {% endif %}
-
+ 
             <span class="page-number">Page <strong>{{ pagination.page }}</strong> of {{ pagination.pages }}</span>
-
+ 
             {% if pagination.has_next %}
-            <a href="{{ url_for('admin.customers', page=pagination.next_num, limit=current_limit, q=search_query) }}" class="pag-btn">
+            <a href="{{ url_for('admin.transactions', page=pagination.next_num, limit=current_limit, q=search_query, type=current_type, fulfillment=current_fulfillment, status=current_status) }}" class="pag-btn">
                 <span class="material-symbols-rounded">chevron_right</span>
             </a>
             {% else %}
-            <div class="pag-btn disabled" style="opacity:0.4;">
-                <span class="material-symbols-rounded">chevron_right</span>
-            </div>
+            <div class="pag-btn disabled" style="opacity: 0.4;"><span class="material-symbols-rounded">chevron_right</span></div>
             {% endif %}
-
+ 
             <div class="jump-to-wrapper">
                 <span class="jump-text">Go to</span>
-                <input type="number" id="jump-page-input" class="jump-input"
-                       min="1" max="{{ pagination.pages }}" value="{{ pagination.page }}">
-                <button class="jump-btn">Go</button>
+                <input type="number" id="jump-page-input" class="jump-input" min="1" max="{{ pagination.pages }}" value="{{ pagination.page }}">
+                <button class="jump-btn" onclick="jumpToPage()">Go</button>
             </div>
         </div>
     </div>
