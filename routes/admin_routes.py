@@ -324,17 +324,22 @@ def process_refill_transaction():
     
     serial_list = request.form.getlist('serial_numbers')
     swapped_serials = request.form.getlist('swapped_rental_serial')
-    
-    amount = request.form.get('amount', type=Decimal)
-    REFILL_COST = Decimal("50.00") 
 
-    if not amount or not quantity or quantity <= 0:
+    form_amount = request.form.get('amount', type=Decimal) or Decimal("0.00")
+    voucher_amount = request.form.get('voucher_amount', type=Decimal) or Decimal("0.00")
+    delivery_fee = request.form.get('delivery_fee', type=Decimal) or Decimal("0.00")
+
+    if not form_amount or not quantity or quantity <= 0:
         flash("Transaction failed: Please ensure all fields are filled correctly.", "error")
         return redirect(url_for('admin.dashboard'))
 
     if buyer_type == 'registered' and len(serial_list) != quantity:
         flash(f"Data Mismatch: You specified {quantity} tank(s), but only entered {len(serial_list)} incoming serial number(s).", "error")
         return redirect(url_for('admin.dashboard'))
+
+    refill_unit_cost = form_amount / Decimal(str(quantity))
+
+    net_total = max((form_amount + delivery_fee) - voucher_amount, Decimal("0.00"))
 
     try:
         customer_id = None
@@ -422,10 +427,12 @@ def process_refill_transaction():
             customer_name=display_name,
             walk_in_tank_size=tank_size if buyer_type != 'registered' else None,
             quantity=quantity,
-            total_amount=amount,
-            amount_paid=amount,
+            delivery_fee=delivery_fee,
+            voucher_amount=voucher_amount,
+            total_amount=net_total,
+            amount_paid=net_total,
             balance_due=Decimal("0.00"),
-            refill_cost_per_unit=REFILL_COST,
+            refill_cost_per_unit=refill_unit_cost,
             serial_numbers=final_serials_str,
             payment_status="Fully Paid",
             status="Closed",
@@ -435,13 +442,14 @@ def process_refill_transaction():
         db.session.add(new_transaction)
         db.session.flush() 
 
+        new_transaction.update_totals()
         new_transaction.reference_no = f"RFL-{new_transaction.id:06d}"
 
         log = InventoryLog(
             product_id=product.id,
             action="Refill Service Completed & Swapped",
             quantity=quantity,
-            note=f"Processed refill swap for {display_name}. Total: {amount} PHP.",
+            note=f"Processed refill swap for {display_name}. Subtotal: {form_amount} PHP, Net Total: {net_total} PHP.",
             user_id=current_user.id,
             user_name=current_user.full_name
         )
@@ -1619,6 +1627,10 @@ def process_rental():
         amount_paid = Decimal(request.form.get('amount_paid', '0').replace(',', '') or '0')
         voucher_amount = Decimal(request.form.get('voucher_amount', '0').replace(',', '') or '0')
         delivery_fee = Decimal(request.form.get('delivery_fee', '0').replace(',', '') or '0')
+        
+        # Parse initial fill cost
+        initial_fill_cost = Decimal(request.form.get('initial_fill_cost', '0').replace(',', '') or '0')
+        has_initial_fill = initial_fill_cost > 0
 
         start_date_str = request.form.get('start_date')
         return_date_str = request.form.get('return_date')
@@ -1634,16 +1646,32 @@ def process_rental():
             flash("Invalid return date.", "danger")
             return redirect(request.referrer)
 
+        # Determine Customer Name and ID
+        customer_id = request.form.get('customer_id') or None
+        display_name = "Walk-in Customer"
+
+        if customer_id:
+            customer = Customer.query.get(customer_id)
+            if customer:
+                display_name = customer.full_name
+        else:
+            unregistered_name = request.form.get('unregistered_customer_name', '').strip()
+            if unregistered_name:
+                display_name = unregistered_name
+
         ref_no = f"RNT-{datetime.now():%m%d%Y-%H%M%S}-{''.join(random.choices(string.ascii_uppercase+string.digits, k=4))}"
 
         new_txn = Transaction(
             reference_no=ref_no,
-            customer_id=request.form.get('customer_id') or None,
+            customer_id=customer_id,
+            customer_name=display_name,
             transaction_type="Rental",
             total_amount=Decimal("0.00"),
             voucher_amount=voucher_amount,
             delivery_fee=delivery_fee,
             fulfillment_type=fulfillment_type,
+            has_initial_fill=has_initial_fill,
+            initial_fill_cost=initial_fill_cost,
             status="Open"
         )
 
@@ -1754,13 +1782,17 @@ def process_rental():
             r.generate_monthly_invoices()
 
         db.session.flush()
+        new_txn.update_totals()
+
         db.session.expire(new_txn, ['payments'])
 
-        if amount_paid > 0:
+        total_payment_to_allocate = amount_paid
+
+        if total_payment_to_allocate > 0:
             payment_method = request.form.get('payment_method', 'Cash').strip()
             reference_number = request.form.get('reference_number', '').strip() or None
 
-            remaining = amount_paid
+            remaining = total_payment_to_allocate
             all_invoices = []
             for r in rentals:
                 for inv in r.invoices:
@@ -1788,7 +1820,9 @@ def process_rental():
 
         db.session.flush()
         db.session.expire(new_txn, ['payments'])
-        new_txn.update_totals()
+
+        # Final sync for balance due and payment status updates
+        new_txn.update_totals() 
         db.session.commit()
 
         flash(f"Rental created: {ref_no}", "success")
@@ -2148,10 +2182,12 @@ def export_transactions():
     return response
 
 @admin_bp.route('/transaction_details/<int:id>') 
-@login_required
-@admin_or_staff_required
+
 def transaction_details(id):
     txn = Transaction.query.get_or_404(id)
+
+    txn.update_totals()
+    db.session.commit()
     
     return render_template('admin/transaction_details.html', txn=txn, current_date=datetime.now().date())
 

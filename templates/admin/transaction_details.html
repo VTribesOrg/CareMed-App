@@ -74,7 +74,7 @@
 
         <div class="action-card">
             <header class="card-header-custom">
-                <span class="header-label-text">Purchased / Rented Items</span>
+                <span class="header-label-text">Purchased / Rented / Refilled Items</span>
                 <span class="badge-soft-info">{{ txn.transaction_type }}</span>
             </header>
             <div class="table-container">
@@ -85,7 +85,7 @@
                             <th>Qty</th>
                             <th>Unit Price/Rate</th>
                             <th class="text-right">Subtotal</th>
-                            {% if txn.purchases %}
+                            {% if txn.purchases or txn.transaction_type == 'Refill' or txn.product %}
                                 <th class="text-end">Action</th>
                             {% endif %}
                         </tr>
@@ -106,7 +106,7 @@
                                 </td>
                                 <td>{{ item.quantity }}</td>
                                 <td>₱{{ "{:,.2f}".format(item.monthly_rate) }}/mo</td>
-                                <td class="text-right-bold">₱{{ "{:,.2f}".format(item.monthly_rate) }}</td>
+                                <td class="text-right-bold">₱{{ "{:,.2f}".format(item.monthly_rate * item.quantity) }}</td>
                             </tr>
                             {% endfor %}
                         {% elif txn.purchases %}
@@ -146,13 +146,56 @@
                                 </td>
                             </tr>
                             {% endfor %}
+                        {% elif txn.transaction_type == 'Refill' or txn.product %}
+                            <tr>
+                                <td>
+                                    <div class="item-title">
+                                        {{ txn.product.name if txn.product else 'Tank Refill' }}
+                                        {% if txn.walk_in_tank_size %}
+                                            <span class="text-muted" style="font-size: 0.85rem;">({{ txn.walk_in_tank_size }})</span>
+                                        {% endif %}
+                                        {% if txn.serial_numbers %}
+                                            <span class="text-muted font-monospace" style="font-size: 0.85rem;">(SN: {{ txn.serial_numbers }})</span>
+                                        {% endif %}
+                                    </div>
+                                    {% if txn.has_initial_fill %}
+                                        <small class="text-info d-block">Includes Initial Fill (₱{{ "{:,.2f}".format(txn.initial_fill_cost) }})</small>
+                                    {% endif %}
+                                </td>
+                                <td>{{ txn.quantity or 1 }}</td>
+                                <td>₱{{ "{:,.2f}".format(txn.refill_cost_per_unit or 0) }}</td>
+                                <td class="text-right-bold">
+                                    {% set refill_subtotal = (txn.quantity | default(1, true) | int * (txn.refill_cost_per_unit | default(0, true) | float)) + (txn.initial_fill_cost | default(0, true) | float if txn.has_initial_fill else 0) %}
+                                    ₱{{ "{:,.2f}".format(refill_subtotal) }}
+                                </td>
+                                <td class="col-action">
+                                    <div class="action-wrapper d-flex align-items-center justify-content-end">
+                                        {% if txn.status != 'Closed' and txn.status != 'Cancelled' %}
+                                            <button type="button"
+                                                    class="btn-action-payment btn-add-payment"
+                                                    data-txn-id="{{ txn.id }}"
+                                                    data-ref="{{ txn.reference_no }}"
+                                                    data-balance="{{ txn.balance_due }}"
+                                                    data-type="Refill"
+                                                    data-invoice-id="">
+                                                <i class="material-symbols-rounded">payments</i>
+                                                <span>Pay Now</span>
+                                            </button>
+                                        {% else %}
+                                            <div class="settled-pill">
+                                                <span class="material-symbols-rounded">check_circle</span>
+                                                <span class="settled-text">Settled</span>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
                         {% endif %}
                     </tbody>
                 </table>
             </div>
         </div>
 
-        <!-- Monthly Billing Schedule (Rental only) -->
         {% if txn.transaction_type == 'Rental' %}
         <div class="action-card" style="margin-top: 20px;">
             <header class="card-header-custom">
@@ -165,16 +208,42 @@
             </header>
 
             <div class="card-body-custom" style="padding: 20px; display: flex; flex-direction: column; gap: 25px;">
+                {% set all_invoices = txn.rentals | map(attribute='invoices') | map('list') | sum(start=[]) %}
+                {% set total_invoice_count = all_invoices | length %}
+
+                {% set ns = namespace(voucher_distributed=0) %}
+                
                 {% for rental in txn.rentals %}
+                
                 <div class="product-billing-group">
+                    
                     <div class="product-billing-header mb-2" style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #f0f2f5; padding-bottom: 8px;">
                         <span class="fw-bold" style="color: var(--medical-primary); font-size: 1.05rem;">
                             {{ rental.product.name }}
                             <span class="text-muted" style="font-weight: normal; font-size: 0.9rem;">(Qty: {{ rental.quantity }})</span>
                         </span>
-                        <span class="badge bg-light text-dark" style="font-size: 0.85rem; border: 1px solid #dee2e6;">
-                            Rate: ₱{{ "{:,.2f}".format(rental.monthly_rate) }}/mo
-                        </span>
+
+                        <div class="d-flex align-items-center gap-2">
+                            {% set total_rental_value = rental.invoices | map(attribute='total_invoice_value') | map('float') | sum %}
+                            {% set total_invoice_count = txn.rentals | map(attribute='invoices') | map('length') | sum %}
+                            {% set rental_invoice_count = rental.invoices | length %}
+                            {% set ratio = (rental_invoice_count / total_invoice_count) | float if total_invoice_count > 0 else 0 %}
+                            {% set rental_voucher_share_value = ((txn.voucher_amount | default(0, true) | float) * ratio) if txn.voucher_amount else 0.0 %}
+                            {% set adjusted_total_rental_value = [0.0, total_rental_value - rental_voucher_share_value] | max %}
+
+                            <span class="badge bg-primary-subtle text-primary d-inline-flex align-items-center gap-1.5" style="font-size: 0.85rem; border: 1px solid #b6d4fe; padding: 6px 12px; font-weight: 500;">
+                                <span class="text-dark">Total Income: ₱{{ "{:,.2f}".format(total_rental_value) }}</span>
+                                {% if rental_voucher_share_value > 0 %}
+                                    <span class="text-danger ms-1">− ₱{{ "{:,.2f}".format(rental_voucher_share_value) }} <small class="text-muted">(Voucher)</small></span>
+                                    <span class="text-success fw-bold ms-1">= ₱{{ "{:,.2f}".format(adjusted_total_rental_value) }}</span>
+                                {% endif %}
+                            </span>
+
+                            <span class="badge bg-light text-dark" style="font-size: 0.85rem; border: 1px solid #dee2e6; padding: 6px 10px;">
+                                Rate: ₱{{ "{:,.2f}".format(rental.monthly_rate | default(0, true) | float) }}/mo
+                            </span>
+
+                        </div>
                     </div>
 
                     <div class="table-container">
@@ -191,67 +260,91 @@
                             </thead>
                             <tbody>
                                 {% for invoice in rental.invoices %}
-                                <tr>
-                                    <td>
-                                        <div class="item-title">
-                                            Due: {{ invoice.service_period_end.strftime('%B %d, %Y') }}
-                                        </div>
-                                    </td>
-                                    <td class="col-amount">
-                                        ₱{{ "{:,.2f}".format(invoice.amount_due + (invoice.late_fee or 0)) }}
-                                    </td>
-                                    <td class="text-muted" style="font-size: 0.85rem;">
-                                        <span class="fw-bold">₱{{ "{:,.2f}".format(invoice.total_invoice_value) }}</span>/
-                                        <small>₱{{ "{:,.2f}".format(invoice.amount_paid) }}</small>
-                                    </td>
-                                    <td class="fw-bold">
-                                        {% if invoice.remaining_balance > 0 %}
-                                            <span class="text-danger">₱{{ "{:,.2f}".format(invoice.remaining_balance) }}</span>
+                                    {# Check if this is the absolute last invoice across all rentals to absorb any rounding residue #}
+                                    {% set is_last_invoice = (loop.index0 == rental.invoices | length - 1) and (rental == txn.rentals[-1]) %}
+                                    
+                                    {% if txn.voucher_amount and total_invoice_count > 0 %}
+                                        {% if is_last_invoice %}
+                                            {% set voucher_share = txn.voucher_amount - ns.voucher_distributed %}
                                         {% else %}
-                                            <span class="text-success">₱0.00</span>
+                                            {% set raw_share = txn.voucher_amount / total_invoice_count %}
+                                            {% set voucher_share = (raw_share * 100) | round(0, 'common') / 100 %}
+                                            {% set ns.voucher_distributed = ns.voucher_distributed + voucher_share %}
                                         {% endif %}
-                                    </td>
-                                    <td class="col-status">
-                                        {% if invoice.status == 'Paid' %}
-                                            <span class="badge-soft-success">Paid</span>
-                                        {% elif invoice.status == 'Partially Paid' %}
-                                            <span class="badge-soft-warning">Partial</span>
-                                        {% else %}
-                                            {% if invoice.service_period_start < current_date %}
-                                                <span class="badge-soft-danger">Overdue</span>
+                                    {% else %}
+                                        {% set voucher_share = 0 %}
+                                    {% endif %}
+                                
+                                    {% set adjusted_amount_due = [0, (invoice.amount_due + (invoice.late_fee or 0)) - voucher_share] | max | round(2, 'common') %}
+                                    {% set adjusted_total_value = [0, invoice.total_invoice_value - voucher_share] | max | round(2, 'common') %}
+                                    {% set adjusted_remaining = [0, invoice.remaining_balance - voucher_share] | max | round(2, 'common') %}
+                                    <tr>
+                                        <td>
+                                            <div class="item-title">
+                                                Due: {{ invoice.service_period_end.strftime('%B %d, %Y') }}
+                                            </div>
+                                        </td>
+                                        <td class="col-amount">
+                                            <div class="d-flex flex-column">
+                                                <span class="fw-semibold">₱{{ "{:,.2f}".format(adjusted_amount_due) }}</span>
+                                                {% if voucher_share > 0 %}
+                                                    <small class="text-danger" style="font-size: 0.75rem;">− ₱{{ "{:,.2f}".format(voucher_share) }} <span class="text-muted">(Voucher)</span></small>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                        <td class="text-muted" style="font-size: 0.85rem;">
+                                            <span class="fw-bold text-dark">₱{{ "{:,.2f}".format(adjusted_total_value) }}</span> 
+                                            <span class="text-muted mx-1">/</span>
+                                            <span class="text-success fw-semibold">₱{{ "{:,.2f}".format(invoice.amount_paid) }}</span>
+                                        </td>
+                                        <td class="fw-bold">
+                                            {% if adjusted_remaining > 0 %}
+                                                <span class="text-danger">₱{{ "{:,.2f}".format(adjusted_remaining) }}</span>
                                             {% else %}
-                                                <span class="badge-soft-danger">Unpaid</span>
+                                                <span class="text-success">₱0.00</span>
                                             {% endif %}
-                                        {% endif %}
-                                    </td>
-                                    <td class="col-action">
-                                        <div class="action-wrapper d-flex align-items-center">
-                                            {% if invoice.status != 'Paid' %}
-                                                <button type="button"
-                                                        class="btn-action-payment btn-add-payment"
-                                                        data-txn-id="{{ txn.id }}"
-                                                        data-ref="{{ txn.reference_no }}"
-                                                        data-balance="{{ invoice.remaining_balance }}"
-                                                        data-type="Rental"
-                                                        data-monthly-rate="{{ rental.monthly_rate }}"
-                                                        data-unpaid-count="{{ rental.invoices|selectattr('status', 'ne', 'Paid')|list|length }}"
-                                                        data-invoice-id="{{ invoice.id }}">
-                                                    <i class="material-symbols-rounded">payments</i>
-                                                    <span>Pay Now</span>
-                                                </button>
+                                        </td>
+                                        <td class="col-status">
+                                            {% if adjusted_remaining <= 0 %}
+                                                <span class="badge-soft-success">Paid</span>
+                                            {% elif invoice.amount_paid > 0 %}
+                                                <span class="badge-soft-warning">Partial</span>
                                             {% else %}
-                                                <div class="settled-pill">
-                                                    <span class="material-symbols-rounded">check_circle</span>
-                                                    <span class="settled-text">Settled</span>
-                                                </div>
+                                                {% if invoice.service_period_start < current_date %}
+                                                    <span class="badge-soft-danger">Overdue</span>
+                                                {% else %}
+                                                    <span class="badge-soft-danger">Unpaid</span>
+                                                {% endif %}
                                             {% endif %}
-                                        </div>
-                                    </td>
-                                </tr>
+                                        </td>
+                                        <td class="col-action">
+                                            <div class="action-wrapper d-flex align-items-center justify-content-end">
+                                                {% if adjusted_remaining > 0 %}
+                                                    <button type="button"
+                                                            class="btn-action-payment btn-add-payment"
+                                                            data-txn-id="{{ txn.id }}"
+                                                            data-ref="{{ txn.reference_no }}"
+                                                            data-balance="{{ adjusted_remaining }}"
+                                                            data-type="Rental"
+                                                            data-monthly-rate="{{ rental.monthly_rate }}"
+                                                            data-unpaid-count="{{ rental.invoices|selectattr('status', 'ne', 'Paid')|list|length }}"
+                                                            data-invoice-id="{{ invoice.id }}">
+                                                        <i class="material-symbols-rounded">payments</i>
+                                                        <span>Pay Now</span>
+                                                    </button>
+                                                {% else %}
+                                                    <div class="settled-pill">
+                                                        <span class="material-symbols-rounded">check_circle</span>
+                                                        <span class="settled-text">Settled</span>
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
                                 {% else %}
-                                <tr>
-                                    <td colspan="6" class="text-center text-muted">No invoices generated for this item.</td>
-                                </tr>
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted py-3">No invoices generated for this item.</td>
+                                    </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
@@ -349,7 +442,7 @@
 
     <aside class="details-sidebar">
 
-        <!-- Tracking Card -->
+        {% if txn.transaction_type != 'Refill' %}
         <div class="tracking-sidebar-card">
             <div class="tracking-header">
                 <span class="tracking-label">Order Progress</span>
@@ -409,8 +502,8 @@
                 </div>
             </form>
         </div>
+        {% endif %}
 
-        <!-- GCash Payment Proof Verification -->
         {% if txn.payment_proof %}
         <div class="summary-side-card" style="border-left: 4px solid #f59e0b; margin-bottom: 20px;">
             <h5 class="sidebar-card-title">Verify GCash Payment</h5>
@@ -459,13 +552,47 @@
         </div>
         {% endif %}
 
-        <!-- Payment Summary -->
         <div class="summary-side-card summary-spacing">
             <h5 class="sidebar-card-title">Payment Summary</h5>
+            
             <div class="info-row">
-                <span class="info-label">Total Amount</span>
-                <span class="info-value">₱{{ "{:,.2f}".format(txn.total_amount or 0) }}</span>
+                <span class="info-label">Items Subtotal</span>
+                <span class="info-value">₱{{ "{:,.2f}".format((txn.total_amount + txn.voucher_amount - txn.delivery_fee) if txn.transaction_type == 'Rental' else (txn.subtotal or txn.total_amount or 0)) }}</span>
             </div>
+
+            {% if txn.has_initial_fill and txn.initial_fill_cost and txn.initial_fill_cost > 0 %}
+            <div class="info-row">
+                <span class="info-label">Initial Fill (Paid Content)</span>
+                <span class="info-value-success">₱{{ "{:,.2f}".format(txn.initial_fill_cost) }}</span>
+            </div>
+            {% endif %}
+
+            {% if txn.delivery_fee and txn.delivery_fee > 0 %}
+            <div class="info-row">
+                <span class="info-label">Delivery Fee</span>
+                <span class="info-value">₱{{ "{:,.2f}".format(txn.delivery_fee) }}</span>
+            </div>
+            {% endif %}
+
+            {% if txn.late_fee and txn.late_fee > 0 %}
+            <div class="info-row">
+                <span class="info-label">Late Fees</span>
+                <span class="info-value text-danger">₱{{ "{:,.2f}".format(txn.late_fee) }}</span>
+            </div>
+            {% endif %}
+
+            {% if txn.voucher_amount and txn.voucher_amount > 0 %}
+            <div class="info-row">
+                <span class="info-label text-success">Voucher Discount</span>
+                <span class="info-value-success">-₱{{ "{:,.2f}".format(txn.voucher_amount) }}</span>
+            </div>
+            {% endif %}
+
+            <div class="info-row">
+                <span class="info-label font-weight-bold">Final Payable</span>
+                <span class="info-value font-weight-bold">₱{{ "{:,.2f}".format(txn.total_amount or 0) }}</span>
+            </div>
+
             <div class="info-row">
                 <span class="info-label">Amount Paid</span>
                 <span class="info-value-success">₱{{ "{:,.2f}".format(txn.amount_paid or 0) }}</span>
@@ -481,104 +608,103 @@
             </div>
         </div>
 
-        <!-- Customer Details -->
         <div class="summary-side-card">
-                    <h5 class="sidebar-card-title">Customer Details</h5>
-                    
-                    {% if txn.customer_id %}
-                        <a href="{{ url_for('admin.customer_details', id=txn.customer_id) }}" class="customer-profile-link">
-                            <div class="customer-profile-section">
-                                <div class="profile-icon-container">
-                                    <span class="material-symbols-rounded">person</span>
-                                </div>
-                                <div class="profile-info">
-                                    <div class="profile-name">
-                                        {{ txn.customer_name or (txn.customer.first_name ~ ' ' ~ txn.customer.last_name if txn.customer else 'Unknown Customer') }}
-                                    </div>
-                                    <small class="profile-type">View Full Profile</small>
-                                </div>
-                                <span class="material-symbols-rounded icon-subtle">chevron_right</span>
+            <h5 class="sidebar-card-title">Customer Details</h5>
+            
+            {% if txn.customer_id %}
+                <a href="{{ url_for('admin.customer_details', id=txn.customer_id) }}" class="customer-profile-link">
+                    <div class="customer-profile-section">
+                        <div class="profile-icon-container">
+                            <span class="material-symbols-rounded">person</span>
+                        </div>
+                        <div class="profile-info">
+                            <div class="profile-name">
+                                {{ txn.customer_name or (txn.customer.first_name ~ ' ' ~ txn.customer.last_name if txn.customer else 'Unknown Customer') }}
                             </div>
-                        </a>
-                    {% else %}
-                        <div class="customer-profile-section structural-layout-only" style="cursor: default; pointer-events: none;">
-                            <div class="profile-icon-container" style="background-color: #f1f5f9; color: #64748b;">
-                                <span class="material-symbols-rounded">no_accounts</span>
-                            </div>
-                            <div class="profile-info">
-                                <div class="profile-name" style="color: #475569;">
-                                    {{ txn.customer_name or 'Walk-in / Unregistered' }}
-                                </div>
-                                <small class="profile-type text-muted" style="color: #94a3b8;">Guest Customer</small>
-                            </div>
+                            <small class="profile-type">View Full Profile</small>
                         </div>
-                    {% endif %}
-
-                    <div class="info-column mt-3">
-                        <span class="info-label">Fulfillment Type:</span>
-                        <div class="info-value">
-                            {% if txn.fulfillment_type|lower == 'delivery' %}
-                                <span class="badge-soft-primary">
-                                    <span class="material-symbols-rounded" style="font-size:14px; vertical-align:middle;">local_shipping</span>
-                                    DELIVERY
-                                </span>
-                            {% else %}
-                                <span class="badge-soft-info">
-                                    <span class="material-symbols-rounded" style="font-size:14px; vertical-align:middle;">store</span>
-                                    PICKUP
-                                </span>
-                            {% endif %}
-                        </div>
+                        <span class="material-symbols-rounded icon-subtle">chevron_right</span>
                     </div>
-
-                    {% if txn.delivery_address %}
-                    <div class="info-column address-spacing">
-                        <span class="info-label d-block">Delivery Address:</span>
-                        <span class="info-value-address text-muted d-block">{{ txn.delivery_address }}</span>
+                </a>
+            {% else %}
+                <div class="customer-profile-section structural-layout-only" style="cursor: default; pointer-events: none;">
+                    <div class="profile-icon-container" style="background-color: #f1f5f9; color: #64748b;">
+                        <span class="material-symbols-rounded">no_accounts</span>
                     </div>
-                    {% endif %}
-
-                    <hr class="card-divider">
-
-                    <div class="info-column">
-                        <span class="info-label">Payment Method</span>
-                        <div class="info-value payment-detail">
-                            <span class="material-symbols-rounded">payments</span>
-                            <span>{{ txn.payment_method if txn.payment_method else 'Manual/Cash' }}</span>
+                    <div class="profile-info">
+                        <div class="profile-name" style="color: #475569;">
+                            {{ txn.customer_name or 'Walk-in / Unregistered' }}
                         </div>
-                    </div>
-
-                    <div class="transaction-breakdown">
-                        <div class="breakdown-item">
-                            <span>Subtotal</span>
-                            <span>₱{{ "{:,.2f}".format(txn.total_amount or 0) }}</span>
-                        </div>
-                        <div class="breakdown-item">
-                            <span>Service/Late Fees</span>
-                            <span>₱{{ "{:,.2f}".format(txn.total_late_fees or 0) }}</span>
-                        </div>
-                        <div class="breakdown-item total-row">
-                            <span>Total Value</span>
-                            <span class="text-dark font-bold">
-                                ₱{{ "{:,.2f}".format((txn.total_amount or 0) + (txn.total_late_fees or 0)) }}
-                            </span>
-                        </div>
-                    </div>
-
-                    <hr class="card-divider">
-
-                    <div class="info-column">
-                        <span class="info-label">Transaction Date</span>
-                        <div class="info-value text-muted small">
-                            <span class="material-symbols-rounded" style="font-size: 14px; vertical-align: middle;">event</span>
-                            {{ txn.created_at.strftime('%B %d, %Y at %I:%M %p') if txn.created_at else 'Date Not Recorded' }}
-                        </div>
+                        <small class="profile-type text-muted" style="color: #94a3b8;">Guest Customer</small>
                     </div>
                 </div>
+            {% endif %}
 
-            </aside>
+            <div class="info-column mt-3">
+                <span class="info-label">Fulfillment Type:</span>
+                <div class="info-value">
+                    {% if txn.fulfillment_type|lower == 'delivery' %}
+                        <span class="badge-soft-primary">
+                            <span class="material-symbols-rounded" style="font-size:14px; vertical-align:middle;">local_shipping</span>
+                            DELIVERY
+                        </span>
+                    {% else %}
+                        <span class="badge-soft-info">
+                            <span class="material-symbols-rounded" style="font-size:14px; vertical-align:middle;">store</span>
+                            PICKUP
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
 
+            {% if txn.delivery_address %}
+            <div class="info-column address-spacing">
+                <span class="info-label d-block">Delivery Address:</span>
+                <span class="info-value-address text-muted d-block">{{ txn.delivery_address }}</span>
+            </div>
+            {% endif %}
+
+            <hr class="card-divider">
+
+            <div class="info-column">
+                <span class="info-label">Payment Method</span>
+                <div class="info-value payment-detail">
+                    <span class="material-symbols-rounded">payments</span>
+                    <span>{{ txn.payment_method if txn.payment_method else 'Manual/Cash' }}</span>
+                </div>
+            </div>
+
+            <div class="transaction-breakdown">
+                <div class="breakdown-item">
+                    <span>Subtotal</span>
+                    <span>₱{{ "{:,.2f}".format(txn.total_amount or 0) }}</span>
+                </div>
+                <div class="breakdown-item">
+                    <span>Service/Late Fees</span>
+                    <span>₱{{ "{:,.2f}".format(txn.total_late_fees or 0) }}</span>
+                </div>
+                <div class="breakdown-item total-row">
+                    <span>Total Value</span>
+                    <span class="text-dark font-bold">
+                        ₱{{ "{:,.2f}".format((txn.total_amount or 0) + (txn.total_late_fees or 0)) }}
+                    </span>
+                </div>
+            </div>
+
+            <hr class="card-divider">
+
+            <div class="info-column">
+                <span class="info-label">Transaction Date</span>
+                <div class="info-value text-muted small">
+                    <span class="material-symbols-rounded" style="font-size: 14px; vertical-align: middle;">event</span>
+                    {{ txn.created_at.strftime('%B %d, %Y at %I:%M %p') if txn.created_at else 'Date Not Recorded' }}
+                </div>
+            </div>
         </div>
+
+    </aside>
+
+</div>
 
 {% if txn.transaction_type == 'Rental' %}
 <!-- ── PRINTABLE RENTAL AGREEMENT (hidden on screen, shown on print) ── -->
@@ -612,7 +738,6 @@
 
         {# ── PARTIES ── #}
         <div class="ra-parties">
-
             {# Row 1: Name of Renter (left) | Primary Contact No. (right) #}
             <div class="ra-party-row-top">
                 <div class="ra-left-col">
@@ -651,206 +776,206 @@
             <div class="ra-party-note">hereinafter referred to as the Lessee.</div>
         </div>
 
-{# ── Section 1: Equipment Details ── #}
+        {# ── Section 1: Equipment Details ── #}
         <div class="ra-section-title">1. Equipment Details</div>
-        <table class="ra-equipment-table">
-            <colgroup>
-                <col><col><col><col><col><col><col>
-            </colgroup>
-            <thead>
-                <tr>
-                    <th>QUANTITY</th>
-                    <th>EQUIPMENT</th>
-                    <th>SERIAL #</th>
-                    <th>SOLD</th>
-                    <th>REFILL</th>
-                    <th>RENTAL<br>RATE</th>
-                    <th>DURATION</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% set ns = namespace(total_rows=0) %}
-                {% if txn.rentals %}
-                    {# Step 1: Aggregate items strictly by Product Name, Size, Rate, and Duration into a single row #}
-                    {% set consolidated = {} %}
-                    {% for item in txn.rentals %}
-                        {% set duration %}{% if item.start_date and item.expected_return_date %}{{ item.start_date.strftime('%b %d') }} – {{ item.expected_return_date.strftime('%b %d, %Y') }}{% endif %}{% endset %}
-                        {% set prod_name = item.product.name if item.product else '—' %}
-                        {% set prod_size = item.product.size if item.product and item.product.size else (item.size or '') %}
-                        {% set rate = item.monthly_rate or 0 %}
-
-                        {# Define a grouping key based ONLY on product name, size, rate, and duration #}
-                        {% set key = prod_name ~ '|' ~ prod_size ~ '|' ~ rate ~ '|' ~ duration %}
-
-                        {# Gather serials for this item #}
-                        {% set item_serials = [] %}
-                        {% if item.tanks %}
-                            {% for tank in item.tanks %}{% set _ = item_serials.append(tank.serial_number) %}{% endfor %}
-                        {% elif txn.tanks and loop.first %}
-                            {% for tank in txn.tanks %}{% set _ = item_serials.append(tank.serial_number) %}{% endfor %}
-                        {% elif item.serial_numbers %}
-                            {% set item_serials = (item.serial_numbers.replace(',', '/').split('/')|map('trim')|reject('equalto', '')|list) %}
-                        {% elif txn.serial_numbers %}
-                            {% set item_serials = (txn.serial_numbers.replace(',', '/').split('/')|map('trim')|reject('equalto', '')|list) %}
-                        {% endif %}
-
-                        {% set item_qty = item.quantity if item.quantity else (item_serials|length if item_serials|length > 0 else 1) %}
-
-                        {% if key not in consolidated %}
-                            {% set _ = consolidated.update({
-                                key: {
-                                    'qty': item_qty, 
-                                    'name': prod_name, 
-                                    'size': prod_size, 
-                                    'serials': item_serials, 
-                                    'rate': rate, 
-                                    'duration': duration
-                                }
-                            }) %}
-                        {% else %}
-                            {% set existing = consolidated[key] %}
-                            {% set _ = existing.update({'qty': existing.qty + item_qty}) %}
-                            {% for s in item_serials %}
-                                {% if s not in existing.serials %}
-                                    {% set _ = existing.serials.append(s) %}
-                                {% endif %}
-                            {% endfor %}
-                        {% endif %}
-                    {% endfor %}
-
-                    {# Step 2: Render consolidated rows #}
-                    {% for key, data in consolidated.items() %}
+            <table class="ra-equipment-table">
+                <colgroup>
+                    <col><col><col><col><col><col><col>
+                </colgroup>
+                <thead>
                     <tr>
-                        <td>{{ data.qty }}</td>
-                        <td>{{ data.name }}{% if data.size %} ({{ data.size }}){% endif %}</td>
-                        <td>{{ data.serials|join(', ') if data.serials|length > 0 else '—' }}</td>
-                        <td></td>
-                        <td></td>
-                        <td>₱{{ "{:,.2f}".format(data.rate) }}/mo</td>
-                        <td>{{ data.duration }}</td>
+                        <th>QUANTITY</th>
+                        <th>EQUIPMENT</th>
+                        <th>SERIAL #</th>
+                        <th>SOLD</th>
+                        <th>REFILL</th>
+                        <th>RENTAL<br>RATE</th>
+                        <th>DURATION</th>
                     </tr>
-                    {% set ns.total_rows = ns.total_rows + 1 %}
-                    {% endfor %}
+                </thead>
+                <tbody>
+                    {% set ns = namespace(total_rows=0) %}
+                    {% if txn.rentals %}
+                        {# Step 1: Aggregate items strictly by Product Name, Size, Rate, and Duration into a single row #}
+                        {% set consolidated = {} %}
+                        {% for item in txn.rentals %}
+                            {% set duration %}{% if item.start_date and item.expected_return_date %}{{ item.start_date.strftime('%b %d') }} – {{ item.expected_return_date.strftime('%b %d, %Y') }}{% endif %}{% endset %}
+                            {% set prod_name = item.product.name if item.product else '—' %}
+                            {% set prod_size = item.product.size if item.product and item.product.size else (item.size or '') %}
+                            {% set rate = item.monthly_rate or 0 %}
 
-                    {# Pad remaining rows up to 6 to keep layout consistent #}
-                    {% for i in range([6 - ns.total_rows, 0]|max) %}
-                    <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-                    {% endfor %}
-                {% else %}
-                    {% for i in range(6) %}
-                    <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-                    {% endfor %}
-                {% endif %}
-            </tbody>
-        </table>
+                            {# Define a grouping key based ONLY on product name, size, rate, and duration #}
+                            {% set key = prod_name ~ '|' ~ prod_size ~ '|' ~ rate ~ '|' ~ duration %}
 
-        {# ── Delivery Fee: own line ── #}
-        <div class="ra-delivery-row">
-            <span class="ra-label">Delivery Fee:</span>
-            <span class="ra-underline">
-                {% if txn.fulfillment_type|lower == 'delivery' and txn.rentals %}
-                    ₱{{ "{:,.2f}".format(txn.rentals[0].delivery_fee or 0) }}
-                {% else %}
-                    N/A
-                {% endif %}
-            </span>
-        </div>
+                            {# Gather serials for this item #}
+                            {% set item_serials = [] %}
+                            {% if item.tanks %}
+                                {% for tank in item.tanks %}{% set _ = item_serials.append(tank.serial_number) %}{% endfor %}
+                            {% elif txn.tanks and loop.first %}
+                                {% for tank in txn.tanks %}{% set _ = item_serials.append(tank.serial_number) %}{% endfor %}
+                            {% elif item.serial_numbers %}
+                                {% set item_serials = (item.serial_numbers.replace(',', '/').split('/')|map('trim')|reject('equalto', '')|list) %}
+                            {% elif txn.serial_numbers %}
+                                {% set item_serials = (txn.serial_numbers.replace(',', '/').split('/')|map('trim')|reject('equalto', '')|list) %}
+                            {% endif %}
 
-        {# ── Advance Pick-Up Charge (left) + Total Amount (right) ── #}
-        <div class="ra-fees-row">
-            <div class="ra-fee-item">
-                <span class="ra-label">Advance Pick-Up Charge:</span>
-                <span class="ra-underline-wide">&nbsp;</span>
+                            {% set item_qty = item.quantity if item.quantity else (item_serials|length if item_serials|length > 0 else 1) %}
+
+                            {% if key not in consolidated %}
+                                {% set _ = consolidated.update({
+                                    key: {
+                                        'qty': item_qty, 
+                                        'name': prod_name, 
+                                        'size': prod_size, 
+                                        'serials': item_serials, 
+                                        'rate': rate, 
+                                        'duration': duration
+                                    }
+                                }) %}
+                            {% else %}
+                                {% set existing = consolidated[key] %}
+                                {% set _ = existing.update({'qty': existing.qty + item_qty}) %}
+                                {% for s in item_serials %}
+                                    {% if s not in existing.serials %}
+                                        {% set _ = existing.serials.append(s) %}
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
+                        {% endfor %}
+
+                        {# Step 2: Render consolidated rows #}
+                        {% for key, data in consolidated.items() %}
+                        <tr>
+                            <td>{{ data.qty }}</td>
+                            <td>{{ data.name }}{% if data.size %} ({{ data.size }}){% endif %}</td>
+                            <td>{{ data.serials|join(', ') if data.serials|length > 0 else '—' }}</td>
+                            <td></td>
+                            <td></td>
+                            <td>₱{{ "{:,.2f}".format(data.rate * data.qty) }}/mo</td>
+                            <td>{{ data.duration }}</td>
+                        </tr>
+                        {% set ns.total_rows = ns.total_rows + 1 %}
+                        {% endfor %}
+
+                        {# Pad remaining rows up to 6 to keep layout consistent #}
+                        {% for i in range([6 - ns.total_rows, 0]|max) %}
+                        <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                        {% endfor %}
+                    {% else %}
+                        {% for i in range(6) %}
+                        <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                        {% endfor %}
+                    {% endif %}
+                </tbody>
+            </table>
+
+            {# ── Delivery Fee: own line ── #}
+            <div class="ra-delivery-row">
+                <span class="ra-label">Delivery Fee:</span>
+                <span class="ra-underline">
+                    {% if txn.fulfillment_type|lower == 'delivery' and txn.rentals %}
+                        ₱{{ "{:,.2f}".format(txn.rentals[0].delivery_fee or 0) }}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </span>
             </div>
-            <div class="ra-fee-item">
-                <span class="ra-label">Total Amount:</span>
-                <span class="ra-underline-wide">₱{{ "{:,.2f}".format(txn.total_amount or 0) }}</span>
+
+            {# ── Advance Pick-Up Charge (left) + Total Amount (right) ── #}
+            <div class="ra-fees-row">
+                <div class="ra-fee-item">
+                    <span class="ra-label">Advance Pick-Up Charge:</span>
+                    <span class="ra-underline-wide">&nbsp;</span>
+                </div>
+                <div class="ra-fee-item">
+                    <span class="ra-label">Total Amount:</span>
+                    <span class="ra-underline-wide">₱{{ "{:,.2f}".format(txn.total_amount or 0) }}</span>
+                </div>
             </div>
-        </div>
 
-        {# ── Section 2: Rental Period ── #}
-        <div class="ra-section-title">2. Rental Period</div>
-        <div class="ra-rental-period">
-            The rental period shall begin on
-            <span class="ra-blank">
-                {% if txn.rentals and txn.rentals[0].start_date %}
-                    {{ txn.rentals[0].start_date.strftime('%B %d, %Y') }}
-                {% endif %}
-            </span>
-            and end on
-            <span class="ra-blank">
-                {% if txn.rentals and txn.rentals[0].expected_return_date %}
-                    {{ txn.rentals[0].expected_return_date.strftime('%B %d, %Y') }}
-                {% endif %}
-            </span>,
-            unless extended or terminated earlier by mutual agreement.
-        </div>
+            {# ── Section 2: Rental Period ── #}
+            <div class="ra-section-title">2. Rental Period</div>
+                <div class="ra-rental-period">
+                    The rental period shall begin on
+                    <span class="ra-blank">
+                        {% if txn.rentals and txn.rentals[0].start_date %}
+                            {{ txn.rentals[0].start_date.strftime('%B %d, %Y') }}
+                        {% endif %}
+                    </span>
+                    and end on
+                    <span class="ra-blank">
+                        {% if txn.rentals and txn.rentals[0].expected_return_date %}
+                            {{ txn.rentals[0].expected_return_date.strftime('%B %d, %Y') }}
+                        {% endif %}
+                    </span>,
+                    unless extended or terminated earlier by mutual agreement.
+                </div>
 
-        {# ── Section 3 ── #}
-        <div class="ra-section-title">3. Payment Terms</div>
-        <div class="ra-terms">
-            <div class="ra-term">- Full payment of the rental fee and advance pick-up charge is required upon Pick up / delivery.</div>
-            <div class="ra-term">- All rental payments and <span class="ra-red">oxygen content are strictly non-refundable.</span></div>
-            <div class="ra-term">- Rental extensions must be reported and settled before the next due date.</div>
-        </div>
-
-        {# ── Section 4 ── #}
-        <div class="ra-section-title">4. Delivery and Return</div>
-        <div class="ra-terms">
-            <div class="ra-term">- Upon completion of the rental period, the Lessee shall return the equipment in good and clean condition, subject to inspection by the Lessor. If the equipment is found to be unclean, specifically the suction machine, <span class="ra-red">a cleaning charge of 300 will apply.</span></div>
-            <div class="ra-term">- The <span class="ra-red">advance pick – up charge shall be refundable only</span> if the renter personally returns the equipment to the Caremed store.</div>
-            <div class="ra-term">- If the Caremed staff will pick up the equipment from the renter's address, the advance pick – up charge shall be non-refundable.</div>
-            <div class="ra-term">- Any damage, loss, or missing parts will be charged accordingly.</div>
-            <div class="ra-term">- In case of <span class="ra-red">major damage</span> or total loss of the equipment, it shall be <span class="ra-red">considered sold at its cash price.</span></div>
-        </div>
-
-        {# ── Section 5 ── #}
-        <div class="ra-section-title">5. Equipment Use and Care</div>
-        <div class="ra-terms">
-            <div class="ra-term">- The Lessee agrees to use the equipment only for its intended medical purpose and with proper care.</div>
-            <div class="ra-term">- The Lessee shall not lend, sublease, or modify the equipment.</div>
-            <div class="ra-term">- The Lessor shall not be liable for any injury, accident, or damage resulting from improper use.</div>
-            <div class="ra-term">- The lessee must monitor the oxygen level and arrange refilling as needed. Caremed shall not be liable for any issues arising from failure to monitor oxygen content.</div>
-        </div>
-
-        {# ── Section 6 ── #}
-        <div class="ra-section-title">6. Maintenance and Repairs</div>
-        <div class="ra-terms">
-            <div class="ra-term">- The Lessee shall notify Caremed immediately if the equipment malfunctions.</div>
-            <div class="ra-term">- <span class="ra-red">Only authorized technicians</span> from Caremed are allowed to service or repair the equipment.</div>
-        </div>
-
-        {# ── Section 7 ── #}
-        <div class="ra-section-title">7. Termination and Penalty</div>
-        <div class="ra-terms">
-            <div class="ra-term">- Either party may terminate this agreement upon written notice.</div>
-            <div class="ra-term">- Early termination by the Lessee will not entitle them to a refund of unused days.</div>
-            <div class="ra-term">- If the <span class="ra-red">Lessee fails to return the equipment within three (3) days after the due date</span>, without prior notice. The rental shall automatically be considered extended for one (1) full month, and the corresponding monthly rental fee shall apply.</div>
-            <div class="ra-term">- As the rental is already 10 days overdue, our team will proceed with the recovery of the equipment from the lessee's location.</div>
-            <div class="ra-term">- The oxygen tank must be returned to Caremed for refilling. <span class="ra-red">Any refilling done outside without Caremed's consent will be subject to a penalty.</span></div>
-        </div>
-
-        {# ── Section 8: Acknowledgment ── #}
-        <div class="ra-section-title">8. Acknowledgment</div>
-        <div class="ra-acknowledgment">
-            By signing below, both parties acknowledge that they have read, understood, and agreed to the terms and conditions of this Rental Agreement.
-        </div>
-
-        {# ── Signatures ── #}
-        <div class="ra-signatures">
-            <div class="ra-sig-block">
-                <div class="ra-sig-heading">Conformed by:</div>
-                <div class="ra-sig-line"></div>
-                <div class="ra-sig-label">Renter's signature over printed name</div>
-                <div class="ra-sig-date">Date Signed: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
+            {# ── Section 3 ── #}
+            <div class="ra-section-title">3. Payment Terms</div>
+            <div class="ra-terms">
+                <div class="ra-term">- Full payment of the rental fee and advance pick-up charge is required upon Pick up / delivery.</div>
+                <div class="ra-term">- All rental payments and <span class="ra-red">oxygen content are strictly non-refundable.</span></div>
+                <div class="ra-term">- Rental extensions must be reported and settled before the next due date.</div>
             </div>
-            <div class="ra-sig-right">
-                <div class="ra-sig-heading">Approved by:</div>
-                <div class="ra-sig-line"></div>
-                <div class="ra-sig-label">Owner / Representative</div>
-                <div class="ra-sig-date">Date Signed: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
+
+            {# ── Section 4 ── #}
+            <div class="ra-section-title">4. Delivery and Return</div>
+            <div class="ra-terms">
+                <div class="ra-term">- Upon completion of the rental period, the Lessee shall return the equipment in good and clean condition, subject to inspection by the Lessor. If the equipment is found to be unclean, specifically the suction machine, <span class="ra-red">a cleaning charge of 300 will apply.</span></div>
+                <div class="ra-term">- The <span class="ra-red">advance pick – up charge shall be refundable only</span> if the renter personally returns the equipment to the Caremed store.</div>
+                <div class="ra-term">- If the Caremed staff will pick up the equipment from the renter's address, the advance pick – up charge shall be non-refundable.</div>
+                <div class="ra-term">- Any damage, loss, or missing parts will be charged accordingly.</div>
+                <div class="ra-term">- In case of <span class="ra-red">major damage</span> or total loss of the equipment, it shall be <span class="ra-red">considered sold at its cash price.</span></div>
             </div>
-        </div>
+
+            {# ── Section 5 ── #}
+            <div class="ra-section-title">5. Equipment Use and Care</div>
+            <div class="ra-terms">
+                <div class="ra-term">- The Lessee agrees to use the equipment only for its intended medical purpose and with proper care.</div>
+                <div class="ra-term">- The Lessee shall not lend, sublease, or modify the equipment.</div>
+                <div class="ra-term">- The Lessor shall not be liable for any injury, accident, or damage resulting from improper use.</div>
+                <div class="ra-term">- The lessee must monitor the oxygen level and arrange refilling as needed. Caremed shall not be liable for any issues arising from failure to monitor oxygen content.</div>
+            </div>
+
+            {# ── Section 6 ── #}
+            <div class="ra-section-title">6. Maintenance and Repairs</div>
+            <div class="ra-terms">
+                <div class="ra-term">- The Lessee shall notify Caremed immediately if the equipment malfunctions.</div>
+                <div class="ra-term">- <span class="ra-red">Only authorized technicians</span> from Caremed are allowed to service or repair the equipment.</div>
+            </div>
+
+            {# ── Section 7 ── #}
+            <div class="ra-section-title">7. Termination and Penalty</div>
+            <div class="ra-terms">
+                <div class="ra-term">- Either party may terminate this agreement upon written notice.</div>
+                <div class="ra-term">- Early termination by the Lessee will not entitle them to a refund of unused days.</div>
+                <div class="ra-term">- If the <span class="ra-red">Lessee fails to return the equipment within three (3) days after the due date</span>, without prior notice. The rental shall automatically be considered extended for one (1) full month, and the corresponding monthly rental fee shall apply.</div>
+                <div class="ra-term">- As the rental is already 10 days overdue, our team will proceed with the recovery of the equipment from the lessee's location.</div>
+                <div class="ra-term">- The oxygen tank must be returned to Caremed for refilling. <span class="ra-red">Any refilling done outside without Caremed's consent will be subject to a penalty of 3,000 per tank.</span></div>
+            </div>
+
+            {# ── Section 8: Acknowledgment ── #}
+            <div class="ra-section-title">8. Acknowledgment</div>
+            <div class="ra-acknowledgment">
+                By signing below, both parties acknowledge that they have read, understood, and agreed to the terms and conditions of this Rental Agreement.
+            </div>
+
+            {# ── Signatures ── #}
+            <div class="ra-signatures">
+                <div class="ra-sig-block">
+                    <div class="ra-sig-heading">Conformed by:</div>
+                    <div class="ra-sig-line"></div>
+                    <div class="ra-sig-label">Renter's signature over printed name</div>
+                    <div class="ra-sig-date">Date Signed: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
+                </div>
+                <div class="ra-sig-right">
+                    <div class="ra-sig-heading">Approved by:</div>
+                    <div class="ra-sig-line"></div>
+                    <div class="ra-sig-label">Owner / Representative</div>
+                    <div class="ra-sig-date">Date Signed: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
+                </div>
+            </div>
 
     </div>
 

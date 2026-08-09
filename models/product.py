@@ -120,7 +120,7 @@ class Transaction(db.Model):
     customer_name = db.Column(db.String(255))
     processed_by = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     
-    transaction_type = db.Column(db.String(20), nullable=False) # "Sale", "Rental", "Refill"
+    transaction_type = db.Column(db.String(20), nullable=False)
     
     total_amount = db.Column(db.Numeric(10, 2), nullable=False, default=0.00)
     voucher_amount = db.Column(db.Numeric(10, 2), nullable=False, default=0.00)
@@ -141,6 +141,9 @@ class Transaction(db.Model):
     serial_numbers = db.Column(db.Text, nullable=True)
     walk_in_tank_size = db.Column(db.String(50), nullable=True)
 
+    has_initial_fill = db.Column(db.Boolean, default=False)
+    initial_fill_cost = db.Column(db.Numeric(10, 2), default=0.00)
+
     customer = db.relationship("Customer", back_populates="transactions")
     admin = db.relationship("User", backref="processed_transactions")
     product = db.relationship("Product", backref="product_refills")
@@ -156,7 +159,6 @@ class Transaction(db.Model):
     delivery_address = db.Column(db.Text, nullable=True)
     landmark = db.Column(db.String(255), nullable=True) 
 
-    # --- Refill Specific Financial Properties ---
     @property
     def total_cost(self):
         if self.transaction_type == "Refill" and self.quantity and self.refill_cost_per_unit:
@@ -214,68 +216,71 @@ class Transaction(db.Model):
         return "badge-success" if self.status == "Closed" else "badge-warning"
 
     def update_totals(self):
-        if self.transaction_type == "Refill":
-            self.balance_due = Decimal("0.00")
-            self.payment_status = "Fully Paid"
-            self.status = "Closed"
-            return
+            delivery_fee = Decimal(str(self.delivery_fee or 0))
+            voucher_amount = Decimal(str(self.voucher_amount or 0))
 
-        total_paid = sum(
-            (Decimal(str(p.amount)) for p in self.payments if p.status == "Completed"),
-            Decimal("0.00")
-        )
-        self.amount_paid = total_paid
+            if self.transaction_type == "Refill":
+                raw_cost = Decimal(str(self.quantity or 1)) * Decimal(str(self.refill_cost_per_unit or 0))
+                self.total_amount = max(raw_cost + delivery_fee - voucher_amount, Decimal("0.00"))
 
-        delivery_fee = Decimal(str(self.delivery_fee or 0))
-        voucher_amount = Decimal(str(self.voucher_amount or 0))
+                self.balance_due = Decimal("0.00")
+                self.payment_status = "Fully Paid"
+                self.status = "Closed"
+                return
 
-        if self.transaction_type == "Rental":
-            total_invoice_sum = Decimal("0.00")
-            for rental in self.rentals:
-                for inv in rental.invoices:
-                    total_invoice_sum += Decimal(str(inv.amount_due or 0)) + Decimal(str(inv.late_fee or 0))
-
-            self.total_amount = max(total_invoice_sum + delivery_fee - voucher_amount, Decimal("0.00"))
-            
-        elif self.transaction_type == "Sale":
-            subtotal = sum(
-                (Decimal(str(p.total_price or (Decimal(str(p.unit_price or 0)) * Decimal(str(p.quantity or 0))))) for p in self.purchases),
+            total_paid = sum(
+                (Decimal(str(p.amount)) for p in self.payments if p.status == "Completed"),
                 Decimal("0.00")
             )
-            self.total_amount = max(subtotal + delivery_fee - voucher_amount, Decimal("0.00"))
+            self.amount_paid = total_paid
 
-        current_total = Decimal(str(self.total_amount or 0))
-        self.balance_due = max(current_total - total_paid, Decimal("0.00"))
+            if self.transaction_type == "Rental":
+                total_invoice_sum = Decimal("0.00")
+                for rental in self.rentals:
+                    for inv in rental.invoices:
+                        total_invoice_sum += Decimal(str(inv.amount_due or 0)) + Decimal(str(inv.late_fee or 0))
 
-        if total_paid <= 0:
-            self.payment_status = "Unpaid"
-        elif total_paid < current_total:
-            self.payment_status = "Partially Paid"
-        else:
-            self.payment_status = "Fully Paid"
+                self.total_amount = max(total_invoice_sum + delivery_fee - voucher_amount, Decimal("0.00"))
+                
+            elif self.transaction_type == "Sale":
+                subtotal = sum(
+                    (Decimal(str(p.total_price or (Decimal(str(p.unit_price or 0)) * Decimal(str(p.quantity or 0))))) for p in self.purchases),
+                    Decimal("0.00")
+                )
+                self.total_amount = max(subtotal + delivery_fee - voucher_amount, Decimal("0.00"))
 
-        if self.payment_status == "Fully Paid":
-            if self.transaction_type == "Sale":
-                if self.fulfillment_type == "Delivery":
-                    if (self.delivery_status == "Delivered" or self.tracking_status == "DELIVERED"):
-                        self.status = "Closed"
-                        self.delivery_status = "Delivered"  
-                    else:  
-                        if self.delivery_status in ["Walk-in", "N/A"]:
+            current_total = Decimal(str(self.total_amount or 0))
+            self.balance_due = max(current_total - total_paid, Decimal("0.00"))
+
+            if total_paid <= 0:
+                self.payment_status = "Unpaid"
+            elif total_paid < current_total:
+                self.payment_status = "Partially Paid"
+            else:
+                self.payment_status = "Fully Paid"
+
+            if self.payment_status == "Fully Paid":
+                if self.transaction_type == "Sale":
+                    if self.fulfillment_type == "Delivery":
+                        if (self.delivery_status == "Delivered" or self.tracking_status == "DELIVERED"):
                             self.status = "Closed"
+                            self.delivery_status = "Delivered"  
+                        else:  
+                            if self.delivery_status in ["Walk-in", "N/A"]:
+                                self.status = "Closed"
 
-            elif self.transaction_type == "Rental":
-                if self.rentals and all(r.status == "Returned" for r in self.rentals):
-                    all_invoices_paid = all(
-                        all(inv.status == "Paid" for inv in r.invoices) 
-                        for r in self.rentals
-                    )
-                    if all_invoices_paid:
-                        self.status = "Closed"
-        else:
-            if self.status == "Closed":
-                self.status = "Open"
-                                       
+                elif self.transaction_type == "Rental":
+                    if self.rentals and all(r.status == "Returned" for r in self.rentals):
+                        all_invoices_paid = all(
+                            all(inv.status == "Paid" for inv in r.invoices) 
+                            for r in self.rentals
+                        )
+                        if all_invoices_paid:
+                            self.status = "Closed"
+            else:
+                if self.status == "Closed":
+                    self.status = "Open"
+                                             
 class Payment(db.Model):
     __tablename__ = "payments"
 
@@ -358,11 +363,13 @@ class Rental(db.Model):
             
             actual_period_end = next_period_start if next_period_start < self.expected_return_date else self.expected_return_date
 
+            item_monthly_total = (self.monthly_rate or Decimal("0.00")) * self.quantity
+
             new_invoice = RentalInvoice(
                 rental_id=self.id,
                 service_period_start=current_period_start,
                 service_period_end=actual_period_end,
-                amount_due=self.monthly_rate,
+                amount_due=item_monthly_total,
                 status="Unpaid"
             )
             db.session.add(new_invoice)

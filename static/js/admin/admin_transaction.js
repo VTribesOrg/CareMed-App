@@ -964,6 +964,16 @@ function resetRentModal() {
         updateRentRefVisibility();
     }
     
+    // Hide and reset oxygen fill section on modal reset
+    const oxygenContainer = document.getElementById('oxygen-fill-container');
+    if (oxygenContainer) oxygenContainer.style.display = 'none';
+    
+    const summaryFillRow = document.getElementById('summary-initial-fill-row');
+    if (summaryFillRow) summaryFillRow.style.display = 'none';
+    
+    const fillCostInput = document.getElementById('rent-fill-cost');
+    if (fillCostInput) fillCostInput.value = '0.00';
+    
     // Default duration setup
     const durationInput = document.getElementById('rent-duration-value');
     if (durationInput) durationInput.value = 1;
@@ -1006,15 +1016,63 @@ function isOxygenEquipment(item) {
 }
 
 /**
+ * Captures currently typed serial numbers from the DOM into the productBasket array
+ */
+function captureCurrentSerials() {
+    if (!selectedProductsContainer) return;
+    const rows = selectedProductsContainer.querySelectorAll('.selected-product-row');
+    rows.forEach(row => {
+        const qtyInput = row.querySelector('.basket-qty-input');
+        if (!qtyInput) return;
+        const productId = qtyInput.getAttribute('data-product-id');
+        const targetItem = productBasket.find(i => String(i.id) === String(productId));
+        
+        if (targetItem) {
+            const serialInputs = row.querySelectorAll('.oxygen-serial-field');
+            targetItem.serials = [];
+            serialInputs.forEach(input => {
+                targetItem.serials.push(input.value);
+            });
+        }
+    });
+}
+
+/**
+ * Toggles the visibility of the initial oxygen fill cost container based on the basket
+ */
+function updateOxygenFillVisibility() {
+    const oxygenContainer = document.getElementById('oxygen-fill-container');
+    const fillCostInput = document.getElementById('rent-fill-cost');
+    const summaryFillRow = document.getElementById('summary-initial-fill-row');
+    
+    const hasOxygen = productBasket.some(item => isOxygenEquipment(item));
+
+    if (oxygenContainer) {
+        if (hasOxygen) {
+            oxygenContainer.style.display = 'block';
+        } else {
+            oxygenContainer.style.display = 'none';
+            if (fillCostInput) fillCostInput.value = '0.00';
+            if (summaryFillRow) summaryFillRow.style.display = 'none';
+            calculateRentalTotals();
+        }
+    }
+}
+
+/**
  * Renders the visible items added into the customer's equipment basket
  */
 function renderProductBasket() {
     if (!selectedProductsContainer) return;
 
+    // Capture existing serials before wiping DOM container HTML
+    captureCurrentSerials();
+
     selectedProductsContainer.innerHTML = '';
     
     if (productBasket.length === 0) {
         if (emptyBasketPlaceholder) selectedProductsContainer.appendChild(emptyBasketPlaceholder);
+        updateOxygenFillVisibility();
         calculateRentalTotals();
         return;
     }
@@ -1027,7 +1085,6 @@ function renderProductBasket() {
         row.className = 'selected-product-row';
         row.style = 'display: flex; flex-direction: column; gap: 8px; background: white; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.02); margin-bottom: 8px;';
         
-        // Top line item details & controls
         let rowInnerHtml = `
             <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
                 <div style="display: flex; flex-direction: column; gap: 2px; flex: 1;">
@@ -1052,7 +1109,6 @@ function renderProductBasket() {
             </div>
         `;
 
-        // Append dynamic sub-inputs for serial numbers ONLY if it's an oxygen tank/equipment
         if (isOxygen) {
             let serialInputsHTML = `
                 <div style="margin-top: 4px; padding-top: 6px; border-top: 1px dashed #cbd5e1; display: flex; flex-direction: column; gap: 4px;">
@@ -1077,6 +1133,7 @@ function renderProductBasket() {
         selectedProductsContainer.appendChild(row);
     });
 
+    updateOxygenFillVisibility();
     calculateRentalTotals();
 }
 
@@ -1085,21 +1142,15 @@ if (selectedProductsContainer) {
     selectedProductsContainer.addEventListener('input', function(e) {
         if (e.target && e.target.classList.contains('basket-qty-input')) {
             const productId = e.target.getAttribute('data-product-id');
-            const newQty = parseInt(e.target.value) || 1;
+            let newQty = parseInt(e.target.value) || 1;
+            const max = parseInt(e.target.max) || 999;
+            
+            if (newQty > max) newQty = max;
+            if (newQty < 1) newQty = 1;
             
             const targetItem = productBasket.find(i => String(i.id) === String(productId));
             if (targetItem) {
-                // Capture existing serial numbers before re-rendering so typing isn't lost
-                const rowElement = e.target.closest('.selected-product-row');
-                if (rowElement) {
-                    const serialInputs = rowElement.querySelectorAll('.oxygen-serial-field');
-                    targetItem.serials = [];
-                    serialInputs.forEach(input => {
-                        targetItem.serials.push(input.value);
-                    });
-                }
-                
-                // Update quantity state and re-render dynamic fields
+                // Update quantity state and re-render dynamic serial inputs cleanly
                 targetItem.quantity = newQty;
                 renderProductBasket();
                 
@@ -1126,18 +1177,19 @@ function calculateRentalTotals() {
     const cashInput = document.getElementById('rent-amount-paid');
     const voucherInput = document.getElementById('rent-voucher-amount');
     const deliveryFeeInput = document.getElementById('rent-delivery-fee');
+    const fillCostInput = document.getElementById('rent-fill-cost');
     const breakdownContainer = document.getElementById('rent-summary-items-breakdown');
 
     const amountPaid = cashInput ? (parseFloat(cashInput.value) || 0) : 0;
     const voucherAmount = voucherInput ? (parseFloat(voucherInput.value) || 0) : 0;
     const deliveryFee = deliveryFeeInput ? (parseFloat(deliveryFeeInput.value) || 0) : 0;
+    const fillCost = fillCostInput && fillCostInput.offsetParent !== null ? (parseFloat(fillCostInput.value) || 0) : 0;
     
     let durationVal = durationInput ? (parseInt(durationInput.value) || 1) : 1;
     if (durationVal < 1) durationVal = 1;
     
     const durationUnit = durationUnitInput ? durationUnitInput.value : 'months';
 
-    // DYNAMIC DATE CALCULATION LOGIC
     if (startInput && startInput.value) {
         const start = new Date(startInput.value);
         
@@ -1172,14 +1224,12 @@ function calculateRentalTotals() {
     let totalMonthlyRate = 0;
     let totalItemsCount = 0;
 
-    // Clear previous dynamic item rows in summary
     if (breakdownContainer) breakdownContainer.innerHTML = '';
 
     productBasket.forEach(item => {
         const itemQty = parseInt(item.quantity) || 1;
         const itemMonthlyPrice = parseFloat(item.rentPrice) || 0;
         
-        // Compute pro-rated scale factor relative to monthly base price
         let rateMultiplier = durationVal;
         if (durationUnit === 'days') {
             rateMultiplier = durationVal / 30.0;
@@ -1187,13 +1237,11 @@ function calculateRentalTotals() {
             rateMultiplier = (durationVal * 7) / 30.0;
         }
 
-        // Calculate total amount for this specific product based on chosen unit timeframe
         const itemTotalCost = itemMonthlyPrice * itemQty * rateMultiplier;
 
         totalMonthlyRate += itemMonthlyPrice * itemQty;
         totalItemsCount += itemQty;
 
-        // Append line-item calculation to summary preview panel
         if (breakdownContainer) {
             const breakdownRow = document.createElement('div');
             breakdownRow.style = 'display: flex; justify-content: space-between; font-size: 12px; color: #64748b;';
@@ -1205,7 +1253,17 @@ function calculateRentalTotals() {
         }
     });
 
-    // Append a delivery fee line-item if delivery is active
+    // Display Initial Oxygen Fill as paid content status line item without affecting balance
+    if (fillCost > 0 && breakdownContainer) {
+        const fillRow = document.createElement('div');
+        fillRow.style = 'display: flex; justify-content: space-between; font-size: 12px; color: #059669; font-weight: 500;';
+        fillRow.innerHTML = `
+            <span>✓ Oxygen Content (Initial Fill Paid)</span>
+            <span>₱${fillCost.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
+        `;
+        breakdownContainer.appendChild(fillRow);
+    }
+
     if (deliveryFee > 0 && breakdownContainer) {
         const deliveryRow = document.createElement('div');
         deliveryRow.style = 'display: flex; justify-content: space-between; font-size: 12px; color: #0284c7; font-weight: 500;';
@@ -1216,7 +1274,6 @@ function calculateRentalTotals() {
         breakdownContainer.appendChild(deliveryRow);
     }
 
-    // Calculate overall duration multiplier for total contract billing
     let contractMultiplier = durationVal;
     if (durationUnit === 'days') {
         contractMultiplier = durationVal / 30.0;
@@ -1224,12 +1281,11 @@ function calculateRentalTotals() {
         contractMultiplier = (durationVal * 7) / 30.0;
     }
 
+    // Calculations: fillCost is excluded from balance math
     const subtotalContract = (totalMonthlyRate * contractMultiplier) + deliveryFee;
     const finalVoucher = Math.min(voucherAmount, subtotalContract);
     const totalContract = Math.max(subtotalContract - finalVoucher, 0);
     const balance = totalContract - amountPaid;
-
-    // ============== UI EXPANSIONS ==============
 
     const durationText = document.getElementById('rent-duration-text');
     if (durationText) {
@@ -1245,7 +1301,18 @@ function calculateRentalTotals() {
         totalBillText.textContent = `₱${subtotalContract.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
     }
 
-    // Show/hide voucher row dynamically
+    // Informational summary row for Oxygen Tank Fill
+    const summaryFillRow = document.getElementById('summary-initial-fill-row');
+    const summaryFillValText = document.getElementById('summary-fill-val');
+    if (summaryFillRow && summaryFillValText) {
+        if (fillCost > 0) {
+            summaryFillRow.style.display = 'flex';
+            summaryFillValText.textContent = `₱${fillCost.toLocaleString('en-US', {minimumFractionDigits: 2})} (Paid)`;
+        } else {
+            summaryFillRow.style.display = 'none';
+        }
+    }
+
     const voucherRow = document.getElementById('summary-voucher-row');
     const summaryVoucherValText = document.getElementById('summary-voucher-val');
     if (voucherRow && summaryVoucherValText) {
@@ -1363,7 +1430,8 @@ rentBtns.forEach(btn => {
             name: equipmentName,
             rentPrice: rentPrice,
             maxStock: stockCount,
-            quantity: 1
+            quantity: 1,
+            serials: []
         });
 
         renderProductBasket();
@@ -1393,29 +1461,12 @@ if (rentForm) {
         if (e.target.id === 'rent-payment-method') {
             updateRentRefVisibility();
         }
-        // Catch duration changes from dropdown selection unit
         if (e.target.id === 'rent-duration-unit') {
             calculateRentalTotals();
         }
     });
 
     rentForm.addEventListener('input', (e) => {
-        if (e.target.classList.contains('basket-qty-input')) {
-            const prodId = e.target.getAttribute('data-product-id');
-            let value = parseInt(e.target.value) || 1;
-            const max = parseInt(e.target.max) || 999;
-            
-            if (value > max) value = max;
-            if (value < 1) value = 1;
-            
-            e.target.value = value;
-            
-            const basketItem = productBasket.find(item => item.id === prodId);
-            if (basketItem) {
-                basketItem.quantity = value;
-            }
-        }
-        
         calculateRentalTotals();
     });
 }

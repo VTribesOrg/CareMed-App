@@ -127,7 +127,7 @@
         </div>
     </div>
 
-    <div style="overflow-x: auto; flex-grow: 1;">
+<div style="overflow-x: auto; flex-grow: 1;">
         <table class="medical-table" style="width: 100%; border-collapse: collapse; vertical-align: middle;">
             <thead>
                 <tr>
@@ -188,16 +188,17 @@
                         {% endif %}
 
                         {% if list_items %}
-                            {% set total_count = list_items|length %}
-                            <div style="display: flex; align-items: center; gap: 6px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" 
+                            <div style="display: flex; flex-direction: column; gap: 3px; max-width: 220px;"
                                  title="{% for item in list_items %}{{ item.product.equipment_type if item.product else 'Tank Refill' }} (x{{ item.quantity }}){% if not loop.last %} | {% endif %}{% endfor %}">
-                                <span style="font-size: 13px; color: #212529; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500;">
-                                    {{ list_items[0].product.equipment_type if list_items[0].product else (txn.walk_in_tank_size ~ ' Refill' if txn.walk_in_tank_size else 'Refill') }} 
-                                    <span style="color: #6c757d; font-size: 11px;">(x{{ list_items[0].quantity }})</span>
-                                </span>
-                                {% if total_count > 1 %}
-                                    <span style="background-color: #f8f9fa; color: #0d6efd; border: 1px solid #dee2e6; font-size: 10px; font-weight: bold; padding: 1px 4px; border-radius: 3px; white-space: nowrap;">
-                                        +{{ total_count - 1 }}
+                                {% for item in list_items[:2] %}
+                                    <div style="display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; color: #212529; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                        <span style="overflow: hidden; text-overflow: ellipsis;">{{ item.product.equipment_type if item.product else 'Tank Refill' }}</span>
+                                        <span style="color: #6c757d; font-size: 11px; margin-left: 6px; flex-shrink: 0;">(x{{ item.quantity }})</span>
+                                    </div>
+                                {% endfor %}
+                                {% if list_items|length > 2 %}
+                                    <span style="background-color: #f8f9fa; color: #0d6efd; border: 1px solid #dee2e6; font-size: 10px; font-weight: bold; padding: 1px 5px; border-radius: 3px; display: inline-block; width: fit-content;">
+                                        +{{ list_items|length - 2 }} more item(s)
                                     </span>
                                 {% endif %}
                             </div>

@@ -129,6 +129,18 @@
                     </div>
                 </div>
 
+                <div id="oxygen-fill-container" class="form-field full-width" style="display: none; background: #f0f9ff; padding: 8px 12px; border-radius: 6px; border: 1px solid #bae6fd;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span class="material-symbols-rounded" style="font-size: 16px; color: #0369a1;">local_gas_station</span>
+                            <label style="font-size: 12px; font-weight: 600; color: #0369a1; margin-bottom: 0;">Initial Oxygen Tank Fill Cost (₱)</label>
+                        </div>
+                        <div style="width: 140px;">
+                            <input type="number" id="rent-fill-cost" name="initial_fill_cost" class="clinical-input" style="height: 32px; font-size: 12px; padding: 4px 8px;" step="0.01" value="0.00" placeholder="0.00">
+                        </div>
+                    </div>
+                </div>
+
                 <div class="form-field">
                     <label>Start Date</label>
                     <input type="date" name="start_date" id="rent-start-date" class="clinical-input" required>
@@ -234,6 +246,11 @@
                     </div>
 
                     <div id="rent-summary-items-breakdown" style="display: flex; flex-direction: column; gap: 4px; padding: 6px 0 6px 12px; border-left: 2px solid #cbd5e1; margin: 4px 0;"></div>
+
+                    <div class="summary-row" id="summary-initial-fill-row" style="display: none;">
+                        <span>Initial Oxygen Fill</span>
+                        <span id="summary-fill-val" class="amount">₱0.00</span>
+                    </div>
 
                     <div class="summary-row">
                         <span>Total Amount</span>
