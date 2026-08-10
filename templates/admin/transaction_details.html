@@ -442,7 +442,7 @@
 
     <aside class="details-sidebar">
 
-        {% if txn.transaction_type != 'Refill' %}
+        <!-- {% if txn.transaction_type != 'Refill' %}
         <div class="tracking-sidebar-card">
             <div class="tracking-header">
                 <span class="tracking-label">Order Progress</span>
@@ -502,7 +502,7 @@
                 </div>
             </form>
         </div>
-        {% endif %}
+        {% endif %} -->
 
         {% if txn.payment_proof %}
         <div class="summary-side-card" style="border-left: 4px solid #f59e0b; margin-bottom: 20px;">
@@ -553,6 +553,7 @@
         {% endif %}
 
         <div class="summary-side-card summary-spacing">
+            
             <h5 class="sidebar-card-title">Payment Summary</h5>
             
             <div class="info-row">
@@ -562,8 +563,8 @@
 
             {% if txn.has_initial_fill and txn.initial_fill_cost and txn.initial_fill_cost > 0 %}
             <div class="info-row">
-                <span class="info-label">Initial Fill (Paid Content)</span>
-                <span class="info-value-success">₱{{ "{:,.2f}".format(txn.initial_fill_cost) }}</span>
+                <span class="info-label">Initial Fill (Paid Oxygen Gas)</span>
+                <span class="info-value">₱{{ "{:,.2f}".format(txn.initial_fill_cost) }}</span>
             </div>
             {% endif %}
 
@@ -576,7 +577,7 @@
 
             {% if txn.late_fee and txn.late_fee > 0 %}
             <div class="info-row">
-                <span class="info-label">Late Fees</span>
+                <span class="info-label">Late Fee</span>
                 <span class="info-value text-danger">₱{{ "{:,.2f}".format(txn.late_fee) }}</span>
             </div>
             {% endif %}
@@ -588,16 +589,175 @@
             </div>
             {% endif %}
 
+            <hr class="summary-divider" style="margin: 8px 0;">
+
+            {% set initial_fill_val = txn.initial_fill_cost if (txn.has_initial_fill and txn.initial_fill_cost) else 0 %}
+            {% if initial_fill_val > 0 %}
             <div class="info-row">
-                <span class="info-label font-weight-bold">Final Payable</span>
+                <span class="info-label font-weight-bold">Total Charges & Fees <span style="font-size: 11px; font-weight: normal; color: #6c757d;">(Incl. Fill)</span></span>
+                <span class="info-value font-weight-bold">₱{{ "{:,.2f}".format((txn.total_amount or 0) + initial_fill_val) }}</span>
+            </div>
+            {% endif %}
+
+            <div class="info-row">
+                <span class="info-label font-weight-bold">Net Payable <span style="font-size: 11px; font-weight: normal; color: #6c757d;">(After Discounts)</span></span>
                 <span class="info-value font-weight-bold">₱{{ "{:,.2f}".format(txn.total_amount or 0) }}</span>
             </div>
 
+            {% if txn.transaction_type == 'Rental' and txn.rentals %}
+                {% set period_starts = [] %}
+                {% for rental in txn.rentals %}
+                    {% for inv in rental.invoices %}
+                        {% if inv.service_period_start not in period_starts %}
+                            {% set _ = period_starts.append(inv.service_period_start) %}
+                        {% endif %}
+                    {% endfor %}
+                {% endfor %}
+                {% set sorted_starts = period_starts | sort %}
+
+                {% set current_start = namespace(val=none) %}
+                {% set current_end = namespace(val=none) %}
+                {% for rental in txn.rentals %}
+                    {% for inv in rental.invoices %}
+                        {% if inv.service_period_start <= current_date and current_date <= inv.service_period_end %}
+                            {% set current_start.val = inv.service_period_start %}
+                            {% set current_end.val = inv.service_period_end %}
+                        {% endif %}
+                    {% endfor %}
+                {% endfor %}
+
+                {% set current_bal = namespace(val=0) %}
+                {% if current_start.val %}
+                    {% for rental in txn.rentals %}
+                        {% for inv in rental.invoices %}
+                            {% if inv.service_period_start == current_start.val %}
+                                {% set current_bal.val = current_bal.val + inv.remaining_balance %}
+                            {% endif %}
+                        {% endfor %}
+                    {% endfor %}
+                {% endif %}
+
+                {% set target_start = namespace(val=none) %}
+                {% set target_end = namespace(val=none) %}
+                {% set is_next_month = namespace(flag=false) %}
+
+                {% if current_start.val and current_bal.val > 0 %}
+                    {% set target_start.val = current_start.val %}
+                    {% set target_end.val = current_end.val %}
+                    {% set is_next_month.flag = false %}
+                {% else %}
+                    {% set found = namespace(flag=false) %}
+                    {% for p_start in sorted_starts %}
+                        {% if not found.flag and p_start > (current_start.val or current_date) %}
+                            {% set p_bal = namespace(val=0) %}
+                            {% for rental in txn.rentals %}
+                                {% for inv in rental.invoices %}
+                                    {% if inv.service_period_start == p_start %}
+                                        {% set p_bal.val = p_bal.val + inv.remaining_balance %}
+                                    {% endif %}
+                                {% endfor %}
+                            {% endfor %}
+                            {% if p_bal.val > 0 %}
+                                {% set target_start.val = p_start %}
+                                {% set found.flag = true %}
+                                {% for rental in txn.rentals %}
+                                    {% for inv in rental.invoices %}
+                                        {% if inv.service_period_start == p_start %}
+                                            {% set target_end.val = inv.service_period_end %}
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endfor %}
+                            {% endif %}
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if not target_start.val %}
+                        {% for p_start in sorted_starts %}
+                            {% if not target_start.val %}
+                                {% set p_bal = namespace(val=0) %}
+                                {% for rental in txn.rentals %}
+                                    {% for inv in rental.invoices %}
+                                        {% if inv.service_period_start == p_start %}
+                                            {% set p_bal.val = p_bal.val + inv.remaining_balance %}
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endfor %}
+                                {% if p_bal.val > 0 %}
+                                    {% set target_start.val = p_start %}
+                                    {% for rental in txn.rentals %}
+                                        {% for inv in rental.invoices %}
+                                            {% if inv.service_period_start == p_start %}
+                                                {% set target_end.val = inv.service_period_end %}
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endfor %}
+                                {% endif %}
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+
+                    {% if not target_start.val and sorted_starts %}
+                        {% set target_start.val = sorted_starts[-1] %}
+                        {% for rental in txn.rentals %}
+                            {% for inv in rental.invoices %}
+                                {% if inv.service_period_start == target_start.val %}
+                                    {% set target_end.val = inv.service_period_end %}
+                                {% endif %}
+                            {% endfor %}
+                        {% endfor %}
+                    {% endif %}
+
+                    {% set is_next_month.flag = true %}
+                {% endif %}
+
+                {% set target_balance = namespace(val=0) %}
+                {% if target_start.val %}
+                    {% for rental in txn.rentals %}
+                        {% for inv in rental.invoices %}
+                            {% if inv.service_period_start == target_start.val %}
+                                {% set target_balance.val = target_balance.val + inv.remaining_balance %}
+                            {% endif %}
+                        {% endfor %}
+                    {% endfor %}
+                {% endif %}
+
+                {% if target_start.val and target_balance.val > 0 %}
+                    {% if is_next_month.flag %}
+                        <div class="info-row" style="background-color: #eff6ff; border: 1px dashed #bfdbfe; padding: 6px 8px; border-radius: 4px; margin: 4px 0;">
+                            <div>
+                                <span class="info-label font-weight-bold" style="color: #1e40af; display: block; font-size: 12px;">Next Month's Due</span>
+                                <span style="font-size: 10px; color: #1d4ed8;">({{ target_start.val.strftime('%b %d') }} - {{ target_end.val.strftime('%b %d, %Y') }})</span>
+                            </div>
+                            <span class="info-value font-weight-bold" style="color: #1e40af;">₱{{ "{:,.2f}".format(target_balance.val) }}</span>
+                        </div>
+                    {% else %}
+                        <div class="info-row" style="background-color: #f0fdf4; border: 1px dashed #bbf7d0; padding: 6px 8px; border-radius: 4px; margin: 4px 0;">
+                            <div>
+                                <span class="info-label font-weight-bold" style="color: #166534; display: block; font-size: 12px;">Current Month Balance Due</span>
+                                <span style="font-size: 10px; color: #15803d;">({{ target_start.val.strftime('%b %d') }} - {{ target_end.val.strftime('%b %d, %Y') }})</span>
+                            </div>
+                            <span class="info-value font-weight-bold" style="color: #166534;">₱{{ "{:,.2f}".format(target_balance.val) }}</span>
+                        </div>
+                    {% endif %}
+                {% else %}
+                    {# ALL MONTHS PAID BLOCK #}
+                    <div class="info-row" style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 6px 8px; border-radius: 4px; margin: 4px 0; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <span class="info-label font-weight-bold" style="color: #475569; display: block; font-size: 12px;">Monthly Billing Status</span>
+                            <span style="font-size: 10px; color: #64748b;">All rental billing cycles are fully paid.</span>
+                        </div>
+                        <span class="info-value" style="font-size: 12px; color: #059669; font-weight: 600;">✓ Up to Date</span>
+                    </div>
+                {% endif %}
+            {% endif %}
+
             <div class="info-row">
-                <span class="info-label">Amount Paid</span>
+                <span class="info-label">Total Paid</span>
                 <span class="info-value-success">₱{{ "{:,.2f}".format(txn.amount_paid or 0) }}</span>
             </div>
+
             <hr class="summary-divider">
+            
             <div class="info-row highlight-row">
                 <span class="info-label-dark">Balance Due</span>
                 {% if txn.balance_due > 0 %}
