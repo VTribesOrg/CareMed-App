@@ -553,102 +553,103 @@
         {% endif %}
 
         <div class="summary-side-card summary-spacing">
+            <h5 class="sidebar-card-title" style="margin-bottom: 14px;">Payment Summary</h5>
             
-            <h5 class="sidebar-card-title">Payment Summary</h5>
-            
-            <div class="info-row">
-                <span class="info-label">Items Subtotal</span>
-                <span class="info-value">₱{{ "{:,.2f}".format((txn.total_amount + txn.voucher_amount - txn.delivery_fee) if txn.transaction_type == 'Rental' else (txn.subtotal or txn.total_amount or 0)) }}</span>
+            <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
+                <div style="display: flex; justify-content: space-between; color: #4b5563;">
+                    <span>Items Subtotal</span>
+                    <span style="font-weight: 500; color: #1f2937;">₱{{ "{:,.2f}".format((txn.total_amount + txn.voucher_amount - txn.delivery_fee) if txn.transaction_type == 'Rental' else (txn.subtotal or txn.total_amount or 0)) }}</span>
+                </div>
+
+                {% set initial_fill_val = txn.initial_fill_cost if (txn.has_initial_fill and txn.initial_fill_cost) else 0 %}
+                {% if initial_fill_val > 0 %}
+                <div style="display: flex; justify-content: space-between; align-items: center; color: #4b5563;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span>Initial Fill (Oxygen)</span>
+                        <span style="font-size: 10px; background-color: #dcfce7; color: #166534; padding: 1px 6px; border-radius: 4px; font-weight: 600;">Paid</span>
+                    </div>
+                    <span style="font-weight: 500; color: #1f2937;">₱{{ "{:,.2f}".format(initial_fill_val) }}</span>
+                </div>
+                {% endif %}
+
+                {% if txn.delivery_fee and txn.delivery_fee > 0 %}
+                <div style="display: flex; justify-content: space-between; color: #4b5563;">
+                    <span>Delivery Fee</span>
+                    <span style="font-weight: 500; color: #1f2937;">₱{{ "{:,.2f}".format(txn.delivery_fee) }}</span>
+                </div>
+                {% endif %}
+
+                {% if txn.late_fee and txn.late_fee > 0 %}
+                <div style="display: flex; justify-content: space-between; color: #4b5563;">
+                    <span>Late Fee</span>
+                    <span style="font-weight: 500; color: #dc2626;">₱{{ "{:,.2f}".format(txn.late_fee) }}</span>
+                </div>
+                {% endif %}
+
+                {% if txn.voucher_amount and txn.voucher_amount > 0 %}
+                <div style="display: flex; justify-content: space-between; color: #4b5563;">
+                    <span>Voucher Discount</span>
+                    <span style="font-weight: 500; color: #16a34a;">-₱{{ "{:,.2f}".format(txn.voucher_amount) }}</span>
+                </div>
+                {% endif %}
             </div>
 
-            {% if txn.has_initial_fill and txn.initial_fill_cost and txn.initial_fill_cost > 0 %}
-            <div class="info-row">
-                <span class="info-label">Initial Fill (Paid Oxygen Gas)</span>
-                <span class="info-value">₱{{ "{:,.2f}".format(txn.initial_fill_cost) }}</span>
-            </div>
-            {% endif %}
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 12px 0;">
 
-            {% if txn.delivery_fee and txn.delivery_fee > 0 %}
-            <div class="info-row">
-                <span class="info-label">Delivery Fee</span>
-                <span class="info-value">₱{{ "{:,.2f}".format(txn.delivery_fee) }}</span>
-            </div>
-            {% endif %}
+            <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
+                {% if initial_fill_val > 0 %}
+                <div style="display: flex; justify-content: space-between; color: #374151;">
+                    <span style="font-weight: 500;">Total Charges <span style="font-size: 11px; font-weight: normal; color: #6b7280;">(Incl. Fill)</span></span>
+                    <span style="font-weight: 600;">₱{{ "{:,.2f}".format((txn.total_amount or 0) + initial_fill_val) }}</span>
+                </div>
+                {% endif %}
 
-            {% if txn.late_fee and txn.late_fee > 0 %}
-            <div class="info-row">
-                <span class="info-label">Late Fee</span>
-                <span class="info-value text-danger">₱{{ "{:,.2f}".format(txn.late_fee) }}</span>
-            </div>
-            {% endif %}
+                <div style="display: flex; justify-content: space-between; color: #374151;">
+                    <span style="font-weight: 500;">Net Payable</span>
+                    <span style="font-weight: 600;">₱{{ "{:,.2f}".format(txn.total_amount or 0) }}</span>
+                </div>
 
-            {% if txn.voucher_amount and txn.voucher_amount > 0 %}
-            <div class="info-row">
-                <span class="info-label text-success">Voucher Discount</span>
-                <span class="info-value-success">-₱{{ "{:,.2f}".format(txn.voucher_amount) }}</span>
-            </div>
-            {% endif %}
-
-            <hr class="summary-divider" style="margin: 8px 0;">
-
-            {% set initial_fill_val = txn.initial_fill_cost if (txn.has_initial_fill and txn.initial_fill_cost) else 0 %}
-            {% if initial_fill_val > 0 %}
-            <div class="info-row">
-                <span class="info-label font-weight-bold">Total Charges & Fees <span style="font-size: 11px; font-weight: normal; color: #6c757d;">(Incl. Fill)</span></span>
-                <span class="info-value font-weight-bold">₱{{ "{:,.2f}".format((txn.total_amount or 0) + initial_fill_val) }}</span>
-            </div>
-            {% endif %}
-
-            <div class="info-row">
-                <span class="info-label font-weight-bold">Net Payable <span style="font-size: 11px; font-weight: normal; color: #6c757d;">(After Discounts)</span></span>
-                <span class="info-value font-weight-bold">₱{{ "{:,.2f}".format(txn.total_amount or 0) }}</span>
+                <div style="display: flex; justify-content: space-between; color: #374151;">
+                    <span style="font-weight: 500;">Total Paid</span>
+                    <span style="font-weight: 600; color: #16a34a;">₱{{ "{:,.2f}".format(txn.amount_paid or 0) }}</span>
+                </div>
             </div>
 
             {% if txn.transaction_type == 'Rental' and txn.rentals %}
-                {% set period_starts = [] %}
-                {% for rental in txn.rentals %}
-                    {% for inv in rental.invoices %}
-                        {% if inv.service_period_start not in period_starts %}
-                            {% set _ = period_starts.append(inv.service_period_start) %}
-                        {% endif %}
-                    {% endfor %}
-                {% endfor %}
-                {% set sorted_starts = period_starts | sort %}
+                {% set period_data = namespace(starts=[], current_start=none, current_end=none, current_bal=0, target_start=none, target_end=none, target_bal=0, is_next=false) %}
 
-                {% set current_start = namespace(val=none) %}
-                {% set current_end = namespace(val=none) %}
                 {% for rental in txn.rentals %}
                     {% for inv in rental.invoices %}
+                        {% if inv.service_period_start not in period_data.starts %}
+                            {% set _ = period_data.starts.append(inv.service_period_start) %}
+                        {% endif %}
                         {% if inv.service_period_start <= current_date and current_date <= inv.service_period_end %}
-                            {% set current_start.val = inv.service_period_start %}
-                            {% set current_end.val = inv.service_period_end %}
+                            {% set period_data.current_start = inv.service_period_start %}
+                            {% set period_data.current_end = inv.service_period_end %}
                         {% endif %}
                     {% endfor %}
                 {% endfor %}
 
-                {% set current_bal = namespace(val=0) %}
-                {% if current_start.val %}
+                {% set sorted_starts = period_data.starts | sort %}
+
+                {% if period_data.current_start %}
                     {% for rental in txn.rentals %}
                         {% for inv in rental.invoices %}
-                            {% if inv.service_period_start == current_start.val %}
-                                {% set current_bal.val = current_bal.val + inv.remaining_balance %}
+                            {% if inv.service_period_start == period_data.current_start %}
+                                {% set period_data.current_bal = period_data.current_bal + inv.remaining_balance %}
                             {% endif %}
                         {% endfor %}
                     {% endfor %}
                 {% endif %}
 
-                {% set target_start = namespace(val=none) %}
-                {% set target_end = namespace(val=none) %}
-                {% set is_next_month = namespace(flag=false) %}
-
-                {% if current_start.val and current_bal.val > 0 %}
-                    {% set target_start.val = current_start.val %}
-                    {% set target_end.val = current_end.val %}
-                    {% set is_next_month.flag = false %}
+                {% if period_data.current_start and period_data.current_bal > 0 %}
+                    {% set period_data.target_start = period_data.current_start %}
+                    {% set period_data.target_end = period_data.current_end %}
+                    {% set period_data.is_next = false %}
                 {% else %}
                     {% set found = namespace(flag=false) %}
                     {% for p_start in sorted_starts %}
-                        {% if not found.flag and p_start > (current_start.val or current_date) %}
+                        {% if not found.flag and p_start > (period_data.current_start or current_date) %}
                             {% set p_bal = namespace(val=0) %}
                             {% for rental in txn.rentals %}
                                 {% for inv in rental.invoices %}
@@ -658,12 +659,12 @@
                                 {% endfor %}
                             {% endfor %}
                             {% if p_bal.val > 0 %}
-                                {% set target_start.val = p_start %}
+                                {% set period_data.target_start = p_start %}
                                 {% set found.flag = true %}
                                 {% for rental in txn.rentals %}
                                     {% for inv in rental.invoices %}
                                         {% if inv.service_period_start == p_start %}
-                                            {% set target_end.val = inv.service_period_end %}
+                                            {% set period_data.target_end = inv.service_period_end %}
                                         {% endif %}
                                     {% endfor %}
                                 {% endfor %}
@@ -671,9 +672,9 @@
                         {% endif %}
                     {% endfor %}
 
-                    {% if not target_start.val %}
+                    {% if not period_data.target_start %}
                         {% for p_start in sorted_starts %}
-                            {% if not target_start.val %}
+                            {% if not period_data.target_start %}
                                 {% set p_bal = namespace(val=0) %}
                                 {% for rental in txn.rentals %}
                                     {% for inv in rental.invoices %}
@@ -683,11 +684,11 @@
                                     {% endfor %}
                                 {% endfor %}
                                 {% if p_bal.val > 0 %}
-                                    {% set target_start.val = p_start %}
+                                    {% set period_data.target_start = p_start %}
                                     {% for rental in txn.rentals %}
                                         {% for inv in rental.invoices %}
                                             {% if inv.service_period_start == p_start %}
-                                                {% set target_end.val = inv.service_period_end %}
+                                                {% set period_data.target_end = inv.service_period_end %}
                                             {% endif %}
                                         {% endfor %}
                                     {% endfor %}
@@ -696,74 +697,59 @@
                         {% endfor %}
                     {% endif %}
 
-                    {% if not target_start.val and sorted_starts %}
-                        {% set target_start.val = sorted_starts[-1] %}
+                    {% if not period_data.target_start and sorted_starts %}
+                        {% set period_data.target_start = sorted_starts[-1] %}
                         {% for rental in txn.rentals %}
                             {% for inv in rental.invoices %}
-                                {% if inv.service_period_start == target_start.val %}
-                                    {% set target_end.val = inv.service_period_end %}
+                                {% if inv.service_period_start == period_data.target_start %}
+                                    {% set period_data.target_end = inv.service_period_end %}
                                 {% endif %}
                             {% endfor %}
                         {% endfor %}
                     {% endif %}
 
-                    {% set is_next_month.flag = true %}
+                    {% set period_data.is_next = true %}
                 {% endif %}
 
-                {% set target_balance = namespace(val=0) %}
-                {% if target_start.val %}
+                {% if period_data.target_start %}
                     {% for rental in txn.rentals %}
                         {% for inv in rental.invoices %}
-                            {% if inv.service_period_start == target_start.val %}
-                                {% set target_balance.val = target_balance.val + inv.remaining_balance %}
+                            {% if inv.service_period_start == period_data.target_start %}
+                                {% set period_data.target_bal = period_data.target_bal + inv.remaining_balance %}
                             {% endif %}
                         {% endfor %}
                     {% endfor %}
                 {% endif %}
 
-                {% if target_start.val and target_balance.val > 0 %}
-                    {% if is_next_month.flag %}
-                        <div class="info-row" style="background-color: #eff6ff; border: 1px dashed #bfdbfe; padding: 6px 8px; border-radius: 4px; margin: 4px 0;">
-                            <div>
-                                <span class="info-label font-weight-bold" style="color: #1e40af; display: block; font-size: 12px;">Next Month's Due</span>
-                                <span style="font-size: 10px; color: #1d4ed8;">({{ target_start.val.strftime('%b %d') }} - {{ target_end.val.strftime('%b %d, %Y') }})</span>
-                            </div>
-                            <span class="info-value font-weight-bold" style="color: #1e40af;">₱{{ "{:,.2f}".format(target_balance.val) }}</span>
-                        </div>
-                    {% else %}
-                        <div class="info-row" style="background-color: #f0fdf4; border: 1px dashed #bbf7d0; padding: 6px 8px; border-radius: 4px; margin: 4px 0;">
-                            <div>
-                                <span class="info-label font-weight-bold" style="color: #166534; display: block; font-size: 12px;">Current Month Balance Due</span>
-                                <span style="font-size: 10px; color: #15803d;">({{ target_start.val.strftime('%b %d') }} - {{ target_end.val.strftime('%b %d, %Y') }})</span>
-                            </div>
-                            <span class="info-value font-weight-bold" style="color: #166534;">₱{{ "{:,.2f}".format(target_balance.val) }}</span>
-                        </div>
-                    {% endif %}
-                {% else %}
-                    {# ALL MONTHS PAID BLOCK #}
-                    <div class="info-row" style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 6px 8px; border-radius: 4px; margin: 4px 0; display: flex; justify-content: space-between; align-items: center;">
+                {% if period_data.target_start and period_data.target_bal > 0 %}
+                    <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 12px 0;">
+                    <div style="background-color: {% if period_data.is_next %}#eff6ff{% else %}#f0fdf4{% endif %}; border: 1px solid {% if period_data.is_next %}#bfdbfe{% else %}#bbf7d0{% endif %}; padding: 10px 12px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
                         <div>
-                            <span class="info-label font-weight-bold" style="color: #475569; display: block; font-size: 12px;">Monthly Billing Status</span>
-                            <span style="font-size: 10px; color: #64748b;">All rental billing cycles are fully paid.</span>
+                            <span style="font-weight: 600; color: {% if period_data.is_next %}#1e40af{% else %}#166534{% endif %}; display: block; font-size: 12px;">{% if period_data.is_next %}Next Month's Due{% else %}Current Month Due{% endif %}</span>
+                            <span style="font-size: 11px; color: {% if period_data.is_next %}#1d4ed8{% else %}#15803d{% endif %};">{{ period_data.target_start.strftime('%b %d') }} - {{ period_data.target_end.strftime('%b %d, %Y') }}</span>
                         </div>
-                        <span class="info-value" style="font-size: 12px; color: #059669; font-weight: 600;">✓ Up to Date</span>
+                        <span style="font-weight: 700; font-size: 14px; color: {% if period_data.is_next %}#1e40af{% else %}#166534{% endif %};">₱{{ "{:,.2f}".format(period_data.target_bal) }}</span>
+                    </div>
+                {% else %}
+                    <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 12px 0;">
+                    <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 10px 12px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <span style="font-weight: 600; color: #475569; display: block; font-size: 12px;">Billing Status</span>
+                            <span style="font-size: 11px; color: #64748b;">All cycles fully paid.</span>
+                        </div>
+                        <span style="font-size: 12px; color: #059669; font-weight: 600;">✓ Up to Date</span>
                     </div>
                 {% endif %}
             {% endif %}
 
-            <div class="info-row">
-                <span class="info-label">Total Paid</span>
-                <span class="info-value-success">₱{{ "{:,.2f}".format(txn.amount_paid or 0) }}</span>
-            </div>
-
-            <hr class="summary-divider">
+            <hr style="border: none; border-top: 2px solid #e5e7eb; margin: 14px 0;">
             
-            <div class="info-row highlight-row">
-                <span class="info-label-dark">Balance Due</span>
+            <div style="background-color: #fef2f2; border: 1px solid #fecaca; padding: 12px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-weight: 700; color: #991b1b; font-size: 14px;">Total Balance Due</span>
                 {% if txn.balance_due > 0 %}
-                    <span class="info-value-danger">₱{{ "{:,.2f}".format(txn.balance_due) }}</span>
+                    <span style="font-weight: 700; color: #dc2626; font-size: 16px;">₱{{ "{:,.2f}".format(txn.balance_due) }}</span>
                 {% else %}
-                    <span class="info-value-success">₱0.00</span>
+                    <span style="font-weight: 700; color: #16a34a; font-size: 16px;">₱0.00</span>
                 {% endif %}
             </div>
         </div>
