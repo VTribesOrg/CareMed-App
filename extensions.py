@@ -7,7 +7,7 @@ from flask_mail import Mail
 from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-
+import os
 
 
 db = SQLAlchemy()
@@ -19,7 +19,7 @@ mail = Mail()
 csrf = CSRFProtect()
 limiter = Limiter(
     key_func=get_remote_address,
-    storage_uri="redis://redis:6379/0",
+    storage_uri=os.environ.get("REDIS_URL", "memory://"),
     default_limits=["200 per day", "50 per hour"]
 )
 login_manager.login_view = "auth.login"
