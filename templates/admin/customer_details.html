@@ -148,15 +148,13 @@
                 <h3>Customer Activity</h3>
                 <p class="section-desc">Manage active equipment rentals and view complete financial history.</p>
             </div>
-            
-            <!-- Tab Navigation Buttons -->
+
             <div class="cdp-tabs" style="display: flex; background: #f1f5f9; padding: 4px; border-radius: 8px; gap: 4px;">
                 <button type="button" class="cdp-tab-btn active" data-target="active-rentals-panel" style="padding: 6px 14px; font-size: 0.813rem; font-weight: 600; border: none; background: #ffffff; color: #0f172a; border-radius: 6px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.05); transition: all 0.2s;">Active Rentals</button>
                 <button type="button" class="cdp-tab-btn" data-target="transaction-history-panel" style="padding: 6px 14px; font-size: 0.813rem; font-weight: 600; border: none; background: transparent; color: #64748b; border-radius: 6px; cursor: pointer; transition: all 0.2s;">Transaction History</button>
             </div>
         </div>
 
-        <!-- ================= PANEL 1: ACTIVE RENTALS ================= -->
         <div id="active-rentals-panel" class="cdp-tab-panel" style="display: block;">
             <div class="cdp-table-container">
                 <table class="cdp-table" style="width: 100%; border-collapse: collapse; vertical-align: middle;">
@@ -248,7 +246,6 @@
             </div>
         </div>
 
-        <!-- ================= PANEL 2: TRANSACTION HISTORY ================= -->
         <div id="transaction-history-panel" class="cdp-tab-panel" style="display: none;">
             <div class="cdp-table-container">
                 <table class="cdp-table" style="width: 100%; border-collapse: collapse; vertical-align: middle;">
@@ -266,8 +263,7 @@
                     <tbody>
                         {% for transaction in transactions %}
                         <tr class="clickable-row" data-href="{% if transaction.transaction_type == 'Refill' %}{{ url_for('admin.log_detail', log_id=transaction.id) }}{% else %}{{ url_for('admin.transaction_details', id=transaction.id) }}{% endif %}" style="border-bottom: 1px solid #f1f5f9; transition: background-color 0.15s ease;">
-                            
-                            <!-- Date & Time -->
+
                             <td style="padding: 12px;">
                                 {% if transaction.created_at %}
                                     <div style="display: flex; flex-direction: column; white-space: nowrap; line-height: 1.3;">
@@ -279,7 +275,6 @@
                                 {% endif %}
                             </td>
 
-                            <!-- Transaction ID / Reference No -->
                             <td style="padding: 12px; white-space: nowrap;">
                                 {% if transaction.transaction_type == 'Refill' %}
                                     <a href="{{ url_for('admin.log_detail', log_id=transaction.id) }}" class="tx-link" style="display: inline-flex; align-items: center; gap: 4px; text-decoration: none;">
@@ -294,12 +289,10 @@
                                 {% endif %}
                             </td>
 
-                            <!-- Description -->
                             <td style="padding: 12px; color: #334155; font-weight: 500; font-size: 0.875rem;">
                                 {{ transaction.description }}
                             </td>
 
-                            <!-- Serial # / Asset Tag / Purchase Items -->
                             <td style="padding: 12px;">
                                 <div style="max-width: 180px; overflow-x: auto; white-space: nowrap; padding-bottom: 2px;">
                                     {% if transaction.serial_numbers and transaction.serial_numbers != "N/A" %}
@@ -348,7 +341,6 @@
                                 </div>
                             </td>
 
-                            <!-- Staff Accountability -->
                             <td style="padding: 12px; font-size: 0.813rem; color: #475569;">
                                 {% if transaction.admin %}
                                     <div style="font-weight: 500;">{{ transaction.admin.full_name }}</div>
@@ -357,7 +349,6 @@
                                 {% endif %}
                             </td>
 
-                            <!-- Amount & Balance Due Tracking -->
                             <td style="padding: 12px; text-align: right;">
                                 <div style="font-weight: 700; color: #0f172a; font-size: 0.9rem;">
                                     {{ transaction.display_amount | currency }}
@@ -369,7 +360,6 @@
                                 {% endif %}
                             </td>
 
-                            <!-- Status -->
                             <td style="padding: 12px; text-align: center;">
                                 <span class="badge {{ transaction.status_badge }}" style="padding: 4px 10px; border-radius: 6px; font-weight: 600; font-size: 0.75rem; display: inline-block;">
                                     {{ transaction.status }}
