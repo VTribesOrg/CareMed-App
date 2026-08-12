@@ -133,27 +133,26 @@ ALL_EXPENSE_CATEGORIES_ORDERED = [
 @login_required
 @admin_or_staff_required
 def dashboard():
+    # Total revenue collected from Sales
     total_sales = db.session.query(
         func.sum(Transaction.amount_paid)
-    ).filter_by(transaction_type='Sale').scalar() or 0
+    ).filter_by(transaction_type='Sale').scalar() or Decimal("0.00")
 
+    # Total revenue collected from Rentals
     total_rentals = db.session.query(
-        func.sum(Payment.amount)
-    ).join(Transaction).filter(
-        Transaction.transaction_type == 'Rental',
-        Payment.status == 'Completed'
-    ).scalar() or 0
+        func.sum(Transaction.amount_paid)
+    ).filter_by(transaction_type='Rental').scalar() or Decimal("0.00")
 
-    # Compute refill revenue and profit using the unified Transaction model
+    # Total revenue and profit collected from Refills
     refill_txns = Transaction.query.filter_by(transaction_type="Refill").all()
-    total_refill_rev = sum((t.total_amount for t in refill_txns), Decimal("0.00"))
+    total_refill_income = sum((t.total_amount for t in refill_txns), Decimal("0.00"))
     total_refill_profit = sum((t.net_profit for t in refill_txns), Decimal("0.00"))
 
     active_rentals_count = Rental.query.filter_by(status='Active').count()
     
     total_expenses = db.session.query(
         func.sum(Expense.amount)
-    ).scalar() or 0
+    ).scalar() or Decimal("0.00")
 
     product_inventory = db.session.query(
         func.sum(Product.stock)
@@ -250,7 +249,7 @@ def dashboard():
         'admin/dashboard.html',
         total_sales=total_sales,
         total_rentals=total_rentals,
-        total_refill_rev=total_refill_rev,
+        total_refill_income=total_refill_income,
         total_refill_profit=total_refill_profit,
         active_rentals_count=active_rentals_count,
         total_inventory=total_inventory,
@@ -319,7 +318,7 @@ def request_refill():
 @admin_or_staff_required
 def process_refill_transaction():
     buyer_type = request.form.get('refill_buyer_type')
-    tank_size = request.form.get('tank_size') 
+    tank_size = request.form.get('tank_size') or request.form.get('tank_size_select') or request.form.get('tank_size_text')
     quantity = request.form.get('quantity', type=int)
     
     serial_list = request.form.getlist('serial_numbers')
@@ -389,33 +388,56 @@ def process_refill_transaction():
                             serial_display_parts.append(new_serial_clean)
 
             if not product:
-                selected_tank_val = request.form.get('tank_size_select', '') or tank_size
+                selected_tank_val = tank_size or ''
                 product_name = selected_tank_val.split(' - ')[0] if ' - ' in selected_tank_val else selected_tank_val
                 product = Product.query.filter_by(name=product_name.strip(), is_refillable=True).first()
 
+            if product:
+                tank_status = TankStatus.query.filter_by(product_id=product.id).first()
+                if not tank_status:
+                    tank_status = TankStatus(product_id=product.id, full_in_stock=0, empty_in_stock=0)
+                    db.session.add(tank_status)
+
+                if tank_status.full_in_stock < quantity:
+                    flash(f"Inventory Alert: Insufficient full tanks in stock for {product.name}. Available full: {tank_status.full_in_stock}", "error")
+                    return redirect(url_for('admin.dashboard'))
+                
+                tank_status.full_in_stock -= quantity
+                tank_status.empty_in_stock += quantity
+            else:
+                flash("Inventory Error: Could not match refillable product inventory item.", "error")
+                return redirect(url_for('admin.dashboard'))
+
         else:
             display_name = request.form.get('unregistered_customer_name', '').strip() or "Walk-in Customer"
-            selected_tank_val = tank_size or ''
+            
+            # Handle dynamic selection per row or general fallback
+            unreg_products = request.form.getlist('unregistered_product_size')
+            empty_serials = request.form.getlist('empty_serial_numbers')
+            
+            selected_tank_val = (unreg_products[0] if unreg_products else None) or tank_size or ''
             product_name = selected_tank_val.split(' - ')[0] if ' - ' in selected_tank_val else selected_tank_val
+            
             product = Product.query.filter_by(name=product_name.strip(), is_refillable=True).first()
+            
             if serial_list:
                 serial_display_parts = [s.strip() for s in serial_list if s.strip()]
 
-        if product:
-            tank_status = TankStatus.query.filter_by(product_id=product.id).first()
-            if not tank_status:
-                tank_status = TankStatus(product_id=product.id, full_in_stock=0, empty_in_stock=0)
-                db.session.add(tank_status)
+            if product:
+                tank_status = TankStatus.query.filter_by(product_id=product.id).first()
+                if not tank_status:
+                    tank_status = TankStatus(product_id=product.id, full_in_stock=0, empty_in_stock=0)
+                    db.session.add(tank_status)
 
-            if tank_status.full_in_stock < quantity:
-                flash(f"Inventory Alert: Insufficient full tanks in stock for {product.name}. Available full: {tank_status.full_in_stock}", "error")
+                if tank_status.full_in_stock < quantity:
+                    flash(f"Inventory Alert: Insufficient full tanks in stock for {product.name}. Available full: {tank_status.full_in_stock}", "error")
+                    return redirect(url_for('admin.dashboard'))
+                
+                tank_status.full_in_stock -= quantity
+                tank_status.empty_in_stock += quantity
+            else:
+                flash("Inventory Error: Could not match refillable product inventory item for walk-in.", "error")
                 return redirect(url_for('admin.dashboard'))
-            
-            tank_status.full_in_stock -= quantity
-            tank_status.empty_in_stock += quantity
-        else:
-            flash("Inventory Error: Could not match refillable product inventory item.", "error")
-            return redirect(url_for('admin.dashboard'))
 
         final_serials_str = ", ".join(serial_display_parts) if serial_display_parts else "N/A"
         
@@ -446,23 +468,23 @@ def process_refill_transaction():
         new_transaction.reference_no = f"RFL-{new_transaction.id:06d}"
 
         log = InventoryLog(
-            product_id=product.id,
-            action="Refill Service Completed & Swapped",
+            product_id=product.id if product else None,
+            action="Refill Service Completed & Swapped" if buyer_type == 'registered' else "Walk-in Refill Service Completed",
             quantity=quantity,
-            note=f"Processed refill swap for {display_name}. Subtotal: {form_amount} PHP, Net Total: {net_total} PHP.",
+            note=f"Processed refill for {display_name}. Subtotal: {form_amount} PHP, Net Total: {net_total} PHP.",
             user_id=current_user.id,
             user_name=current_user.full_name
         )
         db.session.add(log)
         
         db.session.commit()
-        flash(f"Refill and tank swap successfully processed for {display_name}.", "success")
+        flash(f"Refill transaction successfully processed for {display_name}.", "success")
 
     except Exception as e:
         db.session.rollback()
         flash(f"An unexpected error occurred while saving the transaction: {str(e)}", "error")
 
-    return redirect(url_for('admin.dashboard'))
+    return redirect(url_for("admin.transactions"))
 
 @admin_bp.route('/customers')
 @login_required
@@ -1452,6 +1474,8 @@ def process_purchase():
         if isinstance(landmark_raw, list):
             landmark_raw = landmark_raw[0]
 
+        transaction_status = "Closed" if fulfillment == "Walk-In" else "Open"
+
         new_transaction = Transaction(
             reference_no=ref_no,
             customer_id=customer_id,
@@ -1465,7 +1489,7 @@ def process_purchase():
             landmark=landmark_raw if fulfillment == "Delivery" else None,
             delivery_status="Pending" if fulfillment == "Delivery" else "N/A",
             tracking_status="SUBMITTED",
-            status="Open"
+            status=transaction_status  
         )
 
         db.session.add(new_transaction)
@@ -1627,10 +1651,12 @@ def process_rental():
         amount_paid = Decimal(request.form.get('amount_paid', '0').replace(',', '') or '0')
         voucher_amount = Decimal(request.form.get('voucher_amount', '0').replace(',', '') or '0')
         delivery_fee = Decimal(request.form.get('delivery_fee', '0').replace(',', '') or '0')
-        
-        # Parse initial fill cost
-        initial_fill_cost = Decimal(request.form.get('initial_fill_cost', '0').replace(',', '') or '0')
-        has_initial_fill = initial_fill_cost > 0
+
+        has_initial_fill = True if request.form.get('has_initial_fill') in ['on', 'true', '1', True] else False
+        initial_fill_cost_raw = request.form.get('initial_fill_cost', '0').replace(',', '')
+        initial_fill_cost = Decimal(initial_fill_cost_raw or '0') if (has_initial_fill or initial_fill_cost_raw) else Decimal('0.00')
+        if initial_fill_cost > 0:
+            has_initial_fill = True
 
         start_date_str = request.form.get('start_date')
         return_date_str = request.form.get('return_date')
@@ -1782,8 +1808,15 @@ def process_rental():
             r.generate_monthly_invoices()
 
         db.session.flush()
-        new_txn.update_totals()
 
+        all_invoices = []
+        for r in rentals:
+            for inv in r.invoices:
+                all_invoices.append(inv)
+
+
+        db.session.flush()
+        new_txn.update_totals() 
         db.session.expire(new_txn, ['payments'])
 
         total_payment_to_allocate = amount_paid
@@ -1793,10 +1826,6 @@ def process_rental():
             reference_number = request.form.get('reference_number', '').strip() or None
 
             remaining = total_payment_to_allocate
-            all_invoices = []
-            for r in rentals:
-                for inv in r.invoices:
-                    all_invoices.append(inv)
 
             for inv in all_invoices:
                 if remaining <= 0:
@@ -1821,7 +1850,6 @@ def process_rental():
         db.session.flush()
         db.session.expire(new_txn, ['payments'])
 
-        # Final sync for balance due and payment status updates
         new_txn.update_totals() 
         db.session.commit()
 
@@ -2231,6 +2259,7 @@ def update_tracking(txn_id):
 def post_payment():
     txn_id = request.form.get('txn_id')
     invoice_id = request.form.get('invoice_id')  
+    payment_type = request.form.get('payment_type', 'Rental')
 
     try:
         raw_amount = request.form.get('amount', '0').replace(',', '').strip()
@@ -2268,7 +2297,7 @@ def post_payment():
             file.save(os.path.join(upload_folder, filename))
             receipt_path = f'uploads/receipts/{filename}'
 
-        if txn.transaction_type == 'Sale':
+        if txn.transaction_type == 'Sale' or txn.transaction_type == 'Purchase':
             sale_balance = Decimal(str(txn.balance_due or 0))
             if sale_balance <= 0:
                 flash('This transaction is already fully paid.', 'info')
@@ -2285,6 +2314,30 @@ def post_payment():
                 receipt_image_path=receipt_path,
                 status="Completed", 
                 verified_by_id=current_user.id, 
+                verified_at=datetime.utcnow()
+            )
+            db.session.add(payment)
+
+        elif payment_type == 'InitialFill':
+            initial_fill_balance = txn.initial_fill_balance
+
+            if initial_fill_balance <= 0:
+                flash('Initial fill fee is already fully paid.', 'info')
+                return redirect(request.referrer)
+
+            if amount > initial_fill_balance:
+                flash(f'Payment ₱{amount:,.2f} exceeds the initial fill balance of ₱{initial_fill_balance:,.2f}.', 'danger')
+                return redirect(request.referrer)
+
+            payment = Payment(
+                transaction_id=txn.id,
+                invoice_id=None, 
+                amount=amount,
+                payment_method=method,
+                reference_number=ref_number,
+                receipt_image_path=receipt_path,
+                status="Completed",
+                verified_by_id=current_user.id,
                 verified_at=datetime.utcnow()
             )
             db.session.add(payment)
@@ -2328,6 +2381,15 @@ def post_payment():
 
         db.session.expire(txn, ['payments'])
         txn.update_totals()
+
+        if txn.balance_due <= 0 and txn.status not in ['Closed', 'Cancelled']:
+            if txn.transaction_type == 'Rental':
+                all_returned = all(getattr(r, 'remaining_to_return', 0) == 0 for r in txn.rentals)
+                if all_returned:
+                    txn.status = 'Closed'
+            else:
+                txn.status = 'Closed'
+
         db.session.commit()
 
         flash(f'Payment of ₱{amount:,.2f} recorded successfully.', 'success')

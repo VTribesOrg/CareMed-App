@@ -114,6 +114,18 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error("Failed to parse active oxygen rentals JSON", e);
     }
 
+    // Parse refillable products JSON dataset from template for unregistered dropdowns
+    let refillableProducts = [];
+    try {
+        const scriptTag = document.getElementById('refillable-products-data');
+        if (scriptTag) {
+            refillableProducts = JSON.parse(scriptTag.textContent);
+        }
+    } catch (e) {
+        // Fallback or read from existing select options if no separate JSON script tag exists
+        refillableProducts = Array.from(tankSelect.options).map(opt => opt.value);
+    }
+
     function renderDynamicRows() {
         const qty = Math.max(1, parseInt(quantityInput.value) || 1);
         const buyerType = document.querySelector('input[name="refill_buyer_type"]:checked').value;
@@ -124,25 +136,62 @@ document.addEventListener('DOMContentLoaded', () => {
         const existingRows = Array.from(dynamicRowsContainer.children);
         const savedValues = existingRows.map(row => {
             const select = row.querySelector('select[name="swapped_rental_serial"]');
-            const input = row.querySelector('input[name="serial_numbers"]');
+            const selectUnregProd = row.querySelector('select[name="unregistered_product_size"]');
+            const inputEmpty = row.querySelector('input[name="empty_serial_numbers"]');
+            const inputFull = row.querySelector('input[name="serial_numbers"]');
             return {
                 selectedRental: select ? select.value : '',
-                incomingSerial: input ? input.value : ''
+                selectedUnregProd: selectUnregProd ? selectUnregProd.value : '',
+                emptySerial: inputEmpty ? inputEmpty.value : '',
+                incomingSerial: inputFull ? inputFull.value : ''
             };
         });
 
         dynamicRowsContainer.innerHTML = '';
 
         if (!isRegistered) {
+            // Build dropdown options for products/sizes
+            let productOptionsHtml = '<option value="">Select tank size...</option>';
+            if (refillableProducts.length > 0 && typeof refillableProducts[0] === 'object') {
+                refillableProducts.forEach(prod => {
+                    productOptionsHtml += `<option value="${prod.name} - ${prod.size}">${prod.name} - ${prod.size}</option>`;
+                });
+            } else {
+                Array.from(tankSelect.options).forEach(opt => {
+                    productOptionsHtml += `<option value="${opt.value}">${opt.textContent.trim()}</option>`;
+                });
+            }
+
             for (let i = 1; i <= qty; i++) {
-                const prevVal = savedValues[i - 1] ? savedValues[i - 1].incomingSerial : '';
+                const prevData = savedValues[i - 1] || { selectedUnregProd: '', emptySerial: '', incomingSerial: '' };
                 const row = document.createElement('div');
-                row.className = 'form-field';
-                row.style.marginBottom = '10px';
+                row.style.cssText = 'display: flex; flex-direction: column; gap: 8px; width: 100%; background: #f8fafc; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0; box-sizing: border-box; margin-bottom: 10px;';
+                
+                let currentProdOpts = productOptionsHtml;
+                if (prevData.selectedUnregProd) {
+                    currentProdOpts = currentProdOpts.replace(`value="${prevData.selectedUnregProd}"`, `value="${prevData.selectedUnregProd}" selected`);
+                }
+
                 row.innerHTML = `
-                    <label style="font-weight: 600; color: #1e293b; margin-bottom: 4px; display: block; font-size: 0.8rem;">Incoming Tank Serial #${i}</label>
-                    <input type="text" name="serial_numbers" value="${prevVal}" placeholder="e.g. OX-10L-NEW0${i}" required 
-                        style="width: 100%; height: 38px; padding: 0 12px; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #1e293b; font-size: 0.85rem; outline: none; box-sizing: border-box;">
+                    <div class="form-field" style="margin-bottom: 0;">
+                        <label style="font-weight: 700; color: #1e293b; margin-bottom: 4px; display: block; font-size: 0.8rem;">Tank Product & Size #${i}</label>
+                        <select name="unregistered_product_size" class="medical-select" required
+                                style="width: 100%; height: 38px; padding: 0 10px; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #1e293b; font-size: 0.85rem; outline: none; box-sizing: border-box;">
+                            ${currentProdOpts}
+                        </select>
+                    </div>
+                    <div style="display: flex; gap: 10px; width: 100%;">
+                        <div style="flex: 1; min-width: 0;">
+                            <label style="font-weight: 700; color: #1e293b; margin-bottom: 4px; display: block; font-size: 0.8rem;">Empty Tank Serial #${i}</label>
+                            <input type="text" name="empty_serial_numbers" value="${prevData.emptySerial}" placeholder="e.g. ET-9021" required 
+                                style="width: 100%; height: 38px; padding: 0 10px; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #1e293b; font-size: 0.85rem; outline: none; box-sizing: border-box;">
+                        </div>
+                        <div style="flex: 1; min-width: 0;">
+                            <label style="font-weight: 700; color: #1e293b; margin-bottom: 4px; display: block; font-size: 0.8rem;">Full Tank Serial #${i} (Full)</label>
+                            <input type="text" name="serial_numbers" value="${prevData.incomingSerial}" placeholder="e.g. FT-4412" required 
+                                style="width: 100%; height: 38px; padding: 0 10px; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #1e293b; font-size: 0.85rem; outline: none; box-sizing: border-box;">
+                        </div>
+                    </div>
                 `;
                 dynamicRowsContainer.appendChild(row);
             }
@@ -205,10 +254,10 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 tankSelect.style.display = 'none';
                 tankSelect.removeAttribute('name');
-                tankText.style.display = 'block';
-                tankText.setAttribute('name', 'tank_size');
+                tankText.style.display = 'none';
+                tankText.removeAttribute('name');
                 labelReg.style.display = 'none';
-                labelUnreg.style.display = 'inline';
+                labelUnreg.style.display = 'none';
             }
             renderDynamicRows();
         });
@@ -265,7 +314,7 @@ document.addEventListener("DOMContentLoaded", function() {
         if (regRadio.checked) {
             tankContainer.style.display = "none";
         } else {
-            tankContainer.style.display = "block";
+            tankContainer.style.display = "none";
         }
     }
 
@@ -1253,12 +1302,12 @@ function calculateRentalTotals() {
         }
     });
 
-    // Display Initial Oxygen Fill as paid content status line item without affecting balance
+    // Display Initial Oxygen Fill as an additional billable charge line item
     if (fillCost > 0 && breakdownContainer) {
         const fillRow = document.createElement('div');
-        fillRow.style = 'display: flex; justify-content: space-between; font-size: 12px; color: #059669; font-weight: 500;';
+        fillRow.style = 'display: flex; justify-content: space-between; font-size: 12px; color: #0284c7; font-weight: 500;';
         fillRow.innerHTML = `
-            <span>✓ Oxygen Content (Initial Fill Paid)</span>
+            <span>• Initial Oxygen Tank Content Fill</span>
             <span>₱${fillCost.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
         `;
         breakdownContainer.appendChild(fillRow);
@@ -1281,8 +1330,8 @@ function calculateRentalTotals() {
         contractMultiplier = (durationVal * 7) / 30.0;
     }
 
-    // Calculations: fillCost is excluded from balance math
-    const subtotalContract = (totalMonthlyRate * contractMultiplier) + deliveryFee;
+    // Calculations: subtotalContract now explicitly includes rental contract costs + delivery fee + oxygen fill cost
+    const subtotalContract = (totalMonthlyRate * contractMultiplier) + deliveryFee + fillCost;
     const finalVoucher = Math.min(voucherAmount, subtotalContract);
     const totalContract = Math.max(subtotalContract - finalVoucher, 0);
     const balance = totalContract - amountPaid;
@@ -1301,16 +1350,10 @@ function calculateRentalTotals() {
         totalBillText.textContent = `₱${subtotalContract.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
     }
 
-    // Informational summary row for Oxygen Tank Fill
+    // Hide summary initial fill row if no longer needed separately since it's built right into the main breakdown
     const summaryFillRow = document.getElementById('summary-initial-fill-row');
-    const summaryFillValText = document.getElementById('summary-fill-val');
-    if (summaryFillRow && summaryFillValText) {
-        if (fillCost > 0) {
-            summaryFillRow.style.display = 'flex';
-            summaryFillValText.textContent = `₱${fillCost.toLocaleString('en-US', {minimumFractionDigits: 2})} (Paid)`;
-        } else {
-            summaryFillRow.style.display = 'none';
-        }
+    if (summaryFillRow) {
+        summaryFillRow.style.display = 'none';
     }
 
     const voucherRow = document.getElementById('summary-voucher-row');

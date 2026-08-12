@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // UI Elements inside Modal
     const txnIdInput = document.getElementById('payment-txn-id');
     const invoiceIdInput = document.getElementById('payment-invoice-id');
+    const paymentTypeInput = document.getElementById('payment-type'); // Added for Initial Fill / Rental routing
     const summaryRef = document.getElementById('summary-ref');
     const summaryType = document.getElementById('summary-type');
     const summaryBalance = document.getElementById('summary-balance');
@@ -54,7 +55,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         e.preventDefault();
 
-        // Extract Data (Including specific Invoice ID)
+        // Extract Data (Including specific Invoice ID and payment type)
         const txnId = btn.getAttribute('data-txn-id');
         const invoiceId = btn.getAttribute('data-invoice-id') || '';
         const refNo = btn.getAttribute('data-ref');
@@ -66,9 +67,10 @@ document.addEventListener('DOMContentLoaded', function() {
         // Populate Hidden & Summary Fields
         if (txnIdInput) txnIdInput.value = txnId;
         if (invoiceIdInput) invoiceIdInput.value = invoiceId;
+        if (paymentTypeInput) paymentTypeInput.value = currentType; // Populates InitialFill or Rental
 
         if (summaryRef) summaryRef.innerText = refNo || 'N/A';
-        if (summaryType) summaryType.innerText = currentType;
+        if (summaryType) summaryType.innerText = currentType === 'InitialFill' ? 'Initial Fill Fee' : currentType;
         if (summaryBalance) {
             summaryBalance.innerText = `₱${currentBalance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
             summaryBalance.setAttribute('data-raw-balance', currentBalance);
@@ -81,7 +83,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (amountError) amountError.style.display = 'none';
 
-        // 2. DYNAMIC QUICK PAY GENERATION
+        // 2. DYNAMIC QUICK PAY GENERATION (Only for Rental invoices with multiple months)
         if (currentType === 'Rental' && unpaidMonths > 1) {
             if (rentalQuickPay) rentalQuickPay.style.display = 'block';
             if (quickPayContainer) {

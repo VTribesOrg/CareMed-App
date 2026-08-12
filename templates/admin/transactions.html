@@ -77,9 +77,9 @@
                 <option value="">All Statuses</option>
                 <option value="overdue_return"  {{ 'selected' if current_status == 'overdue_return' }}>Overdue Return </option>
                 <option value="overdue_payment" {{ 'selected' if current_status == 'overdue_payment' }}>Overdue Payment</option>
-                <option value="expiring"      {{ 'selected' if current_status == 'expiring' }}>Expiring Soon</option>
-                <option value="unpaid"        {{ 'selected' if current_status == 'unpaid' }}>Unpaid</option>
-                <option value="partial"       {{ 'selected' if current_status == 'partial' }}>Partially Paid</option>
+                <option value="expiring"       {{ 'selected' if current_status == 'expiring' }}>Expiring Soon</option>
+                <option value="unpaid"         {{ 'selected' if current_status == 'unpaid' }}>Unpaid</option>
+                <option value="partial"        {{ 'selected' if current_status == 'partial' }}>Partially Paid</option>
                 <option value="submitted"     {{ 'selected' if current_status == 'submitted' }}>Awaiting Verification</option>
             </select>
  
@@ -92,6 +92,7 @@
  
             <select id="fulfillment-filter" class="medical-select">
                 <option value="">All Fulfillment</option>
+                <option value="Walk-In" {{ 'selected' if current_fulfillment == 'Walk-In' }}>Walk-In</option>
                 <option value="Pickup" {{ 'selected' if current_fulfillment == 'Pickup' }}>Pickup</option>
                 <option value="Delivery" {{ 'selected' if current_fulfillment == 'Delivery' }}>Delivery</option>
             </select>
@@ -127,7 +128,7 @@
         </div>
     </div>
 
-<div style="overflow-x: auto; flex-grow: 1;">
+    <div style="overflow-x: auto; flex-grow: 1;">
         <table class="medical-table" style="width: 100%; border-collapse: collapse; vertical-align: middle;">
             <thead>
                 <tr>
@@ -135,7 +136,7 @@
                     <th style="min-width: 180px; white-space: nowrap; text-align: left; padding: 12px;">Customer Name</th>
                     <th style="padding: 12px;">Type</th>
                     <th style="min-width: 180px; padding: 12px;">Items</th>
-                    <th style="padding: 12px;">Fulfillment</th>
+                    <th style="padding: 12px;">Delivery Method</th>
                     <th class="text-end" style="min-width: 100px; text-align: right; padding: 12px;">Total</th>
                     <th class="text-end" style="min-width: 100px; text-align: right; padding: 12px;">Paid</th>
                     <th class="text-end" style="min-width: 120px; text-align: right; padding: 12px;">Balance Due</th>
@@ -157,10 +158,9 @@
                     </td>
 
                     <td style="padding: 12px;">
-                        <span style="font-weight: bold; color: #212529; white-space: nowrap;">{{ txn.customer_name or (txn.customer.first_name ~ ' ' ~ txn.customer.last_name) }}</span>
+                        <span style="font-weight: bold; color: #212529; white-space: nowrap;">{{ txn.customer_name or (txn.customer.first_name ~ ' ' ~ txn.customer.last_name if txn.customer else 'Walk-in Customer') }}</span>
                     </td>
 
-                    <!-- Dynamic Type Badge (Rental, Purchase, or Refill) -->
                     <td style="padding: 12px;">
                         {% if txn.transaction_type == 'Rental' %}
                             <span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; font-size: 12px; font-weight: bold; white-space: nowrap; background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; border-radius: 4px;">
@@ -177,7 +177,6 @@
                         {% endif %}
                     </td>
 
-                    <!-- Items View supporting Rentals, Purchases, and Refills -->
                     <td style="padding: 12px;">
                         {% if txn.transaction_type == 'Rental' %}
                             {% set list_items = txn.rentals %}
@@ -189,7 +188,7 @@
 
                         {% if list_items %}
                             <div style="display: flex; flex-direction: column; gap: 3px; max-width: 220px;"
-                                 title="{% for item in list_items %}{{ item.product.equipment_type if item.product else 'Tank Refill' }} (x{{ item.quantity }}){% if not loop.last %} | {% endif %}{% endfor %}">
+                                    title="{% for item in list_items %}{{ item.product.equipment_type if item.product else 'Tank Refill' }} (x{{ item.quantity }}){% if not loop.last %} | {% endif %}{% endfor %}">
                                 {% for item in list_items[:2] %}
                                     <div style="display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; color: #212529; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                                         <span style="overflow: hidden; text-overflow: ellipsis;">{{ item.product.equipment_type if item.product else 'Tank Refill' }}</span>
@@ -211,16 +210,21 @@
                         {% endif %}
                     </td>
 
-                    <!-- Pure CSS Fulfillment Badge -->
                     <td style="padding: 12px;">
                         {% if txn.fulfillment_type == 'Delivery' %}
                             <span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; font-size: 12px; font-weight: 600; white-space: nowrap; background-color: #fef3c7; color: #b45309; border: 1px solid #fde68a; border-radius: 4px;">
-                                <i class="material-symbols-rounded" style="font-size: 13px; vertical-align: middle;">local_shipping</i> Delivery
+                                <i class="material-symbols-rounded" style="font-size: 13px; vertical-align: middle;">local_shipping</i> Home Delivery
                             </span>
                         {% else %}
-                            <span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; font-size: 12px; font-weight: 600; white-space: nowrap; background-color: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; border-radius: 4px;">
-                                <i class="material-symbols-rounded" style="font-size: 13px; vertical-align: middle;">storefront</i> Pickup
-                            </span>
+                            {% if txn.customer_id %}
+                                <span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; font-size: 12px; font-weight: 600; white-space: nowrap; background-color: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; border-radius: 4px;">
+                                    <i class="material-symbols-rounded" style="font-size: 13px; vertical-align: middle;">storefront</i> Counter Pickup (Registered)
+                                </span>
+                            {% else %}
+                                <span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; font-size: 12px; font-weight: 600; white-space: nowrap; background-color: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; border-radius: 4px;">
+                                    <i class="material-symbols-rounded" style="font-size: 13px; vertical-align: middle;">storefront</i> Store Walk-In
+                                </span>
+                            {% endif %}
                         {% endif %}
                     </td>
 
@@ -417,7 +421,7 @@
                     <div style="display: flex; gap: 20px; padding: 4px 0;">
                         <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; color: #475569;">
                             <input type="radio" name="refill_buyer_type" value="registered" checked id="refill-buyer-registered" style="accent-color: #0d9488;">
-                            <span>Registered</span>
+                            <span>Walk-In (Registered)</span>
                         </label>
                         <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; color: #475569;">
                             <input type="radio" name="refill_buyer_type" value="unregistered" id="refill-buyer-unregistered" style="accent-color: #0d9488;">
@@ -462,10 +466,10 @@
                     <input type="text" name="unregistered_customer_name" class="medical-input" placeholder="Enter complete full name" style="width: 100%; height: 44px; padding: 0 16px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
                 </div>
 
-                <div class="form-field" id="refill-tank-selection-container" style="margin-bottom: 0;">
+                <div class="form-field" id="refill-tank-selection-container" style="display: none; margin-bottom: 0;">
                     <label style="font-weight: 700; color: #1e293b; margin-bottom: 6px; display: block; font-size: 0.9rem;">
                         <span id="label-tank-registered" style="display: none;">Cylinder Size / Capacity</span>
-                        <span id="label-tank-unregistered">Cylinder Description</span>
+                        <span id="label-tank-unregistered" style="display: none;">Cylinder Description</span>
                     </label>
                     
                     <div style="position: relative;">
@@ -479,7 +483,7 @@
                         </select>
                         
                         <input type="text" name="tank_size_text" id="refill-tank-text" placeholder="e.g. 10 lbs Refill" 
-                                style="width: 100%; height: 44px; padding: 0 16px 0 40px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
+                                style="display: none; width: 100%; height: 44px; padding: 0 16px 0 40px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
                         
                         <span class="material-symbols-rounded" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #64748b; pointer-events: none; font-size: 20px;">database</span>
                     </div>

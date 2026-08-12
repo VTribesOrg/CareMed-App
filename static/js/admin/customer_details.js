@@ -31,17 +31,47 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // 4. Close on Clicking Outside (Background)
-    modal.addEventListener('click', function(e) {
-        if (e.target === modal) {
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                closeIdModal();
+            }
+        });
+    }
+
+    // 5. Close on Escape Key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === "Escape" && modal && modal.style.display === 'flex') {
             closeIdModal();
         }
     });
 
-    // 5. Close on Escape Key
-    document.addEventListener('keydown', function(e) {
-        if (e.key === "Escape" && modal.style.display === 'flex') {
-            closeIdModal();
-        }
+    // 6. Tab Switcher Logic for Active Rentals / Transaction History
+    const tabBtns = document.querySelectorAll('.cdp-tab-btn');
+    const tabPanels = document.querySelectorAll('.cdp-tab-panel');
+
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            tabBtns.forEach(b => {
+                b.style.background = 'transparent';
+                b.style.color = '#64748b';
+                b.style.boxShadow = 'none';
+                b.classList.remove('active');
+            });
+
+            this.style.background = '#ffffff';
+            this.style.color = '#0f172a';
+            this.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)';
+            this.classList.add('active');
+
+            tabPanels.forEach(panel => panel.style.display = 'none');
+
+            const targetId = this.getAttribute('data-target');
+            const targetPanel = document.getElementById(targetId);
+            if (targetPanel) {
+                targetPanel.style.display = 'block';
+            }
+        });
     });
 });
 
@@ -59,6 +89,8 @@ document.addEventListener('submit', function (e) {
 
 document.querySelectorAll('.clickable-row').forEach(row => {
     row.addEventListener('click', () => {
-        window.location.href = row.dataset.href;
+        if (row.dataset.href) {
+            window.location.href = row.dataset.href;
+        }
     });
 });

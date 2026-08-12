@@ -125,7 +125,8 @@
                                 <td class="text-right-bold">₱{{ "{:,.2f}".format(item.total_price) }}</td>
                                 <td class="col-action">
                                     <div class="action-wrapper d-flex align-items-center justify-content-end">
-                                        {% if txn.status != 'Closed' and txn.status != 'Cancelled' %}
+                                        {# Check if status is open AND there is still a positive balance due #}
+                                        {% if txn.status not in ['Closed', 'Cancelled'] and (txn.total_amount - txn.amount_paid) > 0 %}
                                             <button type="button"
                                                     class="btn-action-payment btn-add-payment"
                                                     data-txn-id="{{ txn.id }}"
@@ -170,7 +171,7 @@
                                 </td>
                                 <td class="col-action">
                                     <div class="action-wrapper d-flex align-items-center justify-content-end">
-                                        {% if txn.status != 'Closed' and txn.status != 'Cancelled' %}
+                                        {% if txn.status not in ['Closed', 'Cancelled'] and (txn.balance_due | default(txn.total_amount - txn.amount_paid, true)) > 0 %}
                                             <button type="button"
                                                     class="btn-action-payment btn-add-payment"
                                                     data-txn-id="{{ txn.id }}"
@@ -208,6 +209,88 @@
             </header>
 
             <div class="card-body-custom" style="padding: 20px; display: flex; flex-direction: column; gap: 25px;">
+
+                {% if txn.has_initial_fill and txn.initial_fill_cost and txn.initial_fill_cost > 0 %}
+                    {% set initial_fill_bal = txn.initial_fill_balance if txn.initial_fill_balance is defined else txn.initial_fill_cost %}
+                    <div class="product-billing-group">
+                        <div class="product-billing-header mb-2" style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #f0f2f5; padding-bottom: 8px;">
+                            <span class="fw-bold" style="color: var(--medical-primary); font-size: 1.05rem;">
+                                Initial Fill Fee
+                                <span class="text-muted" style="font-weight: normal; font-size: 0.9rem;">(Transaction-wide)</span>
+                            </span>
+                        </div>
+
+                        <div class="table-container">
+                            <table class="item-list-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Amount Due</th>
+                                        <th>Progress (Paid/Total)</th>
+                                        <th>Balance</th>
+                                        <th>Status</th>
+                                        <th class="text-end">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>
+                                            <div class="item-title">
+                                                {{ txn.created_at.strftime('%B %d, %Y') if txn.created_at else '' }} <small class="text-muted">(Initial Fill)</small>
+                                            </div>
+                                        </td>
+                                        <td class="col-amount">
+                                            <div class="d-flex flex-column">
+                                                <span class="fw-semibold">₱{{ "{:,.2f}".format(txn.initial_fill_cost) }}</span>
+                                            </div>
+                                        </td>
+                                        <td class="text-muted" style="font-size: 0.85rem;">
+                                            <span class="fw-bold text-dark">₱{{ "{:,.2f}".format(txn.initial_fill_cost) }}</span> 
+                                            <span class="text-muted mx-1">/</span>
+                                            <span class="text-success fw-semibold">₱{{ "{:,.2f}".format(txn.initial_fill_cost - initial_fill_bal) }}</span>
+                                        </td>
+                                        <td class="fw-bold">
+                                            {% if initial_fill_bal > 0 %}
+                                                <span class="text-danger">₱{{ "{:,.2f}".format(initial_fill_bal) }}</span>
+                                            {% else %}
+                                                <span class="text-success">₱0.00</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="col-status">
+                                            {% if initial_fill_bal <= 0 %}
+                                                <span class="badge-soft-success">Paid</span>
+                                            {% else %}
+                                                <span class="badge-soft-danger">Unpaid</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="col-action">
+                                            <div class="action-wrapper d-flex align-items-center justify-content-end">
+                                                {% if initial_fill_bal > 0 %}
+                                                    <button type="button"
+                                                            class="btn-action-payment btn-add-payment"
+                                                            data-txn-id="{{ txn.id }}"
+                                                            data-ref="{{ txn.reference_no }}"
+                                                            data-balance="{{ initial_fill_bal }}"
+                                                            data-type="InitialFill"
+                                                            data-invoice-id="">
+                                                        <i class="material-symbols-rounded">payments</i>
+                                                        <span>Pay Now</span>
+                                                    </button>
+                                                {% else %}
+                                                    <div class="settled-pill">
+                                                        <span class="material-symbols-rounded">check_circle</span>
+                                                        <span class="settled-text">Settled</span>
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                {% endif %}
+
                 {% set all_invoices = txn.rentals | map(attribute='invoices') | map('list') | sum(start=[]) %}
                 {% set total_invoice_count = all_invoices | length %}
 
@@ -225,9 +308,9 @@
 
                         <div class="d-flex align-items-center gap-2">
                             {% set total_rental_value = rental.invoices | map(attribute='total_invoice_value') | map('float') | sum %}
-                            {% set total_invoice_count = txn.rentals | map(attribute='invoices') | map('length') | sum %}
+                            {% set total_invoice_count_loop = txn.rentals | map(attribute='invoices') | map('length') | sum %}
                             {% set rental_invoice_count = rental.invoices | length %}
-                            {% set ratio = (rental_invoice_count / total_invoice_count) | float if total_invoice_count > 0 else 0 %}
+                            {% set ratio = (rental_invoice_count / total_invoice_count_loop) | float if total_invoice_count_loop > 0 else 0 %}
                             {% set rental_voucher_share_value = ((txn.voucher_amount | default(0, true) | float) * ratio) if txn.voucher_amount else 0.0 %}
                             {% set adjusted_total_rental_value = [0.0, total_rental_value - rental_voucher_share_value] | max %}
 
@@ -260,7 +343,7 @@
                             </thead>
                             <tbody>
                                 {% for invoice in rental.invoices %}
-                                    {# Check if this is the absolute last invoice across all rentals to absorb any rounding residue #}
+
                                     {% set is_last_invoice = (loop.index0 == rental.invoices | length - 1) and (rental == txn.rentals[-1]) %}
                                     
                                     {% if txn.voucher_amount and total_invoice_count > 0 %}
@@ -355,7 +438,7 @@
         </div>
         {% endif %}
 
-        {% if txn.transaction_type == 'Rental' and txn.status != 'Closed' %}
+        {% if txn.transaction_type == 'Rental' and txn.rentals | selectattr('remaining_to_return', 'gt', 0) | list | length > 0 %}
         <div class="action-card warning" style="margin-top: 20px;">
             <header class="card-header-custom">
                 <div class="header-icon-label" style="display:flex; align-items:center; gap:8px;">
@@ -402,7 +485,6 @@
                                         style="width: 70px; margin: 0 auto;">
                                 </td>
                                 <td style="padding: 10px; text-align: center; vertical-align: middle;">
-                                    {# Check if the product has the tank_status relationship #}
                                     {% if item.product.tank_status %}
                                         <select name="status_{{ item.id }}" class="form-control" style="padding: 5px; width: 100px; margin: 0 auto;">
                                             <option value="Full">Full</option>
@@ -555,19 +637,17 @@
         <div class="summary-side-card summary-spacing">
             <h5 class="sidebar-card-title" style="margin-bottom: 14px;">Payment Summary</h5>
             
+            {% set initial_fill_val = txn.initial_fill_cost if (txn.has_initial_fill and txn.initial_fill_cost) else 0 %}
+
             <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
                 <div style="display: flex; justify-content: space-between; color: #4b5563;">
                     <span>Items Subtotal</span>
-                    <span style="font-weight: 500; color: #1f2937;">₱{{ "{:,.2f}".format((txn.total_amount + txn.voucher_amount - txn.delivery_fee) if txn.transaction_type == 'Rental' else (txn.subtotal or txn.total_amount or 0)) }}</span>
+                    <span style="font-weight: 500; color: #1f2937;">₱{{ "{:,.2f}".format(txn.subtotal or 0) }}</span>
                 </div>
 
-                {% set initial_fill_val = txn.initial_fill_cost if (txn.has_initial_fill and txn.initial_fill_cost) else 0 %}
                 {% if initial_fill_val > 0 %}
-                <div style="display: flex; justify-content: space-between; align-items: center; color: #4b5563;">
-                    <div style="display: flex; align-items: center; gap: 6px;">
-                        <span>Initial Fill (Oxygen)</span>
-                        <span style="font-size: 10px; background-color: #dcfce7; color: #166534; padding: 1px 6px; border-radius: 4px; font-weight: 600;">Paid</span>
-                    </div>
+                <div style="display: flex; justify-content: space-between; color: #4b5563;">
+                    <span>Initial Fill (Oxygen)</span>
                     <span style="font-weight: 500; color: #1f2937;">₱{{ "{:,.2f}".format(initial_fill_val) }}</span>
                 </div>
                 {% endif %}
@@ -597,14 +677,15 @@
             <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 12px 0;">
 
             <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
-                {% if initial_fill_val > 0 %}
-                <div style="display: flex; justify-content: space-between; color: #374151;">
-                    <span style="font-weight: 500;">Total Charges <span style="font-size: 11px; font-weight: normal; color: #6b7280;">(Incl. Fill)</span></span>
-                    <span style="font-weight: 600;">₱{{ "{:,.2f}".format((txn.total_amount or 0) + initial_fill_val) }}</span>
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; color: #374151;">
+                    <div>
+                        <span style="font-weight: 500; display: block;">Total Charges <span style="font-size: 11px; font-weight: normal; color: #6b7280;">(Gross)</span></span>
+                        <span style="font-size: 11px; color: #6b7280;">Includes items, fees & all billing cycles</span>
+                    </div>
+                    <span style="font-weight: 600;">₱{{ "{:,.2f}".format((txn.total_amount or 0) + (txn.voucher_amount or 0)) }}</span>
                 </div>
-                {% endif %}
 
-                <div style="display: flex; justify-content: space-between; color: #374151;">
+                <div style="display: flex; justify-content: space-between; color: #374151; margin-top: 4px;">
                     <span style="font-weight: 500;">Net Payable</span>
                     <span style="font-weight: 600;">₱{{ "{:,.2f}".format(txn.total_amount or 0) }}</span>
                 </div>

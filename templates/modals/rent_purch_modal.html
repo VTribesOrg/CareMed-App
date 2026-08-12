@@ -553,8 +553,8 @@
         <form id="payment-form" action="{{ url_for('admin.post_payment') }}" method="POST" enctype="multipart/form-data">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" id="payment-txn-id" name="txn_id">
-
             <input type="hidden" id="payment-invoice-id" name="invoice_id">
+            <input type="hidden" id="payment-type" name="payment_type" value="Rental">
             
             <div class="pm-summary-card">
                 <div class="pm-summary-row">
@@ -569,12 +569,6 @@
                     <span class="pm-label-text">Balance Due</span>
                     <span class="pm-value-text pm-balance-danger" id="summary-balance" data-raw-balance="0.00">₱0.00</span>
                 </div>
-
-                <!--<div id="rental-quick-pay" style="display: none; margin-top: 12px; padding-top: 10px; border-top: 1px dashed #ddd;">
-                    <small class="pm-label-text" style="display: block; margin-bottom: 8px;">Quick Pay Advance:</small>
-                    <div id="quick-pay-button-container" style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    </div>
-                </div>-->
             </div>
 
             <div class="pm-field-group">

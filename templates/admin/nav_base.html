@@ -184,7 +184,7 @@
                     </li>
 
                     {# ── Reports & Analytics ── #}
-                    {% set can_reports = current_user.role.strip() == 'Administrator' or (current_user.permissions and current_user.permissions.can_view_reports) %}
+                    <!-- {% set can_reports = current_user.role.strip() == 'Administrator' or (current_user.permissions and current_user.permissions.can_view_reports) %}
                     <li class="nav-item" title="Reports & Analytics">
                         <a href="{{ url_for('admin.reports') if can_reports else 'javascript:void(0)' }}"
                             class="nav-link {% if request.endpoint == 'admin.reports' %}active{% endif %} {% if not can_reports %}nav-locked{% endif %}">
@@ -192,7 +192,7 @@
                             <span class="nav-label">Reports & Analytics</span>
                             {% if not can_reports %}<span class="material-symbols-rounded nav-lock-icon">lock</span>{% endif %}
                         </a>
-                    </li>
+                    </li> -->
 
                     {# ── System Logs ── #}
                     <li class="nav-item" title="System Logs">

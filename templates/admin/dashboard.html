@@ -57,7 +57,7 @@
         <div class="stat-icon emerald"><span class="material-symbols-rounded">account_balance_wallet</span></div>
         <div class="stat-info">
             <span class="stat-label">Overall Income</span>
-            {% set overall_income = total_sales + total_rentals + total_refill_profit %}
+            {% set overall_income = total_sales + total_rentals + total_refill_income %}
             <span class="stat-value">₱{{ "{:,.0f}".format(overall_income) }}</span>
             <small style="color: #64748b; display: block; margin-top: 2px;">Combined Sales, Rentals & Refills</small>
             
@@ -73,7 +73,6 @@
         </div>
     </div>
 
-
     <div class="right-cards-grid">
         <div class="stat-card">
             <div class="stat-icon blue"><span class="material-symbols-rounded">payments</span></div>
@@ -87,7 +86,7 @@
             <div class="stat-icon purple"><span class="material-symbols-rounded">water_drop</span></div>
             <div class="stat-info">
                 <span class="stat-label">Total Refill Income</span>
-                <span class="stat-value">₱{{ "{:,.0f}".format(total_refill_profit) }}</span>
+                <span class="stat-value">₱{{ "{:,.0f}".format(total_refill_income) }}</span>
             </div>
         </div>
 
@@ -110,16 +109,16 @@
         <div class="stat-card">
             <div class="stat-icon orange"><span class="material-symbols-rounded">vitals</span></div>
             <div class="stat-info">
-                <span class="stat-label">Active Rentals</span>
-                <span class="stat-value">{{ active_rentals_count }} Units</span>
+                <span class="stat-label">Active Rentals Units</span>
+                <span class="stat-value">{{ active_rentals_count }}</span>
             </div>
         </div>
         
         <div class="stat-card">
             <div class="stat-icon red"><span class="material-symbols-rounded">inventory_2</span></div>
             <div class="stat-info">
-                <span class="stat-label">Inventory</span>
-                <span class="stat-value">{{ total_inventory }} Total</span>
+                <span class="stat-label">Total Inventory</span>
+                <span class="stat-value">{{ total_inventory }}</span>
                 {% if low_stock_count > 0 %}
                     <small style="color:#ef4444;">{{ low_stock_count }} Low stock items</small>
                 {% else %}
