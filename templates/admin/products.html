@@ -179,7 +179,7 @@
                                         data-cost-price="{{ product.cost_price }}"
                                         data-stock="{{ product.stock }}"
                                         data-condition="{{ product.condition }}"
-                                        data-offer="{{ product.offer_type }}"
+                                        data-offer="{{ product.transaction_type }}"
                                         data-rent="{{ product.rent_price }}"
                                         data-period="{{ product.rent_period }}"
                                         data-price="{{ product.sale_price }}"
@@ -480,7 +480,7 @@
                     <div class="input-wrapper" style="position:relative;">
                         <select name="offer_type" id="edit-offer-type" class="clinical-input"
                                 style="width:100%; cursor:pointer; -webkit-appearance:none; appearance:none; padding:0 35px 0 12px; border:1.5px solid #cbd5e1; border-radius:8px; height:44px; font-size:0.9rem; color:#1e293b; background:#ffffff;" required>
-                            <option value="" disabled selected>Select...</option>
+                            <option value="" disabled>Select...</option>
                             <option value="Rental">Rent Only</option>
                             <option value="Sale">Sale Only</option>
                         </select>

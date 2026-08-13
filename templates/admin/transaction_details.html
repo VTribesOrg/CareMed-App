@@ -210,7 +210,7 @@
 
             <div class="card-body-custom" style="padding: 20px; display: flex; flex-direction: column; gap: 25px;">
 
-                {% if txn.has_initial_fill and txn.initial_fill_cost and txn.initial_fill_cost > 0 %}
+                {% if txn.initial_fill_cost and txn.initial_fill_cost > 0 %}
                     {% set initial_fill_bal = txn.initial_fill_balance if txn.initial_fill_balance is defined else txn.initial_fill_cost %}
                     <div class="product-billing-group">
                         <div class="product-billing-header mb-2" style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #f0f2f5; padding-bottom: 8px;">
@@ -290,7 +290,7 @@
                         </div>
                     </div>
                 {% endif %}
-
+                
                 {% set all_invoices = txn.rentals | map(attribute='invoices') | map('list') | sum(start=[]) %}
                 {% set total_invoice_count = all_invoices | length %}
 

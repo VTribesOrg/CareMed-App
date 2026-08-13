@@ -224,7 +224,7 @@ class Transaction(db.Model):
 
     @property
     def initial_fill_balance(self):
-        if not self.has_initial_fill or not self.initial_fill_cost:
+        if not self.initial_fill_cost:
             return Decimal("0.00")
         return max(Decimal(str(self.initial_fill_cost)) - self.initial_fill_paid, Decimal("0.00"))
     
@@ -270,7 +270,7 @@ class Transaction(db.Model):
                 for inv in rental.invoices:
                     total_invoice_sum += Decimal(str(inv.amount_due or 0)) + Decimal(str(inv.late_fee or 0))
 
-            # <--- Add initial_fill once to the total calculation, separate from monthly rentals/invoices
+            # Include initial fill cost once, separate from monthly rentals/invoices
             self.total_amount = max(total_invoice_sum + delivery_fee + initial_fill - voucher_amount, Decimal("0.00"))
             
         elif self.transaction_type == "Sale":

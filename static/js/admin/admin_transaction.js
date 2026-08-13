@@ -944,6 +944,11 @@ const rentCustomerDropdown = document.getElementById('rent-customer-dropdown-lis
 const rentCustomerIdInput = document.getElementById('global-customer-id');
 const rentPatientDisplayName = document.getElementById('rent-patient-display-name');
 
+// INITIAL OXYGEN FILL CHECKBOX & AMOUNT PAID ELEMENTS
+const fillAsPaidToggle = document.getElementById('rent-fill-as-paid-toggle');
+const fillCostInput = document.getElementById('rent-fill-cost');
+const amountPaidInput = document.getElementById('rent-amount-paid');
+
 // Memory state cache keeping track of active selected basket items
 let productBasket = [];
 
@@ -1020,8 +1025,8 @@ function resetRentModal() {
     const summaryFillRow = document.getElementById('summary-initial-fill-row');
     if (summaryFillRow) summaryFillRow.style.display = 'none';
     
-    const fillCostInput = document.getElementById('rent-fill-cost');
     if (fillCostInput) fillCostInput.value = '0.00';
+    if (fillAsPaidToggle) fillAsPaidToggle.checked = false;
     
     // Default duration setup
     const durationInput = document.getElementById('rent-duration-value');
@@ -1091,7 +1096,6 @@ function captureCurrentSerials() {
  */
 function updateOxygenFillVisibility() {
     const oxygenContainer = document.getElementById('oxygen-fill-container');
-    const fillCostInput = document.getElementById('rent-fill-cost');
     const summaryFillRow = document.getElementById('summary-initial-fill-row');
     
     const hasOxygen = productBasket.some(item => isOxygenEquipment(item));
@@ -1102,6 +1106,7 @@ function updateOxygenFillVisibility() {
         } else {
             oxygenContainer.style.display = 'none';
             if (fillCostInput) fillCostInput.value = '0.00';
+            if (fillAsPaidToggle) fillAsPaidToggle.checked = false;
             if (summaryFillRow) summaryFillRow.style.display = 'none';
             calculateRentalTotals();
         }
@@ -1199,11 +1204,9 @@ if (selectedProductsContainer) {
             
             const targetItem = productBasket.find(i => String(i.id) === String(productId));
             if (targetItem) {
-                // Update quantity state and re-render dynamic serial inputs cleanly
                 targetItem.quantity = newQty;
                 renderProductBasket();
                 
-                // Restore focus to the quantity input field
                 const activeInput = selectedProductsContainer.querySelector(`input[data-product-id="${productId}"].basket-qty-input`);
                 if (activeInput) {
                     activeInput.focus();
@@ -1223,17 +1226,18 @@ function calculateRentalTotals() {
     const durationUnitInput = document.getElementById('rent-duration-unit');
     const hiddenReturnInput = document.getElementById('rent-return-date');
     const previewReturnText = document.getElementById('rent-return-date-preview');
-    const cashInput = document.getElementById('rent-amount-paid');
     const voucherInput = document.getElementById('rent-voucher-amount');
     const deliveryFeeInput = document.getElementById('rent-delivery-fee');
-    const fillCostInput = document.getElementById('rent-fill-cost');
     const breakdownContainer = document.getElementById('rent-summary-items-breakdown');
 
-    const amountPaid = cashInput ? (parseFloat(cashInput.value) || 0) : 0;
-    const voucherAmount = voucherInput ? (parseFloat(voucherInput.value) || 0) : 0;
+    let voucherAmount = voucherInput ? (parseFloat(voucherInput.value) || 0) : 0;
     const deliveryFee = deliveryFeeInput ? (parseFloat(deliveryFeeInput.value) || 0) : 0;
     const fillCost = fillCostInput && fillCostInput.offsetParent !== null ? (parseFloat(fillCostInput.value) || 0) : 0;
+    const isFillChecked = fillAsPaidToggle ? fillAsPaidToggle.checked : false;
     
+    // Read exact amount paid entered by user
+    let totalAmountPaid = amountPaidInput ? (parseFloat(amountPaidInput.value) || 0) : 0;
+
     let durationVal = durationInput ? (parseInt(durationInput.value) || 1) : 1;
     if (durationVal < 1) durationVal = 1;
     
@@ -1295,30 +1299,42 @@ function calculateRentalTotals() {
             const breakdownRow = document.createElement('div');
             breakdownRow.style = 'display: flex; justify-content: space-between; font-size: 12px; color: #64748b;';
             breakdownRow.innerHTML = `
-                <span>• ${item.name} <small>(${itemQty} × ₱${itemMonthlyPrice.toLocaleString('en-US', {minimumFractionDigits: 2})}/mo)</small></span>
-                <span>₱${itemTotalCost.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
-            `;
+              <span>• ${item.name} <small>(${itemQty} × ₱${itemMonthlyPrice.toLocaleString('en-US', {minimumFractionDigits: 2})}/mo)</small></span>
+              <span>₱${itemTotalCost.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
+          `;
             breakdownContainer.appendChild(breakdownRow);
         }
     });
 
-    // Display Initial Oxygen Fill as an additional billable charge line item
-    if (fillCost > 0 && breakdownContainer) {
-        const fillRow = document.createElement('div');
-        fillRow.style = 'display: flex; justify-content: space-between; font-size: 12px; color: #0284c7; font-weight: 500;';
-        fillRow.innerHTML = `
-            <span>• Initial Oxygen Tank Content Fill</span>
-            <span>₱${fillCost.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
-        `;
-        breakdownContainer.appendChild(fillRow);
+    const summaryFillRow = document.getElementById('summary-initial-fill-row');
+    const summaryFillVal = document.getElementById('summary-fill-val');
+    
+    // ALWAYS include fillCost in the calculation if oxygen equipment is present, regardless of checkbox state
+    let effectiveFillCost = (fillCost > 0 && productBasket.some(item => isOxygenEquipment(item))) ? fillCost : 0;
+
+    if (effectiveFillCost > 0) {
+        if (summaryFillRow) summaryFillRow.style.display = 'flex';
+        if (summaryFillVal) summaryFillVal.textContent = `₱${fillCost.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+        
+        if (breakdownContainer) {
+            const fillRow = document.createElement('div');
+            fillRow.style = 'display: flex; justify-content: space-between; font-size: 12px; color: #0284c7; font-weight: 500;';
+            fillRow.innerHTML = `
+              <span>• Initial Oxygen Tank Content Fill</span>
+              <span>₱${fillCost.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
+          `;
+            breakdownContainer.appendChild(fillRow);
+        }
+    } else {
+        if (summaryFillRow) summaryFillRow.style.display = 'none';
     }
 
     if (deliveryFee > 0 && breakdownContainer) {
         const deliveryRow = document.createElement('div');
         deliveryRow.style = 'display: flex; justify-content: space-between; font-size: 12px; color: #0284c7; font-weight: 500;';
         deliveryRow.innerHTML = `
-            <span>• Delivery Service Fee</span>
-            <span>₱${deliveryFee.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
+          <span>• Delivery Service Fee</span>
+          <span>₱${deliveryFee.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
         `;
         breakdownContainer.appendChild(deliveryRow);
     }
@@ -1330,11 +1346,43 @@ function calculateRentalTotals() {
         contractMultiplier = (durationVal * 7) / 30.0;
     }
 
-    // Calculations: subtotalContract now explicitly includes rental contract costs + delivery fee + oxygen fill cost
-    const subtotalContract = (totalMonthlyRate * contractMultiplier) + deliveryFee + fillCost;
-    const finalVoucher = Math.min(voucherAmount, subtotalContract);
-    const totalContract = Math.max(subtotalContract - finalVoucher, 0);
-    const balance = totalContract - amountPaid;
+    const itemsSubtotalCost = totalMonthlyRate * contractMultiplier;
+    const equipmentBill = itemsSubtotalCost + deliveryFee - voucherAmount;
+    
+    // Total contract ALWAYS includes effectiveFillCost
+    const subtotalContract = equipmentBill + effectiveFillCost;
+    const finalVoucher = Math.min(voucherAmount, itemsSubtotalCost + deliveryFee);
+    const totalContract = Math.max(subtotalContract, 0);
+
+    // Keep max attribute of amount paid input updated dynamically
+    if (amountPaidInput) {
+        amountPaidInput.max = totalContract;
+    }
+
+    // Sequential Payment Allocation Logic
+    let paidTowardFill = 0;
+    let paidTowardEquipment = 0;
+
+    if (effectiveFillCost > 0) {
+        if (isFillChecked) {
+            if (totalAmountPaid >= effectiveFillCost) {
+                paidTowardFill = effectiveFillCost;
+                let remainder = totalAmountPaid - effectiveFillCost;
+                paidTowardEquipment = Math.min(remainder, Math.max(equipmentBill, 0));
+            } else {
+                paidTowardFill = totalAmountPaid;
+                paidTowardEquipment = 0;
+            }
+        } else {
+            paidTowardFill = 0;
+            paidTowardEquipment = Math.min(totalAmountPaid, Math.max(equipmentBill, 0));
+        }
+    } else {
+        paidTowardFill = 0;
+        paidTowardEquipment = Math.min(totalAmountPaid, Math.max(equipmentBill, 0));
+    }
+
+    const balance = totalContract - totalAmountPaid;
 
     const durationText = document.getElementById('rent-duration-text');
     if (durationText) {
@@ -1347,13 +1395,7 @@ function calculateRentalTotals() {
 
     const totalBillText = document.getElementById('rent-total-bill');
     if (totalBillText) {
-        totalBillText.textContent = `₱${subtotalContract.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
-    }
-
-    // Hide summary initial fill row if no longer needed separately since it's built right into the main breakdown
-    const summaryFillRow = document.getElementById('summary-initial-fill-row');
-    if (summaryFillRow) {
-        summaryFillRow.style.display = 'none';
+        totalBillText.textContent = `₱${totalContract.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
     }
 
     const voucherRow = document.getElementById('summary-voucher-row');
@@ -1369,7 +1411,10 @@ function calculateRentalTotals() {
 
     const summaryPaidValText = document.getElementById('summary-paid-val');
     if (summaryPaidValText) {
-        summaryPaidValText.textContent = `- ₱${amountPaid.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+        summaryPaidValText.textContent = `- ₱${totalAmountPaid.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+        if (effectiveFillCost > 0) {
+            summaryPaidValText.title = `Allocated: ₱${paidTowardFill.toFixed(2)} to Fill, ₱${paidTowardEquipment.toFixed(2)} to Equipment`;
+        }
     }
 
     const totalDisplay = document.getElementById('rent-total-display');
@@ -1384,18 +1429,18 @@ function calculateRentalTotals() {
                 balanceSubText.textContent = "Fully Settled";
                 balanceSubText.className = "status-paid";
             }
-        } else if (amountPaid > 0) {
+        } else if (totalAmountPaid > 0) {
             totalDisplay.className = "total-amount-display status-pending";
             if (balanceSubText) {
                 balanceSubText.textContent = "Partial Balance";
                 balanceSubText.className = "status-pending";
-            }
+          }
         } else {
             totalDisplay.className = "total-amount-display";
             if (balanceSubText) {
                 balanceSubText.textContent = durationUnit === 'months' ? "Future monthly dues" : "Due balance";
                 balanceSubText.className = "";
-            }
+          }
         }
     }
 }
@@ -1497,6 +1542,25 @@ document.addEventListener('click', (e) => {
 
 const rentForm = document.getElementById('rentEntryForm');
 if (rentForm) {
+    rentForm.addEventListener('submit', (e) => {
+        // Ensure serial inputs are fully synced before sending payload
+        captureCurrentSerials();
+
+        // Prevent submission if Amount Paid exceeds Total Contract Value
+        if (amountPaidInput && totalBillText) {
+            const paidVal = parseFloat(amountPaidInput.value) || 0;
+            // Parse total contract text value dynamically
+            const totalContractVal = parseFloat(totalBillText.textContent.replace('₱', '').replace(/,/g, '')) || 0;
+
+            if (paidVal > totalContractVal) {
+                e.preventDefault();
+                alert(`Amount paid (₱${paidVal.toFixed(2)}) cannot exceed the total contract bill (₱${totalContractVal.toFixed(2)}).`);
+                amountPaidInput.focus();
+                return false;
+            }
+        }
+    });
+
     rentForm.addEventListener('change', (e) => {
         if (e.target.name === 'fulfillment_type') {
             toggleRentDelivery(e.target.value === 'Delivery');
@@ -1513,6 +1577,28 @@ if (rentForm) {
         calculateRentalTotals();
     });
 }
+
+// Clean initialization for dynamic Fill-as-Paid Toggle integration
+document.addEventListener("DOMContentLoaded", function () {
+    const fillCheckbox = document.getElementById("rent-fill-as-paid-toggle");
+    const fillCostField = document.getElementById("rent-fill-cost");
+    const amountPaidField = document.getElementById("rent-amount-paid");
+
+    if (fillCheckbox && fillCostField && amountPaidField) {
+        fillCheckbox.addEventListener("change", function () {
+            const fillCostVal = parseFloat(fillCostField.value) || 0;
+            let currentPaidVal = parseFloat(amountPaidField.value) || 0;
+
+            if (fillCheckbox.checked) {
+                // Only set it automatically if the field is currently empty or 0
+                if (currentPaidVal === 0) {
+                    amountPaidField.value = fillCostVal.toFixed(2);
+                }
+            }
+            calculateRentalTotals();
+        });
+    }
+});
 /*============= END OF RENTMODAL MULTI-PRODUCT SYSTEM =============*/
 
 /*============= START OF TRANSACTION MODAL CUSTOMER LOGIC =============*/

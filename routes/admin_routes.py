@@ -1654,9 +1654,8 @@ def process_rental():
 
         has_initial_fill = True if request.form.get('has_initial_fill') in ['on', 'true', '1', True] else False
         initial_fill_cost_raw = request.form.get('initial_fill_cost', '0').replace(',', '')
-        initial_fill_cost = Decimal(initial_fill_cost_raw or '0') if (has_initial_fill or initial_fill_cost_raw) else Decimal('0.00')
-        if initial_fill_cost > 0:
-            has_initial_fill = True
+ 
+        initial_fill_cost = Decimal(initial_fill_cost_raw or '0')
 
         start_date_str = request.form.get('start_date')
         return_date_str = request.form.get('return_date')
@@ -1814,7 +1813,6 @@ def process_rental():
             for inv in r.invoices:
                 all_invoices.append(inv)
 
-
         db.session.flush()
         new_txn.update_totals() 
         db.session.expire(new_txn, ['payments'])
@@ -1826,6 +1824,21 @@ def process_rental():
             reference_number = request.form.get('reference_number', '').strip() or None
 
             remaining = total_payment_to_allocate
+
+            if has_initial_fill and initial_fill_cost > 0:
+                fill_pay_amount = min(remaining, initial_fill_cost)
+                if fill_pay_amount > 0:
+                    db.session.add(Payment(
+                        transaction_id=new_txn.id,
+                        invoice_id=None,
+                        amount=fill_pay_amount,
+                        payment_method=payment_method,
+                        reference_number=reference_number,
+                        status="Completed",
+                        verified_by_id=current_user.id,
+                        verified_at=datetime.utcnow()
+                    ))
+                    remaining -= fill_pay_amount
 
             for inv in all_invoices:
                 if remaining <= 0:

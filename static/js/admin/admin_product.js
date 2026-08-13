@@ -1,16 +1,20 @@
 document.addEventListener('DOMContentLoaded', () => {
 
-
+    /* ==========================================================
+       1. GLOBAL REFERENCES & SETUP
+       ========================================================== */
     const regModal = document.getElementById('registerAssetModal');
+    const histModal = document.getElementById('assetHistoryModal');
+    const editModal = document.getElementById('editAssetModal');
     
     const addEquipmentBtn = document.getElementById('add-equipment-btn');
-
-
-
-    /*============= ACTION DROPDOWN TOGGLE =============*/
-    // Handle individual row selection
+    const inventoryTable = document.getElementById('inventory-table');
     const allRows = document.querySelectorAll('#inventory-table tbody tr');
 
+
+    /* ==========================================================
+       2. ACTION DROPDOWN TOGGLE LOGIC
+       ========================================================== */
     allRows.forEach(row => {
         row.addEventListener('click', function(e) {
             if (e.target.closest('.asset-action-btn')) return;
@@ -45,6 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const rect = this.getBoundingClientRect();
                 menu.style.top = (rect.bottom + 4) + 'px';
                 menu.style.left = (rect.right - menu.offsetWidth - 4) + 'px';
+                
                 // Adjust if menu goes off screen bottom
                 const menuBottom = rect.bottom + 4 + menu.offsetHeight;
                 if (menuBottom > window.innerHeight) {
@@ -63,20 +68,18 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.action-dropdown').forEach(d => d.classList.remove('active'));
         }
     });
-    /*============= END OF ACTION DROPDOWN TOGGLE =============*/
-    
 
-    /*============= HISTORYMODAL =============*/
 
+    /* ==========================================================
+       3. HISTORY MODAL LOGIC
+       ========================================================== */
     function getMarkerClass(action) {
         const actionLower = action.toLowerCase();
         if (actionLower.includes('return') || actionLower.includes('sold')) return 'warning';
         if (actionLower.includes('clean') || actionLower.includes('ready') || actionLower.includes('restock')) return 'ready';
         if (actionLower.includes('delete') || actionLower.includes('repair')) return 'danger';
-        return 'info'; // Default
+        return 'info';
     }
-
-    const histModal = document.getElementById('assetHistoryModal');
 
     document.addEventListener('click', async (e) => {
         const btn = e.target.closest('.logs'); 
@@ -86,12 +89,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!row) return;
 
         const productId = btn.dataset.productId;
-
         const equipmentName = row.cells[1].innerText;
         const model = row.cells[2].innerText;
 
-        document.getElementById('history-asset-id').innerText =
-            `${equipmentName} ${model} • ID: ${productId}`;
+        document.getElementById('history-asset-id').innerText = `${equipmentName} ${model} • ID: ${productId}`;
 
         const container = document.querySelector('.history-timeline-container');
         container.innerHTML = "<p>Loading...</p>";
@@ -120,13 +121,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 `).join("");
             }
-
         } catch (err) {
             container.innerHTML = "<p>Error loading history.</p>";
             console.error(err);
         }
 
-        histModal.classList.remove('hidden');
+        histModal?.classList.remove('hidden');
     });
 
     window.closeHistoryModal = function() {
@@ -145,11 +145,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    /*============= END OF HISTORYMODAL =============*/
 
-
-/*============= REGISTERASSETMODAL =============*/
-
+    /* ==========================================================
+       4. REGISTER ASSET MODAL LOGIC
+       ========================================================== */
     window.openAssetModal = function() {
         regModal?.classList.remove('hidden');
     };
@@ -157,12 +156,9 @@ document.addEventListener('DOMContentLoaded', () => {
     window.closeAssetModal = function() {
         regModal?.classList.add('hidden');
         
-        // 1. Reset the standard form fields 
-        // Note: Using 'assetEntryForm' to match the ID in your HTML
         const regForm = document.getElementById('assetEntryForm');
         if (regForm) regForm.reset();
 
-        // 2. Reset the Image Upload specific elements
         const fileInput = document.getElementById('product-image-input');
         const imagePreview = document.getElementById('product-image-preview');
         const placeholder = document.getElementById('product-upload-placeholder');
@@ -171,20 +167,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (fileInput) fileInput.value = "";
         
-        // FIX: Remove the attribute entirely and clear alt text to stop the broken icon
         if (imagePreview) {
             imagePreview.removeAttribute('src');
             imagePreview.removeAttribute('alt');
         }
         
-        // Restore placeholder and hide preview container
         if (placeholder) placeholder.style.display = 'block';
         if (previewContainer) previewContainer.style.display = 'none';
 
-        // Revert dropzone styles to original state
         if (dropzone) {
             dropzone.style.borderColor = '#e2e8f0';
-            dropzone.style.backgroundColor = '#f8fafc'; // Changed to match your initial style
+            dropzone.style.backgroundColor = '#f8fafc';
             dropzone.style.cursor = 'pointer';
         }
     };
@@ -192,177 +185,146 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.close-reg-modal').forEach(btn => btn.addEventListener('click', window.closeAssetModal));
     addEquipmentBtn?.addEventListener('click', window.openAssetModal);
 
-    /*============= END OF REGISTERASSETMODAL =============*/
 
-/*============= EDITASSETMODAL =============*/
-// Variable to store the values as they were when the modal opened
-let originalAssetData = {};
+    /* ==========================================================
+       5. EDIT ASSET MODAL & CHANGE DETECTION LOGIC
+       ========================================================== */
+    let originalAssetData = {};
 
-window.openEditModal = function(productData) {
-    const editModal = document.getElementById('editAssetModal');
-    const editForm = document.getElementById('editAssetForm');
-    const updateBtn = document.getElementById('update-asset-btn'); // Ensure your button has this ID
+    window.openEditModal = function(productData) {
+        const editForm = document.getElementById('editAssetForm');
+        const updateBtn = document.getElementById('update-asset-btn');
 
-    if (!editModal || !editForm) return;
+        if (!editModal || !editForm) return;
 
-    // Update the form action URL
-    editForm.action = `/admin/edit-product/${productData.id}`;
+        editForm.action = `/admin/edit-product/${productData.id}`;
+        const offerType = productData.offer || productData.offer_type || "";
 
-    // Fill fields and store original state for comparison
-    // UPDATED: 'edit-model' changed to 'edit-name'
-    const fields = {
-        'edit-product-id': productData.id,
-        'edit-type': productData.type,
-        'edit-name': productData.name,
-        'edit-condition': productData.condition,
-        'edit-description': productData.description,
-        'edit-offer-type': productData.offer_type,
-        'edit-rent': productData.rent_price,
-        'edit-rent-period': productData.rent_period,
-        'edit-price': productData.sale_price
+        const fields = {
+            'edit-product-id': productData.id,
+            'edit-type': productData.type,
+            'edit-name': productData.name,
+            'edit-condition': productData.condition,
+            'edit-description': productData.description,
+            'edit-offer-type': offerType,
+            'edit-rent': productData.rent_price,
+            'edit-rent-period': productData.rent_period,
+            'edit-price': productData.sale_price
+        };
+
+        const costDisplay = document.getElementById('edit-cost-display');
+        if (costDisplay) {
+            const cost = parseFloat(productData.cost_price);
+            costDisplay.innerText = cost > 0
+                ? `₱${cost.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                : 'Not set';
+        }
+
+        originalAssetData = { ...fields };
+
+        Object.keys(fields).forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = fields[id];
+        });
+
+        const offerTypeEl = document.getElementById('edit-offer-type');
+        if (offerTypeEl) {
+            offerTypeEl.dispatchEvent(new Event('change'));
+        }
+
+        const previewContainer = document.getElementById('edit-product-preview-container');
+        const previewImg = document.getElementById('edit-product-image-preview');
+        const placeholder = document.getElementById('edit-product-upload-placeholder');
+
+        if (productData.image && productData.image !== 'None' && productData.image !== '') {
+            previewImg.src = `/static/${productData.image}`;
+            previewContainer.style.display = 'flex';
+            placeholder.style.display = 'none';
+        } else {
+            previewImg.removeAttribute('src');
+            previewContainer.style.display = 'none';
+            placeholder.style.display = 'block';
+        }
+
+        if (updateBtn) updateBtn.disabled = true;
+        editModal.classList.remove('hidden');
     };
 
-    // Show unit cost as read-only display
-    const costDisplay = document.getElementById('edit-cost-display');
-    if (costDisplay) {
-        const cost = parseFloat(productData.cost_price);
-        costDisplay.innerText = cost > 0
-            ? `₱${cost.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-            : 'Not set';
-    }
+    document.getElementById('editAssetForm')?.addEventListener('input', function() {
+        const updateBtn = document.getElementById('update-asset-btn');
+        const fileInput = document.getElementById('edit-product-image-input');
+        
+        const currentData = {
+            'edit-product-id': document.getElementById('edit-product-id').value,
+            'edit-type': document.getElementById('edit-type').value,
+            'edit-name': document.getElementById('edit-name').value,
+            'edit-condition': document.getElementById('edit-condition').value,
+            'edit-description': document.getElementById('edit-description').value,
+            'edit-offer-type': document.getElementById('edit-offer-type').value,
+            'edit-rent': document.getElementById('edit-rent').value,
+            'edit-rent-period': document.getElementById('edit-rent-period').value,
+            'edit-price': document.getElementById('edit-price').value
+        };
 
-    // Store these values to compare later
-    originalAssetData = { ...fields };
+        const hasChanged = Object.keys(currentData).some(key => 
+            String(currentData[key]) !== String(originalAssetData[key])
+        );
+        const hasNewFile = fileInput && fileInput.files.length > 0;
 
-    // Apply values to DOM
-    Object.keys(fields).forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.value = fields[id];
+        if (updateBtn) {
+            updateBtn.disabled = !(hasChanged || hasNewFile);
+        }
     });
 
-    // Handle Image Preview
-    const previewContainer = document.getElementById('edit-product-preview-container');
-    const previewImg = document.getElementById('edit-product-image-preview');
-    const placeholder = document.getElementById('edit-product-upload-placeholder');
-    const offerTypeEl = document.getElementById('edit-offer-type');
-    if (offerTypeEl) {
-        offerTypeEl.dispatchEvent(new Event('change'));
-    }
-
-    if (productData.image && productData.image !== 'None' && productData.image !== '') {
-        previewImg.src = `/static/${productData.image}`;
-        previewContainer.style.display = 'flex';
-        placeholder.style.display = 'none';
-    } else {
-        previewImg.removeAttribute('src');
-        previewContainer.style.display = 'none';
-        placeholder.style.display = 'block';
-    }
-
-    // Initial button state: disabled until change detected
-    if (updateBtn) updateBtn.disabled = true;
-
-    document.getElementById('edit-offer-type')?.dispatchEvent(new Event('change'));
-    editModal.classList.remove('hidden');
-
-};
-
-// 2. Change Detection Logic
-// This listener checks if current inputs match the original data
-document.getElementById('editAssetForm')?.addEventListener('input', function() {
-    const updateBtn = document.getElementById('update-asset-btn');
-    const fileInput = document.getElementById('edit-product-image-input');
+    document.getElementById('edit-offer-type')?.addEventListener('change', () => {
+        document.getElementById('editAssetForm')?.dispatchEvent(new Event('input'));
+    });
     
-    // UPDATED: 'edit-model' changed to 'edit-name'
-    const currentData = {
-        'edit-product-id': document.getElementById('edit-product-id').value,
-        'edit-type': document.getElementById('edit-type').value,
-        'edit-name': document.getElementById('edit-name').value,
-        'edit-condition': document.getElementById('edit-condition').value,
-        'edit-description': document.getElementById('edit-description').value,
-        'edit-offer-type': document.getElementById('edit-offer-type').value,
-        'edit-rent': document.getElementById('edit-rent').value,
-        'edit-rent-period': document.getElementById('edit-rent-period').value,
-        'edit-price': document.getElementById('edit-price').value
+    document.getElementById('edit-rent-period')?.addEventListener('change', () => {
+        document.getElementById('editAssetForm')?.dispatchEvent(new Event('input'));
+    });
+
+    window.closeEditModal = function() {
+        const fileInput = document.getElementById('edit-product-image-input');
+        const updateBtn = document.getElementById('update-asset-btn');
+        
+        editModal?.classList.add('hidden');
+        
+        const previewImg = document.getElementById('edit-product-image-preview');
+        if (previewImg) previewImg.removeAttribute('src');
+        if (fileInput) fileInput.value = "";
+        
+        if (updateBtn) {
+            const btnText = updateBtn.querySelector('.btn-text');
+            const btnSpinner = updateBtn.querySelector('.btn-spinner');
+            
+            updateBtn.disabled = true;
+            if (btnText) btnText.style.opacity = '1';
+            if (btnSpinner) btnSpinner.classList.add('hidden');
+        }
     };
 
-    // Check if any text/number changed
-    const hasChanged = Object.keys(currentData).some(key => 
-        String(currentData[key]) !== String(originalAssetData[key])
-    );
+    document.querySelectorAll('.close-edit-modal').forEach(btn => {
+        btn.addEventListener('click', window.closeEditModal);
+    });
 
-    // Check if a new file has been picked
-    const hasNewFile = fileInput && fileInput.files.length > 0;
-
-    if (updateBtn) {
-        updateBtn.disabled = !(hasChanged || hasNewFile);
-    }
-});
-
-document.getElementById('edit-offer-type')?.addEventListener('change', () => {
-    document.getElementById('editAssetForm').dispatchEvent(new Event('input'));
-});
-document.getElementById('edit-rent-period')?.addEventListener('change', () => {
-    document.getElementById('editAssetForm').dispatchEvent(new Event('input'));
-});
-
-// 3. Close Modal Handler
-window.closeEditModal = function() {
-    const editModal = document.getElementById('editAssetModal');
-    const editForm = document.getElementById('editAssetForm');
-    const fileInput = document.getElementById('edit-product-image-input');
-    
-    editModal?.classList.add('hidden');
-    
-    // Cleanup
-    const previewImg = document.getElementById('edit-product-image-preview');
-    if (previewImg) previewImg.removeAttribute('src');
-    
-    // Reset file input so it doesn't stay "changed" for the next product
-    if (fileInput) fileInput.value = "";
-};
-
-const originalCloseModal = window.closeEditModal;
-window.closeEditModal = function() {
-    originalCloseModal(); // Call your existing cleanup
-    
-    const updateBtn = document.getElementById('update-asset-btn');
-    if (updateBtn) {
+    document.getElementById('editAssetForm')?.addEventListener('submit', function() {
+        const updateBtn = document.getElementById('update-asset-btn');
         const btnText = updateBtn.querySelector('.btn-text');
         const btnSpinner = updateBtn.querySelector('.btn-spinner');
-        
-        updateBtn.disabled = true;
-        if (btnText) btnText.style.opacity = '1';
-        if (btnSpinner) btnSpinner.classList.add('hidden');
-    }
-};
 
-document.querySelectorAll('.close-edit-modal').forEach(btn => {
-    btn.addEventListener('click', window.closeEditModal);
-});
+        if (updateBtn) {
+            updateBtn.disabled = true;
+            updateBtn.style.cursor = 'wait';
+            if (btnText) btnText.style.opacity = '0';
+            if (btnSpinner) btnSpinner.classList.remove('hidden');
+        }
+    });
 
 
-document.getElementById('editAssetForm')?.addEventListener('submit', function() {
-    const updateBtn = document.getElementById('update-asset-btn');
-    const btnText = updateBtn.querySelector('.btn-text');
-    const btnSpinner = updateBtn.querySelector('.btn-spinner');
-
-    if (updateBtn) {
-        // Disable again to prevent double-clicks
-        updateBtn.disabled = true;
-        updateBtn.style.cursor = 'wait';
-        
-        // Hide text, show spinner
-        if (btnText) btnText.style.opacity = '0';
-        if (btnSpinner) btnSpinner.classList.remove('hidden');
-    }
-});
-/*============= END OF EDITASSETMODAL =============*/
-
-
-
-/*============= IMAGE UPLOAD & DRAG-DROP (CLEAN & SAFE) =============*/
-(function() {
+    /* ==========================================================
+       6. IMAGE UPLOAD & DRAG-DROP HANDLER
+       ========================================================== */
     const setupUpload = (dropzoneId, inputId, placeholderId, previewContainerId, imagePreviewId, resetBtnId) => {
         const dropzone = document.getElementById(dropzoneId);
         const fileInput = document.getElementById(inputId);
@@ -373,17 +335,12 @@ document.getElementById('editAssetForm')?.addEventListener('submit', function() 
 
         if (!dropzone || !fileInput || !previewContainer) return;
 
-        /* ========= SAFER STATE CHECK ========= */
-        const isPreviewVisible = () => {
-            return window.getComputedStyle(previewContainer).display !== 'none';
-        };
+        const isPreviewVisible = () => window.getComputedStyle(previewContainer).display !== 'none';
 
-        /* ========= UI HELPERS ========= */
         const showPreview = (src) => {
             imagePreview.src = src;
             placeholder.style.display = 'none';
             previewContainer.style.display = 'flex';
-
             dropzone.style.borderColor = '#10b981';
             dropzone.style.background = '#f0fdf4';
             dropzone.style.cursor = 'default';
@@ -391,38 +348,28 @@ document.getElementById('editAssetForm')?.addEventListener('submit', function() 
 
         const resetPreview = () => {
             fileInput.value = "";
-
             if (imagePreview) {
                 imagePreview.removeAttribute('src');
                 imagePreview.removeAttribute('alt');
             }
-
             placeholder.style.display = 'block';
             previewContainer.style.display = 'none';
-
             dropzone.style.borderColor = '#e2e8f0';
             dropzone.style.background = '#f8fafc';
             dropzone.style.cursor = 'pointer';
         };
 
-        /* ========= CLICK TO UPLOAD ========= */
         dropzone.addEventListener('click', (e) => {
             if (!isPreviewVisible() && !e.target.closest(`#${resetBtnId}`)) {
                 fileInput.click();
             }
         });
 
-        /* ========= FILE SELECT ========= */
         fileInput.addEventListener('change', function() {
             const file = this.files[0];
-
             if (file && file.type.startsWith('image/')) {
                 const reader = new FileReader();
-
-                reader.onload = (e) => {
-                    showPreview(e.target.result);
-                };
-
+                reader.onload = (e) => showPreview(e.target.result);
                 reader.readAsDataURL(file);
             } else if (file) {
                 alert("Please upload a valid image file.");
@@ -430,7 +377,6 @@ document.getElementById('editAssetForm')?.addEventListener('submit', function() 
             }
         });
 
-        /* ========= RESET BUTTON ========= */
         if (resetBtn) {
             resetBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -438,12 +384,10 @@ document.getElementById('editAssetForm')?.addEventListener('submit', function() 
             });
         }
 
-        /* ========= DRAG EVENTS ========= */
         ['dragenter', 'dragover'].forEach(event => {
             dropzone.addEventListener(event, (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-
                 if (!isPreviewVisible()) {
                     dropzone.style.borderColor = '#0ea5e9';
                     dropzone.style.background = '#f0f9ff';
@@ -455,7 +399,6 @@ document.getElementById('editAssetForm')?.addEventListener('submit', function() 
             dropzone.addEventListener(event, (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-
                 if (isPreviewVisible()) {
                     dropzone.style.borderColor = '#10b981';
                     dropzone.style.background = '#f0fdf4';
@@ -466,56 +409,31 @@ document.getElementById('editAssetForm')?.addEventListener('submit', function() 
             });
         });
 
-        /* ========= DROP FILE ========= */
         dropzone.addEventListener('drop', (e) => {
             if (isPreviewVisible()) return;
-
             const files = e.dataTransfer.files;
-
             if (files.length > 0 && files[0].type.startsWith('image/')) {
                 fileInput.files = files;
                 fileInput.dispatchEvent(new Event('change'));
             }
         });
 
-        /* ========= INITIAL RESET (IMPORTANT) ========= */
-        // Ensures no ghost image on load
         resetPreview();
     };
 
-    /* ========= INIT ========= */
-    setupUpload(
-        'product-dropzone', 
-        'product-image-input', 
-        'product-upload-placeholder', 
-        'product-preview-container', 
-        'product-image-preview', 
-        'reset-product-upload'
-    );
+    setupUpload('product-dropzone', 'product-image-input', 'product-upload-placeholder', 'product-preview-container', 'product-image-preview', 'reset-product-upload');
+    setupUpload('edit-product-dropzone', 'edit-product-image-input', 'edit-product-upload-placeholder', 'edit-product-preview-container', 'edit-product-image-preview', 'reset-edit-upload');
 
-    setupUpload(
-        'edit-product-dropzone', 
-        'edit-product-image-input', 
-        'edit-product-upload-placeholder', 
-        'edit-product-preview-container', 
-        'edit-product-image-preview', 
-        'reset-edit-upload'
-    );
-})();
-/*============= END OF IMAGE UPLOAD =============*/
 
-    const inventoryTable = document.getElementById('inventory-table');
-
+    /* ==========================================================
+       7. INVENTORY TABLE INTERACTIONS
+       ========================================================== */
     if (inventoryTable) {
         inventoryTable.addEventListener('click', (e) => {
-            // Change '.btn-edit-trigger' to '.dropdown-item.edit' to match your HTML
             const editBtn = e.target.closest('.dropdown-item.edit');
-            const logsBtn = e.target.closest('.dropdown-item.logs');
             const deleteBtn = e.target.closest('.dropdown-item.delete');
 
             if (editBtn) {
-                const rawDesc = editBtn.dataset.description;
-                
                 const productData = {
                     id: editBtn.dataset.id,
                     type: editBtn.dataset.type || '',
@@ -527,73 +445,125 @@ document.getElementById('editAssetForm')?.addEventListener('submit', function() 
                     rent_period: editBtn.dataset.period || 'Monthly',
                     rent_price: editBtn.dataset.rent || 0,
                     sale_price: editBtn.dataset.price || 0,
-                    description: (
-                        editBtn.dataset.description === "None" ||
-                        !editBtn.dataset.description
-                    ) ? "" : editBtn.dataset.description.trim(),
+                    description: (editBtn.dataset.description === "None" || !editBtn.dataset.description) ? "" : editBtn.dataset.description.trim(),
                     image: editBtn.dataset.image || ''
                 };
-                
-                // Now call the modal function with the object it expects
                 window.openEditModal(productData);
-            } 
-                else if (deleteBtn) {
-                    const row = deleteBtn.closest('tr');
-                    const assetTag = row.cells[1].innerText;
-                    console.log("Deleting...", assetTag);
-                }
-            });
+            } else if (deleteBtn) {
+                const row = deleteBtn.closest('tr');
+                const assetTag = row.cells[1].innerText;
+                console.log("Deleting...", assetTag);
+            }
+        });
     }
+
+
+    /* ==========================================================
+       8. TRANSACTION & FORM DYNAMIC ROUTING / CALCULATIONS
+       ========================================================== */
+    document.querySelectorAll('.asset-action-btn.rent').forEach(btn => {
+        btn.addEventListener('click', () => window.location.href = '/admin/transactions?type=Rental');
+    });
+
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.asset-action-btn.purchase');
+        if (btn) window.location.href = '/admin/transactions?type=Sale';
+    });
+
+    const rentForm = document.getElementById('rentEntryForm');
+    const rentRateInput = document.getElementById('rent-rate-display');
+    const depositInput = document.getElementById('security-deposit-input');
+    const totalDisplay = document.querySelector('.total-amount-display');
+
+    if (rentForm) {
+        rentForm.addEventListener('input', () => {
+            const rate = parseFloat(rentRateInput?.value) || 0;
+            const deposit = parseFloat(depositInput?.value) || 0;
+            if (totalDisplay) {
+                const total = rate + deposit;
+                totalDisplay.textContent = `₱${total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            }
+        });
+    }
+
+    const customerSelect = document.getElementById('rental-customer-id');
+    const idStatusIcon = document.getElementById('customer-id-status');
+
+    if (customerSelect && idStatusIcon) {
+        customerSelect.addEventListener('change', function() {
+            if (this.value) {
+                idStatusIcon.innerText = 'check_circle';
+                idStatusIcon.style.color = '#10b981'; 
+            } else {
+                idStatusIcon.innerText = 'radio_button_unchecked';
+                idStatusIcon.style.color = '#cbd5e1';
+            }
+        });
+    }
+
+
+    /* ==========================================================
+       9. PRODUCT TYPE CONDITIONAL PRICING CONFIGURATORS
+       ========================================================== */
+    // Registration Offer Type Toggle
+    const offerTypeSelect = document.getElementById('reg-offer-type');
+    const pricingRow = document.getElementById('pricing-row-container');
+    const rentField = document.getElementById('rent-field');
+    const saleField = document.getElementById('sale-field');
+
+    if (offerTypeSelect && pricingRow && rentField && saleField) {
+        const rentInput = rentField.querySelector('input[name="rent_price"]');
+        const saleInput = saleField.querySelector('input[name="sale_price"]');
+
+        offerTypeSelect.addEventListener('change', function() {
+            const val = this.value;
+            rentField.style.display = 'none';
+            saleField.style.display = 'none';
+
+            if (val === 'Rental') {
+                rentField.style.display = 'block';
+                pricingRow.style.gridTemplateColumns = '200px 260px'; 
+                if (saleInput) saleInput.value = ''; 
+            } else if (val === 'Sale') {
+                saleField.style.display = 'block';
+                pricingRow.style.gridTemplateColumns = '200px 180px'; 
+                if (rentInput) rentInput.value = ''; 
+            } else if (val === 'Both') {
+                rentField.style.display = 'block';
+                saleField.style.display = 'block';
+                pricingRow.style.gridTemplateColumns = '200px 260px 180px'; 
+            }
+        });
+    }
+
+    // Edit Modal Offer Type Toggle
+    const editOfferType = document.getElementById('edit-offer-type');
+    const editPricingRow = document.getElementById('edit-pricing-row-container');
+    const editRentField = document.getElementById('edit-rent-field');
+    const editSaleField = document.getElementById('edit-sale-field');
+
+    if (editOfferType && editPricingRow && editRentField && editSaleField) {
+        const editRentInput = editRentField.querySelector('input[name="rent_price"]');
+        const editSaleInput = editSaleField.querySelector('input[name="sale_price"]');
+
+        editOfferType.addEventListener('change', function() {
+            const val = this.value;
+            editRentField.style.display = 'none';
+            editSaleField.style.display = 'none';
+
+            if (val === 'Rental') {
+                editRentField.style.display = 'block';
+                editPricingRow.style.gridTemplateColumns = '200px 260px'; 
+                if (editSaleInput) editSaleInput.value = ''; 
+            } else if (val === 'Sale') {
+                editSaleField.style.display = 'block';
+                editPricingRow.style.gridTemplateColumns = '200px 180px'; 
+                if (editRentInput) editRentInput.value = '';
+            }
+        });
+    }
+
 });
-
-
-/*============= START OF RENTMODAL =============*/
-
-document.querySelectorAll('.asset-action-btn.rent').forEach(btn => {
-    btn.addEventListener('click', () => {
-        window.location.href = '/admin/transactions?type=Rental';
-    });
-});
-
-const rentForm = document.getElementById('rentEntryForm');
-const rentRateInput = document.getElementById('rent-rate-display');
-const depositInput = document.getElementById('security-deposit-input');
-const totalDisplay = document.querySelector('.total-amount-display');
-
-if (rentForm) {
-    rentForm.addEventListener('input', () => {
-        const rate = parseFloat(rentRateInput.value) || 0;
-        const deposit = parseFloat(depositInput.value) || 0;
-        
-        if (totalDisplay) {
-            const total = rate + deposit;
-            totalDisplay.textContent = `₱${total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-        }
-    });
-}
-
-
-/*============= RENTAL CUSTOMER SELECTION =============*/
-const customerSelect = document.getElementById('rental-customer-id');
-const idStatusIcon = document.getElementById('customer-id-status');
-
-if (customerSelect) {
-    customerSelect.addEventListener('change', function() {
-        if (this.value) {
-            // Turns the circle next to "Select Customer" into a green checkmark
-            idStatusIcon.innerText = 'check_circle';
-            idStatusIcon.style.color = '#10b981'; 
-        } else {
-            // Reverts to an empty circle if no valid customer is selected
-            idStatusIcon.innerText = 'radio_button_unchecked';
-            idStatusIcon.style.color = '#cbd5e1';
-        }
-    });
-}
-
-
-/*============= END OF RENTMODAL =============*/
-
 
 /*============= ADDSTOCKMODAL =============*/
 
@@ -713,17 +683,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 /*============= END OF ADDSTOCKMODAL =============*/
 
-/*============= PURCHASE SUBMISSION LOGIC =============*/
-
-document.addEventListener('click', function(e) {
-    const btn = e.target.closest('.asset-action-btn.purchase');
-    if (btn) {
-        window.location.href = '/admin/transactions?type=Sale';
-    }
-});
-
-/*============= END OF PURCHASE SUBMISSION LOGIC =============*/
-
 
 /*============= DELETEMODAL =============*/
 const deleteModal = document.getElementById('deleteAssetModal');
@@ -768,6 +727,8 @@ window.addEventListener('click', (e) => {
     }
 });
 /*============= END OF DELETEMODAL =============*/
+
+
 
 /*============= START OF PAGINATION =============*/
 document.addEventListener('DOMContentLoaded', function() {
@@ -870,77 +831,3 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 });
 /*============= END OF FLASK MESSAGE =============*/
-
-
-/*============= START OF PRODUCT TYPE =============*/
-document.addEventListener('DOMContentLoaded', function() {
-    const offerTypeSelect = document.getElementById('reg-offer-type');
-    const pricingRow = document.getElementById('pricing-row-container');
-    const rentField = document.getElementById('rent-field');
-    const saleField = document.getElementById('sale-field');
-
-    const rentInput = rentField ? rentField.querySelector('input[name="rent_price"]') : null;
-    const saleInput = saleField ? saleField.querySelector('input[name="sale_price"]') : null;
-
-    if (offerTypeSelect && pricingRow) {
-        offerTypeSelect.addEventListener('change', function() {
-            const val = this.value;
-            rentField.style.display = 'none';
-            saleField.style.display = 'none';
-
-            if (val === 'Rental') {
-                rentField.style.display = 'block';
-                pricingRow.style.gridTemplateColumns = '200px 260px'; 
-                if (saleInput) saleInput.value = ''; 
-            } 
-            else if (val === 'Sale') {
-                saleField.style.display = 'block';
-                pricingRow.style.gridTemplateColumns = '200px 180px'; 
-                if (rentInput) rentInput.value = ''; 
-            } 
-            else if (val === 'Both') {
-                rentField.style.display = 'block';
-                saleField.style.display = 'block';
-                pricingRow.style.gridTemplateColumns = '200px 260px 180px'; 
-            }
-        });
-    }
-});
-/*============= END OF PRODUCT TYPE =============*/
-
-
-/*============= START OF EDIT PRODUCT TYPE =============*/
-document.addEventListener('DOMContentLoaded', function() {
-    const editOfferType = document.getElementById('edit-offer-type');
-    const editPricingRow = document.getElementById('edit-pricing-row-container');
-    const editRentField = document.getElementById('edit-rent-field');
-    const editSaleField = document.getElementById('edit-sale-field');
-
-    const editRentInput = editRentField ? editRentField.querySelector('input[name="rent_price"]') : null;
-    const editSaleInput = editSaleField ? editSaleField.querySelector('input[name="sale_price"]') : null;
-
-    if (editOfferType && editPricingRow) {
-        editOfferType.addEventListener('change', function() {
-            const val = this.value;
-            editRentField.style.display = 'none';
-            editSaleField.style.display = 'none';
-
-            if (val === 'Rental') {
-                editRentField.style.display = 'block';
-                editPricingRow.style.gridTemplateColumns = '200px 260px'; 
-                if (editSaleInput) editSaleInput.value = ''; 
-            } 
-            else if (val === 'Sale') {
-                editSaleField.style.display = 'block';
-                editPricingRow.style.gridTemplateColumns = '200px 180px'; 
-                if (editRentInput) editRentInput.value = '';
-            } 
-            else if (val === 'Both') {
-                editRentField.style.display = 'block';
-                editSaleField.style.display = 'block';
-                editPricingRow.style.gridTemplateColumns = '200px 260px 180px'; 
-            }
-        });
-    }
-});
-/*============= END OF EDIT PRODUCT TYPE =============*/

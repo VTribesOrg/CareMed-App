@@ -1,21 +1,14 @@
 import os
 import subprocess
-import shutil
-import platform
 from datetime import datetime
 from urllib.parse import urlparse
 
 BACKUP_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'backups')
 MAX_BACKUPS = 7
 
-if platform.system() == "Windows":
-    DEFAULT_MYSQLDUMP = r"C:\xampp\mysql\bin\mysqldump.exe"
-else:
-    DEFAULT_MYSQLDUMP = shutil.which("mysqldump") or "/usr/bin/mysqldump"
-
 MYSQLDUMP_PATH = os.environ.get(
     "MYSQLDUMP_PATH",
-    DEFAULT_MYSQLDUMP
+    r"C:\xampp\mysql\bin\mysqldump.exe"
 )
 
 def get_db_credentials():
@@ -204,3 +197,4 @@ Please check your server and create a manual backup immediately.
                 mail.send(msg)
         except Exception as mail_err:
             print(f"[Backup] Failed to send backup alert: {mail_err}")
+            
