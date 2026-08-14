@@ -2117,8 +2117,10 @@ def active_rentals():
 
     search_query = request.args.get('q', '').strip()
     filter_type = request.args.get('filter', '')  
-  
-    query = Rental.query.filter(Rental.status.in_(['Active', 'Overdue']))\
+   
+    active_statuses = ['Active', 'Overdue', 'Awaiting Return']
+    
+    query = Rental.query.filter(Rental.status.in_(active_statuses))\
         .options(
             joinedload(Rental.product),
             joinedload(Rental.transaction).joinedload(Transaction.customer)
@@ -2127,6 +2129,8 @@ def active_rentals():
     today = date.today()
     if filter_type == 'overdue_return':
         query = query.filter(Rental.expected_return_date < today)
+    elif filter_type == 'awaiting_return':
+        query = query.filter(Rental.status == 'Awaiting Return')
     
     rentals = query.order_by(Rental.expected_return_date.asc()).all()
     
