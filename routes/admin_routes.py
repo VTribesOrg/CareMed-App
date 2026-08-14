@@ -1671,7 +1671,6 @@ def process_rental():
             flash("Invalid return date.", "danger")
             return redirect(request.referrer)
 
-        # Determine Customer Name and ID
         customer_id = request.form.get('customer_id') or None
         display_name = "Walk-in Customer"
 
@@ -1690,6 +1689,7 @@ def process_rental():
             reference_no=ref_no,
             customer_id=customer_id,
             customer_name=display_name,
+            processed_by=current_user.id,
             transaction_type="Rental",
             total_amount=Decimal("0.00"),
             voucher_amount=voucher_amount,
@@ -1935,6 +1935,9 @@ def transactions():
     txn_type = request.args.get('type', '')
     fulfillment = request.args.get('fulfillment', '')
     status_filter = request.args.get('status', '')
+ 
+    start_date = request.args.get('start_date', '').strip()
+    end_date = request.args.get('end_date', '').strip()
 
     query = Transaction.query.options(
         joinedload(Transaction.customer),
@@ -1955,8 +1958,23 @@ def transactions():
     
     if fulfillment:
         query = query.filter(Transaction.fulfillment_type == fulfillment)
- 
-    elif status_filter == 'expiring':
+
+    if start_date:
+        try:
+            parsed_start = datetime.strptime(start_date, '%Y-%m-%d')
+            query = query.filter(Transaction.created_at >= parsed_start)
+        except ValueError:
+            pass
+
+    if end_date:
+        try:
+
+            parsed_end = datetime.strptime(end_date, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
+            query = query.filter(Transaction.created_at <= parsed_end)
+        except ValueError:
+            pass
+    
+    if status_filter == 'expiring':
         from datetime import timedelta
         soon = current_date + timedelta(days=5)
         query = query.filter(
@@ -1970,8 +1988,7 @@ def transactions():
             )
         )
         
-    if status_filter == 'overdue_return':
-        # Rentals NOT RETURNED past due date
+    elif status_filter == 'overdue_return':
         query = query.filter(
             Transaction.transaction_type == 'Rental',
             Transaction.rentals.any(
@@ -1983,7 +2000,6 @@ def transactions():
         )
 
     elif status_filter == 'overdue_payment':
-        # Rental payments past due
         query = query.filter(
             Transaction.transaction_type == 'Rental',
             Transaction.balance_due > 0,
@@ -2008,7 +2024,13 @@ def transactions():
             Transaction.status == 'Open'
         )
 
-    pagination = query.order_by(Transaction.created_at.desc()).paginate(
+   
+    if start_date:
+        query = query.order_by(Transaction.created_at.asc())
+    else:
+        query = query.order_by(Transaction.created_at.desc())
+
+    pagination = query.paginate(
         page=page, per_page=limit, error_out=False
     )
 
@@ -2037,7 +2059,6 @@ def transactions():
         else:
             equipment.available_stock = equipment.stock or 0
 
-    # Fetch active refillable products with their tank statuses joined, keeping unique name/size combinations as Product instances
     raw_refillables = Product.query.options(
         joinedload(Product.tank_status)
     ).join(TankStatus).filter(Product.is_active == True).all()
@@ -2050,7 +2071,6 @@ def transactions():
     
     unique_refillable_products = list(grouped_refills.values())
 
-    # Flatten active oxygen rentals so comma-separated serial numbers become individual units
     raw_active_rentals = Rental.query.join(Product).filter(
         Rental.status == 'Active',
         Product.name.ilike('%Oxygen%')
@@ -2077,7 +2097,9 @@ def transactions():
         current_limit=limit,
         current_type=txn_type,
         current_fulfillment=fulfillment,
-        current_status=status_filter, 
+        current_status=status_filter,
+        start_date=start_date,      
+        end_date=end_date,          
         customers=customers,
         all_equipment=all_equipment,
         refillable_products=unique_refillable_products,
@@ -2085,7 +2107,6 @@ def transactions():
         datetime_now_date=current_date,
         **stats
     )
-    
     
 @admin_bp.route('/active-rentals')
 @login_required
@@ -2612,11 +2633,16 @@ def process_primegas():
         flash('Invalid quantity provided.', 'danger')
         return redirect(url_for('admin.transactions'))
 
-    if not product_id or quantity <= 0:
-        flash('Please select a valid product and quantity.', 'warning')
+    try:
+        amount = float(request.form.get('amount', 0))
+    except (TypeError, ValueError):
+        flash('Invalid amount provided.', 'danger')
         return redirect(url_for('admin.transactions'))
 
-    # Fetch the tank status record for the product
+    if not product_id or quantity <= 0 or amount < 0:
+        flash('Please select a valid product, quantity, and amount.', 'warning')
+        return redirect(url_for('admin.transactions'))
+
     tank_status = TankStatus.query.filter_by(product_id=product_id).first()
 
     if not tank_status:
@@ -2627,13 +2653,22 @@ def process_primegas():
         flash(f'Insufficient empty stock. Only {tank_status.empty_in_stock} empty tanks available.', 'danger')
         return redirect(url_for('admin.transactions'))
 
-    # Perform the conversion: decrease empty, increase full
     tank_status.empty_in_stock -= quantity
     tank_status.full_in_stock += quantity
+
+    new_expense = Expense(
+        category="Primegas Refill",
+        expense_title=f"Refilled {quantity} units",
+        amount=amount,
+        description=f"Primegas transaction processing batch refill for Product ID: {product_id}",
+        product_id=product_id,
+        recorded_by_id=current_user.id
+    )
+    db.session.add(new_expense)
     
     db.session.commit()
     
-    flash(f'Successfully refilled {quantity} tank(s) from empty to full!', 'success')
+    flash(f'Successfully refilled {quantity} tank(s) and recorded expense!', 'success')
     return redirect(url_for('admin.transactions'))
 
 @admin_bp.route('/system_logs')
@@ -3285,14 +3320,14 @@ def reports():
 def expenses():
     from sqlalchemy import extract
     from datetime import date, datetime as dt
- 
+
     today = date.today()
- 
+
     # ── Date range mode ─────────────────────────────────────────────────────
     start_date_str = request.args.get('start_date', '').strip()
     end_date_str   = request.args.get('end_date', '').strip()
     use_range = bool(start_date_str and end_date_str)
- 
+
     start_date = end_date = None
     if use_range:
         try:
@@ -3302,15 +3337,15 @@ def expenses():
                 start_date, end_date = end_date, start_date
         except ValueError:
             use_range = False
- 
+
     # ── Month/Year mode (default) ───────────────────────────────────────────
     year  = request.args.get('year',  today.year,  type=int)
     month = request.args.get('month', today.month, type=int)
     category_filter = request.args.get('category', '')
- 
+
     # ── Build expense query ─────────────────────────────────────────────────
     query = Expense.query
- 
+
     if use_range:
         query = query.filter(
             Expense.date_incurred >= start_date,
@@ -3321,12 +3356,12 @@ def expenses():
             extract('year',  Expense.date_incurred) == year,
             extract('month', Expense.date_incurred) == month,
         )
- 
+
     if category_filter:
         query = query.filter(Expense.category == category_filter)
- 
+
     expenses_list = query.order_by(Expense.date_incurred.desc()).all()
- 
+
     # ── Category totals (for charts) ────────────────────────────────────────
     def _period_filter(q):
         if use_range:
@@ -3338,7 +3373,7 @@ def expenses():
             extract('year',  Expense.date_incurred) == year,
             extract('month', Expense.date_incurred) == month,
         )
- 
+
     cat_query = _period_filter(
         db.session.query(
             Expense.category,
@@ -3346,9 +3381,9 @@ def expenses():
         )
     ).group_by(Expense.category)\
      .order_by(func.sum(Expense.amount).desc())
- 
+
     category_totals = cat_query.all()
- 
+
     # ── Financial metrics for the period ────────────────────────────────────
     # Cost of Sales
     cos_total = float(
@@ -3357,7 +3392,7 @@ def expenses():
             .filter(Expense.category.in_(list(COST_OF_SALES_CATEGORIES)))
         ).scalar() or 0
     )
- 
+
     # Operating Expenses
     opex_total = float(
         _period_filter(
@@ -3365,10 +3400,10 @@ def expenses():
             .filter(Expense.category.in_(list(OPERATING_EXPENSE_CATEGORIES)))
         ).scalar() or 0
     )
- 
+
     total_expenses = cos_total + opex_total
- 
-    # Gross Revenue for the period (completed payments)
+
+    # Gross Revenue for the period (completed standard payments)
     rev_query = db.session.query(func.sum(Payment.amount)).join(Transaction).filter(
         Payment.status == 'Completed'
     )
@@ -3382,12 +3417,30 @@ def expenses():
             extract('year',  Payment.created_at) == year,
             extract('month', Payment.created_at) == month,
         )
-    gross_revenue = float(rev_query.scalar() or 0)
- 
+    transaction_revenue = float(rev_query.scalar() or 0)
+
+    # Gross Revenue from Refill transactions
+    refill_rev_query = db.session.query(func.sum(Transaction.total_amount)).filter(
+        Transaction.transaction_type == 'Refill'
+    )
+    if use_range:
+        refill_rev_query = refill_rev_query.filter(
+            Transaction.created_at >= dt.combine(start_date, dt.min.time()),
+            Transaction.created_at <= dt.combine(end_date, dt.max.time()),
+        )
+    else:
+        refill_rev_query = refill_rev_query.filter(
+            extract('year',  Transaction.created_at) == year,
+            extract('month', Transaction.created_at) == month,
+        )
+    refill_revenue = float(refill_rev_query.scalar() or 0)
+
+    gross_revenue = transaction_revenue + refill_revenue
+
     gross_profit     = gross_revenue - cos_total
     net_profit       = gross_profit  - opex_total
     profit_margin    = round((net_profit / gross_revenue) * 100, 1) if gross_revenue > 0 else 0
- 
+
     # ── Last 6-month trend (always month-based) ─────────────────────────────
     from dateutil.relativedelta import relativedelta as rd
     trend_labels   = []
@@ -3396,7 +3449,7 @@ def expenses():
     trend_opex     = []
     trend_revenue  = []
     trend_net      = []
- 
+
     for i in range(5, -1, -1):
         target = today - rd(months=i)
         exp = float(db.session.query(func.sum(Expense.amount)).filter(
@@ -3413,18 +3466,28 @@ def expenses():
             extract('year',  Expense.date_incurred) == target.year,
             extract('month', Expense.date_incurred) == target.month,
         ).scalar() or 0)
-        rev = float(db.session.query(func.sum(Payment.amount)).join(Transaction).filter(
+        
+        rev_m = float(db.session.query(func.sum(Payment.amount)).join(Transaction).filter(
             Payment.status == 'Completed',
             extract('year',  Payment.created_at) == target.year,
             extract('month', Payment.created_at) == target.month,
         ).scalar() or 0)
+
+        refill_m = float(db.session.query(func.sum(Transaction.total_amount)).filter(
+            Transaction.transaction_type == 'Refill',
+            extract('year',  Transaction.created_at) == target.year,
+            extract('month', Transaction.created_at) == target.month,
+        ).scalar() or 0)
+
+        total_rev_m = rev_m + refill_m
+
         trend_labels.append(target.strftime('%b %Y'))
         trend_expense.append(exp)
         trend_cos.append(cos_m)
         trend_opex.append(opex_m)
-        trend_revenue.append(rev)
-        trend_net.append(round(rev - exp, 2))
- 
+        trend_revenue.append(total_rev_m)
+        trend_net.append(round(total_rev_m - exp, 2))
+
     # ── Category type lookup (for table badges) ─────────────────────────────
     def category_type(cat):
         if cat in COST_OF_SALES_CATEGORIES:
@@ -3432,24 +3495,24 @@ def expenses():
         if cat in OPERATING_EXPENSE_CATEGORIES:
             return 'opex'
         return 'other'
- 
+
     months = [
         (1,'January'),(2,'February'),(3,'March'),(4,'April'),
         (5,'May'),(6,'June'),(7,'July'),(8,'August'),
         (9,'September'),(10,'October'),(11,'November'),(12,'December')
     ]
- 
+
     return render_template(
         'admin/expenses.html',
         # Expense records
         expenses=expenses_list,
         category_totals=category_totals,
         category_type=category_type,
- 
+
         # Period totals
         total_this_month=total_expenses,
         revenue_this_month=gross_revenue,
- 
+
         # Financial summary
         gross_revenue=gross_revenue,
         cost_of_sales=cos_total,
@@ -3457,7 +3520,7 @@ def expenses():
         operating_expenses=opex_total,
         net_profit=net_profit,
         profit_margin=profit_margin,
- 
+
         # Trend charts
         trend_labels=trend_labels,
         trend_expense=trend_expense,
@@ -3465,7 +3528,7 @@ def expenses():
         trend_opex=trend_opex,
         trend_revenue=trend_revenue,
         trend_net=trend_net,
- 
+
         # Filter state
         all_categories=ALL_EXPENSE_CATEGORIES_ORDERED,
         category_filter=category_filter,
@@ -3476,12 +3539,12 @@ def expenses():
         start_date=start_date,
         end_date=end_date,
         today=today,
- 
+
         # Sets for Jinja checks
         cos_categories=COST_OF_SALES_CATEGORIES,
         opex_categories=OPERATING_EXPENSE_CATEGORIES,
     )
-
+    
 @admin_bp.route('/expenses/add', methods=['POST'])
 @login_required
 @admin_or_staff_required

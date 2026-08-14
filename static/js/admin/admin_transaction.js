@@ -2077,6 +2077,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const statusFilter = document.getElementById('status-filter');
     const rowLimitSelect = document.getElementById('row-limit-select');
     const clearFiltersBtn = document.getElementById('clear-filters-btn');
+    const startDateFilter = document.getElementById('start-date-filter');
+    const endDateFilter = document.getElementById('end-date-filter');
 
     // Consolidated filter applier pulling all structural settings parameters together
     function applyFilters() {
@@ -2085,6 +2087,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const fulfillmentVal = fulfillmentFilter ? fulfillmentFilter.value : '';
         const statusVal = statusFilter ? statusFilter.value : '';
         const limitVal = rowLimitSelect ? rowLimitSelect.value : '10';
+        const startDateVal = startDateFilter ? startDateFilter.value : '';
+        const endDateVal = endDateFilter ? endDateFilter.value : '';
 
         // Construct cleaner search parameters targeting dashboard endpoints
         const urlParams = new URLSearchParams();
@@ -2093,15 +2097,40 @@ document.addEventListener('DOMContentLoaded', function() {
         if (fulfillmentVal) urlParams.set('fulfillment', fulfillmentVal);
         if (statusVal) urlParams.set('status', statusVal);
         if (limitVal !== '10') urlParams.set('limit', limitVal);
+        if (startDateVal) urlParams.set('start_date', startDateVal);
+        if (endDateVal) urlParams.set('end_date', endDateVal);
 
         window.location.href = window.location.pathname + '?' + urlParams.toString();
     }
 
-    // Trigger state configurations on active select transitions
+    // Trigger state configurations on active select transitions (instant reload for dropdowns)
     if (typeFilter) typeFilter.addEventListener('change', applyFilters);
     if (fulfillmentFilter) fulfillmentFilter.addEventListener('change', applyFilters);
     if (statusFilter) statusFilter.addEventListener('change', applyFilters);
     if (rowLimitSelect) rowLimitSelect.addEventListener('change', applyFilters);
+
+    // Automatically trigger filtering when dates are picked
+    function handleDateChange() {
+        const startDateVal = startDateFilter ? startDateFilter.value : '';
+        const endDateVal = endDateFilter ? endDateFilter.value : '';
+
+        // Case 1: Both dates are selected -> apply immediately
+        if (startDateVal && endDateVal) {
+            // Optional Safety: Automatically swap dates if end date is earlier than start date
+            if (new Date(startDateVal) > new Date(endDateVal)) {
+                startDateFilter.value = endDateVal;
+                endDateFilter.value = startDateVal;
+            }
+            applyFilters();
+        } 
+        // Case 2: User cleared both dates -> refresh to clear the filter
+        else if (!startDateVal && !endDateVal) {
+            applyFilters();
+        }
+    }
+
+    if (startDateFilter) startDateFilter.addEventListener('change', handleDateChange);
+    if (endDateFilter) endDateFilter.addEventListener('change', handleDateChange);
 
     // Search query input box listeners with key down debounce triggers
     if (tableSearch) {
@@ -2146,83 +2175,78 @@ document.addEventListener('DOMContentLoaded', function() {
     const optionItems = document.querySelectorAll('.customer-option-item');
     const noMatchItem = document.getElementById('no-customer-match');
 
-    if (!searchInput || !dropdownList) return;
+    if (searchInput && dropdownList) {
+        searchInput.addEventListener('focus', () => {
+            dropdownList.classList.remove('hidden');
+        });
 
-    // Show selection dropdown window pane when input context gains active focus
-    searchInput.addEventListener('focus', () => {
-        dropdownList.classList.remove('hidden');
-    });
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.customer-search-container')) {
+                dropdownList.classList.add('hidden');
+            }
+        });
 
-    // Hide selection dropdown safely when clicking outside modal selection targets
-    document.addEventListener('click', function(e) {
-        if (!e.target.closest('.customer-search-container')) {
-            dropdownList.classList.add('hidden');
-        }
-    });
+        searchInput.addEventListener('input', function() {
+            const value = this.value.toLowerCase().trim();
+            let visibleCount = 0;
 
-    // Filter list item cards dynamically match text strings typed inside search box field
-    searchInput.addEventListener('input', function() {
-        const value = this.value.toLowerCase().trim();
-        let visibleCount = 0;
+            optionItems.forEach(item => {
+                const matchString = item.getAttribute('data-search-string') || '';
+                if (matchString.includes(value)) {
+                    item.style.display = 'flex';
+                    visibleCount++;
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+
+            if (noMatchItem) {
+                if (visibleCount === 0) {
+                    noMatchItem.style.display = 'block';
+                } else {
+                    noMatchItem.style.display = 'none';
+                }
+            }
+        });
 
         optionItems.forEach(item => {
-            const matchString = item.getAttribute('data-search-string') || '';
-            if (matchString.includes(value)) {
-                item.style.display = 'flex';
-                visibleCount++;
-            } else {
-                item.style.display = 'none';
-            }
+            item.addEventListener('click', function() {
+                const selectedId = this.getAttribute('data-id');
+                const nameEl = this.querySelector('.cust-name-text');
+                const selectedName = nameEl ? nameEl.textContent.trim() : '';
+
+                if (hiddenInput) hiddenInput.value = selectedId;
+                searchInput.value = selectedName;
+                
+                dropdownList.classList.add('hidden');
+                
+                optionItems.forEach(el => el.style.backgroundColor = 'transparent');
+                this.style.backgroundColor = '#f0fdf4';
+            });
         });
-
-        // Toggle visibility state for clear missing indicator fallback alerts
-        if (noMatchItem) {
-            if (visibleCount === 0) {
-                noMatchItem.style.display = 'block';
-            } else {
-                noMatchItem.style.display = 'none';
-            }
-        }
-    });
-
-    // Intercept target click updates to dynamically bind records onto input state fields
-    optionItems.forEach(item => {
-        item.addEventListener('click', function() {
-            const selectedId = this.getAttribute('data-id');
-            const nameEl = this.querySelector('.cust-name-text');
-            const selectedName = nameEl ? nameEl.textContent.trim() : '';
-
-            if (hiddenInput) hiddenInput.value = selectedId;
-            searchInput.value = selectedName; // Fill box with customer's formatted real name
-            
-            dropdownList.classList.add('hidden');
-            
-            // Highlight list selection styles natively inside interactive dashboard card components
-            optionItems.forEach(el => el.style.backgroundColor = 'transparent');
-            this.style.backgroundColor = '#f0fdf4'; // Light accent background tint indicator
-        });
-    });
-});
+    }
 
 
-document.addEventListener("DOMContentLoaded", function() {
+    // ==========================================
+    // 3. CUSTOM DROPDOWN TOGGLE CONTROLS
+    // ==========================================
     const dropdownBtn = document.getElementById("customDropdownBtn");
     const dropdownMenu = document.getElementById("customDropdownMenu");
 
-    // Click to toggle dropdown
-    dropdownBtn.addEventListener("click", function(event) {
-        event.stopPropagation();
-        dropdownMenu.classList.toggle("show");
-    });
+    if (dropdownBtn && dropdownMenu) {
+        dropdownBtn.addEventListener("click", function(event) {
+            event.stopPropagation();
+            dropdownMenu.classList.toggle("show");
+        });
 
-    // Close dropdown when clicking outside
-    document.addEventListener("click", function(event) {
-        if (!document.getElementById("customActionDropdown").contains(event.target)) {
-            dropdownMenu.classList.remove("show");
-        }
-    });
+        document.addEventListener("click", function(event) {
+            const container = document.getElementById("customActionDropdown");
+            if (container && !container.contains(event.target)) {
+                dropdownMenu.classList.remove("show");
+            }
+        });
+    }
 });
-
 /*============= AUTO-OPEN MODAL FROM URL PARAM =============*/
 document.addEventListener('DOMContentLoaded', function() {
     const urlParams = new URLSearchParams(window.location.search);

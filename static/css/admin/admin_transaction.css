@@ -772,6 +772,86 @@ body.ready .viewport-container {
     gap: 20px;
 }
 
+.date-range-picker-group {
+    display: flex;
+    align-items: center;
+    height: 38px;
+    padding: 0 10px;
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-sizing: border-box;
+}
+
+.date-range-icon {
+    font-size: 18px;
+    color: #64748b;
+    margin-right: 6px;
+}
+
+.date-range-input {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    font-size: 12.5px;
+    color: #1e293b;
+    outline: none;
+    cursor: pointer;
+    font-family: inherit;
+    width: 110px;
+}
+
+.date-range-separator {
+    color: #94a3b8;
+    font-size: 12px;
+    padding: 0 6px;
+    user-select: none;
+}
+
+.custom-action-dropdown-container {
+    position: relative;
+    display: inline-block;
+}
+
+.custom-action-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    background-color: #ffffff;
+    color: #64748b;
+    padding: 0;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.custom-action-menu {
+    display: none;
+    list-style: none;
+    padding: 6px;
+    background: #ffffff;
+    margin: 6px 0 0 0;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e2e8f0;
+    min-width: 190px;
+    position: absolute;
+    right: 0;
+    left: auto;
+    z-index: 1050;
+}
+
+.custom-action-item {
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 13.5px;
+    color: #1e293b;
+    transition: all 0.15s ease;
+}
+
 .table-header-actions h2 {
     font-size: 1.25rem;
     color: #1e293b;

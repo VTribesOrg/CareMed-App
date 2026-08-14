@@ -57,7 +57,7 @@
         Live view of all active rentals 
     </p>
     <div class="rentals-count" id="rental-count-badge">
-        {{ rentals|length }} active rental{{ 's' if rentals|length != 1 }}
+        {{ pagination.total if pagination else rentals|length }} active rental{{ 's' if (pagination.total if pagination else rentals|length) != 1 }}
     </div>
 </div>
 
@@ -91,7 +91,7 @@
         </select>
 
         <!-- CLEAR FILTER BUTTON (shows only when filter is active) -->
-        {% if current_filter %}
+        {% if current_filter or search_query %}
         <button type="button" id="clear-filter-btn" class="clear-filter-btn">
             <span class="material-symbols-rounded">filter_alt_off</span>
             Reset
@@ -125,58 +125,61 @@
             {% for rental in rentals %}
 
                 {% set txn = rental.transaction %}
-                {% set customer_name = txn.customer_name or ((txn.customer.first_name ~ ' ' ~ txn.customer.last_name) if txn.customer else '—') %}
+                {% set customer_name = (rental.customer.full_name if rental.customer else None) or (txn.customer_name if txn else None) or ((txn.customer.first_name ~ ' ' ~ txn.customer.last_name) if txn and txn.customer else '—') %}
                 {% set today = datetime_now_date %}
                 {% set days_remaining = (rental.expected_return_date - today).days if rental.expected_return_date else None %}
 
+                {% set tank_serials = rental.tanks | map(attribute='serial_number') | list if rental.tanks else [] %}
+                {% set serial_display = tank_serials | join(', ') if tank_serials else (txn.serial_numbers if txn and txn.serial_numbers else '') %}
+
                 <tr
-                    data-search="{{ customer_name|lower }} {{ rental.product.equipment_type|lower }} {{ rental.product.name|lower }} {{ rental.serial_number|lower if rental.serial_number else '' }}">
+                    data-search="{{ customer_name|lower }} {{ rental.product.equipment_type|lower if rental.product and rental.product.equipment_type else '' }} {{ rental.product.name|lower if rental.product and rental.product.name else '' }} {{ serial_display|lower }}">
 
                     <td class="customer-cell">
                         {{ customer_name }}
                     </td>
 
                     <td>
-                        {{ rental.product.equipment_type or '—' }}
+                        {{ rental.product.equipment_type if rental.product and rental.product.equipment_type else '—' }}
                     </td>
 
                     <td>
-                        {{ rental.product.name or '—' }}
+                        {{ rental.product.name if rental.product and rental.product.name else '—' }}
                     </td>
 
                     <td>
-
-                        {% if rental.serial_number %}
-
+                        {% if tank_serials %}
+                        <div class="serial-wrapper" style="display: flex; flex-direction: column; gap: 4px;">
+                            {% for tank in rental.tanks %}
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <input class="serial-input" value="{{ tank.serial_number }}" readonly style="max-width: 140px;">
+                                <button type="button" class="copy-serial" data-serial="{{ tank.serial_number }}" title="Copy serial number">
+                                    <span class="material-symbols-rounded" style="font-size: 16px;">content_copy</span>
+                                </button>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% elif serial_display %}
                         <div class="serial-wrapper">
-
                             <input
                                 class="serial-input"
-                                value="{{ rental.serial_number }}"
+                                value="{{ serial_display }}"
                                 readonly>
-
                             <button
                                 type="button"
                                 class="copy-serial"
-                                data-serial="{{ rental.serial_number }}"
+                                data-serial="{{ serial_display }}"
                                 title="Copy serial number">
-
                                 <span class="material-symbols-rounded">
                                     content_copy
                                 </span>
-
                             </button>
-
                         </div>
-
                         {% else %}
-
                         <span class="empty-value">
                             No serial
                         </span>
-
                         {% endif %}
-
                     </td>
 
                     <td class="center">
@@ -184,17 +187,15 @@
                     </td>
 
                     <td>
-                        {{ rental.start_date.strftime('%b %d, %Y') }}
+                        {{ rental.start_date.strftime('%b %d, %Y') if rental.start_date else '—' }}
                     </td>
 
                     <td>
-
                         {% if rental.expected_return_date %}
-
                         <span class="
-                        {% if days_remaining < 0 %}
+                        {% if days_remaining is not none and days_remaining < 0 %}
                             overdue-date
-                        {% elif days_remaining <= 5 %}
+                        {% elif days_remaining is not none and days_remaining <= 5 %}
                             warning-date
                         {% else %}
                             normal-date
@@ -202,75 +203,58 @@
                         ">
                             {{ rental.expected_return_date.strftime('%b %d, %Y') }}
                         </span>
-
                         {% else %}
                             —
                         {% endif %}
-
                     </td>
 
                     <td>
-
                         {% if days_remaining is not none %}
-
                             {% if days_remaining < 0 %}
                                 <span class="status-pill overdue">
                                     {{ days_remaining|abs }} day{{ 's' if days_remaining|abs != 1 }} overdue
                                 </span>
-
                             {% elif days_remaining == 0 %}
                                 <span class="status-pill due">
                                     Due today
                                 </span>
-
                             {% elif days_remaining <= 5 %}
                                 <span class="status-pill warning">
                                     {{ days_remaining }} day{{ 's' if days_remaining != 1 }} left
                                 </span>
-
                             {% else %}
-
                                 <span class="days-left">
                                     {{ days_remaining }} days
                                 </span>
-
                             {% endif %}
-
                         {% else %}
-
                             —
-
                         {% endif %}
-
                     </td>
 
                     <td class="monthly-rate">
-                        ₱{{ "{:,.2f}".format(rental.monthly_rate) }}
+                        ₱{{ "{:,.2f}".format(rental.monthly_rate or 0) }}
                         <small>/month</small>
                     </td>
 
                     <td>
-
                         <span class="status-pill active">
                             <span class="dot"></span>
-                            Active
+                            {{ rental.status or 'Active' }}
                         </span>
-
                     </td>
 
                     <td class="actions">
-
+                        {% if txn %}
                         <a
                             href="{{ url_for('admin.transaction_details', id=txn.id) }}"
                             class="action-btn"
                             title="View transaction">
-
                             <span class="material-symbols-rounded">
                                 visibility
                             </span>
-
                         </a>
-
+                        {% endif %}
                     </td>
 
                 </tr>
@@ -278,25 +262,17 @@
             {% else %}
 
                 <tr>
-
                     <td colspan="11">
-
                         <div class="empty-state">
-
                             <span class="material-symbols-rounded">
                                 inventory_2
                             </span>
-
                             <h3>No active rentals</h3>
-
                             <p>
                                 There are currently no active rental records.
                             </p>
-
                         </div>
-
                     </td>
-
                 </tr>
 
             {% endfor %}
@@ -307,6 +283,52 @@
 
     </div>
 
+    {% if pagination %}
+    <div class="pagination-footer" style="margin-top: auto;">
+        <div class="table-limit-control">
+            <span class="limit-label">Show</span>
+            <select class="medical-select" id="row-limit-select">
+                <option value="10" {{ 'selected' if current_limit == 10 }}>10</option>
+                <option value="25" {{ 'selected' if current_limit == 25 }}>25</option>
+                <option value="50" {{ 'selected' if current_limit == 50 }}>50</option>
+            </select>
+            <span class="limit-label">entries</span>
+        </div>
+ 
+        <div class="pagination-info">
+            Showing <strong>{{ (pagination.page - 1) * pagination.per_page + 1 if pagination.total > 0 else 0 }}</strong> to
+            <strong>{{ [pagination.page * pagination.per_page, pagination.total]|min }}</strong>
+            of <strong>{{ pagination.total }}</strong> rentals
+        </div>
+ 
+        <div class="pagination-controls">
+            {% if pagination.has_prev %}
+            <a href="{{ url_for('admin.active_rentals', page=pagination.prev_num, limit=current_limit, q=search_query, filter=current_filter) }}" class="pag-btn">
+                <span class="material-symbols-rounded">chevron_left</span>
+            </a>
+            {% else %}
+            <div class="pag-btn disabled" style="opacity: 0.4;"><span class="material-symbols-rounded">chevron_left</span></div>
+            {% endif %}
+ 
+            <span class="page-number">Page <strong>{{ pagination.page }}</strong> of {{ pagination.pages or 1 }}</span>
+ 
+            {% if pagination.has_next %}
+            <a href="{{ url_for('admin.active_rentals', page=pagination.next_num, limit=current_limit, q=search_query, filter=current_filter) }}" class="pag-btn">
+                <span class="material-symbols-rounded">chevron_right</span>
+            </a>
+            {% else %}
+            <div class="pag-btn disabled" style="opacity: 0.4;"><span class="material-symbols-rounded">chevron_right</span></div>
+            {% endif %}
+ 
+            <div class="jump-to-wrapper">
+                <span class="jump-text">Go to</span>
+                <input type="number" id="jump-page-input" class="jump-input" min="1" max="{{ pagination.pages or 1 }}" value="{{ pagination.page }}">
+                <button class="jump-btn" onclick="jumpToPage()">Go</button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
 </div>
 
 {% endblock %}

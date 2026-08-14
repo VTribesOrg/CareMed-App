@@ -78,7 +78,7 @@
             padding:12px 16px; margin-bottom:16px; font-size:0.85rem; color:#15803d;
             display:flex; align-items:center; gap:8px;">
     <span class="material-symbols-rounded" style="font-size:18px; flex-shrink:0;">auto_awesome</span>
-    <span><strong>Cost of Sales</strong> (Equipment Purchase, Oxygen Refill, etc.) are
+    <span><strong>Cost of Sales</strong> (Equipment Purchase, PRIMEGAS, etc.) are
     <strong>auto-recorded when stock is added or restocked</strong>. You can still add them
     manually if needed (e.g. supplier payments not tied to inventory).</span>
 </div>
@@ -108,7 +108,7 @@
     <select name="category" class="exp-select">
         <option value="">All Categories</option>
         <optgroup label="── Cost of Sales">
-            {% for cat in ['Oxygen Refill Cost','Equipment Purchase','Medical Supplies Purchase','Inventory Purchase'] %}
+            {% for cat in ['PRIMEGAS','Equipment Purchase','Medical Supplies Purchase','Inventory Purchase'] %}
             <option value="{{ cat }}" {{ 'selected' if cat == category_filter }}>{{ cat }}</option>
             {% endfor %}
         </optgroup>
@@ -142,7 +142,7 @@
     <select name="category" class="exp-select">
         <option value="">All Categories</option>
         <optgroup label="── Cost of Sales">
-            {% for cat in ['Oxygen Refill Cost','Equipment Purchase','Medical Supplies Purchase','Inventory Purchase'] %}
+            {% for cat in ['PRIMEGAS','Equipment Purchase','Medical Supplies Purchase','Inventory Purchase'] %}
             <option value="{{ cat }}" {{ 'selected' if cat == category_filter }}>{{ cat }}</option>
             {% endfor %}
         </optgroup>
@@ -179,7 +179,7 @@
         <div class="exp-card-body">
             <div class="exp-card-label">Gross Revenue</div>
             <div class="exp-card-value">₱{{ "{:,.2f}".format(gross_revenue) }}</div>
-            <div class="exp-card-sub">Completed sales & rental payments</div>
+            <div class="exp-card-sub">Completed sales, rentals & refills</div>
         </div>
     </div>
 
@@ -241,7 +241,6 @@
 {# ── Charts panel ── #}
 <div class="exp-tab-panel" id="tab-charts">
 
-    {# Row 1: Revenue vs Cost of Sales  |  Revenue vs Operating Expenses #}
     <div class="exp-charts-row" style="grid-template-columns: 1fr 1fr 1fr;">
 
         <div class="exp-chart-card">
@@ -283,7 +282,6 @@
         </div>
 
     </div>
-
 
 </div>
 
@@ -432,7 +430,7 @@
                         <select name="category" class="exp-input" required id="categorySelect">
                             <option value="">Select a category…</option>
                             <optgroup label="Cost of Sales">
-                                <option value="Oxygen Refill Cost">Oxygen Refill Cost</option>
+                                <option value="PRIMEGAS">PRIMEGAS</option>
                                 <option value="Equipment Purchase">Equipment Purchase</option>
                                 <option value="Medical Supplies Purchase">Medical Supplies Purchase</option>
                                 <option value="Inventory Purchase">Inventory Purchase</option>
@@ -483,7 +481,6 @@
                                maxlength="255">
                     </div>
                 </div>
-                {# Category type hint #}
                 <div id="categoryHint" class="exp-category-hint" style="display:none;"></div>
             </div>
             <div class="exp-modal-footer">
@@ -519,7 +516,7 @@
                         <select name="category" class="exp-input" id="editCategory">
                             <option value="">Select a category…</option>
                             <optgroup label="Cost of Sales">
-                                <option value="Oxygen Refill Cost">Oxygen Refill Cost</option>
+                                <option value="PRIMEGAS">PRIMEGAS</option>
                                 <option value="Equipment Purchase">Equipment Purchase</option>
                                 <option value="Medical Supplies Purchase">Medical Supplies Purchase</option>
                                 <option value="Inventory Purchase">Inventory Purchase</option>

@@ -171,67 +171,70 @@
                     </thead>
                     <tbody>
                         {% set active_rentals_found = false %}
+                        {% set seen_active_ids = [] %}
                         {% for transaction in transactions %}
                             {% if transaction.transaction_type == 'Rental' and transaction.status != 'Closed' %}
-                                {% set active_rentals_found = true %}
-                                <tr class="clickable-row" data-href="{{ url_for('admin.transaction_details', id=transaction.id) }}" style="border-bottom: 1px solid #f1f5f9; transition: background-color 0.15s ease;">
-                                    <td style="padding: 12px;">
-                                        {% if transaction.created_at %}
-                                            <div style="display: flex; flex-direction: column; white-space: nowrap; line-height: 1.3;">
-                                                <span style="font-weight: 600; color: #0f172a; font-size: 0.875rem;">{{ transaction.created_at.strftime('%b %d, %Y') }}</span>
-                                                <span style="font-size: 0.75rem; color: #64748b; font-weight: 500; margin-top: 1px;">{{ transaction.created_at.strftime('%I:%M %p') }}</span>
+                                {% if transaction.id not in seen_active_ids %}
+                                    {% set _ = seen_active_ids.append(transaction.id) %}
+                                    {% set active_rentals_found = true %}
+                                    <tr class="clickable-row" data-href="{{ url_for('admin.transaction_details', id=transaction.id) }}" style="border-bottom: 1px solid #f1f5f9; transition: background-color 0.15s ease;">
+                                        <td style="padding: 12px;">
+                                            {% if transaction.created_at %}
+                                                <div style="display: flex; flex-direction: column; white-space: nowrap; line-height: 1.3;">
+                                                    <span style="font-weight: 600; color: #0f172a; font-size: 0.875rem;">{{ transaction.created_at.strftime('%b %d, %Y') }}</span>
+                                                    <span style="font-size: 0.75rem; color: #64748b; font-weight: 500; margin-top: 1px;">{{ transaction.created_at.strftime('%I:%M %p') }}</span>
+                                                </div>
+                                            {% else %}
+                                                <span class="text-muted" style="font-size: 0.875rem;">N/A</span>
+                                            {% endif %}
+                                        </td>
+                                        <td style="padding: 12px; white-space: nowrap;">
+                                            <a href="{{ url_for('admin.transaction_details', id=transaction.id) }}" class="tx-link" style="display: inline-flex; align-items: center; gap: 4px; text-decoration: none;">
+                                                <code class="tx-id" style="background: #eff6ff; border: 1px solid #bfdbfe; padding: 3px 6px; border-radius: 6px; font-weight: 600; color: #1d4ed8; font-size: 0.813rem;">#{{ transaction.id }}</code>
+                                                <span class="material-symbols-rounded" style="font-size: 16px; color: #2563eb;">open_in_new</span>
+                                            </a>
+                                        </td>
+                                        <td style="padding: 12px; color: #334155; font-weight: 500; font-size: 0.875rem;">
+                                            {{ transaction.description }}
+                                        </td>
+                                        <td style="padding: 12px;">
+                                            {% if transaction.rentals %}
+                                                <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                                                    {% for rental in transaction.rentals %}
+                                                        <span style="font-size: 0.75rem; background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; padding: 3px 8px; border-radius: 6px; font-weight: 600;">
+                                                            {{ rental.product.name | default(rental.product_name, true) }}
+                                                            {% if rental.product and rental.product.size %}
+                                                                (Size: {{ rental.product.size }})
+                                                            {% elif rental.size %}
+                                                                (Size: {{ rental.size }})
+                                                            {% endif %}
+                                                            - Qty: {{ rental.quantity }}
+                                                        </span>
+                                                    {% endfor %}
+                                                </div>
+                                            {% else %}
+                                                <span class="text-muted" style="font-size: 0.75rem; color: #94a3b8;">N/A</span>
+                                            {% endif %}
+                                        </td>
+                                        <td style="padding: 12px; font-size: 0.813rem; color: #475569;">
+                                            {% if transaction.admin %}
+                                                <div style="font-weight: 500;">{{ transaction.admin.full_name }}</div>
+                                            {% else %}
+                                                <span style="color: #94a3b8; font-style: italic;">System / API</span>
+                                            {% endif %}
+                                        </td>
+                                        <td style="padding: 12px; text-align: right;">
+                                            <div style="font-weight: 700; color: #dc2626; font-size: 0.9rem;">
+                                                {{ transaction.balance_due | currency }}
                                             </div>
-                                        {% else %}
-                                            <span class="text-muted" style="font-size: 0.875rem;">N/A</span>
-                                        {% endif %}
-                                    </td>
-                                    <td style="padding: 12px; white-space: nowrap;">
-                                        <a href="{{ url_for('admin.transaction_details', id=transaction.id) }}" class="tx-link" style="display: inline-flex; align-items: center; gap: 4px; text-decoration: none;">
-                                            <code class="tx-id" style="background: #eff6ff; border: 1px solid #bfdbfe; padding: 3px 6px; border-radius: 6px; font-weight: 600; color: #1d4ed8; font-size: 0.813rem;">#{{ transaction.id }}</code>
-                                            <span class="material-symbols-rounded" style="font-size: 16px; color: #2563eb;">open_in_new</span>
-                                        </a>
-                                    </td>
-                                    <td style="padding: 12px; color: #334155; font-weight: 500; font-size: 0.875rem;">
-                                        {{ transaction.description }}
-                                    </td>
-                                    <td style="padding: 12px;">
-                                        {% if transaction.rentals %}
-                                            <div style="display: flex; flex-wrap: wrap; gap: 4px;">
-                                                {% for rental in transaction.rentals %}
-                                                    <span style="font-size: 0.75rem; background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; padding: 3px 8px; border-radius: 6px; font-weight: 600;">
-                                                        {# Adjust attribute names below based on your model structure (e.g. rental.product.name / rental.product.size) #}
-                                                        {{ rental.product.name | default(rental.product_name, true) }}
-                                                        {% if rental.product and rental.product.size %}
-                                                            (Size: {{ rental.product.size }})
-                                                        {% elif rental.size %}
-                                                            (Size: {{ rental.size }})
-                                                        {% endif %}
-                                                        - Qty: {{ rental.quantity }}
-                                                    </span>
-                                                {% endfor %}
-                                            </div>
-                                        {% else %}
-                                            <span class="text-muted" style="font-size: 0.75rem; color: #94a3b8;">N/A</span>
-                                        {% endif %}
-                                    </td>
-                                    <td style="padding: 12px; font-size: 0.813rem; color: #475569;">
-                                        {% if transaction.admin %}
-                                            <div style="font-weight: 500;">{{ transaction.admin.full_name }}</div>
-                                        {% else %}
-                                            <span style="color: #94a3b8; font-style: italic;">System / API</span>
-                                        {% endif %}
-                                    </td>
-                                    <td style="padding: 12px; text-align: right;">
-                                        <div style="font-weight: 700; color: #dc2626; font-size: 0.9rem;">
-                                            {{ transaction.balance_due | currency }}
-                                        </div>
-                                    </td>
-                                    <td style="padding: 12px; text-align: center;">
-                                        <span class="badge {{ transaction.status_badge }}" style="padding: 4px 10px; border-radius: 6px; font-weight: 600; font-size: 0.75rem; display: inline-block;">
-                                            {{ transaction.status }}
-                                        </span>
-                                    </td>
-                                </tr>
+                                        </td>
+                                        <td style="padding: 12px; text-align: center;">
+                                            <span class="badge {{ transaction.status_badge }}" style="padding: 4px 10px; border-radius: 6px; font-weight: 600; font-size: 0.75rem; display: inline-block;">
+                                                {{ transaction.status }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                {% endif %}
                             {% endif %}
                         {% endfor %}
                         {% if not active_rentals_found %}
@@ -261,118 +264,125 @@
                         </tr>
                     </thead>
                     <tbody>
+                        {% set seen_history_ids = [] %}
+                        {% set history_found = false %}
                         {% for transaction in transactions %}
-                        <tr class="clickable-row" data-href="{% if transaction.transaction_type == 'Refill' %}{{ url_for('admin.log_detail', log_id=transaction.id) }}{% else %}{{ url_for('admin.transaction_details', id=transaction.id) }}{% endif %}" style="border-bottom: 1px solid #f1f5f9; transition: background-color 0.15s ease;">
+                            {% if transaction.id not in seen_history_ids %}
+                                {% set _ = seen_history_ids.append(transaction.id) %}
+                                {% set history_found = true %}
+                                <tr class="clickable-row" data-href="{% if transaction.transaction_type == 'Refill' %}{{ url_for('admin.log_detail', log_id=transaction.id) }}{% else %}{{ url_for('admin.transaction_details', id=transaction.id) }}{% endif %}" style="border-bottom: 1px solid #f1f5f9; transition: background-color 0.15s ease;">
 
-                            <td style="padding: 12px;">
-                                {% if transaction.created_at %}
-                                    <div style="display: flex; flex-direction: column; white-space: nowrap; line-height: 1.3;">
-                                        <span style="font-weight: 600; color: #0f172a; font-size: 0.875rem;">{{ transaction.created_at.strftime('%b %d, %Y') }}</span>
-                                        <span style="font-size: 0.75rem; color: #64748b; font-weight: 500; margin-top: 1px;">{{ transaction.created_at.strftime('%I:%M %p') }}</span>
-                                    </div>
-                                {% else %}
-                                    <span class="text-muted" style="font-size: 0.875rem;">N/A</span>
-                                {% endif %}
-                            </td>
+                                    <td style="padding: 12px;">
+                                        {% if transaction.created_at %}
+                                            <div style="display: flex; flex-direction: column; white-space: nowrap; line-height: 1.3;">
+                                                <span style="font-weight: 600; color: #0f172a; font-size: 0.875rem;">{{ transaction.created_at.strftime('%b %d, %Y') }}</span>
+                                                <span style="font-size: 0.75rem; color: #64748b; font-weight: 500; margin-top: 1px;">{{ transaction.created_at.strftime('%I:%M %p') }}</span>
+                                            </div>
+                                        {% else %}
+                                            <span class="text-muted" style="font-size: 0.875rem;">N/A</span>
+                                        {% endif %}
+                                    </td>
 
-                            <td style="padding: 12px; white-space: nowrap;">
-                                {% if transaction.transaction_type == 'Refill' %}
-                                    <a href="{{ url_for('admin.log_detail', log_id=transaction.id) }}" class="tx-link" style="display: inline-flex; align-items: center; gap: 4px; text-decoration: none;">
-                                        <code class="tx-id" style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 3px 6px; border-radius: 6px; font-weight: 600; color: #475569; font-size: 0.813rem;">#REF-{{ transaction.id }}</code>
-                                        <span class="material-symbols-rounded" style="font-size: 16px; color: #64748b;">open_in_new</span>
-                                    </a>
-                                {% else %}
-                                    <a href="{{ url_for('admin.transaction_details', id=transaction.id) }}" class="tx-link" style="display: inline-flex; align-items: center; gap: 4px; text-decoration: none;">
-                                        <code class="tx-id" style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 3px 6px; border-radius: 6px; font-weight: 600; color: #166534; font-size: 0.813rem;">#{{ transaction.id }}</code>
-                                        <span class="material-symbols-rounded" style="font-size: 16px; color: #16a34a;">open_in_new</span>
-                                    </a>
-                                {% endif %}
-                            </td>
+                                    <td style="padding: 12px; white-space: nowrap;">
+                                        {% if transaction.transaction_type == 'Refill' %}
+                                            <a href="{{ url_for('admin.log_detail', log_id=transaction.id) }}" class="tx-link" style="display: inline-flex; align-items: center; gap: 4px; text-decoration: none;">
+                                                <code class="tx-id" style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 3px 6px; border-radius: 6px; font-weight: 600; color: #475569; font-size: 0.813rem;">#REF-{{ transaction.id }}</code>
+                                                <span class="material-symbols-rounded" style="font-size: 16px; color: #64748b;">open_in_new</span>
+                                            </a>
+                                        {% else %}
+                                            <a href="{{ url_for('admin.transaction_details', id=transaction.id) }}" class="tx-link" style="display: inline-flex; align-items: center; gap: 4px; text-decoration: none;">
+                                                <code class="tx-id" style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 3px 6px; border-radius: 6px; font-weight: 600; color: #166534; font-size: 0.813rem;">#{{ transaction.id }}</code>
+                                                <span class="material-symbols-rounded" style="font-size: 16px; color: #16a34a;">open_in_new</span>
+                                            </a>
+                                        {% endif %}
+                                    </td>
 
-                            <td style="padding: 12px; color: #334155; font-weight: 500; font-size: 0.875rem;">
-                                {{ transaction.description }}
-                            </td>
+                                    <td style="padding: 12px; color: #334155; font-weight: 500; font-size: 0.875rem;">
+                                        {{ transaction.description }}
+                                    </td>
 
-                            <td style="padding: 12px;">
-                                <div style="max-width: 180px; overflow-x: auto; white-space: nowrap; padding-bottom: 2px;">
-                                    {% if transaction.serial_numbers and transaction.serial_numbers != "N/A" %}
-                                        <div style="display: flex; flex-wrap: wrap; gap: 4px;">
-                                            {% for s in transaction.serial_numbers.split(',') %}
-                                                {% set clean_s = s.strip() %}
-                                                {% if '→' in clean_s %}
-                                                    {% set parts = clean_s.split('→') %}
-                                                    <span style="font-size: 0.75rem; background: #f8fafc; border: 1px solid #e2e8f0; color: #475569; padding: 3px 8px; border-radius: 6px; font-weight: 500; display: inline-flex; align-items: center; gap: 4px;">
-                                                        <span style="text-decoration: line-through; color: #94a3b8;">{{ parts[0].strip() }}</span>
-                                                        &rarr;
-                                                        <strong style="color: #0d9488;">{{ parts[1].strip() }}</strong>
-                                                    </span>
-                                                {% else %}
-                                                    <span style="font-size: 0.75rem; background: #f0fdfa; border: 1px solid #ccfbf1; color: #0f766e; padding: 3px 8px; border-radius: 6px; font-weight: 600;">
-                                                        {{ clean_s }}
-                                                    </span>
-                                                {% endif %}
-                                            {% endfor %}
+                                    <td style="padding: 12px;">
+                                        <div style="max-width: 180px; overflow-x: auto; white-space: nowrap; padding-bottom: 2px;">
+                                            {% if transaction.serial_numbers and transaction.serial_numbers != "N/A" %}
+                                                <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                                                    {% for s in transaction.serial_numbers.split(',') %}
+                                                        {% set clean_s = s.strip() %}
+                                                        {% if '→' in clean_s %}
+                                                            {% set parts = clean_s.split('→') %}
+                                                            <span style="font-size: 0.75rem; background: #f8fafc; border: 1px solid #e2e8f0; color: #475569; padding: 3px 8px; border-radius: 6px; font-weight: 500; display: inline-flex; align-items: center; gap: 4px;">
+                                                                <span style="text-decoration: line-through; color: #94a3b8;">{{ parts[0].strip() }}</span>
+                                                                &rarr;
+                                                                <strong style="color: #0d9488;">{{ parts[1].strip() }}</strong>
+                                                            </span>
+                                                        {% else %}
+                                                            <span style="font-size: 0.75rem; background: #f0fdfa; border: 1px solid #ccfbf1; color: #0f766e; padding: 3px 8px; border-radius: 6px; font-weight: 600;">
+                                                                {{ clean_s }}
+                                                            </span>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                </div>
+                                            {% elif transaction.purchases %}
+                                                <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                                                    {% for purchase in transaction.purchases %}
+                                                        {% if purchase.product_asset_tag %}
+                                                            <span style="font-size: 0.75rem; background: #f0fdfa; border: 1px solid #ccfbf1; color: #0f766e; padding: 3px 8px; border-radius: 6px; font-weight: 600;">
+                                                                {{ purchase.product_asset_tag }}
+                                                            </span>
+                                                        {% else %}
+                                                            <span style="font-size: 0.75rem; background: #f8fafc; border: 1px solid #e2e8f0; color: #475569; padding: 3px 8px; border-radius: 6px; font-weight: 500;">
+                                                                {{ purchase.product_name }} (x{{ purchase.quantity }})
+                                                            </span>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                </div>
+                                            {% elif transaction.rentals %}
+                                                <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                                                    {% for rental in transaction.rentals %}
+                                                        <span style="font-size: 0.75rem; background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; padding: 3px 8px; border-radius: 6px; font-weight: 600;">
+                                                            Rental #{{ rental.id }} (Qty: {{ rental.quantity }})
+                                                        </span>
+                                                    {% endfor %}
+                                                </div>
+                                            {% else %}
+                                                <span class="text-muted" style="font-size: 0.75rem; color: #94a3b8;">N/A</span>
+                                            {% endif %}
                                         </div>
-                                    {% elif transaction.purchases %}
-                                        <div style="display: flex; flex-wrap: wrap; gap: 4px;">
-                                            {% for purchase in transaction.purchases %}
-                                                {% if purchase.product_asset_tag %}
-                                                    <span style="font-size: 0.75rem; background: #f0fdfa; border: 1px solid #ccfbf1; color: #0f766e; padding: 3px 8px; border-radius: 6px; font-weight: 600;">
-                                                        {{ purchase.product_asset_tag }}
-                                                    </span>
-                                                {% else %}
-                                                    <span style="font-size: 0.75rem; background: #f8fafc; border: 1px solid #e2e8f0; color: #475569; padding: 3px 8px; border-radius: 6px; font-weight: 500;">
-                                                        {{ purchase.product_name }} (x{{ purchase.quantity }})
-                                                    </span>
-                                                {% endif %}
-                                            {% endfor %}
+                                    </td>
+
+                                    <td style="padding: 12px; font-size: 0.813rem; color: #475569;">
+                                        {% if transaction.admin %}
+                                            <div style="font-weight: 500;">{{ transaction.admin.full_name }}</div>
+                                        {% else %}
+                                            <span style="color: #94a3b8; font-style: italic;">System / API</span>
+                                        {% endif %}
+                                    </td>
+
+                                    <td style="padding: 12px; text-align: right;">
+                                        <div style="font-weight: 700; color: #0f172a; font-size: 0.9rem;">
+                                            {{ transaction.display_amount | currency }}
                                         </div>
-                                    {% elif transaction.rentals %}
-                                        <div style="display: flex; flex-wrap: wrap; gap: 4px;">
-                                            {% for rental in transaction.rentals %}
-                                                <span style="font-size: 0.75rem; background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; padding: 3px 8px; border-radius: 6px; font-weight: 600;">
-                                                    Rental #{{ rental.id }} (Qty: {{ rental.quantity }})
-                                                </span>
-                                            {% endfor %}
-                                        </div>
-                                    {% else %}
-                                        <span class="text-muted" style="font-size: 0.75rem; color: #94a3b8;">N/A</span>
-                                    {% endif %}
-                                </div>
-                            </td>
+                                        {% if transaction.balance_due and transaction.balance_due > 0 %}
+                                            <div style="font-size: 0.75rem; color: #dc2626; font-weight: 600; margin-top: 2px;">
+                                                Due: {{ transaction.balance_due | currency }}
+                                            </div>
+                                        {% endif %}
+                                    </td>
 
-                            <td style="padding: 12px; font-size: 0.813rem; color: #475569;">
-                                {% if transaction.admin %}
-                                    <div style="font-weight: 500;">{{ transaction.admin.full_name }}</div>
-                                {% else %}
-                                    <span style="color: #94a3b8; font-style: italic;">System / API</span>
-                                {% endif %}
-                            </td>
-
-                            <td style="padding: 12px; text-align: right;">
-                                <div style="font-weight: 700; color: #0f172a; font-size: 0.9rem;">
-                                    {{ transaction.display_amount | currency }}
-                                </div>
-                                {% if transaction.balance_due and transaction.balance_due > 0 %}
-                                    <div style="font-size: 0.75rem; color: #dc2626; font-weight: 600; margin-top: 2px;">
-                                        Due: {{ transaction.balance_due | currency }}
-                                    </div>
-                                {% endif %}
-                            </td>
-
-                            <td style="padding: 12px; text-align: center;">
-                                <span class="badge {{ transaction.status_badge }}" style="padding: 4px 10px; border-radius: 6px; font-weight: 600; font-size: 0.75rem; display: inline-block;">
-                                    {{ transaction.status }}
-                                </span>
-                            </td>
-                        </tr>
-                        {% else %}
+                                    <td style="padding: 12px; text-align: center;">
+                                        <span class="badge {{ transaction.status_badge }}" style="padding: 4px 10px; border-radius: 6px; font-weight: 600; font-size: 0.75rem; display: inline-block;">
+                                            {{ transaction.status }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        {% endfor %}
+                        {% if not history_found %}
                         <tr>
                             <td colspan="7" style="text-align: center; padding: 32px; color: #64748b; font-size: 0.875rem;">
                                 No transactions found for this customer.
                             </td>
                         </tr>
-                        {% endfor %}
+                        {% endif %}
                     </tbody>
                 </table>
             </div>

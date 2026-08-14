@@ -71,25 +71,31 @@
             <span class="material-symbols-rounded">search</span>
             <input type="text" id="table-search" placeholder="Search reference, customer, or serial no..." value="{{ search_query }}">
         </div>
- 
+
         <div class="filter-group d-flex align-items-center flex-nowrap gap-2">
+            <div class="date-range-picker-group d-flex align-items-center" style="height: 38px; padding: 0 8px 0 10px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; box-sizing: border-box;">
+                <input type="date" id="start-date-filter" class="date-range-input shadow-none" value="{{ start_date }}" title="Start Date">
+                <span class="date-range-separator">to</span>
+                <input type="date" id="end-date-filter" class="date-range-input shadow-none" value="{{ end_date }}" title="End Date">
+            </div>
+
             <select id="status-filter" class="medical-select">
                 <option value="">All Statuses</option>
-                <option value="overdue_return"  {{ 'selected' if current_status == 'overdue_return' }}>Overdue Return </option>
+                <option value="overdue_return" {{ 'selected' if current_status == 'overdue_return' }}>Overdue Return</option>
                 <option value="overdue_payment" {{ 'selected' if current_status == 'overdue_payment' }}>Overdue Payment</option>
-                <option value="expiring"       {{ 'selected' if current_status == 'expiring' }}>Expiring Soon</option>
-                <option value="unpaid"         {{ 'selected' if current_status == 'unpaid' }}>Unpaid</option>
-                <option value="partial"        {{ 'selected' if current_status == 'partial' }}>Partially Paid</option>
-                <option value="submitted"     {{ 'selected' if current_status == 'submitted' }}>Awaiting Verification</option>
+                <option value="expiring" {{ 'selected' if current_status == 'expiring' }}>Expiring Soon</option>
+                <option value="unpaid" {{ 'selected' if current_status == 'unpaid' }}>Unpaid</option>
+                <option value="partial" {{ 'selected' if current_status == 'partial' }}>Partially Paid</option>
+                <option value="submitted" {{ 'selected' if current_status == 'submitted' }}>Awaiting Verification</option>
             </select>
- 
+
             <select id="type-filter" class="medical-select">
                 <option value="">All Types</option>
                 <option value="Rental" {{ 'selected' if current_type == 'Rental' }}>Rental</option>
                 <option value="Sale" {{ 'selected' if current_type == 'Sale' }}>Sale</option>
                 <option value="Refill" {{ 'selected' if current_type == 'Refill' }}>Refill</option>
             </select>
- 
+
             <select id="fulfillment-filter" class="medical-select">
                 <option value="">All Fulfillment</option>
                 <option value="Walk-In" {{ 'selected' if current_fulfillment == 'Walk-In' }}>Walk-In</option>
@@ -97,29 +103,23 @@
                 <option value="Delivery" {{ 'selected' if current_fulfillment == 'Delivery' }}>Delivery</option>
             </select>
             
-            <div class="custom-dropdown flex-shrink-0" id="customActionDropdown" style="position: relative; display: inline-block;">
-                <button class="d-flex align-items-center justify-content-center" 
-                        type="button" 
-                        id="customDropdownBtn"
-                        style="width: 38px; height: 38px; border-radius: 8px; border: 1px solid #e2e8f0; background-color: #ffffff; color: #64748b; padding: 0; cursor: pointer; transition: all 0.2s ease;">
+            <div class="custom-dropdown flex-shrink-0 custom-action-dropdown-container" id="customActionDropdown">
+                <button type="button" id="customDropdownBtn" class="custom-action-btn">
                     <span class="material-symbols-rounded" style="font-size: 20px;">more_vert</span>
                 </button>
                 
-                <ul class="custom-dropdown-menu" 
-                    id="customDropdownMenu"
-                    style="display: none; list-style: none; padding: 6px; background: #ffffff; margin: 6px 0 0 0; border-radius: 8px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); border: 1px solid #e2e8f0; min-width: 190px; position: absolute; right: 0; left: auto; z-index: 1050;">
+                <ul class="custom-dropdown-menu custom-action-menu" id="customDropdownMenu">
                     <li>
-                        <a class="custom-dropdown-item d-flex align-items-center gap-2 px-3 py-2 fw-medium" 
-                           href="{{ url_for('admin.export_transactions', q=search_query, type=current_type, fulfillment=current_fulfillment, status=current_status) }}"
-                           style="border-radius: 6px; text-decoration: none; font-size: 13.5px; color: #1e293b; transition: all 0.15s ease;">
+                        <a class="custom-dropdown-item custom-action-item d-flex align-items-center gap-2 px-3 py-2 fw-medium" 
+                        href="{{ url_for('admin.export_transactions', q=search_query, type=current_type, fulfillment=current_fulfillment, status=current_status, start_date=start_date, end_date=end_date) }}">
                             <span class="material-symbols-rounded" style="font-size: 18px; color: #16a34a;">table_view</span>
                             <span>Export Spreadsheet</span>
                         </a>
                     </li>
                 </ul>
             </div>
- 
-            {% if search_query or current_type or current_fulfillment or current_status %}
+
+            {% if search_query or current_type or current_fulfillment or current_status or start_date or end_date %}
             <button type="button" id="clear-filters-btn" class="clear-filter-btn text-nowrap">
                 <span class="material-symbols-rounded">filter_alt_off</span>
                 Reset
@@ -132,7 +132,7 @@
         <table class="medical-table" style="width: 100%; border-collapse: collapse; vertical-align: middle;">
             <thead>
                 <tr>
-                    <th style="min-width: 140px; padding: 12px;">Ref No.</th>
+                    <th style="min-width: 120px; padding: 12px;">Date</th>
                     <th style="min-width: 180px; white-space: nowrap; text-align: left; padding: 12px;">Customer Name</th>
                     <th style="padding: 12px;">Type</th>
                     <th style="min-width: 180px; padding: 12px;">Items</th>
@@ -141,20 +141,16 @@
                     <th class="text-end" style="min-width: 100px; text-align: right; padding: 12px;">Paid</th>
                     <th class="text-end" style="min-width: 120px; text-align: right; padding: 12px;">Balance Due</th>
                     <th class="text-center" style="min-width: 130px; text-align: center; padding: 12px;">Status</th>
-                    <th style="min-width: 120px; padding: 12px;">Date</th>
+                    <th style="min-width: 140px; padding: 12px;">Ref No.</th>
                     <th class="text-end" style="min-width: 90px; text-align: right; padding: 12px;">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for txn in transactions %}
                 <tr>
+
                     <td style="padding: 12px;">
-                        <div style="display: flex; align-items: center;">
-                            <input type="text" class="ref-id-input" value="{{ txn.reference_no }}" readonly title="Click to select" style="width: 100%; box-sizing: border-box;">
-                            <div onclick="navigator.clipboard.writeText('{{ txn.reference_no }}')" style="cursor: pointer; margin-left: 4px;" title="Copy Reference No.">
-                                <i class="material-symbols-rounded" style="font-size: 18px; vertical-align: middle;">content_copy</i>
-                            </div>
-                        </div>
+                        <span style="font-weight: 500; color: #6c757d; font-size: 13px; white-space: nowrap;">{{ txn.created_at.strftime('%b %d, %Y') }}</span>
                     </td>
 
                     <td style="padding: 12px;">
@@ -281,7 +277,12 @@
                     </td>
 
                     <td style="padding: 12px;">
-                        <span style="font-weight: 500; color: #6c757d; font-size: 13px; white-space: nowrap;">{{ txn.created_at.strftime('%b %d, %Y') }}</span>
+                        <div style="display: flex; align-items: center;">
+                            <input type="text" class="ref-id-input" value="{{ txn.reference_no }}" readonly title="Click to select" style="width: 100%; box-sizing: border-box;">
+                            <div onclick="navigator.clipboard.writeText('{{ txn.reference_no }}')" style="cursor: pointer; margin-left: 4px;" title="Copy Reference No.">
+                                <i class="material-symbols-rounded" style="font-size: 18px; vertical-align: middle;">content_copy</i>
+                            </div>
+                        </div>
                     </td>
 
                     <td style="text-align: right; padding: 12px;">
