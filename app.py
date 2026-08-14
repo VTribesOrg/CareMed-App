@@ -144,6 +144,8 @@ def ratelimit_handler(e):
             ip_address=request.remote_addr,
             event_type="Rate Limit Violation",
             description=f"IDS: IP hit rate limit at endpoint '{request.endpoint}'",
+            user_id=current_user.id if current_user.is_authenticated else None,
+            user_email=current_user.email if current_user.is_authenticated else None,
             user_agent=request.headers.get('User-Agent', 'Unknown')[:255],
             severity='High',
             is_suspicious=True

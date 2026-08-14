@@ -61,21 +61,41 @@
 
     // ── SSE stream for live updates ────────────────────────────
     if (typeof EventSource !== 'undefined') {
-        const es = new EventSource('/admin/notifications/stream');
+        let es = null;
+        let reconnectAttempts = 0;
+        let reconnectTimer = null;
 
-        es.onmessage = function (event) {
-            try {
-                renderNotifications(JSON.parse(event.data));
-            } catch (e) {
-                console.error('SSE parse error:', e);
-            }
-        };
+        function connect() {
+            es = new EventSource('/admin/notifications/stream');
 
-        es.onerror = function () {
-            console.warn('SSE connection lost — will auto-reconnect.');
-        };
+            es.onmessage = function (event) {
+                try {
+                    renderNotifications(JSON.parse(event.data));
+                    reconnectAttempts = 0; // reset backoff once healthy again
+                } catch (e) {
+                    console.error('SSE parse error:', e);
+                }
+            };
+
+            es.onerror = function () {
+                console.warn('SSE connection lost — reconnecting with backoff.');
+                es.close();
+
+                // Exponential backoff on top of the server's retry hint,
+                // capped at 5 minutes, so a persistently broken connection
+                // backs off instead of retrying forever at a fixed pace.
+                reconnectAttempts++;
+                const delay = Math.min(15000 * Math.pow(2, reconnectAttempts - 1), 300000);
+                reconnectTimer = setTimeout(connect, delay);
+            };
+        }
+
+        connect();
 
         // Clean up on page unload to avoid zombie connections
-        window.addEventListener('beforeunload', () => es.close());
+        window.addEventListener('beforeunload', () => {
+            if (reconnectTimer) clearTimeout(reconnectTimer);
+            if (es) es.close();
+        });
     }
 })();

@@ -4186,6 +4186,11 @@ def notification_stream():
     """Server-Sent Events endpoint — pushes notification data every 30s."""
  
     def generate():
+        # Tell the browser to wait 15s before auto-reconnecting if this
+        # connection drops (default is ~3s), so a flaky connection doesn't
+        # hammer the server with rapid reconnect attempts.
+        yield "retry: 15000\n\n"
+
         notifications = _build_notifications()
         payload = json.dumps({"count": len(notifications), "notifications": notifications})
         yield f"data: {payload}\n\n"
