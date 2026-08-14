@@ -4181,6 +4181,7 @@ def _build_notifications():
 @admin_bp.route('/notifications/stream')
 @login_required
 @admin_or_staff_required
+@limiter.exempt
 def notification_stream():
     """Server-Sent Events endpoint — pushes notification data every 30s."""
  
@@ -4214,6 +4215,7 @@ def notification_stream():
 @admin_bp.route('/notifications/data')
 @login_required
 @admin_or_staff_required
+@limiter.exempt
 def notification_data():
     """One-shot JSON endpoint — used for the initial page load."""
     try:
