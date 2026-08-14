@@ -2117,8 +2117,8 @@ def active_rentals():
 
     search_query = request.args.get('q', '').strip()
     filter_type = request.args.get('filter', '')  
-    
-    query = Rental.query.filter_by(status='Active')\
+  
+    query = Rental.query.filter(Rental.status.in_(['Active', 'Overdue']))\
         .options(
             joinedload(Rental.product),
             joinedload(Rental.transaction).joinedload(Transaction.customer)
@@ -2137,7 +2137,7 @@ def active_rentals():
         datetime_now_date=date.today(),
         current_filter=filter_type 
     )
-
+    
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
 from io import BytesIO
