@@ -4244,10 +4244,16 @@ def _build_notifications():
 @admin_bp.route('/notifications/stream')
 @login_required
 @admin_or_staff_required
+@limiter.exempt
 def notification_stream():
     """Server-Sent Events endpoint — pushes notification data every 30s."""
  
     def generate():
+        # Tell the browser to wait 15s before auto-reconnecting if this
+        # connection drops (default is ~3s), so a flaky connection doesn't
+        # hammer the server with rapid reconnect attempts.
+        yield "retry: 15000\n\n"
+
         notifications = _build_notifications()
         payload = json.dumps({"count": len(notifications), "notifications": notifications})
         yield f"data: {payload}\n\n"
@@ -4277,6 +4283,7 @@ def notification_stream():
 @admin_bp.route('/notifications/data')
 @login_required
 @admin_or_staff_required
+@limiter.exempt
 def notification_data():
     """One-shot JSON endpoint — used for the initial page load."""
     try:

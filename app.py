@@ -144,6 +144,8 @@ def ratelimit_handler(e):
             ip_address=request.remote_addr,
             event_type="Rate Limit Violation",
             description=f"IDS: IP hit rate limit at endpoint '{request.endpoint}'",
+            user_id=current_user.id if current_user.is_authenticated else None,
+            user_email=current_user.email if current_user.is_authenticated else None,
             user_agent=request.headers.get('User-Agent', 'Unknown')[:255],
             severity='High',
             is_suspicious=True
@@ -235,6 +237,15 @@ app.register_blueprint(auth_bp)
 
 from routes.admin_routes import admin_bp
 app.register_blueprint(admin_bp)
+
+# Admin/staff routes are already gated by admin_or_staff_required (login + role
+# check) on every view, independent of the rate limiter. The global 200/day,
+# 50/hour default is meant for public/customer traffic and is too tight for a
+# full day of real admin work, so authenticated admin/staff traffic gets a
+# much higher ceiling instead. This is kept non-zero (rather than a full
+# limiter.exempt) as defense-in-depth in case an admin/staff session is ever
+# compromised or a client-side bug causes runaway requests.
+limiter.limit("1000 per hour")(admin_bp)
 
 # ── Auto Backup Scheduler ──────────────────────
 from utils.backup import auto_backup
