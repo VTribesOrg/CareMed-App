@@ -206,6 +206,35 @@ document.addEventListener('DOMContentLoaded', function() {
 /*=================================== END OF ADD PAYMENT MODAL ===================================*/
 
 
+document.addEventListener('DOMContentLoaded', function () {
+    const modal = document.getElementById('cancelInvoiceModal');
+    const form = document.getElementById('cancelInvoiceForm');
+    const periodSpan = document.getElementById('cancelInvoicePeriod');
+
+    document.querySelectorAll('.custom-open-cancel-modal').forEach(button => {
+        button.addEventListener('click', function () {
+            const cancelUrl = this.getAttribute('data-cancel-url');
+            const period = this.getAttribute('data-period');
+
+            form.action = cancelUrl;
+            periodSpan.textContent = period;
+            modal.style.display = 'flex';
+        });
+    });
+
+    const closeModal = () => { modal.style.display = 'none'; };
+    
+    document.getElementById('closeCancelModal')?.addEventListener('click', closeModal);
+    document.getElementById('cancelCancelModal')?.addEventListener('click', closeModal);
+    
+    window.addEventListener('click', function (event) {
+        if (event.target === modal) {
+            closeModal();
+        }
+    });
+});
+
+
 const input = document.getElementById("receipt-image");
 const previewWrap = document.getElementById("receipt-preview-wrap");
 const previewImg = document.getElementById("receipt-preview");
@@ -257,3 +286,5 @@ replaceBtn.addEventListener("click", () => {
 removeBtn.addEventListener("click", () => {
     resetUpload();
 });
+
+

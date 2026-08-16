@@ -155,15 +155,16 @@
                 <div class="form-field">
                     <label>Rental Duration</label>
                     <div style="display: flex; gap: 8px;">
-                        <div style="position: relative; display: flex; align-items: center; flex: 1;">
+                        <div style="position: relative; display: flex; align-items: center; flex: 1;" id="rent-duration-value-wrapper">
                             <span class="material-symbols-rounded" style="position: absolute; left: 12px; color: #64748b; font-size: 20px;">schedule</span>
                             <input type="number" id="rent-duration-value" name="duration_value" class="clinical-input" style="padding-left: 40px;" min="1" max="365" value="1" required>
                         </div>
-                        <div class="select-wrapper" style="width: 140px;">
+                        <div class="select-wrapper" style="width: 170px;">
                             <select class="medical-select" id="rent-duration-unit" name="duration_unit" style="height: 48px;">
                                 <option value="days">Day(s)</option>
                                 <option value="weeks">Week(s)</option>
-                                <option value="months" selected>Month(s)</option>
+                                <option value="months">Month(s)</option>
+                                <option value="open" selected>Open Duration (Ongoing)</option>
                             </select>
                             <span class="material-symbols-rounded select-icon">expand_more</span>
                         </div>

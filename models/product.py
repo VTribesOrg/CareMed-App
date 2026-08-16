@@ -158,7 +158,67 @@ class Transaction(db.Model):
     tracking_status = db.Column(db.String(20), default="SUBMITTED")
     delivery_address = db.Column(db.Text, nullable=True)
     landmark = db.Column(db.String(255), nullable=True) 
+    
+    @property
+    def computed_status(self):
+        """Computes status accurately based on rental monthly invoices and payment status."""
+        from datetime import date
+        current_date = date.today()
+        
+        is_rental = self.transaction_type == 'Rental'
+        
+        if is_rental and self.rentals:
+            for rental in self.rentals:
+                if rental.expected_return_date and rental.expected_return_date < current_date and rental.status == 'Active':
+                    return 'overdue_return'
 
+            has_overdue_invoice = False
+            has_partial_invoice = False
+            has_unpaid_invoice = False
+            
+            for rental in self.rentals:
+                for inv in rental.invoices:
+                    inv_status = (inv.status or '').lower()
+                    if inv_status != 'paid':
+                        period_end = getattr(inv, 'service_period_end', None)
+                        if period_end and period_end < current_date:
+                            if inv_status in ['unpaid', 'pending', '']:
+                                has_overdue_invoice = True
+                            elif inv_status in ['partial', 'partially paid']:
+                                has_partial_invoice = True
+                        else:
+                            if inv_status in ['unpaid', 'pending', '']:
+                                has_unpaid_invoice = True
+                            elif inv_status in ['partial', 'partially paid']:
+                                has_partial_invoice = True
+
+            if has_overdue_invoice:
+                return 'overdue_payment'
+            if has_partial_invoice:
+                return 'partial'
+            if has_unpaid_invoice:
+                return 'unpaid'
+
+        # Fallback to general transaction balance & status checks
+        has_balance = self.balance_due is not None and self.balance_due > 0
+
+        if has_balance and getattr(self, 'due_date', None) and self.due_date < current_date:
+            return 'overdue_payment'
+
+        if self.status == 'expiring':
+            return 'expiring'
+
+        if self.status == 'submitted' or self.tracking_status == 'SUBMITTED':
+            return 'submitted'
+
+        if has_balance and self.amount_paid and self.amount_paid > 0:
+            return 'partial'
+
+        if has_balance and (not self.amount_paid or self.amount_paid == 0):
+            return 'unpaid'
+
+        return self.status.lower() if self.status else 'unknown'
+    
     @property
     def total_cost(self):
         if self.transaction_type == "Refill" and self.quantity and self.refill_cost_per_unit:
@@ -268,10 +328,14 @@ class Transaction(db.Model):
             total_invoice_sum = Decimal("0.00")
             for rental in self.rentals:
                 for inv in rental.invoices:
+                    if getattr(inv, 'status', None) == 'Cancelled':
+                        continue
                     total_invoice_sum += Decimal(str(inv.amount_due or 0)) + Decimal(str(inv.late_fee or 0))
 
-            # Include initial fill cost once, separate from monthly rentals/invoices
             self.total_amount = max(total_invoice_sum + delivery_fee + initial_fill - voucher_amount, Decimal("0.00"))
+            
+            # Recalculate balance due based on active invoices
+            self.balance_due = max(Decimal("0.00"), self.total_amount - self.amount_paid)
             
         elif self.transaction_type == "Sale":
             subtotal = sum(
@@ -344,7 +408,6 @@ class PaymentProof(db.Model):
     status = db.Column(db.String(20), default="Pending") 
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
 
-
 class Rental(db.Model):
     __tablename__ = "rental"
 
@@ -366,32 +429,58 @@ class Rental(db.Model):
     quantity_returned = db.Column(db.Integer, nullable=False, default=0)
     
     status = db.Column(db.String(50), default="Active")
+    is_open_duration = db.Column(db.Boolean, default=False, nullable=False)
     return_condition_notes = db.Column(db.Text)
     
     is_deposit_refunded = db.Column(db.Boolean, default=False)
     delivery_fee = db.Column(db.Numeric(10, 2), default=0.00)
-    
     return_condition_img = db.Column(db.String(255), nullable=True)
-    
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     transaction = db.relationship("Transaction", back_populates="rentals")
     product = db.relationship("Product", back_populates="rentals")
     customer = db.relationship("Customer", back_populates="rentals")
-    
     invoices = db.relationship("RentalInvoice", backref="rental", cascade="all, delete-orphan", lazy=True)
 
     @property
     def remaining_to_return(self):
-        """Calculates the quantity still pending return."""
         return max(0, self.quantity - self.quantity_returned)
+
+    def get_latest_invoice(self):
+        """Returns the invoice with the furthest service period end date."""
+        if not self.invoices:
+            return None
+        return max(self.invoices, key=lambda inv: inv.service_period_end)
+
+    def generate_next_monthly_invoice(self):
+        """Generates the subsequent monthly billing cycle invoice for open rentals."""
+        latest = self.get_latest_invoice()
+        if not latest:
+            next_start = self.start_date
+        else:
+            next_start = latest.service_period_end
+
+        next_end = next_start + relativedelta(months=1)
+        item_monthly_total = (self.monthly_rate or Decimal("0.00")) * self.quantity
+
+        new_invoice = RentalInvoice(
+            rental_id=self.id,
+            service_period_start=next_start,
+            service_period_end=next_end,
+            amount_due=item_monthly_total,
+            status="Unpaid"
+        )
+        db.session.add(new_invoice)
+
+        if next_end > self.expected_return_date:
+            self.expected_return_date = next_end
+            
+        return new_invoice
 
     def generate_monthly_invoices(self):
         current_period_start = self.start_date
-        
         while current_period_start < self.expected_return_date:
             next_period_start = current_period_start + relativedelta(months=1)
-            
             actual_period_end = next_period_start if next_period_start < self.expected_return_date else self.expected_return_date
 
             item_monthly_total = (self.monthly_rate or Decimal("0.00")) * self.quantity
@@ -404,7 +493,6 @@ class Rental(db.Model):
                 status="Unpaid"
             )
             db.session.add(new_invoice)
-
             current_period_start = next_period_start
             
 class RentalTank(db.Model):

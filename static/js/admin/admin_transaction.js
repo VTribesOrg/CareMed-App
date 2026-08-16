@@ -2060,9 +2060,7 @@ document.addEventListener('DOMContentLoaded', function() {
         el.addEventListener('click', closeModal);
     });
 
-    window.addEventListener('click', (e) => {
-        if (e.target === paymentModal) closeModal();
-    });
+
 });
 
 /*=================================== END OF ADD PAYMENT MODAL ===================================*/

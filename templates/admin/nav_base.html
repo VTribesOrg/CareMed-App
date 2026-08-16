@@ -194,6 +194,17 @@
                         </a>
                     </li> -->
 
+                    {# ── Collection Monitoring ── #}
+                    {% set can_collection = current_user.role.strip() == 'Administrator' or (current_user.permissions and current_user.permissions.can_view_active_rentals) %}
+                    <li class="nav-item" title="Collection Monitoring">
+                        <a href="{{ url_for('admin.collection_monitoring') if can_collection else 'javascript:void(0)' }}"
+                            class="nav-link {% if request.endpoint == 'admin.collection_monitoring' %}active{% endif %} {% if not can_collection %}nav-locked{% endif %}">
+                            <span class="material-symbols-rounded">pending_actions</span>
+                            <span class="nav-label">Collection Monitoring</span>
+                            {% if not can_collection %}<span class="material-symbols-rounded nav-lock-icon">lock</span>{% endif %}
+                        </a>
+                    </li>
+
                     {# ── System Logs ── #}
                     <li class="nav-item" title="System Logs">
                         <a href="{{ url_for('admin.system_logs') if can_reports else 'javascript:void(0)' }}"

@@ -250,27 +250,56 @@
 
                     <td style="text-align: center; padding: 12px;">
                         <div style="display: inline-flex; justify-content: center; width: 100%;">
-                            {% if txn.calculated_overdue %}
-                                <div title="Payment terms or contract duration window is overdue" style="background: #fef2f2; color: #ef4444; border: 1px solid #fee2e2; display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; white-space: nowrap;">
+                            {% set is_rental = txn.transaction_type == 'Rental' %}
+                            {% set status = txn.computed_status %}
+                            
+                            {% if status == 'overdue_return' %}
+                                <div title="Requires attention due to overdue return" style="background: #fef2f2; color: #ef4444; border: 1px solid #fee2e2; display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; white-space: nowrap;">
                                     <span class="material-symbols-rounded" style="font-size: 16px;">error</span>
-                                    <span>Overdue</span>
+                                    <span>Overdue Return</span>
                                 </div>
-                            {% elif txn.status == 'Open' and txn.payment_status == 'Fully Paid' %}
-                                {% if txn.transaction_type == 'Rental' %}
-                                    <div class="status-pill status-awaiting-return" title="Payment complete, item with customer">
-                                        <span class="material-symbols-rounded">assignment_return</span>
+
+                            {% elif status == 'overdue_payment' %}
+                                <div title="Requires attention due to overdue monthly payment" style="background: #fef2f2; color: #ef4444; border: 1px solid #fee2e2; display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; white-space: nowrap;">
+                                    <span class="material-symbols-rounded" style="font-size: 16px;">error</span>
+                                    <span>Overdue Payment</span>
+                                </div>
+
+                            {% elif status == 'expiring' %}
+                                <div style="background: #fffbeb; color: #d97706; border: 1px solid #fef3c7; display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; white-space: nowrap;">
+                                    <span class="material-symbols-rounded" style="font-size: 16px;">hourglass_top</span>
+                                    <span>Expiring Soon</span>
+                                </div>
+
+                            {% elif status == 'partial' %}
+                                <div style="background: #fdf4ff; color: #c084fc; border: 1px solid #f3e8ff; display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; white-space: nowrap;">
+                                    <span class="material-symbols-rounded" style="font-size: 16px;">payments</span>
+                                    <span>Partial Payment</span>
+                                </div>
+
+                            {% elif status == 'unpaid' %}
+                                <div style="background: #fff1f2; color: #be123c; border: 1px solid #ffe4e6; display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; white-space: nowrap;">
+                                    <span class="material-symbols-rounded" style="font-size: 16px;">money_off</span>
+                                    <span>Due Unpaid</span>
+                                </div>
+
+                            {% elif txn.payment_status == 'Fully Paid' or not (txn.balance_due and txn.balance_due > 0) %}
+                                {% if is_rental %}
+                                    <div class="status-pill status-awaiting-return" title="Monthly dues complete, item with customer" style="display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; white-space: nowrap;">
+                                        <span class="material-symbols-rounded" style="font-size: 16px;">assignment_return</span>
                                         <span class="status-text">Awaiting Return</span>
                                     </div>
                                 {% else %}
-                                    <div class="status-pill status-awaiting-pickup" title="Payment complete, item ready for customer">
-                                        <span class="material-symbols-rounded">package_2</span>
+                                    <div class="status-pill status-awaiting-pickup" title="Fully paid, item ready for customer" style="display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; white-space: nowrap;">
+                                        <span class="material-symbols-rounded" style="font-size: 16px;">package_2</span>
                                         <span class="status-text">Awaiting Pickup</span>
                                     </div>
                                 {% endif %}
+
                             {% else %}
-                                <div class="status-pill status-{{ txn.status|lower }}" data-status="{{ txn.status }}">
+                                <div class="status-pill status-{{ status|lower }}" data-status="{{ status }}" style="display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; white-space: nowrap;">
                                     <span class="dot"></span>
-                                    <span class="status-text">{{ txn.status }}</span>
+                                    <span class="status-text">{{ status|title }}</span>
                                 </div>
                             {% endif %}
                         </div>

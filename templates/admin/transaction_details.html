@@ -72,370 +72,416 @@
 
     <section class="details-main-content">
 
-        <div class="action-card">
-            <header class="card-header-custom">
-                <span class="header-label-text">Purchased / Rented / Refilled Items</span>
-                <span class="badge-soft-info">{{ txn.transaction_type }}</span>
+        <div class="action-card" style="margin-top: 20px; border-left: 5px solid #0284c7; background: #ffffff; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+            <header class="card-header-custom" style="display: flex; justify-content: space-between; align-items: center; background-color: #f0f9ff; border-bottom: 1px solid #e0f2fe; padding: 12px 20px;">
+                <div class="header-icon-label d-flex align-items-center gap-2" style="display: flex; align-items: center;">
+                    <span class="material-symbols-rounded" style="color: #0284c7; font-size: 22px; line-height: 1; vertical-align: middle;">
+                        inventory_2
+                    </span>
+                    <span class="header-label-text mb-0" style="color: #0369a1; font-weight: 700; font-size: 1.05rem;">Purchased / Rented / Refilled Items</span>
+                </div>
+                <span class="badge-soft-info" style="background-color: #e0f2fe; color: #0369a1; font-size: 0.8rem; font-weight: 600; padding: 4px 10px; border-radius: 4px; border: 1px solid #bae6fd;">{{ txn.transaction_type }}</span>
             </header>
-            <div class="table-container">
-                <table class="item-list-table">
-                    <thead>
-                        <tr>
-                            <th>Equipment</th>
-                            <th>Qty</th>
-                            <th>Unit Price/Rate</th>
-                            <th class="text-right">Subtotal</th>
-                            {% if txn.purchases or txn.transaction_type == 'Refill' or txn.product %}
-                                <th class="text-end">Action</th>
+
+            <div class="card-body-custom" style="padding: 20px;">
+                <div class="table-container">
+                    <table class="item-list-table" style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background-color: #ffffff; border-bottom: 2px solid #cbd5e1;">
+                                <th style="padding: 10px 12px; color: #475569; font-size: 0.85rem; font-weight: 600; text-transform: uppercase;">Equipment</th>
+                                <th style="padding: 10px 12px; color: #475569; font-size: 0.85rem; font-weight: 600; text-transform: uppercase;">Qty</th>
+                                <th style="padding: 10px 12px; color: #475569; font-size: 0.85rem; font-weight: 600; text-transform: uppercase;">Unit Price/Rate</th>
+                                <th style="padding: 10px 12px; color: #475569; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; text-align: right;">Subtotal</th>
+                                {% if txn.purchases or txn.transaction_type == 'Refill' or txn.product or txn.rentals %}
+                                    <th style="padding: 10px 12px; color: #475569; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; text-align: right;">Action</th>
+                                {% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if txn.rentals %}
+                                {% for item in txn.rentals %}
+                                <tr style="border-bottom: 1px solid #e2e8f0; background-color: #ffffff;">
+                                    <td style="padding: 12px; vertical-align: middle;">
+                                        <div class="item-title" style="color: #0f172a; font-weight: 600; font-size: 0.9rem;">
+                                            {{ item.product.name }}
+                                            {% if item.tanks %}
+                                                <span class="text-muted font-monospace" style="font-size: 0.85rem; color: #64748b;">
+                                                    (SN: {% for tank in item.tanks %}{{ tank.serial_number }}{% if not loop.last %}, {% endif %}{% endfor %})
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td style="padding: 12px; vertical-align: middle; color: #0f172a; font-weight: 500;">{{ item.quantity }}</td>
+                                    <td style="padding: 12px; vertical-align: middle; color: #0f172a; font-weight: 500;">₱{{ "{:,.2f}".format(item.monthly_rate) }}/mo</td>
+                                    <td style="padding: 12px; vertical-align: middle; text-align: right;" class="text-right-bold">
+                                        <span style="color: #0f172a; font-weight: 700;">₱{{ "{:,.2f}".format(item.monthly_rate * item.quantity) }}</span>
+                                    </td>
+                                    <td style="padding: 12px; vertical-align: middle; text-align: right;" class="col-action">
+                                        <span style="color: #64748b; font-size: 0.85rem; font-style: italic;">Managed via Billing Schedule</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% elif txn.purchases %}
+                                {% for item in txn.purchases %}
+                                <tr style="border-bottom: 1px solid #e2e8f0; background-color: #ffffff;">
+                                    <td style="padding: 12px; vertical-align: middle;">
+                                        <div class="item-title" style="color: #0f172a; font-weight: 600; font-size: 0.9rem;">
+                                            {{ item.product.name }}
+                                            {% if item.serial_number %}
+                                                <span class="text-muted font-monospace" style="font-size: 0.85rem; color: #64748b;">(SN: {{ item.serial_number }})</span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td style="padding: 12px; vertical-align: middle; color: #0f172a; font-weight: 500;">{{ item.quantity }}</td>
+                                    <td style="padding: 12px; vertical-align: middle; color: #0f172a; font-weight: 500;">₱{{ "{:,.2f}".format(item.unit_price) }}</td>
+                                    <td style="padding: 12px; vertical-align: middle; text-align: right;" class="text-right-bold">
+                                        <span style="color: #0f172a; font-weight: 700;">₱{{ "{:,.2f}".format(item.total_price) }}</span>
+                                    </td>
+                                    <td style="padding: 12px; vertical-align: middle; text-align: right;" class="col-action">
+                                        <div class="action-wrapper d-flex align-items-center justify-content-end">
+                                            {% if txn.status not in ['Closed', 'Cancelled'] and (txn.total_amount - txn.amount_paid) > 0 %}
+                                                <button type="button"
+                                                        class="btn-action-payment btn-add-payment"
+                                                        data-txn-id="{{ txn.id }}"
+                                                        data-ref="{{ txn.reference_no }}"
+                                                        data-balance="{{ txn.total_amount - txn.amount_paid }}"
+                                                        data-type="Purchase"
+                                                        data-invoice-id="">
+                                                    <i class="material-symbols-rounded">payments</i>
+                                                    <span>Pay Now</span>
+                                                </button>
+                                            {% else %}
+                                                <div class="settled-pill">
+                                                    <span class="material-symbols-rounded">check_circle</span>
+                                                    <span class="settled-text">Settled</span>
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% elif txn.transaction_type == 'Refill' or txn.product %}
+                                <tr style="border-bottom: 1px solid #e2e8f0; background-color: #ffffff;">
+                                    <td style="padding: 12px; vertical-align: middle;">
+                                        <div class="item-title" style="color: #0f172a; font-weight: 600; font-size: 0.9rem;">
+                                            {{ txn.product.name if txn.product else 'Tank Refill' }}
+                                            {% if txn.walk_in_tank_size %}
+                                                <span class="text-muted" style="font-size: 0.85rem; color: #64748b;">({{ txn.walk_in_tank_size }})</span>
+                                            {% endif %}
+                                            {% if txn.serial_numbers %}
+                                                <span class="text-muted font-monospace" style="font-size: 0.85rem; color: #64748b;">(SN: {{ txn.serial_numbers }})</span>
+                                            {% endif %}
+                                        </div>
+                                        {% if txn.has_initial_fill %}
+                                            <small class="text-info d-block" style="color: #0284c7; font-weight: 500; font-size: 0.8rem; margin-top: 2px;">Includes Initial Fill (₱{{ "{:,.2f}".format(txn.initial_fill_cost) }})</small>
+                                        {% endif %}
+                                    </td>
+                                    <td style="padding: 12px; vertical-align: middle; color: #0f172a; font-weight: 500;">{{ txn.quantity or 1 }}</td>
+                                    <td style="padding: 12px; vertical-align: middle; color: #0f172a; font-weight: 500;">₱{{ "{:,.2f}".format(txn.refill_cost_per_unit or 0) }}</td>
+                                    <td style="padding: 12px; vertical-align: middle; text-align: right;" class="text-right-bold">
+                                        {% set refill_subtotal = (txn.quantity | default(1, true) | int * (txn.refill_cost_per_unit | default(0, true) | float)) + (txn.initial_fill_cost | default(0, true) | float if txn.has_initial_fill else 0) %}
+                                        <span style="color: #0f172a; font-weight: 700;">₱{{ "{:,.2f}".format(refill_subtotal) }}</span>
+                                    </td>
+                                    <td style="padding: 12px; vertical-align: middle; text-align: right;" class="col-action">
+                                        <div class="action-wrapper d-flex align-items-center justify-content-end">
+                                            {% if txn.status not in ['Closed', 'Cancelled'] and (txn.balance_due | default(txn.total_amount - txn.amount_paid, true)) > 0 %}
+                                                <button type="button"
+                                                        class="btn-action-payment btn-add-payment"
+                                                        data-txn-id="{{ txn.id }}"
+                                                        data-ref="{{ txn.reference_no }}"
+                                                        data-balance="{{ txn.balance_due }}"
+                                                        data-type="Refill"
+                                                        data-invoice-id="">
+                                                    <i class="material-symbols-rounded">payments</i>
+                                                    <span>Pay Now</span>
+                                                </button>
+                                            {% else %}
+                                                <div class="settled-pill">
+                                                    <span class="material-symbols-rounded">check_circle</span>
+                                                    <span class="settled-text">Settled</span>
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
                             {% endif %}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% if txn.rentals %}
-                            {% for item in txn.rentals %}
-                            <tr>
-                                <td>
-                                    <div class="item-title">
-                                        {{ item.product.name }}
-                                        {% if item.tanks %}
-                                            <span class="text-muted font-monospace" style="font-size: 0.85rem;">
-                                                (SN: {% for tank in item.tanks %}{{ tank.serial_number }}{% if not loop.last %}, {% endif %}{% endfor %})
-                                            </span>
-                                        {% endif %}
-                                    </div>
-                                </td>
-                                <td>{{ item.quantity }}</td>
-                                <td>₱{{ "{:,.2f}".format(item.monthly_rate) }}/mo</td>
-                                <td class="text-right-bold">₱{{ "{:,.2f}".format(item.monthly_rate * item.quantity) }}</td>
-                            </tr>
-                            {% endfor %}
-                        {% elif txn.purchases %}
-                            {% for item in txn.purchases %}
-                            <tr>
-                                <td>
-                                    <div class="item-title">
-                                        {{ item.product.name }}
-                                        {% if item.serial_number %}
-                                            <span class="text-muted font-monospace" style="font-size: 0.85rem;">(SN: {{ item.serial_number }})</span>
-                                        {% endif %}
-                                    </div>
-                                </td>
-                                <td>{{ item.quantity }}</td>
-                                <td>₱{{ "{:,.2f}".format(item.unit_price) }}</td>
-                                <td class="text-right-bold">₱{{ "{:,.2f}".format(item.total_price) }}</td>
-                                <td class="col-action">
-                                    <div class="action-wrapper d-flex align-items-center justify-content-end">
-                                        {# Check if status is open AND there is still a positive balance due #}
-                                        {% if txn.status not in ['Closed', 'Cancelled'] and (txn.total_amount - txn.amount_paid) > 0 %}
-                                            <button type="button"
-                                                    class="btn-action-payment btn-add-payment"
-                                                    data-txn-id="{{ txn.id }}"
-                                                    data-ref="{{ txn.reference_no }}"
-                                                    data-balance="{{ txn.total_amount - txn.amount_paid }}"
-                                                    data-type="Purchase"
-                                                    data-invoice-id="">
-                                                <i class="material-symbols-rounded">payments</i>
-                                                <span>Pay Now</span>
-                                            </button>
-                                        {% else %}
-                                            <div class="settled-pill">
-                                                <span class="material-symbols-rounded">check_circle</span>
-                                                <span class="settled-text">Settled</span>
-                                            </div>
-                                        {% endif %}
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        {% elif txn.transaction_type == 'Refill' or txn.product %}
-                            <tr>
-                                <td>
-                                    <div class="item-title">
-                                        {{ txn.product.name if txn.product else 'Tank Refill' }}
-                                        {% if txn.walk_in_tank_size %}
-                                            <span class="text-muted" style="font-size: 0.85rem;">({{ txn.walk_in_tank_size }})</span>
-                                        {% endif %}
-                                        {% if txn.serial_numbers %}
-                                            <span class="text-muted font-monospace" style="font-size: 0.85rem;">(SN: {{ txn.serial_numbers }})</span>
-                                        {% endif %}
-                                    </div>
-                                    {% if txn.has_initial_fill %}
-                                        <small class="text-info d-block">Includes Initial Fill (₱{{ "{:,.2f}".format(txn.initial_fill_cost) }})</small>
-                                    {% endif %}
-                                </td>
-                                <td>{{ txn.quantity or 1 }}</td>
-                                <td>₱{{ "{:,.2f}".format(txn.refill_cost_per_unit or 0) }}</td>
-                                <td class="text-right-bold">
-                                    {% set refill_subtotal = (txn.quantity | default(1, true) | int * (txn.refill_cost_per_unit | default(0, true) | float)) + (txn.initial_fill_cost | default(0, true) | float if txn.has_initial_fill else 0) %}
-                                    ₱{{ "{:,.2f}".format(refill_subtotal) }}
-                                </td>
-                                <td class="col-action">
-                                    <div class="action-wrapper d-flex align-items-center justify-content-end">
-                                        {% if txn.status not in ['Closed', 'Cancelled'] and (txn.balance_due | default(txn.total_amount - txn.amount_paid, true)) > 0 %}
-                                            <button type="button"
-                                                    class="btn-action-payment btn-add-payment"
-                                                    data-txn-id="{{ txn.id }}"
-                                                    data-ref="{{ txn.reference_no }}"
-                                                    data-balance="{{ txn.balance_due }}"
-                                                    data-type="Refill"
-                                                    data-invoice-id="">
-                                                <i class="material-symbols-rounded">payments</i>
-                                                <span>Pay Now</span>
-                                            </button>
-                                        {% else %}
-                                            <div class="settled-pill">
-                                                <span class="material-symbols-rounded">check_circle</span>
-                                                <span class="settled-text">Settled</span>
-                                            </div>
-                                        {% endif %}
-                                    </div>
-                                </td>
-                            </tr>
-                        {% endif %}
-                    </tbody>
-                </table>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
-        {% if txn.transaction_type == 'Rental' %}
-        <div class="action-card" style="margin-top: 20px;">
-            <header class="card-header-custom">
-                <div class="header-icon-label d-flex align-items-center gap-2" style="display: flex; align-items: center;">
-                    <span class="material-symbols-rounded" style="color: var(--medical-primary); font-size: 20px; line-height: 1; vertical-align: middle;">
-                        calendar_month
-                    </span>
-                    <span class="header-label-text mb-0">Monthly Billing Schedule</span>
-                </div>
-            </header>
-
-            <div class="card-body-custom" style="padding: 20px; display: flex; flex-direction: column; gap: 25px;">
-
-                {% if txn.initial_fill_cost and txn.initial_fill_cost > 0 %}
-                    {% set initial_fill_bal = txn.initial_fill_balance if txn.initial_fill_balance is defined else txn.initial_fill_cost %}
-                    <div class="product-billing-group">
-                        <div class="product-billing-header mb-2" style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #f0f2f5; padding-bottom: 8px;">
-                            <span class="fw-bold" style="color: var(--medical-primary); font-size: 1.05rem;">
-                                Initial Fill Fee
-                                <span class="text-muted" style="font-weight: normal; font-size: 0.9rem;">(Transaction-wide)</span>
-                            </span>
-                        </div>
-
-                        <div class="table-container">
-                            <table class="item-list-table">
-                                <thead>
-                                    <tr>
-                                        <th>Date</th>
-                                        <th>Amount Due</th>
-                                        <th>Progress (Paid/Total)</th>
-                                        <th>Balance</th>
-                                        <th>Status</th>
-                                        <th class="text-end">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td>
-                                            <div class="item-title">
-                                                {{ txn.created_at.strftime('%B %d, %Y') if txn.created_at else '' }} <small class="text-muted">(Initial Fill)</small>
-                                            </div>
-                                        </td>
-                                        <td class="col-amount">
-                                            <div class="d-flex flex-column">
-                                                <span class="fw-semibold">₱{{ "{:,.2f}".format(txn.initial_fill_cost) }}</span>
-                                            </div>
-                                        </td>
-                                        <td class="text-muted" style="font-size: 0.85rem;">
-                                            <span class="fw-bold text-dark">₱{{ "{:,.2f}".format(txn.initial_fill_cost) }}</span> 
-                                            <span class="text-muted mx-1">/</span>
-                                            <span class="text-success fw-semibold">₱{{ "{:,.2f}".format(txn.initial_fill_cost - initial_fill_bal) }}</span>
-                                        </td>
-                                        <td class="fw-bold">
-                                            {% if initial_fill_bal > 0 %}
-                                                <span class="text-danger">₱{{ "{:,.2f}".format(initial_fill_bal) }}</span>
-                                            {% else %}
-                                                <span class="text-success">₱0.00</span>
-                                            {% endif %}
-                                        </td>
-                                        <td class="col-status">
-                                            {% if initial_fill_bal <= 0 %}
-                                                <span class="badge-soft-success">Paid</span>
-                                            {% else %}
-                                                <span class="badge-soft-danger">Unpaid</span>
-                                            {% endif %}
-                                        </td>
-                                        <td class="col-action">
-                                            <div class="action-wrapper d-flex align-items-center justify-content-end">
-                                                {% if initial_fill_bal > 0 %}
-                                                    <button type="button"
-                                                            class="btn-action-payment btn-add-payment"
-                                                            data-txn-id="{{ txn.id }}"
-                                                            data-ref="{{ txn.reference_no }}"
-                                                            data-balance="{{ initial_fill_bal }}"
-                                                            data-type="InitialFill"
-                                                            data-invoice-id="">
-                                                        <i class="material-symbols-rounded">payments</i>
-                                                        <span>Pay Now</span>
-                                                    </button>
-                                                {% else %}
-                                                    <div class="settled-pill">
-                                                        <span class="material-symbols-rounded">check_circle</span>
-                                                        <span class="settled-text">Settled</span>
-                                                    </div>
-                                                {% endif %}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                {% endif %}
-                
-                {% set all_invoices = txn.rentals | map(attribute='invoices') | map('list') | sum(start=[]) %}
-                {% set total_invoice_count = all_invoices | length %}
-
-                {% set ns = namespace(voucher_distributed=0) %}
-                
-                {% for rental in txn.rentals %}
-                
-                <div class="product-billing-group">
-                    
-                    <div class="product-billing-header mb-2" style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #f0f2f5; padding-bottom: 8px;">
-                        <span class="fw-bold" style="color: var(--medical-primary); font-size: 1.05rem;">
-                            {{ rental.product.name }}
-                            <span class="text-muted" style="font-weight: normal; font-size: 0.9rem;">(Qty: {{ rental.quantity }})</span>
+        {% if txn.initial_fill_cost and txn.initial_fill_cost > 0 %}
+            {% set initial_fill_bal = txn.initial_fill_balance if txn.initial_fill_balance is defined else txn.initial_fill_cost %}
+            <div class="action-card" style="margin-top: 20px; border-left: 5px solid #2563eb; background: #ffffff; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+                <header class="card-header-custom" style="display: flex; justify-content: space-between; align-items: center; background-color: #eff6ff; border-bottom: 1px solid #dbeafe; padding: 12px 20px;">
+                    <div class="header-icon-label d-flex align-items-center gap-2" style="display: flex; align-items: center;">
+                        <span class="material-symbols-rounded" style="color: #2563eb; font-size: 22px; line-height: 1; vertical-align: middle;">
+                            payments
                         </span>
-
-                        <div class="d-flex align-items-center gap-2">
-                            {% set total_rental_value = rental.invoices | map(attribute='total_invoice_value') | map('float') | sum %}
-                            {% set total_invoice_count_loop = txn.rentals | map(attribute='invoices') | map('length') | sum %}
-                            {% set rental_invoice_count = rental.invoices | length %}
-                            {% set ratio = (rental_invoice_count / total_invoice_count_loop) | float if total_invoice_count_loop > 0 else 0 %}
-                            {% set rental_voucher_share_value = ((txn.voucher_amount | default(0, true) | float) * ratio) if txn.voucher_amount else 0.0 %}
-                            {% set adjusted_total_rental_value = [0.0, total_rental_value - rental_voucher_share_value] | max %}
-
-                            <span class="badge bg-primary-subtle text-primary d-inline-flex align-items-center gap-1.5" style="font-size: 0.85rem; border: 1px solid #b6d4fe; padding: 6px 12px; font-weight: 500;">
-                                <span class="text-dark">Total Income: ₱{{ "{:,.2f}".format(total_rental_value) }}</span>
-                                {% if rental_voucher_share_value > 0 %}
-                                    <span class="text-danger ms-1">− ₱{{ "{:,.2f}".format(rental_voucher_share_value) }} <small class="text-muted">(Voucher)</small></span>
-                                    <span class="text-success fw-bold ms-1">= ₱{{ "{:,.2f}".format(adjusted_total_rental_value) }}</span>
-                                {% endif %}
-                            </span>
-
-                            <span class="badge bg-light text-dark" style="font-size: 0.85rem; border: 1px solid #dee2e6; padding: 6px 10px;">
-                                Rate: ₱{{ "{:,.2f}".format(rental.monthly_rate | default(0, true) | float) }}/mo
-                            </span>
-
-                        </div>
+                        <span class="header-label-text mb-0" style="color: #1e3a8a; font-weight: 700; font-size: 1.05rem;">Initial Fill Fee Record</span>
                     </div>
+                    <span class="badge" style="background-color: #dbeafe; color: #1e40af; font-size: 0.8rem; font-weight: 600; padding: 5px 10px; border-radius: 4px; border: 1px solid #bfdbfe;">One-Time Fee</span>
+                </header>
 
+                <div class="card-body-custom" style="padding: 20px;">
                     <div class="table-container">
-                        <table class="item-list-table">
+                        <table class="item-list-table" style="width: 100%; border-collapse: collapse;">
                             <thead>
-                                <tr>
-                                    <th>Due Date</th>
-                                    <th>Amount Due</th>
-                                    <th>Progress (Paid/Total)</th>
-                                    <th>Balance</th>
-                                    <th>Status</th>
-                                    <th class="text-end">Action</th>
+                                <tr style="background-color: #f8fafc; border-bottom: 2px solid #e2e8f0;">
+                                    <th style="padding: 12px; color: #475569; font-size: 0.85rem; font-weight: 600; text-transform: uppercase;">Date Issued</th>
+                                    <th style="padding: 12px; color: #475569; font-size: 0.85rem; font-weight: 600; text-transform: uppercase;">Total Cost</th>
+                                    <th style="padding: 12px; color: #475569; font-size: 0.85rem; font-weight: 600; text-transform: uppercase;">Payment Progress (Total / Paid)</th>
+                                    <th style="padding: 12px; color: #475569; font-size: 0.85rem; font-weight: 600; text-transform: uppercase;">Balance Due</th>
+                                    <th style="padding: 12px; color: #475569; font-size: 0.85rem; font-weight: 600; text-transform: uppercase;">Status</th>
+                                    <th style="padding: 12px; color: #475569; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; text-align: right;">Action</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for invoice in rental.invoices %}
-
-                                    {% set is_last_invoice = (loop.index0 == rental.invoices | length - 1) and (rental == txn.rentals[-1]) %}
-                                    
-                                    {% if txn.voucher_amount and total_invoice_count > 0 %}
-                                        {% if is_last_invoice %}
-                                            {% set voucher_share = txn.voucher_amount - ns.voucher_distributed %}
+                                <tr style="border-bottom: 1px solid #f1f5f9;">
+                                    <td style="padding: 14px 12px; vertical-align: middle;">
+                                        <div class="item-title" style="color: #0f172a; font-weight: 600; font-size: 0.95rem;">
+                                            {{ txn.created_at.strftime('%B %d, %Y') if txn.created_at else '' }} 
+                                        </div>
+                                    </td>
+                                    <td style="padding: 14px 12px; vertical-align: middle;">
+                                        <span style="color: #1e293b; font-weight: 700; font-size: 0.95rem;">₱{{ "{:,.2f}".format(txn.initial_fill_cost) }}</span>
+                                    </td>
+                                    <td style="padding: 14px 12px; vertical-align: middle; font-size: 0.9rem;">
+                                        <span style="color: #0f172a; font-weight: 700;">₱{{ "{:,.2f}".format(txn.initial_fill_cost) }}</span> 
+                                        <span style="color: #94a3b8; margin: 0 4px; font-weight: bold;">/</span>
+                                        <span style="color: #059669; font-weight: 700;">₱{{ "{:,.2f}".format(txn.initial_fill_cost - initial_fill_bal) }}</span>
+                                    </td>
+                                    <td style="padding: 14px 12px; vertical-align: middle;">
+                                        {% if initial_fill_bal > 0 %}
+                                            <span style="color: #dc2626; font-weight: 800; font-size: 0.95rem; background-color: #fef2f2; padding: 4px 8px; border-radius: 4px; border: 1px solid #fecaca;">₱{{ "{:,.2f}".format(initial_fill_bal) }}</span>
                                         {% else %}
-                                            {% set raw_share = txn.voucher_amount / total_invoice_count %}
-                                            {% set voucher_share = (raw_share * 100) | round(0, 'common') / 100 %}
-                                            {% set ns.voucher_distributed = ns.voucher_distributed + voucher_share %}
+                                            <span style="color: #059669; font-weight: 800; font-size: 0.95rem; background-color: #ecfdf5; padding: 4px 8px; border-radius: 4px; border: 1px solid #a7f3d0;">₱0.00</span>
                                         {% endif %}
-                                    {% else %}
-                                        {% set voucher_share = 0 %}
-                                    {% endif %}
-                                
-                                    {% set adjusted_amount_due = [0, (invoice.amount_due + (invoice.late_fee or 0)) - voucher_share] | max | round(2, 'common') %}
-                                    {% set adjusted_total_value = [0, invoice.total_invoice_value - voucher_share] | max | round(2, 'common') %}
-                                    {% set adjusted_remaining = [0, invoice.remaining_balance - voucher_share] | max | round(2, 'common') %}
-                                    <tr>
-                                        <td>
-                                            <div class="item-title">
-                                                Due: {{ invoice.service_period_end.strftime('%B %d, %Y') }}
-                                            </div>
-                                        </td>
-                                        <td class="col-amount">
-                                            <div class="d-flex flex-column">
-                                                <span class="fw-semibold">₱{{ "{:,.2f}".format(adjusted_amount_due) }}</span>
-                                                {% if voucher_share > 0 %}
-                                                    <small class="text-danger" style="font-size: 0.75rem;">− ₱{{ "{:,.2f}".format(voucher_share) }} <span class="text-muted">(Voucher)</span></small>
-                                                {% endif %}
-                                            </div>
-                                        </td>
-                                        <td class="text-muted" style="font-size: 0.85rem;">
-                                            <span class="fw-bold text-dark">₱{{ "{:,.2f}".format(adjusted_total_value) }}</span> 
-                                            <span class="text-muted mx-1">/</span>
-                                            <span class="text-success fw-semibold">₱{{ "{:,.2f}".format(invoice.amount_paid) }}</span>
-                                        </td>
-                                        <td class="fw-bold">
-                                            {% if adjusted_remaining > 0 %}
-                                                <span class="text-danger">₱{{ "{:,.2f}".format(adjusted_remaining) }}</span>
+                                    </td>
+                                    <td style="padding: 14px 12px; vertical-align: middle;">
+                                        {% if initial_fill_bal <= 0 %}
+                                            <span style="background-color: #d1e7dd; color: #0f5132; font-size: 0.85rem; font-weight: 700; padding: 6px 12px; border-radius: 6px; display: inline-block; border: 1px solid #badbcc;">Paid</span>
+                                        {% else %}
+                                            <span style="background-color: #f8d7da; color: #842029; font-size: 0.85rem; font-weight: 700; padding: 6px 12px; border-radius: 6px; display: inline-block; border: 1px solid #f5c2c7;">Unpaid</span>
+                                        {% endif %}
+                                    </td>
+                                    <td style="padding: 14px 12px; vertical-align: middle; text-align: right;">
+                                        <div class="action-wrapper d-flex align-items-center justify-content-end">
+                                            {% if initial_fill_bal > 0 %}
+                                                <button type="button"
+                                                        class="btn-action-payment btn-add-payment"
+                                                        data-txn-id="{{ txn.id }}"
+                                                        data-ref="{{ txn.reference_no }}"
+                                                        data-balance="{{ initial_fill_bal }}"
+                                                        data-type="InitialFill"
+                                                        data-invoice-id="">
+                                                    <i class="material-symbols-rounded">payments</i>
+                                                    <span>Pay Now</span>
+                                                </button>
                                             {% else %}
-                                                <span class="text-success">₱0.00</span>
+                                                <div class="settled-pill">
+                                                    <span class="material-symbols-rounded">check_circle</span>
+                                                    <span class="settled-text">Settled</span>
+                                                </div>
                                             {% endif %}
-                                        </td>
-                                        <td class="col-status">
-                                            {% if adjusted_remaining <= 0 %}
-                                                <span class="badge-soft-success">Paid</span>
-                                            {% elif invoice.amount_paid > 0 %}
-                                                <span class="badge-soft-warning">Partial</span>
-                                            {% else %}
-                                                {% if invoice.service_period_start < current_date %}
-                                                    <span class="badge-soft-danger">Overdue</span>
-                                                {% else %}
-                                                    <span class="badge-soft-danger">Unpaid</span>
-                                                {% endif %}
-                                            {% endif %}
-                                        </td>
-                                        <td class="col-action">
-                                            <div class="action-wrapper d-flex align-items-center justify-content-end">
-                                                {% if adjusted_remaining > 0 %}
-                                                    <button type="button"
-                                                            class="btn-action-payment btn-add-payment"
-                                                            data-txn-id="{{ txn.id }}"
-                                                            data-ref="{{ txn.reference_no }}"
-                                                            data-balance="{{ adjusted_remaining }}"
-                                                            data-type="Rental"
-                                                            data-monthly-rate="{{ rental.monthly_rate }}"
-                                                            data-unpaid-count="{{ rental.invoices|selectattr('status', 'ne', 'Paid')|list|length }}"
-                                                            data-invoice-id="{{ invoice.id }}">
-                                                        <i class="material-symbols-rounded">payments</i>
-                                                        <span>Pay Now</span>
-                                                    </button>
-                                                {% else %}
-                                                    <div class="settled-pill">
-                                                        <span class="material-symbols-rounded">check_circle</span>
-                                                        <span class="settled-text">Settled</span>
-                                                    </div>
-                                                {% endif %}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                {% else %}
-                                    <tr>
-                                        <td colspan="6" class="text-center text-muted py-3">No invoices generated for this item.</td>
-                                    </tr>
-                                {% endfor %}
+                                        </div>
+                                    </td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
-                {% endfor %}
             </div>
-        </div>
+        {% endif %}
+
+        {% if txn.transaction_type == 'Rental' %}
+            <div class="action-card" style="margin-top: 20px; border-left: 5px solid #0284c7; background: #ffffff; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+                <header class="card-header-custom" style="display: flex; justify-content: space-between; align-items: center; background-color: #f0f9ff; border-bottom: 1px solid #e0f2fe; padding: 12px 20px;">
+                    <div class="header-icon-label d-flex align-items-center gap-2" style="display: flex; align-items: center;">
+                        <span class="material-symbols-rounded" style="color: #0284c7; font-size: 22px; line-height: 1; vertical-align: middle;">
+                            calendar_month
+                        </span>
+                        <span class="header-label-text mb-0" style="color: #0369a1; font-weight: 700; font-size: 1.05rem;">Monthly Billing Schedule</span>
+                    </div> 
+                </header>
+
+                <div class="card-body-custom" style="padding: 20px; display: flex; flex-direction: column; gap: 25px;">
+
+                    {% set all_invoices = txn.rentals | map(attribute='invoices') | map('list') | sum(start=[]) %}
+                    {% set total_invoice_count = all_invoices | length %}
+
+                    {% set ns = namespace(voucher_distributed=0) %}
+                    
+                    {% for rental in txn.rentals %}
+                    <div class="product-billing-group" style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        
+                        <div class="product-billing-header mb-3" style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #cbd5e1; padding-bottom: 10px;">
+                            <span class="fw-bold" style="color: #0f172a; font-size: 1.05rem;">
+                                {{ rental.product.name }}
+                                <span style="color: #64748b; font-weight: 500; font-size: 0.9rem;">(Qty: {{ rental.quantity }})</span>
+                            </span>
+
+                            <div class="d-flex align-items-center gap-2">
+                                {# Exclude cancelled invoices from total income calculations #}
+                                {% set active_rental_invoices = rental.invoices | rejectattr('status', 'equalto', 'Cancelled') | list %}
+                                {% set total_rental_value = active_rental_invoices | map(attribute='total_invoice_value') | map('float') | sum %}
+                                {% set total_invoice_count_loop = txn.rentals | map(attribute='invoices') | rejectattr('status', 'equalto', 'Cancelled') | map('length') | sum %}
+                                {% set rental_invoice_count = active_rental_invoices | length %}
+                                {% set ratio = (rental_invoice_count / total_invoice_count_loop) | float if total_invoice_count_loop > 0 else 0 %}
+                                {% set rental_voucher_share_value = ((txn.voucher_amount | default(0, true) | float) * ratio) if txn.voucher_amount else 0.0 %}
+                                {% set adjusted_total_rental_value = [0.0, total_rental_value - rental_voucher_share_value] | max %}
+
+                                <span class="badge" style="background-color: #eff6ff; color: #1e40af; font-size: 0.85rem; border: 1px solid #bfdbfe; padding: 6px 12px; font-weight: 600;">
+                                    <span style="color: #1e293b;">Total Income: ₱{{ "{:,.2f}".format(total_rental_value) }}</span>
+                                    {% if rental_voucher_share_value > 0 %}
+                                        <span style="color: #dc2626; margin-left: 4px;">− ₱{{ "{:,.2f}".format(rental_voucher_share_value) }} <small style="color: #64748b;">(Voucher)</small></span>
+                                        <span style="color: #059669; font-weight: 700; margin-left: 4px;">= ₱{{ "{:,.2f}".format(adjusted_total_rental_value) }}</span>
+                                    {% endif %}
+                                </span>
+
+                                <span class="badge" style="background-color: #f1f5f9; color: #334155; font-size: 0.85rem; border: 1px solid #cbd5e1; padding: 6px 10px; font-weight: 600;">
+                                    Rate: ₱{{ "{:,.2f}".format(rental.monthly_rate | default(0, true) | float) }}/mo
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="table-container">
+                            <table class="item-list-table" style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="background-color: #ffffff; border-bottom: 2px solid #cbd5e1;">
+                                        <th style="padding: 10px 12px; color: #475569; font-size: 0.85rem; font-weight: 600; text-transform: uppercase;">Due Date</th>
+                                        <th style="padding: 10px 12px; color: #475569; font-size: 0.85rem; font-weight: 600; text-transform: uppercase;">Amount Due</th>
+                                        <th style="padding: 10px 12px; color: #475569; font-size: 0.85rem; font-weight: 600; text-transform: uppercase;">Progress (Paid/Total)</th>
+                                        <th style="padding: 10px 12px; color: #475569; font-size: 0.85rem; font-weight: 600; text-transform: uppercase;">Balance</th>
+                                        <th style="padding: 10px 12px; color: #475569; font-size: 0.85rem; font-weight: 600; text-transform: uppercase;">Status</th>
+                                        <th style="padding: 10px 12px; color: #475569; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; text-align: right;">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for invoice in rental.invoices %}
+
+                                        {% set is_last_invoice = (loop.index0 == rental.invoices | length - 1) and (rental == txn.rentals[-1]) %}
+                                        
+                                        {% if txn.voucher_amount and total_invoice_count > 0 %}
+                                            {% if is_last_invoice %}
+                                                {% set voucher_share = txn.voucher_amount - ns.voucher_distributed %}
+                                            {% else %}
+                                                {% set raw_share = txn.voucher_amount / total_invoice_count %}
+                                                {% set voucher_share = (raw_share * 100) | round(0, 'common') / 100 %}
+                                                {% set ns.voucher_distributed = ns.voucher_distributed + voucher_share %}
+                                            {% endif %}
+                                        {% else %}
+                                            {% set voucher_share = 0 %}
+                                        {% endif %}
+                                    
+                                        {% set adjusted_amount_due = [0, (invoice.amount_due + (invoice.late_fee or 0)) - voucher_share] | max | round(2, 'common') %}
+                                        {% set adjusted_total_value = [0, invoice.total_invoice_value - voucher_share] | max | round(2, 'common') %}
+                                        {% set adjusted_remaining = [0, invoice.remaining_balance - voucher_share] | max | round(2, 'common') %}
+
+                                        {% if invoice.status == 'Cancelled' %}
+                                            {% set adjusted_amount_due = 0 %}
+                                            {% set adjusted_total_value = 0 %}
+                                            {% set adjusted_remaining = 0 %}
+                                        {% endif %}
+
+                                        <tr style="border-bottom: 1px solid #e2e8f0; background-color: {% if invoice.status == 'Cancelled' %}#f1f5f9{% else %}#ffffff{% endif %};">
+                                            <td style="padding: 12px; vertical-align: middle;">
+                                                <div class="item-title" style="color: {% if invoice.status == 'Cancelled' %}#94a3b8{% else %}#0f172a{% endif %}; font-weight: 600; font-size: 0.9rem;">
+                                                    Due: {{ invoice.service_period_end.strftime('%B %d, %Y') }}
+                                                </div>
+                                            </td>
+                                            <td style="padding: 12px; vertical-align: middle;" class="col-amount">
+                                                <div class="d-flex flex-column">
+                                                    <span style="color: {% if invoice.status == 'Cancelled' %}#94a3b8{% else %}#0f172a{% endif %}; font-weight: 700; font-size: 0.95rem; {% if invoice.status == 'Cancelled' %}text-decoration: line-through;{% endif %}">₱{{ "{:,.2f}".format(adjusted_amount_due) }}</span>
+                                                    {% if voucher_share > 0 and invoice.status != 'Cancelled' %}
+                                                        <small style="color: #dc2626; font-size: 0.75rem;">− ₱{{ "{:,.2f}".format(voucher_share) }} <span style="color: #64748b;">(Voucher)</span></small>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                            <td style="padding: 12px; vertical-align: middle; font-size: 0.9rem;">
+                                                {% if invoice.status == 'Cancelled' %}
+                                                    <span style="color: #94a3b8; font-style: italic;">Cancelled</span>
+                                                {% else %}
+                                                    <span style="color: #0f172a; font-weight: 700;">₱{{ "{:,.2f}".format(adjusted_total_value) }}</span> 
+                                                    <span style="color: #94a3b8; margin: 0 4px; font-weight: bold;">/</span>
+                                                    <span style="color: #059669; font-weight: 700;">₱{{ "{:,.2f}".format(invoice.amount_paid) }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td style="padding: 12px; vertical-align: middle;">
+                                                {% if invoice.status == 'Cancelled' %}
+                                                    <span style="color: #64748b; font-weight: 600; font-size: 0.95rem;">₱0.00</span>
+                                                {% elif adjusted_remaining > 0 %}
+                                                    <span style="color: #dc2626; font-weight: 800; font-size: 0.95rem; background-color: #fef2f2; padding: 4px 8px; border-radius: 4px; border: 1px solid #fecaca; display: inline-block;">₱{{ "{:,.2f}".format(adjusted_remaining) }}</span>
+                                                {% else %}
+                                                    <span style="color: #059669; font-weight: 800; font-size: 0.95rem; background-color: #ecfdf5; padding: 4px 8px; border-radius: 4px; border: 1px solid #a7f3d0; display: inline-block;">₱0.00</span>
+                                                {% endif %}
+                                            </td>
+                                            <td style="padding: 12px; vertical-align: middle;" class="col-status">
+                                                {% if invoice.status == 'Cancelled' %}
+                                                    <span style="background-color: #f1f5f9; color: #475569; font-size: 0.85rem; font-weight: 700; padding: 6px 12px; border-radius: 6px; display: inline-block; border: 1px solid #cbd5e1;">Cancelled</span>
+                                                {% elif adjusted_remaining <= 0 %}
+                                                    <span style="background-color: #d1e7dd; color: #0f5132; font-size: 0.85rem; font-weight: 700; padding: 6px 12px; border-radius: 6px; display: inline-block; border: 1px solid #badbcc;">Paid</span>
+                                                {% elif invoice.amount_paid > 0 %}
+                                                    <span style="background-color: #fff3cd; color: #664d03; font-size: 0.85rem; font-weight: 700; padding: 6px 12px; border-radius: 6px; display: inline-block; border: 1px solid #ffecb5;">Partial</span>
+                                                {% else %}
+                                                    {% if invoice.service_period_start < current_date %}
+                                                        <span style="background-color: #f8d7da; color: #842029; font-size: 0.85rem; font-weight: 700; padding: 6px 12px; border-radius: 6px; display: inline-block; border: 1px solid #f5c2c7;">Overdue</span>
+                                                    {% else %}
+                                                        <span style="background-color: #f8d7da; color: #842029; font-size: 0.85rem; font-weight: 700; padding: 6px 12px; border-radius: 6px; display: inline-block; border: 1px solid #f5c2c7;">Unpaid</span>
+                                                    {% endif %}
+                                                {% endif %}
+                                            </td>
+                                            <td style="padding: 12px; vertical-align: middle; text-align: right; white-space: nowrap;" class="col-action">
+                                                <div class="action-wrapper d-flex align-items-center justify-content-end" style="display: inline-flex; flex-wrap: nowrap; gap: 8px;">
+                                                    {% if invoice.status == 'Cancelled' %}
+                                                        <span class="text-muted font-italic" style="font-size: 0.85rem;">Voided</span>
+                                                    {% else %}
+                                                        {% if adjusted_remaining > 0 %}
+                                                            <button type="button"
+                                                                    class="btn-action-payment btn-add-payment"
+                                                                    style="white-space: nowrap;"
+                                                                    data-txn-id="{{ txn.id }}"
+                                                                    data-ref="{{ txn.reference_no }}"
+                                                                    data-balance="{{ adjusted_remaining }}"
+                                                                    data-type="Rental"
+                                                                    data-monthly-rate="{{ rental.monthly_rate }}"
+                                                                    data-unpaid-count="{{ rental.invoices|selectattr('status', 'ne', 'Paid')|list|length }}"
+                                                                    data-invoice-id="{{ invoice.id }}">
+                                                                <i class="material-symbols-rounded">payments</i>
+                                                                <span>Pay Now</span>
+                                                            </button>
+
+                                                            <button type="button"
+                                                                    class="btn-action-payment btn-outline-danger custom-open-cancel-modal"
+                                                                    style="height: 45px; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; gap: 4px;"
+                                                                    data-cancel-url="{{ url_for('admin.cancel_invoice', invoice_id=invoice.id) }}"
+                                                                    data-period="{{ invoice.service_period_end.strftime('%B %Y') }}">
+                                                                <span class="material-symbols-rounded" style="font-size: 18px;">cancel</span>
+                                                                <span>Cancel</span>
+                                                            </button>
+                                                        {% else %}
+                                                            <div class="settled-pill" style="white-space: nowrap;">
+                                                                <span class="material-symbols-rounded">check_circle</span>
+                                                                <span class="settled-text">Settled</span>
+                                                            </div>
+                                                        {% endif %}
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="6" style="text-align: center; color: #64748b; padding: 20px; background-color: #ffffff; font-weight: 500;">No invoices generated for this item.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
         {% endif %}
 
         {% if txn.transaction_type == 'Rental' and txn.rentals | selectattr('remaining_to_return', 'gt', 0) | list | length > 0 %}
@@ -1219,6 +1265,29 @@
     }
     {% endif %}
 </script>
+
+
+
+<div id="cancelInvoiceModal" class="custom-modal-overlay" style="display: none;">
+    <div class="custom-modal-dialog">
+        <form id="cancelInvoiceForm" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            
+            <div class="custom-modal-header">
+                <h5 class="custom-modal-title">Cancel Invoice</h5>
+                <button type="button" class="custom-modal-close" id="closeCancelModal">&times;</button>
+            </div>
+            <div class="custom-modal-body">
+                <p>Are you sure you want to cancel the invoice for <strong id="cancelInvoicePeriod"></strong>?</p>
+                <p class="text-danger small mb-0" style="color: #dc2626; font-size: 0.85rem;">This action cannot be undone if the invoice has an active balance.</p>
+            </div>
+            <div class="custom-modal-footer">
+                <button type="button" class="custom-btn custom-btn-secondary" id="cancelCancelModal">Close</button>
+                <button type="submit" class="custom-btn custom-btn-danger">Confirm Cancellation</button>
+            </div>
+        </form>
+    </div>
+</div>
 
 {% include 'modals/rent_purch_modal.html' %}
 

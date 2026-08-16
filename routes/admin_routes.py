@@ -133,12 +133,16 @@ ALL_EXPENSE_CATEGORIES_ORDERED = [
 @login_required
 @admin_or_staff_required
 def dashboard():
-    # Total revenue collected from Sales
     total_sales = db.session.query(
         func.sum(Transaction.amount_paid)
     ).filter_by(transaction_type='Sale').scalar() or Decimal("0.00")
 
-    # Total revenue collected from Rentals
+    total_cogs = db.session.query(
+        func.sum(func.coalesce(Purchase.product_cost_price, 0) * func.coalesce(Purchase.quantity, 0))
+    ).join(Transaction).filter(Transaction.transaction_type == 'Sale').scalar() or Decimal("0.00")
+
+    sales_net = total_sales - total_cogs
+
     total_rentals = db.session.query(
         func.sum(Transaction.amount_paid)
     ).filter_by(transaction_type='Rental').scalar() or Decimal("0.00")
@@ -147,6 +151,7 @@ def dashboard():
     refill_txns = Transaction.query.filter_by(transaction_type="Refill").all()
     total_refill_income = sum((t.total_amount for t in refill_txns), Decimal("0.00"))
     total_refill_profit = sum((t.net_profit for t in refill_txns), Decimal("0.00"))
+    total_refills_count = sum((t.quantity or 1) for t in refill_txns)
 
     active_rentals_count = Rental.query.filter_by(status='Active').count()
     
@@ -248,9 +253,11 @@ def dashboard():
     return render_template(
         'admin/dashboard.html',
         total_sales=total_sales,
+        sales_net=sales_net,
         total_rentals=total_rentals,
         total_refill_income=total_refill_income,
         total_refill_profit=total_refill_profit,
+        total_refills_count=total_refills_count,
         active_rentals_count=active_rentals_count,
         total_inventory=total_inventory,
         low_stock_count=low_stock_count,
@@ -262,57 +269,7 @@ def dashboard():
         active_oxygen_rentals=active_oxygen_rentals
     )
     
-@admin_bp.route('/request-refill', methods=['POST'])
-@login_required
-@admin_or_staff_required
-def request_refill():
-    product_id = request.form.get('product_id')
-    quantity = request.form.get('quantity', type=int)
-    rental_id = request.form.get('rental_id')
 
-    if not product_id or not quantity or quantity <= 0:
-        flash("It looks like some information is missing. Please check your request and try again.", "error")
-        return redirect(url_for('admin.dashboard'))
-
-    try:
-        tank = TankStatus.query.filter_by(product_id=product_id).first()
-        if not tank:
-            flash("We couldn't find this specific tank in our records. Please contact support.", "error")
-            return redirect(url_for('admin.dashboard'))
-
-        if tank.full_in_stock < quantity:
-            flash(f"Oops! We only have {tank.full_in_stock} full tanks ready. Please adjust your request to a lower amount.", "error")
-            return redirect(url_for('admin.dashboard'))
-
-        ref_no = "Manual"
-        if rental_id:
-            rental = Rental.query.get(rental_id)
-            if rental and rental.transaction:
-                ref_no = rental.transaction.reference_no
-
-        tank.full_in_stock -= quantity
-        tank.empty_in_stock += quantity
-
-        log = InventoryLog(
-            product_id=product_id,
-            action="Refill Request Created",
-            quantity=quantity,
-            note=f"Moved {quantity} units from Full to Empty. Rental Ref: {ref_no}",
-            user_id=current_user.id,
-            user_name=current_user.full_name
-        )
-        
-        db.session.add(log)
-        db.session.commit()
-        
-        flash(f"Success! {quantity} tank(s) have been marked as empty and are now ready for refill.", "success")
-
-    except Exception as e:
-        db.session.rollback()
-        flash("We ran into a slight issue updating the inventory. Please try again or contact the technical team if this persists.", "error")
-
-    return redirect(url_for('admin.dashboard'))
-   
 @admin_bp.route('/process-refill-transaction', methods=['POST'])
 @login_required
 @admin_or_staff_required
@@ -1654,22 +1611,31 @@ def process_rental():
 
         has_initial_fill = True if request.form.get('has_initial_fill') in ['on', 'true', '1', True] else False
         initial_fill_cost_raw = request.form.get('initial_fill_cost', '0').replace(',', '')
- 
         initial_fill_cost = Decimal(initial_fill_cost_raw or '0')
 
         start_date_str = request.form.get('start_date')
         return_date_str = request.form.get('return_date')
+        duration_unit = request.form.get('duration_unit', 'months')
 
-        if not start_date_str or not return_date_str:
-            flash("Start date and return date are required.", "danger")
+        if not start_date_str:
+            flash("Start date is required.", "danger")
             return redirect(request.referrer)
 
         start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
-        expected_return = datetime.strptime(return_date_str, "%Y-%m-%d").date()
 
-        if expected_return < start_date:
-            flash("Invalid return date.", "danger")
-            return redirect(request.referrer)
+        if duration_unit == 'open':
+            expected_return = start_date + timedelta(days=30) 
+            is_open_duration = True
+        else:
+            is_open_duration = False
+            if not return_date_str:
+                flash("Return date is required for fixed-term rentals.", "danger")
+                return redirect(request.referrer)
+            expected_return = datetime.strptime(return_date_str, "%Y-%m-%d").date()
+
+            if expected_return < start_date:
+                flash("Invalid return date.", "danger")
+                return redirect(request.referrer)
 
         customer_id = request.form.get('customer_id') or None
         display_name = "Walk-in Customer"
@@ -1683,7 +1649,7 @@ def process_rental():
             if unregistered_name:
                 display_name = unregistered_name
 
-        ref_no = f"RNT-{datetime.now():%m%d%Y-%H%M%S}-{''.join(random.choices(string.ascii_uppercase+string.digits, k=4))}"
+        ref_no = f"RNT-{datetime.now():%m%d%Y-%H%M%S}-{ ''.join(random.choices(string.ascii_uppercase+string.digits, k=4)) }"
 
         new_txn = Transaction(
             reference_no=ref_no,
@@ -1776,7 +1742,8 @@ def process_rental():
                 expected_return_date=expected_return,
                 monthly_rate=price,
                 quantity=qty,
-                status="Active"
+                status="Active",
+                is_open_duration=is_open_duration 
             )
 
             db.session.add(rental)
@@ -1866,7 +1833,7 @@ def process_rental():
         new_txn.update_totals() 
         db.session.commit()
 
-        flash(f"Rental created: {ref_no}", "success")
+        flash(f"Rental created successfully: {ref_no}", "success")
         return redirect(url_for("admin.transactions"))
 
     except Exception as e:
@@ -1968,12 +1935,12 @@ def transactions():
 
     if end_date:
         try:
-
             parsed_end = datetime.strptime(end_date, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
             query = query.filter(Transaction.created_at <= parsed_end)
         except ValueError:
             pass
     
+    # Status Filtering Logic
     if status_filter == 'expiring':
         from datetime import timedelta
         soon = current_date + timedelta(days=5)
@@ -2001,30 +1968,37 @@ def transactions():
 
     elif status_filter == 'overdue_payment':
         query = query.filter(
-            Transaction.transaction_type == 'Rental',
             Transaction.balance_due > 0,
-            Transaction.status == 'Open'
+            Transaction.rentals.any(
+                Rental.invoices.any(
+                    and_(
+                        RentalInvoice.service_period_end < current_date,
+                        RentalInvoice.status != 'Paid'
+                    )
+                )
+            )
         )
  
     elif status_filter == 'unpaid':
         query = query.filter(
-            Transaction.payment_status == 'Unpaid',
-            Transaction.status == 'Open'
+            Transaction.balance_due > 0,
+            or_(Transaction.amount_paid == 0, Transaction.amount_paid.is_(None))
         )
  
     elif status_filter == 'partial':
         query = query.filter(
-            Transaction.payment_status == 'Partially Paid',
-            Transaction.status == 'Open'
+            Transaction.balance_due > 0,
+            Transaction.amount_paid > 0
         )
  
     elif status_filter == 'submitted':
         query = query.filter(
-            Transaction.tracking_status == 'SUBMITTED',
-            Transaction.status == 'Open'
+            or_(
+                Transaction.tracking_status == 'SUBMITTED',
+                Transaction.status == 'submitted'
+            )
         )
 
-   
     if start_date:
         query = query.order_by(Transaction.created_at.asc())
     else:
@@ -2108,6 +2082,7 @@ def transactions():
         **stats
     )
     
+
 @admin_bp.route('/active-rentals')
 @login_required
 @admin_or_staff_required
@@ -2142,6 +2117,51 @@ def active_rentals():
         current_filter=filter_type 
     )
     
+@admin_bp.route('/collection-monitoring')
+@login_required
+def collection_monitoring():
+    page = request.args.get('page', 1, type=int)
+    limit = request.args.get('limit', 10, type=int)
+    search_query = request.args.get('q', '', type=str)
+
+    today = datetime.now().date()
+    three_days_later = today + timedelta(days=3)
+
+    query = RentalInvoice.query.join(RentalInvoice.rental).filter(
+        and_(
+            or_(
+                RentalInvoice.service_period_start <= three_days_later,
+                Rental.expected_return_date <= three_days_later
+            ),
+            RentalInvoice.status.notin_(['Cancelled', 'Paid'])
+        )
+    )
+    
+    if search_query:
+        search_term = f"%{search_query}%"
+        query = query.filter(
+            RentalInvoice.invoice_number.ilike(search_term)
+        )
+
+    pagination = query.paginate(page=page, per_page=limit, error_out=False)
+    due_invoices = pagination.items
+
+    return render_template(
+        'admin/collection_monitoring.html',
+        due_invoices=due_invoices,
+        pagination=pagination,
+        current_limit=limit,
+        search_query=search_query,
+        now=datetime.now()
+    )
+    
+    
+@admin_bp.route('/invoice/<int:id>/pay', methods=['GET', 'POST'])
+@login_required
+def process_payment(id):
+
+    return render_template('admin/process_payment.html')
+
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
 from io import BytesIO
@@ -2248,14 +2268,59 @@ def export_transactions():
     return response
 
 @admin_bp.route('/transaction_details/<int:id>') 
-
+@login_required
 def transaction_details(id):
     txn = Transaction.query.get_or_404(id)
+
+    if txn.transaction_type == 'Rental':
+        today = datetime.now().date()
+        invoices_generated_flag = False
+        
+        for rental in txn.rentals:
+            if rental.status == 'Active' and rental.is_open_duration:
+                latest_invoice = rental.get_latest_invoice()
+                if latest_invoice:
+                    days_remaining = (latest_invoice.service_period_end - today).days
+                    if days_remaining <= 3:
+                        rental.generate_next_monthly_invoice()
+                        invoices_generated_flag = True
+                        
+        if invoices_generated_flag:
+            db.session.commit()
 
     txn.update_totals()
     db.session.commit()
     
     return render_template('admin/transaction_details.html', txn=txn, current_date=datetime.now().date())
+
+@admin_bp.route('/api/cron/generate-invoices', methods=['POST', 'GET'])
+def cron_generate_invoices():
+
+    auth_token = request.headers.get('X-Cron-Token') or request.args.get('token')
+    expected_token = current_app.config.get('CRON_SECRET_KEY', 'your-fallback-secret-key')
+    
+    if auth_token != expected_token:
+        abort(403)
+        
+    try:
+        open_rentals = Rental.query.filter_by(status='Active', is_open_duration=True).all()
+        generated_count = 0
+        today = datetime.now().date()
+        
+        for rental in open_rentals:
+            latest_invoice = rental.get_latest_invoice()
+            if latest_invoice:
+                days_remaining = (latest_invoice.service_period_end - today).days
+                if days_remaining <= 3:
+                    rental.generate_next_monthly_invoice()
+                    generated_count += 1
+                    
+        db.session.commit()
+        return jsonify({"status": "success", "invoices_generated": generated_count}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @admin_bp.route('/transaction/<int:txn_id>/update-tracking', methods=['POST'])
 @login_required
@@ -2440,6 +2505,47 @@ def post_payment():
         current_app.logger.error(f"PAYMENT_ERROR | TXN: {txn_id} | Error: {str(e)}")
         flash(f'A system error occurred: {str(e)}', 'danger')
 
+    return redirect(request.referrer or url_for('admin.transactions'))
+
+@admin_bp.route('/invoice/cancel/<int:invoice_id>', methods=['POST'])
+@login_required
+@admin_or_staff_required
+def cancel_invoice(invoice_id):
+    try:
+        invoice = RentalInvoice.query.get_or_404(invoice_id)
+        
+        if invoice.status == 'Cancelled':
+            flash('This invoice is already cancelled.', 'warning')
+            return redirect(request.referrer or url_for('admin.transactions'))
+
+        if invoice.remaining_balance <= 0:
+            flash('Cannot cancel an invoice that has already been fully paid or settled.', 'danger')
+            return redirect(request.referrer or url_for('admin.transactions'))
+            
+        invoice.status = 'Cancelled'
+
+        txn = None
+        if invoice.rental and invoice.rental.transaction:
+            txn = invoice.rental.transaction
+            db.session.expire(txn, ['payments'])
+            txn.update_totals()
+
+            if txn.balance_due <= 0 and txn.status not in ['Closed', 'Cancelled']:
+                if txn.transaction_type == 'Rental':
+                    all_returned = all(getattr(r, 'remaining_to_return', 0) == 0 for r in txn.rentals)
+                    if all_returned:
+                        txn.status = 'Closed'
+                else:
+                    txn.status = 'Closed'
+
+        db.session.commit()
+        flash('Invoice has been successfully cancelled.', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"CANCEL_INVOICE_ERROR | ID: {invoice_id} | Error: {str(e)}")
+        flash(f'An error occurred while cancelling the invoice: {str(e)}', 'danger')
+        
     return redirect(request.referrer or url_for('admin.transactions'))
 
 @admin_bp.route('/confirm-payment-proof/<int:proof_id>', methods=['POST'])
