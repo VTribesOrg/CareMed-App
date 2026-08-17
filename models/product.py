@@ -1,5 +1,5 @@
 from extensions import db
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from dateutil.relativedelta import relativedelta
 
@@ -25,10 +25,10 @@ class Product(db.Model):
     status = db.Column(db.String(50), default="Available")
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     
-    is_refillable = db.Column(db.Boolean, default=False) 
+    is_refillable = db.Column(db.Boolean, default=False, index=True) 
     category = db.Column(db.String(50), nullable=True)
 
-    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
     archived_at = db.Column(db.DateTime, nullable=True)
 
     purchases = db.relationship("Purchase", back_populates="product", passive_deletes=True)
@@ -116,11 +116,11 @@ class Transaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     reference_no = db.Column(db.String(36), unique=True, nullable=False, index=True)
     
-    customer_id = db.Column(db.Integer, db.ForeignKey("customer.id", ondelete="SET NULL"), nullable=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey("customer.id", ondelete="SET NULL"), nullable=True, index=True)
     customer_name = db.Column(db.String(255))
     processed_by = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     
-    transaction_type = db.Column(db.String(20), nullable=False)
+    transaction_type = db.Column(db.String(20), nullable=False, index=True)
     
     total_amount = db.Column(db.Numeric(10, 2), nullable=False, default=0.00)
     voucher_amount = db.Column(db.Numeric(10, 2), nullable=False, default=0.00)
@@ -130,12 +130,12 @@ class Transaction(db.Model):
     
     payment_method = db.Column(db.String(50), nullable=True)
     payment_status = db.Column(db.String(50), default="Unpaid") 
-    status = db.Column(db.String(20), default="Open")
+    status = db.Column(db.String(20), default="Open", index=True)
     
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     updated_at = db.Column(db.DateTime, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
-    product_id = db.Column(db.Integer, db.ForeignKey("product.id", ondelete="SET NULL"), nullable=True)
+    product_id = db.Column(db.Integer, db.ForeignKey("product.id", ondelete="SET NULL"), nullable=True, index=True)
     quantity = db.Column(db.Integer, nullable=True)
     refill_cost_per_unit = db.Column(db.Numeric(10, 2), nullable=True, default=0.00)
     serial_numbers = db.Column(db.Text, nullable=True)
@@ -333,8 +333,7 @@ class Transaction(db.Model):
                     total_invoice_sum += Decimal(str(inv.amount_due or 0)) + Decimal(str(inv.late_fee or 0))
 
             self.total_amount = max(total_invoice_sum + delivery_fee + initial_fill - voucher_amount, Decimal("0.00"))
-            
-            # Recalculate balance due based on active invoices
+
             self.balance_due = max(Decimal("0.00"), self.total_amount - self.amount_paid)
             
         elif self.transaction_type == "Sale":
@@ -375,7 +374,7 @@ class Transaction(db.Model):
         else:
             if self.status == "Closed":
                 self.status = "Open"
-                                             
+                                                     
 class Payment(db.Model):
     __tablename__ = "payments"
 
@@ -412,9 +411,9 @@ class Rental(db.Model):
     __tablename__ = "rental"
 
     id = db.Column(db.Integer, primary_key=True)
-    transaction_id = db.Column(db.Integer, db.ForeignKey("transaction.id"), nullable=False)
-    product_id = db.Column(db.Integer, db.ForeignKey("product.id"))
-    customer_id = db.Column(db.Integer, db.ForeignKey("customer.id"))
+    transaction_id = db.Column(db.Integer, db.ForeignKey("transaction.id"), nullable=False, index=True)
+    product_id = db.Column(db.Integer, db.ForeignKey("product.id"), index=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey("customer.id"), index=True)
     
     start_date = db.Column(db.Date, nullable=False)
     expected_return_date = db.Column(db.Date, nullable=False) 
@@ -428,7 +427,7 @@ class Rental(db.Model):
     quantity = db.Column(db.Integer, nullable=False)
     quantity_returned = db.Column(db.Integer, nullable=False, default=0)
     
-    status = db.Column(db.String(50), default="Active")
+    status = db.Column(db.String(50), default="Active", index=True)
     is_open_duration = db.Column(db.Boolean, default=False, nullable=False)
     return_condition_notes = db.Column(db.Text)
     
@@ -495,6 +494,27 @@ class Rental(db.Model):
             db.session.add(new_invoice)
             current_period_start = next_period_start
             
+    def process_rental_extension(self, extension_days):
+        """
+        Extends an active rental period by a specified number of days and updates the service period end.
+        """
+        if self.status != 'Active':
+            return False, "Rental is not active or does not exist."
+        
+        latest_invoice = self.get_latest_invoice()
+        if latest_invoice:
+            if isinstance(latest_invoice.service_period_end, str):
+                latest_invoice.service_period_end = datetime.strptime(latest_invoice.service_period_end, '%Y-%m-%d').date()
+            latest_invoice.service_period_end += timedelta(days=extension_days)
+            
+            if latest_invoice.service_period_end > self.expected_return_date:
+                self.expected_return_date = latest_invoice.service_period_end
+                
+            db.session.commit()
+            return True, latest_invoice.service_period_end.isoformat()
+        
+        return False, "No associated invoice found for this rental."
+    
 class RentalTank(db.Model):
     __tablename__ = "rental_tank"
 

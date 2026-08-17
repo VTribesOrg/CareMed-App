@@ -350,7 +350,7 @@
                             <table class="item-list-table" style="width: 100%; border-collapse: collapse;">
                                 <thead>
                                     <tr style="background-color: #ffffff; border-bottom: 2px solid #cbd5e1;">
-                                        <th style="padding: 10px 12px; color: #475569; font-size: 0.85rem; font-weight: 600; text-transform: uppercase;">Due Date</th>
+                                        <th style="padding: 10px 12px; color: #475569; font-size: 0.85rem; font-weight: 600; text-transform: uppercase;">Billing Period</th>
                                         <th style="padding: 10px 12px; color: #475569; font-size: 0.85rem; font-weight: 600; text-transform: uppercase;">Amount Due</th>
                                         <th style="padding: 10px 12px; color: #475569; font-size: 0.85rem; font-weight: 600; text-transform: uppercase;">Progress (Paid/Total)</th>
                                         <th style="padding: 10px 12px; color: #475569; font-size: 0.85rem; font-weight: 600; text-transform: uppercase;">Balance</th>
@@ -388,7 +388,10 @@
                                         <tr style="border-bottom: 1px solid #e2e8f0; background-color: {% if invoice.status == 'Cancelled' %}#f1f5f9{% else %}#ffffff{% endif %};">
                                             <td style="padding: 12px; vertical-align: middle;">
                                                 <div class="item-title" style="color: {% if invoice.status == 'Cancelled' %}#94a3b8{% else %}#0f172a{% endif %}; font-weight: 600; font-size: 0.9rem;">
-                                                    Due: {{ invoice.service_period_end.strftime('%B %d, %Y') }}
+                                                    {{ invoice.service_period_start.strftime('%b %d, %Y') }}
+                                                    {% if invoice.service_period_end %}
+                                                        <span style="color: #64748b; font-weight: 400;">to {{ invoice.service_period_end.strftime('%b %d, %Y') }}</span>
+                                                    {% endif %}
                                                 </div>
                                             </td>
                                             <td style="padding: 12px; vertical-align: middle;" class="col-amount">
@@ -456,7 +459,7 @@
                                                                     class="btn-action-payment btn-outline-danger custom-open-cancel-modal"
                                                                     style="height: 45px; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; gap: 4px;"
                                                                     data-cancel-url="{{ url_for('admin.cancel_invoice', invoice_id=invoice.id) }}"
-                                                                    data-period="{{ invoice.service_period_end.strftime('%B %Y') }}">
+                                                                    data-period="{{ invoice.service_period_end.strftime('%b %Y') }}">
                                                                 <span class="material-symbols-rounded" style="font-size: 18px;">cancel</span>
                                                                 <span>Cancel</span>
                                                             </button>

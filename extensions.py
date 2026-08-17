@@ -8,7 +8,7 @@ from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import os
-
+from flask_caching import Cache
 
 db = SQLAlchemy()
 migrate = Migrate()
@@ -17,6 +17,7 @@ passhasher = PasswordHasher(time_cost=2, memory_cost=102400, parallelism=8)
 oauth = OAuth()
 mail = Mail()
 csrf = CSRFProtect()
+cache = Cache()
 
 def rate_limit_key():
     """Rate-limit logged-in users by account, not by IP."""
@@ -26,7 +27,7 @@ def rate_limit_key():
 
 limiter = Limiter(
     key_func=rate_limit_key,
-    storage_uri="redis://redis:6379/0",
+    # storage_uri="redis://redis:6379/0",
     default_limits=["200 per day", "50 per hour"]
 )
 login_manager.login_view = "auth.login"

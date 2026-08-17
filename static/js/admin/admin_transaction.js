@@ -1244,29 +1244,35 @@ function calculateRentalTotals() {
     const durationUnit = durationUnitInput ? durationUnitInput.value : 'months';
 
     if (startInput && startInput.value) {
-        const start = new Date(startInput.value);
-        
-        if (!isNaN(start.getTime())) {
-            let targetReturnDate = new Date(start);
-            
-            if (durationUnit === 'days') {
-                targetReturnDate.setDate(start.getDate() + durationVal);
-            } else if (durationUnit === 'weeks') {
-                targetReturnDate.setDate(start.getDate() + (durationVal * 7));
-            } else {
-                targetReturnDate.setMonth(start.getMonth() + durationVal);
-            }
-            
-            const yyyy = targetReturnDate.getFullYear();
-            const mm = String(targetReturnDate.getMonth() + 1).padStart(2, '0');
-            const dd = String(targetReturnDate.getDate()).padStart(2, '0');
-            const formattedISODate = `${yyyy}-${mm}-${dd}`;
-            
-            if (hiddenReturnInput) hiddenReturnInput.value = formattedISODate;
-            
-            if (previewReturnText) {
-                const options = { year: 'numeric', month: 'long', day: 'numeric' };
-                previewReturnText.textContent = targetReturnDate.toLocaleDateString('en-US', options);
+        const parts = startInput.value.split('-');
+        if (parts.length === 3) {
+            let y = parseInt(parts[0], 10);
+            let m = parseInt(parts[1], 10);
+            let d = parseInt(parts[2], 10);
+
+            if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+                // Create a base date using UTC to completely ignore local timezone shifts
+                const targetReturnDate = new Date(Date.UTC(y, m - 1, d));
+
+                if (durationUnit === 'days') {
+                    targetReturnDate.setUTCDate(targetReturnDate.getUTCDate() + durationVal);
+                } else if (durationUnit === 'weeks') {
+                    targetReturnDate.setUTCDate(targetReturnDate.getUTCDate() + (durationVal * 7));
+                } else {
+                    targetReturnDate.setUTCMonth(targetReturnDate.getUTCMonth() + durationVal);
+                }
+
+                const yyyy = targetReturnDate.getUTCFullYear();
+                const mm = String(targetReturnDate.getUTCMonth() + 1).padStart(2, '0');
+                const dd = String(targetReturnDate.getUTCDate()).padStart(2, '0');
+                const formattedISODate = `${yyyy}-${mm}-${dd}`;
+
+                if (hiddenReturnInput) hiddenReturnInput.value = formattedISODate;
+
+                if (previewReturnText) {
+                    const options = { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' };
+                    previewReturnText.textContent = targetReturnDate.toLocaleDateString('en-US', options);
+                }
             }
         }
     } else {
@@ -1546,6 +1552,7 @@ if (rentForm) {
         // Ensure serial inputs are fully synced before sending payload
         captureCurrentSerials();
 
+        const totalBillText = document.getElementById('rent-total-bill');
         // Prevent submission if Amount Paid exceeds Total Contract Value
         if (amountPaidInput && totalBillText) {
             const paidVal = parseFloat(amountPaidInput.value) || 0;

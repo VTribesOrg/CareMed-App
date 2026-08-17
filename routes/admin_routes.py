@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, url_for, redirect, flash, request, jsonify, current_app, send_from_directory, abort
 from flask_login import current_user
-from extensions import db, limiter, csrf
+from extensions import db, limiter, csrf, cache
 from sqlalchemy.orm import joinedload
 from sqlalchemy import func, or_, and_
 from flask_login import login_required
@@ -22,6 +22,7 @@ from utils.backup import create_backup, get_all_backups
 from flask import send_file, Response, stream_with_context
 import json
 import time
+from sqlalchemy import case, func
 
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
@@ -129,147 +130,183 @@ ALL_EXPENSE_CATEGORIES_ORDERED = [
     'Other',
 ]
 
-@admin_bp.route('/dashboard')
+@admin_bp.route("/dashboard")
 @login_required
 @admin_or_staff_required
 def dashboard():
-    total_sales = db.session.query(
-        func.sum(Transaction.amount_paid)
-    ).filter_by(transaction_type='Sale').scalar() or Decimal("0.00")
+    return render_template("admin/dashboard.html")
 
-    total_cogs = db.session.query(
-        func.sum(func.coalesce(Purchase.product_cost_price, 0) * func.coalesce(Purchase.quantity, 0))
-    ).join(Transaction).filter(Transaction.transaction_type == 'Sale').scalar() or Decimal("0.00")
+@admin_bp.route("/dashboard/data")
+@login_required
+@admin_or_staff_required
+def dashboard_data():
+    try:
+        sales_and_rentals = (
+            db.session.query(
+                func.coalesce(
+                    func.sum(case((Transaction.transaction_type == "Sale", Transaction.amount_paid), else_=0)),
+                    Decimal("0.00")
+                ),
+                func.coalesce(
+                    func.sum(case((Transaction.transaction_type == "Rental", Transaction.amount_paid), else_=0)),
+                    Decimal("0.00")
+                )
+            )
+            .filter(Transaction.transaction_type.in_(["Sale", "Rental"]))
+            .first()
+        )
+        total_sales, total_rentals = sales_and_rentals if sales_and_rentals else (Decimal("0.00"), Decimal("0.00"))
 
-    sales_net = total_sales - total_cogs
+        total_cogs = (
+            db.session.query(
+                func.sum(
+                    func.coalesce(Purchase.product_cost_price, 0)
+                    * func.coalesce(Purchase.quantity, 0)
+                )
+            )
+            .join(Transaction)
+            .filter(Transaction.transaction_type == "Sale")
+            .scalar()
+            or Decimal("0.00")
+        )
 
-    total_rentals = db.session.query(
-        func.sum(Transaction.amount_paid)
-    ).filter_by(transaction_type='Rental').scalar() or Decimal("0.00")
+        sales_net = total_sales - total_cogs
 
-    # Total revenue and profit collected from Refills
-    refill_txns = Transaction.query.filter_by(transaction_type="Refill").all()
-    total_refill_income = sum((t.total_amount for t in refill_txns), Decimal("0.00"))
-    total_refill_profit = sum((t.net_profit for t in refill_txns), Decimal("0.00"))
-    total_refills_count = sum((t.quantity or 1) for t in refill_txns)
+        refill_stats = (
+            db.session.query(
+                func.coalesce(
+                    func.sum(Transaction.total_amount), Decimal("0.00")
+                ),
+                func.coalesce(func.sum(Transaction.net_profit), Decimal("0.00")),
+                func.coalesce(
+                    func.sum(func.coalesce(Transaction.quantity, 1)), 0
+                ),
+            )
+            .filter_by(transaction_type="Refill")
+            .first()
+        )
+        total_refill_income, total_refill_profit, total_refills_count = refill_stats if refill_stats else (Decimal("0.00"), Decimal("0.00"), 0)
 
-    active_rentals_count = Rental.query.filter_by(status='Active').count()
-    
-    total_expenses = db.session.query(
-        func.sum(Expense.amount)
-    ).scalar() or Decimal("0.00")
+        active_rentals_count = Rental.query.filter_by(status="Active").count()
 
-    product_inventory = db.session.query(
-        func.sum(Product.stock)
-    ).filter(
-        Product.is_active == True,
-        Product.is_refillable == False
-    ).scalar() or 0
+        total_expenses = (
+            db.session.query(func.sum(Expense.amount)).scalar() or Decimal("0.00")
+        )
 
-    raw_tank_data = TankStatus.query.join(Product).filter(Product.is_active == True).all()
-    
-    tank_aggregation = {}
-    total_tank_count = 0
-    
-    for tank in raw_tank_data:
-        key = (tank.product.name, tank.product.size)
+        product_stats = (
+            db.session.query(
+                func.coalesce(func.sum(Product.stock), 0),
+                func.coalesce(func.sum(case((Product.stock <= 5, 1), else_=0)), 0)
+            )
+            .filter(
+                Product.is_active == True,
+                Product.is_refillable == False
+            )
+            .first()
+        )
+        product_inventory, low_stock_count = product_stats if product_stats else (0, 0)
+
+        raw_tank_data = (
+            TankStatus.query.join(Product).filter(Product.is_active == True).all()
+        )
+
+        tank_aggregation = {}
+        total_tank_count = 0
+
+        for tank in raw_tank_data:
+            key = (tank.product.name, tank.product.size)
+
+            if key not in tank_aggregation:
+                tank_aggregation[key] = {
+                    "name": tank.product.name,
+                    "size": tank.product.size,
+                    "product_id": tank.product.id,
+                    "total_owned": 0,
+                    "rented_out": 0,
+                    "full_in_stock": 0,
+                    "empty_in_stock": 0,
+                }
+
+            tank_aggregation[key]["total_owned"] += tank.total_owned
+            tank_aggregation[key]["rented_out"] += tank.rented_out
+            tank_aggregation[key]["full_in_stock"] += tank.full_in_stock
+            tank_aggregation[key]["empty_in_stock"] += tank.empty_in_stock
+
+            total_tank_count += (
+                tank.full_in_stock + tank.empty_in_stock + tank.rented_out
+            )
+
+        combined_tank_statuses = list(tank_aggregation.values())
+        total_inventory = product_inventory + total_tank_count
+
+        all_products = (
+            Product.query.filter(
+                Product.is_refillable == False,
+                Product.is_active == True,
+                Product.condition.in_(["Brand New", "Used"]),
+            )
+            .all()
+        )
+
+        active_rented_units = (
+            db.session.query(
+                Rental.product_id,
+                func.sum(Rental.quantity - Rental.quantity_returned),
+            )
+            .filter(Rental.status == "Active")
+            .group_by(Rental.product_id)
+            .all()
+        )
+
+        rented_map = {prod_id: count for prod_id, count in active_rented_units}
+
+        assets_aggregation = {}
+        for prod in all_products:
+            prod_name = prod.name
+            if prod_name not in assets_aggregation:
+                assets_aggregation[prod_name] = {
+                    "name": prod_name,
+                    "total_stock": 0,
+                    "rented_count": 0,
+                    "used_count": 0,
+                    "brand_new_count": 0,
+                }
+
+            assets_aggregation[prod_name]["total_stock"] += prod.stock or 0
+            assets_aggregation[prod_name]["rented_count"] += rented_map.get(
+                prod.id, 0
+            )
+
+            condition_str = (prod.condition or "").strip()
+            if condition_str == "Brand New":
+                assets_aggregation[prod_name]["brand_new_count"] += prod.stock or 0
+            elif condition_str == "Used":
+                assets_aggregation[prod_name]["used_count"] += prod.stock or 0
+
+        standard_assets = list(assets_aggregation.values())
+
+        return jsonify({
+            "total_sales": float(total_sales),
+            "sales_net": float(sales_net),
+            "total_rentals": float(total_rentals),
+            "total_refill_income": float(total_refill_income),
+            "total_refill_profit": float(total_refill_profit),
+            "total_refills_count": int(total_refills_count),
+            "active_rentals_count": int(active_rentals_count),
+            "total_inventory": int(total_inventory),
+            "low_stock_count": int(low_stock_count),
+            "total_expenses": float(total_expenses),
+            "tank_statuses": combined_tank_statuses,
+            "standard_assets": standard_assets,
+        })
         
-        if key not in tank_aggregation:
-            tank_aggregation[key] = {
-                'name': tank.product.name,
-                'size': tank.product.size,
-                'product_id': tank.product.id,
-                'total_owned': 0,
-                'rented_out': 0,
-                'full_in_stock': 0,
-                'empty_in_stock': 0
-            }
-        
-        tank_aggregation[key]['total_owned'] += tank.total_owned
-        tank_aggregation[key]['rented_out'] += tank.rented_out
-        tank_aggregation[key]['full_in_stock'] += tank.full_in_stock
-        tank_aggregation[key]['empty_in_stock'] += tank.empty_in_stock
-        
-        total_tank_count += (tank.full_in_stock + tank.empty_in_stock + tank.rented_out)
+    except Exception:
+        current_app.logger.exception("Critical error encountered while fetching admin dashboard metrics.")
 
-    combined_tank_statuses = list(tank_aggregation.values())
-    total_inventory = product_inventory + total_tank_count
-
-    low_stock_count = Product.query.filter(
-        Product.is_active == True,
-        Product.is_refillable == False,
-        Product.stock <= 5
-    ).count()
-
-    all_products = Product.query.filter(
-        Product.is_refillable == False, 
-        Product.is_active == True,
-        Product.condition.in_(['Brand New', 'Used'])
-    ).all()
+        return jsonify({
+            "error": "An internal error occurred while processing dashboard analytics. Please try again later."
+        }), 500
     
-    active_rented_units = db.session.query(
-        Rental.product_id,
-        func.sum(Rental.quantity - Rental.quantity_returned)
-    ).filter(Rental.status == 'Active').group_by(Rental.product_id).all()
-    
-    rented_map = {prod_id: count for prod_id, count in active_rented_units}
-
-    assets_aggregation = {}
-    for prod in all_products:
-        prod_name = prod.name
-        if prod_name not in assets_aggregation:
-            assets_aggregation[prod_name] = {
-                'name': prod_name,
-                'total_stock': 0,
-                'rented_count': 0,
-                'used_count': 0,
-                'brand_new_count': 0
-            }
-            
-        assets_aggregation[prod_name]['total_stock'] += (prod.stock or 0)
-        assets_aggregation[prod_name]['rented_count'] += rented_map.get(prod.id, 0)
-
-        condition_str = (prod.condition or "").strip()
-        if condition_str == "Brand New":
-            assets_aggregation[prod_name]['brand_new_count'] += (prod.stock or 0)
-        elif condition_str == "Used":
-            assets_aggregation[prod_name]['used_count'] += (prod.stock or 0)
-
-    standard_assets = list(assets_aggregation.values())
-
-    recent_logs = InventoryLog.query.order_by(
-        InventoryLog.created_at.desc()
-    ).limit(5).all()
-
-    security_alerts = SecurityLog.query.order_by(
-        SecurityLog.created_at.desc()
-    ).limit(3).all()
-    
-    active_oxygen_rentals = Rental.query.join(Product).filter(
-        Rental.status == 'Active',
-        Product.is_refillable == True
-    ).all()
-
-    return render_template(
-        'admin/dashboard.html',
-        total_sales=total_sales,
-        sales_net=sales_net,
-        total_rentals=total_rentals,
-        total_refill_income=total_refill_income,
-        total_refill_profit=total_refill_profit,
-        total_refills_count=total_refills_count,
-        active_rentals_count=active_rentals_count,
-        total_inventory=total_inventory,
-        low_stock_count=low_stock_count,
-        tank_statuses=combined_tank_statuses,
-        standard_assets=standard_assets,
-        recent_logs=recent_logs,
-        security_alerts=security_alerts,
-        total_expenses=total_expenses,
-        active_oxygen_rentals=active_oxygen_rentals
-    )
-    
-
 @admin_bp.route('/process-refill-transaction', methods=['POST'])
 @login_required
 @admin_or_staff_required

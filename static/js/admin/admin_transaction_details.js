@@ -8,8 +8,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // UI Elements inside Modal
     const txnIdInput = document.getElementById('payment-txn-id');
     const invoiceIdInput = document.getElementById('payment-invoice-id');
-    const paymentTypeInput = document.getElementById('payment-type'); // Added for Initial Fill / Rental routing
-    const summaryRef = document.getElementById('summary-ref');
+    const paymentTypeInput = document.getElementById('payment-type'); 
+    const summaryRef = document.getElementById('summary-ref'); // Added missing declaration
     const summaryType = document.getElementById('summary-type');
     const summaryBalance = document.getElementById('summary-balance');
     const amountInput = document.getElementById('payment-amount');
@@ -286,5 +286,3 @@ replaceBtn.addEventListener("click", () => {
 removeBtn.addEventListener("click", () => {
     resetUpload();
 });
-
-

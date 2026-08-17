@@ -32,7 +32,7 @@ class Config:
     SESSION_COOKIE_NAME = "caremed_session"
     SESSION_COOKIE_SECURE = True        
     SESSION_COOKIE_HTTPONLY = True      
-    SESSION_COOKIE_SAMESITE = "Lax"  # Changed from Strict to Lax to prevent Google OAuth redirect session drops
+    SESSION_COOKIE_SAMESITE = "Lax"  
     
     REMEMBER_COOKIE_DURATION    = timedelta(hours=8)  
     REMEMBER_COOKIE_SECURE      = True
