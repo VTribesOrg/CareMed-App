@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, url_for, redirect, flash, request, jsonify, current_app, send_from_directory, abort
 from flask_login import current_user
-from extensions import db, limiter, csrf, cache
+from extensions import db, limiter, csrf
 from sqlalchemy.orm import joinedload
 from sqlalchemy import func, or_, and_
 from flask_login import login_required
