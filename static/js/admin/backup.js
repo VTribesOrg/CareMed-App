@@ -1,4 +1,7 @@
 document.addEventListener("DOMContentLoaded", function() {
+    // Grab the CSRF token from the meta tag in the HTML head
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
     fetch('/admin/backup/data')
         .then(response => response.json())
         .then(data => {
@@ -39,7 +42,7 @@ document.addEventListener("DOMContentLoaded", function() {
                                     <span class="material-symbols-rounded" style="font-size:14px;">download</span>Download
                                 </a>
                                 <form method="POST" action="/admin/backup/delete/${backup.filename}" class="delete-backup-form">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="csrf_token" value="${csrfToken}">
                                     <button type="submit" class="btn-del">Delete</button>
                                 </form>
                             </div>
