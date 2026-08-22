@@ -2,14 +2,12 @@ import os
 import subprocess
 from datetime import datetime
 from urllib.parse import urlparse
+import shutil
 
 BACKUP_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'backups')
 MAX_BACKUPS = 7
 
-MYSQLDUMP_PATH = os.environ.get(
-    "MYSQLDUMP_PATH",
-    r"C:\xampp\mysql\bin\mysqldump.exe"
-)
+MYSQLDUMP_PATH = os.environ.get("MYSQLDUMP_PATH") or shutil.which("mysqldump") or r"C:\xampp\mysql\bin\mysqldump.exe"
 
 def get_db_credentials():
     """

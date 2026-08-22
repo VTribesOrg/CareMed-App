@@ -25,6 +25,7 @@ services:
     image: mysql:8.0
     restart: always
     environment:
+      MYSQLDUMP_PATH: mysqldump
       MYSQL_DATABASE: caremed_db
       MYSQL_USER: caremed_user
       MYSQL_PASSWORD: C@reMed_@2026@ppMYSQL
