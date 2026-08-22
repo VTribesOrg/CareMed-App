@@ -1,5 +1,4 @@
 document.addEventListener("DOMContentLoaded", function() {
-    // Grab the CSRF token from the meta tag in the HTML head
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
     fetch('/admin/backup/data')
@@ -10,7 +9,7 @@ document.addEventListener("DOMContentLoaded", function() {
             const emptyState = document.getElementById('backupEmptyState');
             const tableElement = document.querySelector('.backup-table');
             
-            tbody.innerHTML = ''; // Clear loading spinner
+            tbody.innerHTML = ''; 
 
             if (!data || data.length === 0) {
                 tableElement.style.display = 'none';
@@ -54,7 +53,6 @@ document.addEventListener("DOMContentLoaded", function() {
             document.getElementById('backupTableBody').innerHTML = `<tr><td colspan="5" class="text-center" style="color:red; text-align:center; padding:20px;">Failed to load backup history.</td></tr>`;
         });
 
-    // Handle asynchronous delete via Fetch API with CSRF Header
     document.addEventListener('click', function(event) {
         const btn = event.target.closest('.delete-backup-btn');
         if (!btn) return;
@@ -68,13 +66,12 @@ document.addEventListener("DOMContentLoaded", function() {
         fetch(`/admin/backup/delete/${filename}`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
                 'X-CSRFToken': csrfToken
             }
         })
         .then(response => {
             if (response.ok) {
-                window.location.reload(); // Reloads page to show flash messages and updated list
+                window.location.reload();
             } else {
                 alert('Failed to delete backup. Bad request or invalid token.');
             }
