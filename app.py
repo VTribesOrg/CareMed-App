@@ -1,3 +1,6 @@
+from gevent import monkey
+monkey.patch_all()
+
 import os
 from flask import Flask, request, redirect, url_for, flash, render_template, abort
 from flask_login import current_user
@@ -92,7 +95,7 @@ def check_blocked_ip():
             abort(403)
 
 
-@app.before_request          
+@app.before_request         
 def enforce_admin_session_timeout():
     """
     Extra safety net:
