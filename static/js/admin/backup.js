@@ -41,10 +41,7 @@ document.addEventListener("DOMContentLoaded", function() {
                                 <a href="/admin/backup/download/${backup.filename}" class="btn-dl">
                                     <span class="material-symbols-rounded" style="font-size:14px;">download</span>Download
                                 </a>
-                                <form method="POST" action="/admin/backup/delete/${backup.filename}" class="delete-backup-form">
-                                    <input type="hidden" name="csrf_token" value="${csrfToken}">
-                                    <button type="submit" class="btn-del">Delete</button>
-                                </form>
+                                <button type="button" class="btn-del delete-backup-btn" data-filename="${backup.filename}">Delete</button>
                             </div>
                         </td>
                     </tr>
@@ -57,11 +54,34 @@ document.addEventListener("DOMContentLoaded", function() {
             document.getElementById('backupTableBody').innerHTML = `<tr><td colspan="5" class="text-center" style="color:red; text-align:center; padding:20px;">Failed to load backup history.</td></tr>`;
         });
 
-    document.addEventListener('submit', function(event) {
-        if (event.target && event.target.classList.contains('delete-backup-form')) {
-            if (!confirm('Delete this backup? This cannot be undone.')) {
-                event.preventDefault();
-            }
+    // Handle asynchronous delete via Fetch API with CSRF Header
+    document.addEventListener('click', function(event) {
+        const btn = event.target.closest('.delete-backup-btn');
+        if (!btn) return;
+
+        if (!confirm('Delete this backup? This cannot be undone.')) {
+            return;
         }
+
+        const filename = btn.getAttribute('data-filename');
+
+        fetch(`/admin/backup/delete/${filename}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                window.location.reload(); // Reloads page to show flash messages and updated list
+            } else {
+                alert('Failed to delete backup. Bad request or invalid token.');
+            }
+        })
+        .catch(err => {
+            console.error('Error deleting backup:', err);
+            alert('An error occurred while deleting the backup.');
+        });
     });
 });

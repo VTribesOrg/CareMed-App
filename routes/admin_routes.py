@@ -4178,12 +4178,22 @@ def download_backup(filename):
     return send_file(filepath, as_attachment=True, download_name=filename, mimetype='application/sql')
 
 
+from flask_wtf.csrf import validate_csrf
+from wtforms.validators import ValidationError
+
 @admin_bp.route('/backup/delete/<filename>', methods=['POST'])
 @login_required
 def delete_backup(filename):
     if current_user.role.strip() != 'Administrator':
         flash("Access restricted to Administrators only.", "danger")
         return redirect(url_for('admin.dashboard'))
+    
+    token = request.form.get('csrf_token') or request.headers.get('X-CSRFToken')
+    try:
+        validate_csrf(token)
+    except ValidationError:
+        flash("CSRF token invalid or missing.", "error")
+        return redirect(url_for('admin.backup_page'))
     
     if '..' in filename or '/' in filename or '\\' in filename:
         flash("Invalid filename.", "error")
