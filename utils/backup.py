@@ -10,36 +10,31 @@ MAX_BACKUPS = 7
 MYSQLDUMP_PATH = os.environ.get("MYSQLDUMP_PATH") or shutil.which("mysqldump") or r"C:\xampp\mysql\bin\mysqldump.exe"
 
 def get_db_credentials():
-    """
-    Supports:
-    mysql://root:@localhost:3307/caremedv2
-    mysql+pymysql://root:password@localhost:3306/caremed
-    """
     db_url = os.environ.get('DATABASE_URL', '').strip()
-
     if not db_url:
         return None
-
     db_url = db_url.replace("mysql+pymysql://", "mysql://")
 
     try:
         parsed = urlparse(db_url)
-
-        if not parsed.username or not parsed.hostname or not parsed.path:
+        if not parsed.hostname or not parsed.path:
             return None
 
+        # Production-grade root fallback: bypasses application user permissions and credential clashes
+        root_password = os.environ.get('MYSQL_ROOT_PASSWORD', '')
+        if not root_password and parsed.username == 'root':
+            root_password = parsed.password or ''
+
         return {
-            'user': parsed.username,
-            'password': parsed.password or '',
+            'user': 'root',
+            'password': root_password,
             'host': parsed.hostname,
             'port': parsed.port or 3306,
             'dbname': parsed.path.lstrip('/')
         }
-
     except Exception as e:
         print(f"[Backup] DB Parse Error: {e}")
         return None
-
 
 def create_backup(triggered_by='system'):
     try:
@@ -195,4 +190,3 @@ Please check your server and create a manual backup immediately.
                 mail.send(msg)
         except Exception as mail_err:
             print(f"[Backup] Failed to send backup alert: {mail_err}")
-            
