@@ -21,7 +21,6 @@ document.addEventListener("DOMContentLoaded", function() {
             countLabel.innerText = `Last ${data.length} backups — max 7 kept`;
 
             data.forEach(backup => {
-                // Determine pill type matching your original conditional check
                 const isManual = backup.triggered_by === 'admin';
                 const pillClass = isManual ? 'pill pill-blue' : 'pill pill-green';
                 const pillText = isManual ? 'Manual' : 'Auto';
@@ -39,8 +38,7 @@ document.addEventListener("DOMContentLoaded", function() {
                                 <a href="/admin/backup/download/${backup.filename}" class="btn-dl">
                                     <span class="material-symbols-rounded" style="font-size:14px;">download</span>Download
                                 </a>
-                                <form method="POST" action="/admin/backup/delete/${backup.filename}"
-                                      onsubmit="return confirm('Delete this backup? This cannot be undone.')">
+                                <form method="POST" action="/admin/backup/delete/${backup.filename}" class="delete-backup-form">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button type="submit" class="btn-del">Delete</button>
                                 </form>
@@ -55,4 +53,12 @@ document.addEventListener("DOMContentLoaded", function() {
             console.error('Error loading backups:', error);
             document.getElementById('backupTableBody').innerHTML = `<tr><td colspan="5" class="text-center" style="color:red; text-align:center; padding:20px;">Failed to load backup history.</td></tr>`;
         });
+
+    document.addEventListener('submit', function(event) {
+        if (event.target && event.target.classList.contains('delete-backup-form')) {
+            if (!confirm('Delete this backup? This cannot be undone.')) {
+                event.preventDefault();
+            }
+        }
+    });
 });
