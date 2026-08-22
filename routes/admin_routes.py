@@ -4178,12 +4178,14 @@ def download_backup(filename):
     return send_file(filepath, as_attachment=True, download_name=filename, mimetype='application/sql')
 
 
-from flask_wtf.csrf import validate_csrf, csrf
+from flask_wtf.csrf import validate_csrf
 from wtforms.validators import ValidationError
+# If you need to exempt it, import your application's csrf instance like this:
+# from your_app import csrf
 
 @admin_bp.route('/backup/delete/<filename>', methods=['POST'])
 @login_required
-@csrf.exempt
+# @csrf.exempt 
 def delete_backup(filename):
     if current_user.role.strip() != 'Administrator':
         flash("Access restricted to Administrators only.", "danger")
