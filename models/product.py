@@ -381,6 +381,8 @@ class Payment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     transaction_id = db.Column(db.Integer, db.ForeignKey("transaction.id", ondelete="CASCADE"), nullable=False)
     invoice_id = db.Column(db.Integer, db.ForeignKey("rental_invoice.id"), nullable=True)
+
+    payment_type = db.Column(db.String(50), default="Rental Invoice", nullable=False, index=True)
     
     amount = db.Column(db.Numeric(10, 2), nullable=False)
     payment_method = db.Column(db.String(50), nullable=False) 
@@ -396,7 +398,6 @@ class Payment(db.Model):
     transaction = db.relationship("Transaction", back_populates="payments")
     verified_by = db.relationship("User", foreign_keys=[verified_by_id])
     rental_invoice = db.relationship("RentalInvoice", back_populates="payments")
-
 class PaymentProof(db.Model):
     __tablename__ = "payment_proof"
     id = db.Column(db.Integer, primary_key=True)
