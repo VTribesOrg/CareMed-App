@@ -2278,3 +2278,173 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 /*============= END OF AUTO-OPEN MODAL FROM URL PARAM =============*/
+
+/*============= START OF THREE DOTS ACTION =============*/
+document.addEventListener('DOMContentLoaded', function() {
+    // Inject cancellation modal HTML dynamically if it doesn't already exist
+    if (!document.getElementById('cancelTxnModal')) {
+        const modalHtml = `
+            <div id="cancelTxnModal" style="display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); z-index: 1050; align-items: center; justify-content: center; font-family: inherit;">
+                <div style="background: #ffffff; width: 100%; max-width: 420px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); overflow: hidden; animation: fadeInModal 0.2s ease-out;">
+                    <div style="padding: 18px 20px; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between;">
+                        <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: #111827; display: flex; align-items: center; gap: 8px;">
+                            <span class="material-symbols-rounded" style="color: #ef4444; font-size: 20px;">cancel</span> Cancel Transaction
+                        </h3>
+                        <button type="button" id="closeCancelModalX" style="background: none; border: none; cursor: pointer; color: #6b7280; font-size: 20px; padding: 0; display: flex; align-items: center;">&times;</button>
+                    </div>
+                    <div style="padding: 20px;">
+                        <p id="cancelModalDesc" style="margin: 0 0 12px 0; font-size: 13.5px; color: #4b5563; line-height: 1.5;"></p>
+                        <div style="margin-bottom: 4px;">
+                            <label for="cancelReasonInput" style="display: block; font-size: 12.5px; font-weight: 600; color: #374151; margin-bottom: 6px;">Reason for Cancellation <span style="color: #ef4444;">*</span></label>
+                            <textarea id="cancelReasonInput" rows="3" placeholder="Please specify why this transaction is being cancelled..." style="width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13.5px; font-family: inherit; resize: vertical; outline: none; transition: border-color 0.15s;"></textarea>
+                            <span id="cancelReasonError" style="display: none; color: #ef4444; font-size: 12px; margin-top: 4px;">A cancellation reason is required.</span>
+                        </div>
+                    </div>
+                    <div style="padding: 12px 20px; background: #f9fafb; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 8px;">
+                        <button type="button" id="cancelModalBtnNo" style="background: #ffffff; color: #374151; border: 1px solid #d1d5db; padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer;">Close</button>
+                        <button type="button" id="cancelModalBtnYes" style="background: #ef4444; color: #ffffff; border: none; padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">Confirm Cancellation</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    }
+
+    const cancelModal = document.getElementById('cancelTxnModal');
+    const cancelModalDesc = document.getElementById('cancelModalDesc');
+    const cancelReasonInput = document.getElementById('cancelReasonInput');
+    const cancelReasonError = document.getElementById('cancelReasonError');
+    const cancelModalBtnYes = document.getElementById('cancelModalBtnYes');
+    const cancelModalBtnNo = document.getElementById('cancelModalBtnNo');
+    const closeCancelModalX = document.getElementById('closeCancelModalX');
+
+    let activeCancelTxnId = null;
+
+    function openCancelModal(txnId, txnType) {
+        activeCancelTxnId = txnId;
+        cancelReasonInput.value = '';
+        cancelReasonError.style.display = 'none';
+        cancelReasonInput.style.borderColor = '#d1d5db';
+        cancelModalDesc.textContent = `Are you sure you want to cancel this ${txnType.toLowerCase()}? This action cannot be undone and will restore inventory levels.`;
+        cancelModal.style.display = 'flex';
+        cancelReasonInput.focus();
+    }
+
+    function closeCancelModal() {
+        cancelModal.style.display = 'none';
+        activeCancelTxnId = null;
+    }
+
+    cancelModalBtnNo.addEventListener('click', closeCancelModal);
+    closeCancelModalX.addEventListener('click', closeCancelModal);
+    cancelModal.addEventListener('click', function(e) {
+        if (e.target === cancelModal) closeCancelModal();
+    });
+
+    cancelReasonInput.addEventListener('input', function() {
+        if (cancelReasonInput.value.trim()) {
+            cancelReasonError.style.display = 'none';
+            cancelReasonInput.style.borderColor = '#d1d5db';
+        }
+    });
+
+    cancelModalBtnYes.addEventListener('click', function() {
+        const reason = cancelReasonInput.value.trim();
+        if (!reason) {
+            cancelReasonError.style.display = 'block';
+            cancelReasonInput.style.borderColor = '#ef4444';
+            cancelReasonInput.focus();
+            return;
+        }
+
+        if (!activeCancelTxnId) return;
+
+        cancelModalBtnYes.disabled = true;
+        cancelModalBtnYes.textContent = 'Cancelling...';
+
+        fetch(`/admin/transactions/cancel/${activeCancelTxnId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': window.csrf_token || document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            },
+            body: JSON.stringify({ reason: reason })
+        })
+        .then(async response => {
+            const text = await response.text();
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (err) {
+                // If it's not valid JSON, expose the raw response text for debugging
+                throw new Error(`Server error (${response.status}): ${text.substring(0, 100)}`);
+            }
+            
+            if (!response.ok) {
+                throw new Error(data.message || `Server returned status ${response.status}`);
+            }
+            return data;
+        })
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert(data.message || 'Failed to cancel the transaction.');
+                cancelModalBtnYes.disabled = false;
+                cancelModalBtnYes.textContent = 'Confirm Cancellation';
+            }
+        })
+        .catch(error => {
+            console.error('Error cancelling transaction:', error);
+            alert(error.message || 'A network error occurred. Please try again.');
+            cancelModalBtnYes.disabled = false;
+            cancelModalBtnYes.textContent = 'Confirm Cancellation';
+        });
+    });
+
+    // 1. Global click handler para sa dropdown toggling kag auto-close sa gawas
+    document.addEventListener('click', function(e) {
+        const trigger = e.target.closest('.more-trigger');
+        const dropdownMenu = e.target.closest('.dropdown-menu');
+
+        if (trigger) {
+            e.stopPropagation();
+            const currentDropdown = trigger.nextElementSibling;
+            
+            // Isara ang iban nga open menus
+            document.querySelectorAll('.action-dropdown .dropdown-menu').forEach(menu => {
+                if (menu !== currentDropdown) {
+                    menu.classList.remove('show');
+                }
+            });
+
+            // Toggle ang gin-click
+            if (currentDropdown) {
+                currentDropdown.classList.toggle('show');
+            }
+            return;
+        }
+
+        if (dropdownMenu) {
+            return; // Dili pag-isara kung nag-click sa sulod sang menu
+        }
+
+        // Isara tanan kung nag-click sa gawas
+        document.querySelectorAll('.action-dropdown .dropdown-menu').forEach(menu => {
+            menu.classList.remove('show');
+        });
+    });
+
+    // 2. CSP-Safe Event Listener para sa Cancel Transaction Buttons
+    document.addEventListener('click', function(e) {
+        const cancelBtn = e.target.closest('.cancel-txn-btn');
+        if (!cancelBtn) return;
+
+        const txnId = cancelBtn.getAttribute('data-id');
+        const txnType = cancelBtn.getAttribute('data-type') || 'transaction';
+        
+        // Open modern modal instead of standard prompt/confirm alert
+        openCancelModal(txnId, txnType);
+    });
+});

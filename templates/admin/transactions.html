@@ -137,7 +137,7 @@
                     <th style="padding: 12px;">Type</th>
                     <th style="min-width: 180px; padding: 12px;">Items</th>
                     <th style="padding: 12px;">Delivery Method</th>
-                    <th class="text-end" style="min-width: 100px; text-align: right; padding: 12px;">Total</th>
+                    <th class="text-end" style="min-width: 100px; text-align: right; padding: 12px;">Monthly Rate</th>
                     <th class="text-end" style="min-width: 100px; text-align: right; padding: 12px;">Paid</th>
                     <th class="text-end" style="min-width: 120px; text-align: right; padding: 12px;">Balance Due</th>
                     <th class="text-center" style="min-width: 130px; text-align: center; padding: 12px;">Status</th>
@@ -225,18 +225,36 @@
                     </td>
 
                     <td style="font-weight: bold; color: #212529; text-align: right; padding: 12px;">
-                        {% set voucher = txn.voucher_amount | default(0) %}
-                        {% set gross = txn.total_amount + voucher %}
-                        <div title="Total: ₱{{ '{:,.2f}'.format(gross) }} | Voucher: -₱{{ '{:,.2f}'.format(voucher) }}">
-                            ₱{{ "{:,.2f}".format(txn.total_amount) }}
-                            {% if voucher > 0 %}
-                                <span style="display: block; color: #6c757d; font-weight: normal; font-size: 10px;">
-                                    <i class="material-symbols-rounded" style="color: #198754; font-size: 12px; vertical-align: middle;">local_activity</i> 
-                                    -₱{{ "{:,.2f}".format(voucher) }}
-                                </span>
+                        {% set ns = namespace(total_monthly=0) %}
+                        {% if txn.transaction_type == 'Rental' and txn.rentals %}
+                            {% for item in txn.rentals %}
+                                {% set item_rate = 0 %}
+                                {% if item.monthly_rate %}
+                                    {% set item_rate = item.monthly_rate | float %}
+                                {% elif item.rent_price %}
+                                    {% set item_rate = item.rent_price | float %}
+                                {% elif item.product and item.product.rent_price %}
+                                    {% set item_rate = item.product.rent_price | float %}
+                                {% elif item.product and item.product.price %}
+                                    {% set item_rate = item.product.price | float %}
+                                {% endif %}
+                                
+                                {% set qty = item.quantity | int if item.quantity else 1 %}
+                                {% set ns.total_monthly = ns.total_monthly + (item_rate * qty) %}
+                            {% endfor %}
+                        {% elif txn.product %}
+                            {% if txn.product.rent_price %}
+                                {% set ns.total_monthly = txn.product.rent_price | float %}
+                            {% elif txn.product.price %}
+                                {% set ns.total_monthly = txn.product.price | float %}
                             {% endif %}
-                        </div>
+                        {% elif txn.rent_price %}
+                            {% set ns.total_monthly = txn.txn.rent_price | float %}
+                        {% endif %}
+
+                        <span>₱{{ "{:,.2f}".format(ns.total_monthly) }}</span>
                     </td>
+                    
                     <td style="color: #198754; font-weight: 500; text-align: right; padding: 12px;">₱{{ "{:,.2f}".format(txn.amount_paid) }}</td>
                     <td style="text-align: right; padding: 12px;">
                         {% if txn.balance_due > 0 %}
@@ -253,7 +271,13 @@
                             {% set is_rental = txn.transaction_type == 'Rental' %}
                             {% set status = txn.computed_status %}
                             
-                            {% if status == 'overdue_return' %}
+                            {% if txn.status|lower == 'cancelled' or status|lower == 'cancelled' or txn.tracking_status|lower == 'cancelled' %}
+                                <div title="Transaction cancelled" style="background: #fef2f2; color: #ef4444; border: 1px solid #fee2e2; display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; white-space: nowrap;">
+                                    <span class="material-symbols-rounded" style="font-size: 16px;">cancel</span>
+                                    <span>Cancelled</span>
+                                </div>
+
+                            {% elif status == 'overdue_return' %}
                                 <div title="Requires attention due to overdue return" style="background: #fef2f2; color: #ef4444; border: 1px solid #fee2e2; display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; white-space: nowrap;">
                                     <span class="material-symbols-rounded" style="font-size: 16px;">error</span>
                                     <span>Overdue Return</span>
@@ -321,10 +345,24 @@
                     </td>
 
                     <td style="text-align: right; padding: 12px;">
-                        <div style="display: inline-flex; justify-content: flex-end; gap: 4px;">
+                        <div style="display: inline-flex; justify-content: flex-end; gap: 4px; align-items: center;">
                             <a href="{{ url_for('admin.transaction_details', id=txn.id) }}" class="btn-action" title="View/Return Details">
-                                <i class="material-symbols-rounded">visibility</i>
+                                <span class="material-symbols-rounded">visibility</span>
                             </a>
+                            
+                            {% if txn.status|lower != 'cancelled' and txn.tracking_status|lower != 'cancelled' %}
+                                <div class="action-dropdown">
+                                    <button type="button" class="asset-action-btn more-trigger" title="More Actions" style="background: none; border: none; cursor: pointer; padding: 4px; color: #64748b; display: flex; align-items: center;">
+                                        <span class="material-symbols-rounded">more_vert</span>
+                                    </button>
+                                    
+                                    <div class="dropdown-menu">
+                                        <button type="button" class="dropdown-item text-danger cancel-txn-btn" data-id="{{ txn.id }}" data-type="{{ txn.transaction_type }}">
+                                            <span class="material-symbols-rounded" style="font-size: 16px;">cancel</span> Cancel {{ txn.transaction_type or 'Transaction' }}
+                                        </button>
+                                    </div>
+                                </div>
+                            {% endif %}
                         </div>
                     </td>
                 </tr>

@@ -571,9 +571,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const stockModal = document.getElementById('addStockModal');
     const stockForm = document.getElementById('addStockForm');
     const stockInput = document.getElementById('stock-increment-input');
+    
+    // Changed: unitCostInput is now the typed input, totalCostInput is the hidden/calculated field
+    const unitCostInput = document.getElementById('stock-unit-cost-input');
     const totalCostInput = document.getElementById('stock-total-cost-input');
+    
     const unitCostPreview = document.getElementById('unit-cost-preview');
-    const calculatedUnitCost = document.getElementById('calculated-unit-cost');
+    const calculatedTotalDisplay = document.getElementById('calculated-total-cost');
     const currentStockDisplay = document.getElementById('current-stock-display');
     const newTotalDisplay = document.getElementById('new-total-display');
     const stockEquipName = document.getElementById('stock-equipment-name');
@@ -595,6 +599,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Reset fields
             stockInput.value = '';
+            if (unitCostInput) unitCostInput.value = '';
             totalCostInput.value = '';
             reasonInput.value = '';
             unitCostPreview.style.display = 'none';
@@ -613,25 +618,29 @@ document.addEventListener('DOMContentLoaded', function() {
         const total = currentBaseStock + qty;
         newTotalDisplay.innerText = `${total} Units`;
         newTotalDisplay.style.color = total < currentBaseStock ? "#ef4444" : "#52B788";
-        updateUnitCostPreview();
+        calculateTotalCost();
     });
 
-    // --- 3. Live Unit Cost Preview ---
-    totalCostInput.addEventListener('input', updateUnitCostPreview);
+    // --- 3. Live Total Cost Calculation based on Unit Cost ---
+    if (unitCostInput) {
+        unitCostInput.addEventListener('input', calculateTotalCost);
+    }
 
-    function updateUnitCostPreview() {
-        const qty = parseInt(stockInput.value) || 0;
-        const total = parseFloat(totalCostInput.value) || 0;
+    function calculateTotalCost() {
+        const qty = parseFloat(stockInput.value) || 0;
+        const unitCost = parseFloat(unitCostInput.value) || 0;
 
-        if (qty > 0 && total > 0) {
-            const unitCost = total / qty;
-            calculatedUnitCost.innerText = `₱${unitCost.toLocaleString('en-PH', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            })}`;
+        if (qty > 0 && unitCost > 0) {
+            const total = qty * unitCost;
+            calculatedTotalDisplay.innerText = '₱' + total.toLocaleString('en-US', { 
+                minimumFractionDigits: 2, 
+                maximumFractionDigits: 2 
+            });
+            totalCostInput.value = total.toFixed(2);
             unitCostPreview.style.display = 'block';
         } else {
             unitCostPreview.style.display = 'none';
+            totalCostInput.value = '';
         }
     }
 
@@ -686,7 +695,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 /*============= DELETEMODAL =============*/
 const deleteModal = document.getElementById('deleteAssetModal');
-const deleteForm = document.getElementById('deleteAssetForm'); // Reference the form
+const deleteForm = document.getElementById('deleteAssetForm');
 const closeButtons = document.querySelectorAll('.close-modal-btn');
 let assetIdToDelete = null;
 

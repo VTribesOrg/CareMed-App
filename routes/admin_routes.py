@@ -2180,7 +2180,10 @@ def transactions():
 
     query = Transaction.query.options(
         joinedload(Transaction.customer),
-        selectinload(Transaction.rentals).selectinload(Rental.invoices),
+        selectinload(Transaction.rentals).options(
+            selectinload(Rental.invoices),
+            selectinload(Rental.product)
+        ),
         selectinload(Transaction.payments)
     )
 
@@ -2353,8 +2356,100 @@ def transactions():
         datetime_now_date=current_date,
         **stats
     )
-    
 
+@admin_bp.route('/transactions/cancel/<int:txn_id>', methods=['POST'])
+@login_required
+@admin_or_staff_required
+def cancel_transaction(txn_id):
+    try:
+        txn = Transaction.query.get_or_404(txn_id)
+        
+        if txn.status == 'Cancelled':
+            return jsonify({'success': False, 'message': 'This transaction is already cancelled.'}), 400
+
+        data = request.get_json() or {}
+        reason = data.get('reason', '').strip()
+        
+        if not reason:
+            return jsonify({'success': False, 'message': 'A cancellation reason is required.'}), 400
+
+        txn.status = 'Cancelled'
+        txn.tracking_status = 'CANCELLED'
+        
+        if hasattr(txn, 'cancellation_reason'):
+            txn.cancellation_reason = reason
+
+        if txn.transaction_type == 'Sale' and txn.purchases:
+            for purchase in txn.purchases:
+                product = purchase.product
+                if product and purchase.quantity:
+                    product.stock = (product.stock or 0) + purchase.quantity
+                    
+                    inv_log = InventoryLog(
+                        product_id=product.id,
+                        action='Transaction Cancelled Restock',
+                        quantity=purchase.quantity,
+                        note=f'Restocked from cancelled txn {txn.reference_no}. Reason: {reason}',
+                        user_id=current_user.id if hasattr(current_user, 'id') else None,
+                        user_name=getattr(current_user, 'username', 'Admin')
+                    )
+                    db.session.add(inv_log)
+
+        elif txn.transaction_type == 'Rental' and txn.rentals:
+            for rental in txn.rentals:
+                rental.status = 'Cancelled'
+                for invoice in rental.invoices:
+                    if invoice.status != 'Paid':
+                        invoice.status = 'Cancelled'
+
+                if rental.product:
+                    rental.product.stock = (rental.product.stock or 0) + rental.remaining_to_return
+                    
+                    inv_log = InventoryLog(
+                        product_id=rental.product.id,
+                        action='Rental Transaction Cancelled Restock',
+                        quantity=rental.remaining_to_return,
+                        note=f'Restocked from cancelled rental txn {txn.reference_no}. Reason: {reason}',
+                        user_id=current_user.id if hasattr(current_user, 'id') else None,
+                        user_name=getattr(current_user, 'username', 'Admin')
+                    )
+                    db.session.add(inv_log)
+
+        elif txn.transaction_type == 'Refill' and txn.product_id:
+            product = Product.query.get(txn.product_id)
+            if product and txn.quantity:
+                product.stock = (product.stock or 0) + txn.quantity
+                
+                inv_log = InventoryLog(
+                    product_id=product.id,
+                    action='Refill Transaction Cancelled Restock',
+                    quantity=txn.quantity,
+                    note=f'Restocked from cancelled refill txn {txn.reference_no}. Reason: {reason}',
+                    user_id=current_user.id if hasattr(current_user, 'id') else None,
+                    user_name=getattr(current_user, 'username', 'Admin')
+                )
+                db.session.add(inv_log)
+
+        txn.amount_paid = Decimal('0.00')
+        txn.balance_due = Decimal('0.00')
+        if hasattr(txn, 'payment_status'):
+            txn.payment_status = 'Cancelled'
+            
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Transaction has been successfully cancelled, payment amounts cleared, and inventory levels have been restored.'
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"CANCEL_TRANSACTION_ERROR | ID: {txn_id} | Error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'An error occurred while cancelling the transaction: {str(e)}'
+        }), 500
+        
 @admin_bp.route('/active-rentals')
 @login_required
 @admin_or_staff_required
