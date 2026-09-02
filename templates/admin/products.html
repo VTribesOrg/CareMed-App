@@ -103,7 +103,7 @@
                                 alt="Equipment" class="table-equipment-img">
                         </div>
                     </td>
-                    <td>{{ product.equipment_type or 'N/A' }}</td>
+                    <td style="color: #546e7a;">{{ product.equipment_type or 'N/A' }}</td>
                     <td>{{ product.name or 'N/A' }} {{ product.size}}</td>
                     <td class="stock">
                         {% if product.is_refillable and product.tank_status %}
