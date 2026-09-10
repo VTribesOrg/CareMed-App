@@ -220,26 +220,26 @@
             <strong>{{ [pagination.page * pagination.per_page, pagination.total]|min }}</strong>
             of <strong>{{ pagination.total }}</strong> transactions
         </div>
- 
+        
         <div class="pagination-controls">
             {% if pagination.has_prev %}
-            <a href="{{ url_for('admin.transactions', page=pagination.prev_num, limit=current_limit, q=search_query, type=current_type, fulfillment=current_fulfillment, status=current_status) }}" class="pag-btn">
+            <a href="{{ url_for('admin.products', page=pagination.prev_num, limit=current_limit, q=search_query, type=current_type, filter=current_filter) }}" class="pag-btn">
                 <span class="material-symbols-rounded">chevron_left</span>
             </a>
             {% else %}
             <div class="pag-btn disabled" style="opacity: 0.4;"><span class="material-symbols-rounded">chevron_left</span></div>
             {% endif %}
- 
+
             <span class="page-number">Page <strong>{{ pagination.page }}</strong> of {{ pagination.pages }}</span>
- 
+
             {% if pagination.has_next %}
-            <a href="{{ url_for('admin.transactions', page=pagination.next_num, limit=current_limit, q=search_query, type=current_type, fulfillment=current_fulfillment, status=current_status) }}" class="pag-btn">
+            <a href="{{ url_for('admin.products', page=pagination.next_num, limit=current_limit, q=search_query, type=current_type, filter=current_filter) }}" class="pag-btn">
                 <span class="material-symbols-rounded">chevron_right</span>
             </a>
             {% else %}
             <div class="pag-btn disabled" style="opacity: 0.4;"><span class="material-symbols-rounded">chevron_right</span></div>
             {% endif %}
- 
+
             <div class="jump-to-wrapper">
                 <span class="jump-text">Go to</span>
                 <input type="number" id="jump-page-input" class="jump-input" min="1" max="{{ pagination.pages }}" value="{{ pagination.page }}">
