@@ -114,6 +114,22 @@
                         {% endif %}
                     </div>
                 </div>
+
+                <!-- Proof of Billing Row Added Below -->
+                <div class="doc-row">
+                    <div class="doc-info">
+                        <strong>Proof of Billing</strong>
+                    </div>
+                    <div class="doc-actions">
+                        {% if customer.proof_of_billing_path %}
+                            <button class="btn-icon js-view-image" data-src="{{ url_for('static', filename=customer.proof_of_billing_path) }}" title="View Proof of Billing">
+                                <span class="material-symbols-rounded">visibility</span>
+                            </button>
+                        {% else %}
+                            <span class="text-muted italic">Missing</span>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
 
             <div class="cdp-approval-box">
@@ -128,11 +144,11 @@
                         <span class="material-symbols-rounded text-success">check_circle</span>
                         <span>Verified by Admin</span>
                         <form action="{{ url_for('admin.unverify_customer', id=customer.id) }}"
-                              method="POST" class="js-revoke-form" style="display:inline">
+                                method="POST" class="js-revoke-form" style="display:inline">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn-link-danger"
                                     style="background:none; border:none; cursor:pointer; color:#b91c1c;
-                                           font-size:0.8rem; margin-left:10px; text-decoration:underline;">
+                                            font-size:0.8rem; margin-left:10px; text-decoration:underline;">
                                 Revoke
                             </button>
                         </form>
@@ -140,6 +156,7 @@
                 {% endif %}
             </div>
         </section>
+
     </div>
 
     <section class="cdp-transaction-section">

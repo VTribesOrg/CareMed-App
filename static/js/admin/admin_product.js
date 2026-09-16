@@ -204,6 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'edit-product-id': productData.id,
             'edit-type': productData.type,
             'edit-name': productData.name,
+            'edit-size': productData.size,     
             'edit-condition': productData.condition,
             'edit-description': productData.description,
             'edit-offer-type': offerType,
@@ -258,6 +259,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'edit-product-id': document.getElementById('edit-product-id').value,
             'edit-type': document.getElementById('edit-type').value,
             'edit-name': document.getElementById('edit-name').value,
+            'edit-size': document.getElementById('edit-size').value,      
             'edit-condition': document.getElementById('edit-condition').value,
             'edit-description': document.getElementById('edit-description').value,
             'edit-offer-type': document.getElementById('edit-offer-type').value,
@@ -428,34 +430,35 @@ document.addEventListener('DOMContentLoaded', () => {
     /* ==========================================================
        7. INVENTORY TABLE INTERACTIONS
        ========================================================== */
-    if (inventoryTable) {
-        inventoryTable.addEventListener('click', (e) => {
-            const editBtn = e.target.closest('.dropdown-item.edit');
-            const deleteBtn = e.target.closest('.dropdown-item.delete');
+        if (inventoryTable) {
+            inventoryTable.addEventListener('click', (e) => {
+                const editBtn = e.target.closest('.dropdown-item.edit');
+                const deleteBtn = e.target.closest('.dropdown-item.delete');
 
-            if (editBtn) {
-                const productData = {
-                    id: editBtn.dataset.id,
-                    type: editBtn.dataset.type || '',
-                    name: editBtn.dataset.name || '',
-                    cost_price: editBtn.dataset.costPrice || 0,
-                    stock: editBtn.dataset.stock || 0,
-                    condition: editBtn.dataset.condition || 'N/A',
-                    offer_type: editBtn.dataset.offer || '',
-                    rent_period: editBtn.dataset.period || 'Monthly',
-                    rent_price: editBtn.dataset.rent || 0,
-                    sale_price: editBtn.dataset.price || 0,
-                    description: (editBtn.dataset.description === "None" || !editBtn.dataset.description) ? "" : editBtn.dataset.description.trim(),
-                    image: editBtn.dataset.image || ''
-                };
-                window.openEditModal(productData);
-            } else if (deleteBtn) {
-                const row = deleteBtn.closest('tr');
-                const assetTag = row.cells[1].innerText;
-                console.log("Deleting...", assetTag);
-            }
-        });
-    }
+                if (editBtn) {
+                    const productData = {
+                        id: editBtn.dataset.id,
+                        type: editBtn.dataset.type || '',
+                        name: editBtn.dataset.name || '',
+                        size: editBtn.dataset.size || '',          // <--- ADD THIS LINE HERE
+                        cost_price: editBtn.dataset.costPrice || 0,
+                        stock: editBtn.dataset.stock || 0,
+                        condition: editBtn.dataset.condition || 'N/A',
+                        offer_type: editBtn.dataset.offer || '',
+                        rent_period: editBtn.dataset.period || 'Monthly',
+                        rent_price: editBtn.dataset.rent || 0,
+                        sale_price: editBtn.dataset.price || 0,
+                        description: (editBtn.dataset.description === "None" || !editBtn.dataset.description) ? "" : editBtn.dataset.description.trim(),
+                        image: editBtn.dataset.image || ''
+                    };
+                    window.openEditModal(productData);
+                } else if (deleteBtn) {
+                    const row = deleteBtn.closest('tr');
+                    const assetTag = row.cells[1].innerText;
+                    console.log("Deleting...", assetTag);
+                }
+            });
+        }
 
 
     /* ==========================================================

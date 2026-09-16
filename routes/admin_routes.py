@@ -136,44 +136,103 @@ ALL_EXPENSE_CATEGORIES_ORDERED = [
 def dashboard():
     return render_template("admin/dashboard.html")
 
+def get_date_boundaries(period, custom_start=None, custom_end=None):
+    now = datetime.now()
+
+    if period == 'today':
+        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        end = start + timedelta(days=1)
+        return start, end
+
+    elif period == 'this_week':
+        start = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+        end = start + timedelta(days=7)
+        return start, end
+
+    elif period == 'this_month':
+        start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        end = (start.replace(month=start.month % 12 + 1, year=start.year + (start.month // 12)) 
+               if start.month < 12 else datetime(start.year + 1, 1, 1))
+        return start, end
+
+    elif period == 'last_month':
+        first_of_this_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        end = first_of_this_month
+        start = (first_of_this_month.replace(year=first_of_this_month.year - 1, month=12) 
+                 if first_of_this_month.month == 1 
+                 else first_of_this_month.replace(month=first_of_this_month.month - 1))
+        return start, end
+
+    elif period == 'this_year':
+        start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        end = datetime(now.year + 1, 1, 1)
+        return start, end
+
+    elif period == 'custom' and custom_start and custom_end:
+        try:
+            start = datetime.strptime(custom_start, '%Y-%m-%d').replace(hour=0, minute=0, second=0)
+            end = datetime.strptime(custom_end, '%Y-%m-%d').replace(hour=0, minute=0, second=0) + timedelta(days=1)
+            return start, end
+        except ValueError:
+            pass  # Fallback if parsing fails
+
+    elif period == 'all_time':
+        return None, None
+
+    # Default fallback
+    return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0), None
+
+
 @admin_bp.route("/dashboard/data")
 @login_required
 @admin_or_staff_required
 def dashboard_data():
     try:
-        sales_and_rentals = (
-            db.session.query(
-                func.coalesce(
-                    func.sum(case((Transaction.transaction_type == "Sale", Transaction.amount_paid), else_=0)),
-                    Decimal("0.00")
+        period = request.args.get('period', 'this_month')
+        custom_start = request.args.get('start_date')
+        custom_end = request.args.get('end_date')
+
+        start_date, end_date = get_date_boundaries(period, custom_start, custom_end)
+
+        def apply_date_filter(query, date_column=Transaction.created_at):
+            if start_date:
+                query = query.filter(date_column >= start_date)
+            if end_date:
+                query = query.filter(date_column < end_date)
+            return query
+
+        sales_rentals_query = db.session.query(
+            func.coalesce(
+                func.sum(case((Transaction.transaction_type == "Sale", Transaction.amount_paid), else_=0)),
+                Decimal("0.00")
+            ),
+            func.coalesce(
+                func.sum(
+                    case(
+                        (Transaction.transaction_type == "Rental", 
+                         Transaction.amount_paid - func.coalesce(
+                             db.select(func.sum(Payment.amount))
+                             .where(
+                                 Payment.transaction_id == Transaction.id, 
+                                 Payment.payment_type == "InitialFill", 
+                                 Payment.status == "Completed"
+                             )
+                             .scalar_subquery(), 
+                             0
+                         )), 
+                        else_=0)
                 ),
-                func.coalesce(
-                    func.sum(
-                        case(
-                            (Transaction.transaction_type == "Rental", 
-                             Transaction.amount_paid - func.coalesce(
-                                 db.select(func.sum(Payment.amount))
-                                 .where(
-                                     Payment.transaction_id == Transaction.id, 
-                                     Payment.payment_type == "InitialFill", 
-                                     Payment.status == "Completed"
-                                 )
-                                 .scalar_subquery(), 
-                                 0
-                             )), 
-                            else_=0)
-                    ),
-                    Decimal("0.00")
-                )
+                Decimal("0.00")
             )
-            .filter(Transaction.transaction_type.in_(["Sale", "Rental"]))
-            .first()
-        )
+        ).filter(Transaction.transaction_type.in_(["Sale", "Rental"]))
+        
+        sales_rentals_query = apply_date_filter(sales_rentals_query)
+        sales_and_rentals = sales_rentals_query.first()
         
         total_sales = float(sales_and_rentals[0]) if sales_and_rentals and sales_and_rentals[0] is not None else 0.0
         total_rentals = float(sales_and_rentals[1]) if sales_and_rentals and sales_and_rentals[1] is not None else 0.0
 
-        total_cogs = db.session.query(
+        cogs_query = db.session.query(
             func.coalesce(
                 func.sum(
                     func.coalesce(Purchase.product_cost_price, 0)
@@ -181,40 +240,50 @@ def dashboard_data():
                 ), 
                 0
             )
-        ).join(Transaction).filter(Transaction.transaction_type == "Sale").scalar()
+        ).join(Transaction).filter(Transaction.transaction_type == "Sale")
+        
+        cogs_query = apply_date_filter(cogs_query)
+        total_cogs = cogs_query.scalar()
         
         sales_net = total_sales - float(total_cogs or 0.0)
 
-        initial_fill_payments_total = db.session.query(
+        initial_fill_payments_query = db.session.query(
             func.coalesce(func.sum(Payment.amount), 0)
-        ).filter(Payment.payment_type == "InitialFill", Payment.status == "Completed").scalar() or 0.0
+        ).join(Transaction, Payment.transaction_id == Transaction.id).filter(
+            Payment.payment_type == "InitialFill", 
+            Payment.status == "Completed"
+        )
+        initial_fill_payments_query = apply_date_filter(initial_fill_payments_query)
+        initial_fill_payments_total = initial_fill_payments_query.scalar() or 0.0
 
-        # Query quantity from Rental or Transaction linked to completed InitialFill payments
-        initial_fill_tanks_count = db.session.query(
+        initial_fill_tanks_query = db.session.query(
             func.coalesce(func.sum(Rental.quantity), 0)
         ).join(Transaction, Rental.transaction_id == Transaction.id).join(
             Payment, Payment.transaction_id == Transaction.id
         ).filter(
             Payment.payment_type == "InitialFill", 
             Payment.status == "Completed"
-        ).scalar() or 0
+        )
+        initial_fill_tanks_query = apply_date_filter(initial_fill_tanks_query)
+        initial_fill_tanks_count = initial_fill_tanks_query.scalar() or 0
 
         if int(initial_fill_tanks_count) == 0:
-            initial_fill_tanks_count = db.session.query(
+            fallback_tanks_query = db.session.query(
                 func.coalesce(func.sum(Transaction.quantity), 0)
             ).join(Payment, Payment.transaction_id == Transaction.id).filter(
                 Payment.payment_type == "InitialFill", 
                 Payment.status == "Completed"
-            ).scalar() or 0
-
-        refill_stats = (
-            db.session.query(
-                func.coalesce(func.sum(case((Transaction.transaction_type == "Refill", Transaction.total_amount), else_=0)), 0),
-                func.coalesce(func.sum(case((Transaction.transaction_type == "Refill", Transaction.net_profit), else_=0)), 0),
-                func.coalesce(func.sum(case((Transaction.transaction_type == "Refill", Transaction.quantity), else_=0)), 0),
             )
-            .first()
+            fallback_tanks_query = apply_date_filter(fallback_tanks_query)
+            initial_fill_tanks_count = fallback_tanks_query.scalar() or 0
+
+        refill_stats_query = db.session.query(
+            func.coalesce(func.sum(case((Transaction.transaction_type == "Refill", Transaction.total_amount), else_=0)), 0),
+            func.coalesce(func.sum(case((Transaction.transaction_type == "Refill", Transaction.net_profit), else_=0)), 0),
+            func.coalesce(func.sum(case((Transaction.transaction_type == "Refill", Transaction.quantity), else_=0)), 0),
         )
+        refill_stats_query = apply_date_filter(refill_stats_query)
+        refill_stats = refill_stats_query.first()
         
         base_refill_income = float(refill_stats[0]) if refill_stats and refill_stats[0] is not None else 0.0
         base_refill_profit = float(refill_stats[1]) if refill_stats and refill_stats[1] is not None else 0.0
@@ -226,10 +295,16 @@ def dashboard_data():
 
         active_rentals_count = Rental.query.filter_by(status="Active").count() or 0
 
-        total_expenses = db.session.query(
+        expenses_query = db.session.query(
             func.coalesce(func.sum(Expense.amount), 0)
-        ).scalar() or 0.0
+        )
+        if hasattr(Expense, 'created_at'):
+            expenses_query = apply_date_filter(expenses_query, Expense.created_at)
+        elif hasattr(Expense, 'date'):
+            expenses_query = apply_date_filter(expenses_query, Expense.date)
+        total_expenses = expenses_query.scalar() or 0.0
 
+  
         product_stats = (
             db.session.query(
                 func.coalesce(func.sum(Product.stock), 0),
@@ -241,7 +316,17 @@ def dashboard_data():
         product_inventory = int(product_stats[0]) if product_stats and product_stats[0] is not None else 0
         low_stock_count = int(product_stats[1]) if product_stats and product_stats[1] is not None else 0
 
-        raw_tank_data = TankStatus.query.join(Product).filter(Product.is_active == True).all()
+        raw_tank_data = (
+            TankStatus.query.join(Product)
+            .filter(
+                Product.is_active == True,
+                db.or_(
+                    Product.equipment_type == "Oxygen Tank",
+                    Product.category == "Oxygen Tank"
+                )
+            )
+            .all()
+        )
 
         tank_aggregation = {}
         total_tank_count = 0
@@ -330,8 +415,7 @@ def dashboard_data():
         return jsonify({
             "error": "An internal error occurred while processing dashboard analytics. Please try again later."
         }), 500
-
-
+        
 @admin_bp.route('/process-refill-transaction', methods=['POST'])
 @login_required
 @admin_or_staff_required

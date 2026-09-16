@@ -52,6 +52,40 @@
 
 {% block content %}
 
+<div class="date-coverage-bar" style="display: flex; justify-content: space-between; align-items: center; background: #ffffff; padding: 14px 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05); margin-bottom: 24px; flex-wrap: wrap; gap: 12px; border: 1px solid #f1f5f9;">
+
+    <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="background: #f1f5f9; padding: 8px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+            <span class="material-symbols-rounded" style="color: #475569; font-size: 20px;">date_range</span>
+        </div>
+        <div>
+            <span style="font-weight: 600; color: #1e293b; font-size: 0.95rem; display: block;">Dashboard Range</span>
+        </div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+        <div style="position: relative; display: flex; align-items: center;">
+            <select id="dashboard-filter-period" style="padding: 8px 14px; padding-right: 32px; border: 1px solid #cbd5e1; border-radius: 8px; background: #f8fafc; font-size: 0.9rem; color: #334155; font-weight: 500; outline: none; cursor: pointer; transition: all 0.2s ease;">
+                <option value="today">Today</option>
+                <option value="this_week">This Week</option>
+                <option value="this_month" selected>This Month</option>
+                <option value="last_month">Last Month</option>
+                <option value="this_year">This Year</option>
+                <option value="custom">Custom Range...</option>
+                <option value="all_time">All Time</option>
+            </select>
+        </div>
+
+        <div id="custom-date-inputs" style="display: none; align-items: center; gap: 8px; background: #f8fafc; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 8px;">
+            <input type="date" id="custom-start-date" style="padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem; background: #fff; color: #334155; outline: none;">
+            <span style="color: #64748b; font-size: 0.85rem; font-weight: 500;">to</span>
+            <input type="date" id="custom-end-date" style="padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem; background: #fff; color: #334155; outline: none;">
+            <button id="apply-custom-date" style="padding: 7px 14px; background: #0f172a; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: background 0.2s ease;">Apply</button>
+        </div>
+    </div>
+
+</div>
+
 <div class="dashboard-grid-layout">
     <div class="stat-card overall-income-card">
         <div class="stat-icon emerald"><span class="material-symbols-rounded">account_balance_wallet</span></div>
@@ -104,11 +138,20 @@
             </div>
         </div>
 
-        <div class="stat-card">
+        <div class="stat-card" style="display: flex; align-items: center;">
             <div class="stat-icon green"><span class="material-symbols-rounded">calendar_month</span></div>
-            <div class="stat-info">
-                <span class="stat-label">Total Rentals Income</span>
-                <span class="stat-value" id="val-total-rentals">₱0</span>
+            <div class="stat-info" style="display: flex !important; flex-direction: row !important; justify-content: space-between !important; align-items: center !important; width: 100%; gap: 15px;">
+                
+                <div style="flex: 1; min-width: 0;">
+                    <span class="stat-label" style="display: block; font-size: 0.8rem; font-weight: 600; color: #475569;">Total Rentals Income</span>
+                    <span class="stat-value" id="val-total-rentals" style="font-size: 1.25rem; font-weight: 700; color: #0f172a;">₱0</span>
+                </div>
+                
+                <div style="flex: 1; min-width: 0; text-align: right; border-left: 2px solid #cbd5e1; padding-left: 15px;">
+                    <span style="font-size: 0.8rem; font-weight: 600; display: block; color: #475569;">Rental Income</span>
+                    <strong id="val-rental-share" style="color:#059669; font-size: 1.25rem; font-weight: 700;">0%</strong>
+                </div>
+
             </div>
         </div>
         
