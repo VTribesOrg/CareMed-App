@@ -382,12 +382,20 @@ body.ready .viewport-container {
     margin: 0;
 }
 
+@media (max-width: 768px) {
+    .system-header {
+        padding: 0 12px;
+    }
+    .system-header h1 {
+        font-size: 1rem;
+    }
+}
 /*-------------------------- END OF TOP HEADER --------------------------------------*/
 
 /*------------------------ START OF USER AVATAR STYLE ----------------------*/
 
 .user-avatar {
-    width: 44px;         
+    width: 44px;        
     height: 44px;
     background-color: #f8fafc; 
     border: 1.5px solid #e2e8f0; 
@@ -408,7 +416,7 @@ body.ready .viewport-container {
 
 .user-avatar .material-symbols-rounded {
     color: #64748b;      
-    font-size: 32px;     
+    font-size: 32px;    
     display: block;
     user-select: none;
     line-height: 1;
@@ -429,6 +437,12 @@ body.ready .viewport-container {
     display: flex;
     align-items: center;
     gap: 20px;
+}
+
+@media (max-width: 768px) {
+    .header-actions {
+        gap: 10px;
+    }
 }
 
 .action-item {
@@ -482,6 +496,12 @@ body.ready .viewport-container {
 
 .user-info {
     text-align: right;
+}
+
+@media (max-width: 768px) {
+    .user-info {
+        display: none; /* Hide text on small screens, keep avatar */
+    }
 }
 
 .user-name {
@@ -566,8 +586,6 @@ body.ready .viewport-container {
 
 
 
-
-
 /*=================================== START OF MAIN CONTENT ===================================*/
 .content-area {
     padding: 24px;
@@ -578,6 +596,13 @@ body.ready .viewport-container {
     display: flex;
     flex-direction: column;
 }
+
+@media (max-width: 768px) {
+    .content-area {
+        padding: 12px;
+    }
+}
+
 .dashboard-grid-layout {
     display: grid;
     grid-template-columns: 320px 1fr;
@@ -587,7 +612,7 @@ body.ready .viewport-container {
     margin-bottom: 20px;
 }
 
-
+/* Overall Income Card Base */
 .overall-income-card {
     grid-row: span 2;
     height: 100%;
@@ -595,10 +620,9 @@ body.ready .viewport-container {
     flex-direction: row !important;
     align-items: center;
     gap: 16px;
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-    border: 2px solid #e2e8f0;
+    background: linear-gradient(135deg, #fefce8 0%, #fef9c3 100%);
+    border: 2px solid #fde047;
 }
-
 
 .right-cards-grid {
     display: grid;
@@ -612,7 +636,6 @@ body.ready .viewport-container {
     background-color: #ecfdf5;
     color: #10b981;
 }
-
 
 @media (max-width: 1200px) {
     .right-cards-grid {
@@ -655,7 +678,43 @@ body.ready .viewport-container {
     box-sizing: border-box;
     min-width: 0 !important;
     width: 100% !important;
-    box-sizing: border-box !important;
+}
+
+/* Specific Card Base Color Mapping */
+/* 1. Total Profit Sold (Yellow Card) */
+.right-cards-grid .stat-card:nth-child(1) {
+    background: linear-gradient(135deg, #fef9c3 0%, #fef08a 100%);
+    border-color: #facc15;
+}
+
+/* 2. Total Refill Income (Green Card) */
+.right-cards-grid .stat-card:nth-child(2) {
+    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+    border-color: #4ade80;
+}
+
+/* 3. Total Rentals Income (Blue Card) */
+.right-cards-grid .stat-card:nth-child(3) {
+    background: linear-gradient(135deg, #e0f2fe55 0%, #bae6fd88 100%);
+    border-color: #7dd3fc;
+}
+
+/* 4. Total Expenses (Light Red Card) */
+.right-cards-grid .stat-card:nth-child(4) {
+    background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%);
+    border-color: #fecdd3;
+}
+
+/* 5. Active Rentals Units (Light Green Card) */
+.right-cards-grid .stat-card:nth-child(5) {
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    border-color: #bbf7d0;
+}
+
+/* 6. Total Inventory (Light Blue Card) */
+.right-cards-grid .stat-card:nth-child(6) {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    border-color: #bae6fd;
 }
 
 @media (max-width: 900px) {
@@ -670,8 +729,6 @@ body.ready .viewport-container {
     transform: translateY(-4px);
     box-shadow: 0 10px 25px -5px rgba(0, 35, 71, 0.08);
 }
-
-
 
 .stat-icon {
     width: 48px;
@@ -1172,3 +1229,5 @@ body.ready .viewport-container {
 /*================== END OF MESSAGE NOTIFICATION ==================*/
 
 /*================================== END OF MAIN CONTENT==================================*/
+
+
