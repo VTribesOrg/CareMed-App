@@ -585,7 +585,6 @@ body.ready .viewport-container {
 /*----------------------------- END OF TOP HEADER -----------------------------------------*/
 
 
-
 /*=================================== START OF MAIN CONTENT ===================================*/
 .content-area {
     padding: 24px;
@@ -678,6 +677,7 @@ body.ready .viewport-container {
     box-sizing: border-box;
     min-width: 0 !important;
     width: 100% !important;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 /* Specific Card Base Color Mapping */
@@ -715,6 +715,24 @@ body.ready .viewport-container {
 .right-cards-grid .stat-card:nth-child(6) {
     background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
     border-color: #bae6fd;
+}
+
+/* 7. Customer Deposits (Cyan/Teal Gradient Card) */
+.right-cards-grid .stat-card:nth-child(7) {
+    background: linear-gradient(135deg, #ecfeff 0%, #cffafe 100%);
+    border-color: #67e8f9;
+}
+
+/* 8. Tracking Freight (Indigo/Purple Gradient Card) */
+.right-cards-grid .stat-card:nth-child(8) {
+    background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+    border-color: #c4b5fd;
+}
+
+/* 9. Total Commission (Soft Orange/Amber Gradient Card) */
+.right-cards-grid .stat-card:nth-child(9) {
+    background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+    border-color: #fdba74;
 }
 
 @media (max-width: 900px) {
@@ -758,6 +776,11 @@ body.ready .viewport-container {
 .stat-icon.red {
     background: #fef2f2;
     color: #ef4444;
+}
+
+.stat-icon.purple {
+    background: #f3e8ff;
+    color: #9333ea;
 }
 
 .stat-info {
@@ -973,8 +996,6 @@ body.ready .viewport-container {
     flex-shrink: 0;
     font-variation-settings: 'FILL' 0, 'wght' 500, 'GRAD' 0, 'opsz' 14;
 }
-
-
 
 /*====================== START OF Oxygen Request Modal ======================*/
 .oxygen-request-overlay {

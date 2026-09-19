@@ -117,11 +117,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 const valTotalRentals = document.getElementById("val-total-rentals");
                 if (valTotalRentals) valTotalRentals.innerText = "₱" + data.total_rentals.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
 
-                // Integration for Rental Percentage Share
+                // Integration for Rental Income (Total Rentals Income * 30%)
                 const valRentalShare = document.getElementById("val-rental-share");
+                let rentalIncomeValue = 0;
                 if (valRentalShare) {
-                    const rentalPercentage = overallIncome > 0 ? ((data.total_rentals / overallIncome) * 100).toFixed(1) : 0;
-                    valRentalShare.innerText = `${rentalPercentage}%`;
+                    rentalIncomeValue = (data.total_rentals || 0) * 0.30;
+                    valRentalShare.innerText = "₱" + rentalIncomeValue.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                }
+
+                // Integration for Total Commission Calculation
+                const valTotalCommission = document.getElementById("val-total-commission");
+                if (valTotalCommission) {
+                    const refillBonus = (data.total_refills_count || 0) * 100;
+                    const salesCommission = (data.total_sales || 0) * 0.50;
+                    const totalCommission = rentalIncomeValue + refillBonus + salesCommission;
+
+                    valTotalCommission.innerText = "₱" + totalCommission.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
                 }
 
                 const valTotalExpenses = document.getElementById("val-total-expenses");
@@ -132,6 +143,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const valTotalInventory = document.getElementById("val-total-inventory");
                 if (valTotalInventory) valTotalInventory.innerText = data.total_inventory;
+
+                // Populate Customer Deposits 
+                const valCustomerDeposits = document.getElementById("val-customer-deposits");
+                if (valCustomerDeposits) {
+                    valCustomerDeposits.innerText = "₱" + Number(data.customer_deposits || 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                }
+
+                // Populate Tracking Freight 
+                const valTrackingFreight = document.getElementById("val-tracking-freight");
+                if (valTrackingFreight) {
+                    valTrackingFreight.innerText = data.tracking_freight || 0;
+                }
 
                 const valLowStockContainer = document.getElementById("val-low-stock");
                 const valLowStockCount = document.getElementById("val-low-stock-count");

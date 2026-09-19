@@ -49,7 +49,7 @@
                                    data-name="{{ cust.full_name }}"
                                    data-search-string="{{ cust.full_name|lower }} {{ cust.user.email|lower if cust.user else '' }}"
                                    style="padding: 10px 12px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; border-bottom: 1px solid #f1f5f9;">
-                                 
+                               
                                     <strong class="cust-name-text" style="font-size: 0.9rem; color: #1e293b; font-weight: 600;">
                                         {{ cust.full_name }}
                                     </strong>
@@ -192,6 +192,11 @@
                     <div class="form-field" style="margin-bottom: 0;">
                         <label>Amount Paid (₱)</label>
                         <input type="number" id="rent-amount-paid" name="amount_paid" class="clinical-input" step="0.01" value="0.00" placeholder="e.g. Deposit or 1st month">
+                    </div>
+
+                    <div class="form-field" style="margin-bottom: 0;">
+                        <label>Customer Deposit (₱)</label>
+                        <input type="number" id="rent-customer-deposit" name="customer_deposit" class="clinical-input" step="0.01" value="0.00" placeholder="Refundable deposit">
                     </div>
                 </div>
 

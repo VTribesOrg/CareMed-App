@@ -123,13 +123,11 @@
             <div class="stat-icon purple"><span class="material-symbols-rounded">water_drop</span></div>
             <div class="stat-info" style="display: flex !important; flex-direction: row !important; justify-content: space-between !important; align-items: center !important; width: 100%; gap: 15px;">
                 
-                <!-- Left Side: Total Refill Income -->
                 <div style="flex: 1; min-width: 0;">
                     <span class="stat-label" style="display: block; font-size: 0.8rem; font-weight: 600; color: #475569;">Total Refill Income</span>
                     <span class="stat-value" id="val-total-refill-income" style="font-size: 1.25rem; font-weight: 700; color: #0f172a;">₱0</span>
                 </div>
                 
-                <!-- Right Side: Total Tanks Refilled -->
                 <div style="flex: 1; min-width: 0; text-align: right; border-left: 2px solid #cbd5e1; padding-left: 15px;">
                     <span style="font-size: 0.8rem; font-weight: 600; display: block; color: #475569;">Total Tanks Refilled</span>
                     <strong id="val-total-refills-count" style="color:#7c3aed; font-size: 1.25rem; font-weight: 700;">0</strong>
@@ -148,13 +146,13 @@
                 </div>
                 
                 <div style="flex: 1; min-width: 0; text-align: right; border-left: 2px solid #cbd5e1; padding-left: 15px;">
-                    <span style="font-size: 0.8rem; font-weight: 600; display: block; color: #475569;">Rental Income</span>
+                    <span style="font-size: 0.8rem; font-weight: 600; display: block; color: #475569;">30% of Rental Income</span>
                     <strong id="val-rental-share" style="color:#059669; font-size: 1.25rem; font-weight: 700;">0%</strong>
                 </div>
 
             </div>
         </div>
-        
+
         <div class="stat-card">
             <div class="stat-icon orange"><span class="material-symbols-rounded">receipt_long</span></div>
             <div class="stat-info">
@@ -176,7 +174,43 @@
             <div class="stat-info">
                 <span class="stat-label">Total Inventory</span>
                 <span class="stat-value" id="val-total-inventory">0</span>
-                <!-- <small style="color:#10b981;" id="val-low-stock"><span id="val-low-stock-count">0</span> Loading stock...</small> -->
+            </div>
+        </div>
+
+        <!-- Customer Deposit Card -->
+        <div class="stat-card">
+            <div class="stat-icon blue"><span class="material-symbols-rounded">lock</span></div>
+            <div class="stat-info">
+                <span class="stat-label">Customer Deposits</span>
+                <span class="stat-value" id="val-customer-deposits">₱0</span>
+                <small style="color: #64748b; display: block; margin-top: 2px;">Active refundable deposits</small>
+            </div>
+        </div>
+
+        <!-- Tracking Freight Card -->
+        <div class="stat-card">
+            <div class="stat-icon purple"><span class="material-symbols-rounded">local_shipping</span></div>
+            <div class="stat-info">
+                <span class="stat-label">Tracking Freight</span>
+                <span class="stat-value" id="val-tracking-freight">0</span>
+                <small style="color: #64748b; display: block; margin-top: 2px;">Active shipments in transit</small>
+            </div>
+        </div>
+
+        <div class="stat-card" style="display: flex; align-items: center;">
+            <div class="stat-icon purple"><span class="material-symbols-rounded">request_quote</span></div>
+            <div class="stat-info" style="display: flex !important; flex-direction: row !important; justify-content: space-between !important; align-items: center !important; width: 100%; gap: 15px;">
+                
+                <div style="flex: 1; min-width: 0;">
+                    <span class="stat-label" style="display: block; font-size: 0.8rem; font-weight: 600; color: #475569;">Total Commission</span>
+                    <span class="stat-value" id="val-total-commission" style="font-size: 1.25rem; font-weight: 700; color: #0f172a;">₱0</span>
+                </div>
+                
+                <div style="flex: 1; min-width: 0; text-align: right; border-left: 2px solid #cbd5e1; padding-left: 15px;">
+                    <span style="font-size: 0.8rem; font-weight: 600; display: block; color: #475569;">Formula Breakdown</span>
+                    <span style="font-size: 0.65rem; color: #64748b; display: block; line-height: 1.2;">30% Rental + Refills×100 + 50% Sales</span>
+                </div>
+
             </div>
         </div>
     </div>
@@ -239,7 +273,6 @@
         </div>
     </div>
 </div>
-
 
 {% endblock %}
 

@@ -5,7 +5,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy import func, or_, and_
 from flask_login import login_required
 from functools import wraps
-from models.product import Product, InventoryLog, Transaction, Purchase, Payment, Rental, RentalInvoice, Expense, PaymentProof, TankStatus, RentalTank, RentalTankLog
+from models.product import Product, InventoryLog, Transaction, Purchase, Payment, Rental, RentalInvoice, Expense, PaymentProof, TankStatus, RentalTank, RentalTankLog, CustomerDeposit
 from models.customer import Customer
 from models.users import User, SecurityLog, BlockedIP, Permission
 from flask_mail import Message
@@ -295,6 +295,19 @@ def dashboard_data():
 
         active_rentals_count = Rental.query.filter_by(status="Active").count() or 0
 
+        # Calculate active customer deposits (status == 'Held')
+        customer_deposits_total = db.session.query(
+            func.coalesce(func.sum(CustomerDeposit.amount), Decimal("0.00"))
+        ).filter(CustomerDeposit.status == "Held").scalar() or 0.00
+
+        # Calculate active tracking freight shipments in transit (adjust model name if necessary, e.g., Freight/Shipment)
+        tracking_freight_count = 0
+        if 'Freight' in globals() or 'Freight' in locals():
+            tracking_freight_count = Freight.query.filter(Freight.status.in_(["In Transit", "Pending"])).count() or 0
+        elif hasattr(db.Model, '_class_registry') and 'Freight' in db.Model._class_registry:
+            freight_model = db.Model._class_registry['Freight']
+            tracking_freight_count = freight_model.query.filter(freight_model.status.in_(["In Transit", "Pending"])).count() or 0
+
         expenses_query = db.session.query(
             func.coalesce(func.sum(Expense.amount), 0)
         )
@@ -304,7 +317,6 @@ def dashboard_data():
             expenses_query = apply_date_filter(expenses_query, Expense.date)
         total_expenses = expenses_query.scalar() or 0.0
 
-  
         product_stats = (
             db.session.query(
                 func.coalesce(func.sum(Product.stock), 0),
@@ -404,6 +416,8 @@ def dashboard_data():
             "total_refills_count": int(total_refills_count),
             "active_rentals_count": int(active_rentals_count),
             "total_inventory": int(total_inventory),
+            "customer_deposits": float(customer_deposits_total),
+            "tracking_freight": int(tracking_freight_count),
             "low_stock_count": int(low_stock_count),
             "total_expenses": float(total_expenses),
             "tank_statuses": combined_tank_statuses,
@@ -1846,6 +1860,23 @@ def process_rental():
             flash("Invalid numeric input for amount paid.", "danger")
             return redirect(request.referrer or url_for('admin.transactions'))
 
+        if amount_paid < 0:
+            flash("Amount paid cannot be negative.", "danger")
+            return redirect(request.referrer or url_for('admin.transactions'))
+
+        try:
+            raw_customer_deposit = request.form.get('customer_deposit')
+            if isinstance(raw_customer_deposit, list):
+                raw_customer_deposit = raw_customer_deposit[0]
+            customer_deposit = Decimal(str(raw_customer_deposit or '0').replace(',', '') or '0')
+        except (ValueError, TypeError, InvalidOperation):
+            flash("Invalid numeric input for customer deposit.", "danger")
+            return redirect(request.referrer or url_for('admin.transactions'))
+
+        if customer_deposit < 0:
+            flash("Customer deposit cannot be negative.", "danger")
+            return redirect(request.referrer or url_for('admin.transactions'))
+
         try:
             raw_voucher = request.form.get('voucher_amount') or request.form.get('voucher') or request.form.get('discount') or '0'
             if isinstance(raw_voucher, list):
@@ -1942,7 +1973,7 @@ def process_rental():
 
         new_txn = Transaction(
             reference_no=ref_no,
-            customer_id=customer_id,
+            customer_id=int(customer_id) if customer_id else None,
             customer_name=display_name,
             processed_by=current_user.id,
             transaction_type="Rental",
@@ -1952,6 +1983,7 @@ def process_rental():
             fulfillment_type=fulfillment_type,
             has_initial_fill=has_initial_fill,
             initial_fill_cost=initial_fill_cost,
+            deposit_amount=customer_deposit,
             status="Open"
         )
 
@@ -2088,7 +2120,6 @@ def process_rental():
         for r in rentals:
             r.generate_monthly_invoices()
 
-        # FIX 1: Flush immediately so new invoices get their IDs assigned
         db.session.flush()
 
         all_invoices = []
@@ -2099,19 +2130,17 @@ def process_rental():
         new_txn.update_totals() 
         db.session.expire(new_txn, ['payments'])
 
-        total_payment_to_allocate = amount_paid
+        pm_raw = request.form.get('payment_method', 'Cash')
+        if isinstance(pm_raw, list):
+            pm_raw = pm_raw[0]
+        payment_method = (pm_raw or 'Cash').strip()
+        
+        ref_num_raw = request.form.get('reference_number', '')
+        if isinstance(ref_num_raw, list):
+            ref_num_raw = ref_num_raw[0]
+        reference_number = (ref_num_raw or '').strip()
 
-        if total_payment_to_allocate > 0:
-            pm_raw = request.form.get('payment_method', 'Cash')
-            if isinstance(pm_raw, list):
-                pm_raw = pm_raw[0]
-            payment_method = (pm_raw or 'Cash').strip()
-            
-            ref_num_raw = request.form.get('reference_number', '')
-            if isinstance(ref_num_raw, list):
-                ref_num_raw = ref_num_raw[0]
-            reference_number = (ref_num_raw or '').strip()
-
+        if amount_paid > 0 or customer_deposit > 0:
             if payment_method.lower() == "cash":
                 reference_number = None
             else:
@@ -2129,11 +2158,37 @@ def process_rental():
                     flash("Payment reference number already exists.", "danger")
                     return redirect(request.referrer or url_for('admin.transactions'))
 
-            new_txn.payment_method = payment_method
-            remaining = total_payment_to_allocate
+        new_txn.payment_method = payment_method
 
+        # 1. Add to generic Payment ledger (as a Deposit type)
+        if customer_deposit > 0:
+            db.session.add(Payment(
+                transaction_id=new_txn.id,
+                invoice_id=None,
+                payment_type="Deposit",
+                amount=customer_deposit,
+                payment_method=payment_method,
+                reference_number=reference_number,
+                status="Completed",
+                verified_by_id=current_user.id,
+                verified_at=datetime.utcnow()
+            ))
+
+            # 2. ALSO explicitly populate the CustomerDeposit model table
+            if new_txn.customer_id:
+                db.session.add(CustomerDeposit(
+                    customer_id=new_txn.customer_id,
+                    transaction_id=new_txn.id,
+                    amount=customer_deposit,
+                    status="Held",
+                    notes=f"Deposit collected via transaction {ref_no}"
+                ))
+
+        remaining_payment = amount_paid
+
+        if remaining_payment > 0:
             if has_initial_fill and initial_fill_cost > 0:
-                fill_pay_amount = min(remaining, initial_fill_cost)
+                fill_pay_amount = min(remaining_payment, initial_fill_cost)
                 if fill_pay_amount > 0:
                     db.session.add(Payment(
                         transaction_id=new_txn.id,
@@ -2146,12 +2201,12 @@ def process_rental():
                         verified_by_id=current_user.id,
                         verified_at=datetime.utcnow()
                     ))
-                    remaining -= fill_pay_amount
+                    remaining_payment -= fill_pay_amount
 
             for inv in all_invoices:
-                if remaining <= 0:
+                if remaining_payment <= 0:
                     break
-                pay_amount = min(remaining, Decimal(str(inv.amount_due or 0)))
+                pay_amount = min(remaining_payment, Decimal(str(inv.amount_due or 0)))
                 if pay_amount > 0:
                     db.session.add(Payment(
                         transaction_id=new_txn.id,
@@ -2168,20 +2223,30 @@ def process_rental():
                         inv.status = "Paid"
                     else:
                         inv.status = "Partially Paid"
-                    remaining -= pay_amount
+                    remaining_payment -= pay_amount
 
-            if remaining > 0:
+            if remaining_payment > 0:
+                overpay_deposit = remaining_payment
                 db.session.add(Payment(
                     transaction_id=new_txn.id,
                     invoice_id=None,
                     payment_type="Deposit",
-                    amount=remaining,
+                    amount=overpay_deposit,
                     payment_method=payment_method,
                     reference_number=reference_number,
                     status="Completed",
                     verified_by_id=current_user.id,
                     verified_at=datetime.utcnow()
                 ))
+                
+                if new_txn.customer_id:
+                    db.session.add(CustomerDeposit(
+                        customer_id=new_txn.customer_id,
+                        transaction_id=new_txn.id,
+                        amount=overpay_deposit,
+                        status="Held",
+                        notes=f"Overpayment recorded as deposit via transaction {ref_no}"
+                    ))
 
         db.session.flush()
         db.session.expire(new_txn, ['payments'])
@@ -3094,9 +3159,13 @@ def process_return(txn_id):
     return_notes = request.form.get('return_notes', '').strip()
     raw_late_fees = request.form.get('late_fees', '0')
     payment_method = request.form.get('payment_method', 'Cash')
+    
+    # New deposit refund parameters from the form
+    refund_deposit = request.form.get('refund_deposit') == 'yes'
+    raw_deposit_refund = request.form.get('deposit_refund_amount', '0')
 
-    if not returned_item_ids:
-        flash("No items were selected to return.", "warning")
+    if not returned_item_ids and not refund_deposit:
+        flash("No items or deposit refund actions were selected.", "warning")
         return redirect(url_for('admin.transaction_details', id=txn.id))
 
     try:
@@ -3105,9 +3174,15 @@ def process_return(txn_id):
         late_fees = Decimal('0.00')
 
     try:
+        deposit_refund_amount = Decimal(str(raw_deposit_refund))
+    except (InvalidOperation, ValueError, TypeError):
+        deposit_refund_amount = Decimal('0.00')
+
+    try:
         user_display_name = f"{current_user.first_name} {current_user.last_name}"
         items_processed = 0
 
+        # Process equipment/item returns if any are checked
         for item_id in returned_item_ids:
             rental = Rental.query.get(int(item_id))
             if not rental or rental.transaction_id != txn.id:
@@ -3162,6 +3237,7 @@ def process_return(txn_id):
                 ))
                 items_processed += 1
 
+        # Handle Late Fees payment logging if applicable
         if late_fees > 0:
             payment = Payment(
                 transaction_id=txn.id,
@@ -3172,13 +3248,36 @@ def process_return(txn_id):
             )
             db.session.add(payment)
 
-        if all(r.status == 'Returned' for r in txn.rentals):
+        # Handle Customer Deposit Refund logic
+        if refund_deposit and deposit_refund_amount > 0:
+            # Query and update active held deposits linked to this transaction or user
+            held_deposits = CustomerDeposit.query.filter_by(transaction_id=txn.id, status='Held').all()
+            for deposit in held_deposits:
+                deposit.status = 'Refunded'
+                db.session.add(deposit)
+            
+            # Optionally, log the deposit payout as a negative payment/outflow if your ledger handles it
+            deposit_payout = Payment(
+                transaction_id=txn.id,
+                amount=deposit_refund_amount,
+                payment_method=payment_method,
+                payment_type="Deposit Refund",
+                status="Completed",
+            )
+            db.session.add(deposit_payout)
+
+        # Check if all rentals are returned to close the transaction
+        if txn.rentals and all(r.status == 'Returned' for r in txn.rentals):
             txn.status = 'Closed'
 
         txn.update_totals()
 
         db.session.commit()
-        flash(f"Successfully processed return for {items_processed} item(s).", "success")
+        
+        success_msg = f"Successfully processed return for {items_processed} item(s)."
+        if refund_deposit and deposit_refund_amount > 0:
+            success_msg += f" Deposit refund of ₱{deposit_refund_amount:.2f} processed."
+        flash(success_msg, "success")
 
     except Exception as e:
         db.session.rollback()
@@ -3186,6 +3285,8 @@ def process_return(txn_id):
         flash("An error occurred while saving the return.", "danger")
 
     return redirect(url_for('admin.transaction_details', id=txn.id))
+
+
 @admin_bp.route('/process-primegas', methods=['POST'])
 @login_required
 @admin_or_staff_required
