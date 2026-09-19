@@ -3159,8 +3159,7 @@ def process_return(txn_id):
     return_notes = request.form.get('return_notes', '').strip()
     raw_late_fees = request.form.get('late_fees', '0')
     payment_method = request.form.get('payment_method', 'Cash')
-    
-    # New deposit refund parameters from the form
+  
     refund_deposit = request.form.get('refund_deposit') == 'yes'
     raw_deposit_refund = request.form.get('deposit_refund_amount', '0')
 
@@ -3182,7 +3181,6 @@ def process_return(txn_id):
         user_display_name = f"{current_user.first_name} {current_user.last_name}"
         items_processed = 0
 
-        # Process equipment/item returns if any are checked
         for item_id in returned_item_ids:
             rental = Rental.query.get(int(item_id))
             if not rental or rental.transaction_id != txn.id:
@@ -3237,7 +3235,6 @@ def process_return(txn_id):
                 ))
                 items_processed += 1
 
-        # Handle Late Fees payment logging if applicable
         if late_fees > 0:
             payment = Payment(
                 transaction_id=txn.id,
@@ -3248,15 +3245,12 @@ def process_return(txn_id):
             )
             db.session.add(payment)
 
-        # Handle Customer Deposit Refund logic
         if refund_deposit and deposit_refund_amount > 0:
-            # Query and update active held deposits linked to this transaction or user
             held_deposits = CustomerDeposit.query.filter_by(transaction_id=txn.id, status='Held').all()
             for deposit in held_deposits:
                 deposit.status = 'Refunded'
                 db.session.add(deposit)
-            
-            # Optionally, log the deposit payout as a negative payment/outflow if your ledger handles it
+
             deposit_payout = Payment(
                 transaction_id=txn.id,
                 amount=deposit_refund_amount,
@@ -3266,7 +3260,6 @@ def process_return(txn_id):
             )
             db.session.add(deposit_payout)
 
-        # Check if all rentals are returned to close the transaction
         if txn.rentals and all(r.status == 'Returned' for r in txn.rentals):
             txn.status = 'Closed'
 

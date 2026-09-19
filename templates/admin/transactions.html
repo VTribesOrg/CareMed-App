@@ -350,19 +350,22 @@
                                 <span class="material-symbols-rounded">visibility</span>
                             </a>
                             
-                            {% if txn.status|lower != 'cancelled' and txn.tracking_status|lower != 'cancelled' %}
-                                <div class="action-dropdown">
-                                    <button type="button" class="asset-action-btn more-trigger" title="More Actions" style="background: none; border: none; cursor: pointer; padding: 4px; color: #64748b; display: flex; align-items: center;">
-                                        <span class="material-symbols-rounded">more_vert</span>
+                            {% set is_cancelled = (txn.status|lower == 'cancelled' or txn.tracking_status|lower == 'cancelled') %}
+                            <div class="action-dropdown">
+                                <button type="button" class="asset-action-btn more-trigger" title="More Actions" 
+                                        style="background: none; border: none; {% if is_cancelled %}cursor: not-allowed; opacity: 0.5;{% else %}cursor: pointer;{% endif %} padding: 4px; color: #64748b; display: flex; align-items: center; gap: 2px;"
+                                        {% if is_cancelled %}disabled{% endif %}>
+                                    <span class="material-symbols-rounded">more_vert</span>
+                                </button>
+                                
+                                {% if not is_cancelled %}
+                                <div class="dropdown-menu">
+                                    <button type="button" class="dropdown-item text-danger cancel-txn-btn" data-id="{{ txn.id }}" data-type="{{ txn.transaction_type }}">
+                                        <span class="material-symbols-rounded" style="font-size: 16px;">cancel</span> Cancel {{ txn.transaction_type or 'Transaction' }}
                                     </button>
-                                    
-                                    <div class="dropdown-menu">
-                                        <button type="button" class="dropdown-item text-danger cancel-txn-btn" data-id="{{ txn.id }}" data-type="{{ txn.transaction_type }}">
-                                            <span class="material-symbols-rounded" style="font-size: 16px;">cancel</span> Cancel {{ txn.transaction_type or 'Transaction' }}
-                                        </button>
-                                    </div>
                                 </div>
-                            {% endif %}
+                                {% endif %}
+                            </div>
                         </div>
                     </td>
                 </tr>
