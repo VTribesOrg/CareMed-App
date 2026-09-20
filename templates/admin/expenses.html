@@ -108,7 +108,7 @@
     <select name="category" class="exp-select">
         <option value="">All Categories</option>
         <optgroup label="── Cost of Sales">
-            {% for cat in ['PRIMEGAS','Equipment Purchase','Medical Supplies Purchase','Inventory Purchase'] %}
+            {% for cat in ['PRIMEGAS','Equipment Purchase','Medical Supplies Purchase','Inventory Purchase','Freight'] %}
             <option value="{{ cat }}" {{ 'selected' if cat == category_filter }}>{{ cat }}</option>
             {% endfor %}
         </optgroup>
@@ -142,7 +142,7 @@
     <select name="category" class="exp-select">
         <option value="">All Categories</option>
         <optgroup label="── Cost of Sales">
-            {% for cat in ['PRIMEGAS','Equipment Purchase','Medical Supplies Purchase','Inventory Purchase'] %}
+            {% for cat in ['PRIMEGAS','Equipment Purchase','Medical Supplies Purchase','Inventory Purchase','Freight'] %}
             <option value="{{ cat }}" {{ 'selected' if cat == category_filter }}>{{ cat }}</option>
             {% endfor %}
         </optgroup>
@@ -356,8 +356,8 @@
                                     <span class="material-symbols-rounded">edit</span>
                                 </button>
                                 <form action="{{ url_for('admin.delete_expense', expense_id=exp.id) }}"
-                                    method="POST"
-                                    onsubmit="return confirm('Delete this expense? This cannot be undone.')">
+                                      method="POST"
+                                      onsubmit="return confirm('Delete this expense? This cannot be undone.')">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button type="submit" class="btn-exp-action btn-del-exp" title="Delete">
                                         <span class="material-symbols-rounded">delete</span>
@@ -406,7 +406,7 @@
 </div>
 
 {# ══════════════════════════════════════════════════════════
-   ADD EXPENSE MODAL
+    ADD EXPENSE MODAL
    ══════════════════════════════════════════════════════════ #}
 <div class="exp-modal-overlay" id="addExpenseModal">
     <div class="exp-modal">
@@ -434,6 +434,7 @@
                                 <option value="Equipment Purchase">Equipment Purchase</option>
                                 <option value="Medical Supplies Purchase">Medical Supplies Purchase</option>
                                 <option value="Inventory Purchase">Inventory Purchase</option>
+                                <option value="Freight">Freight</option>
                             </optgroup>
                             <optgroup label="Operating Expenses">
                                 <option value="Utilities">Utilities</option>
@@ -494,7 +495,7 @@
 </div>
 
 {# ══════════════════════════════════════════════════════════
-   EDIT EXPENSE MODAL
+    EDIT EXPENSE MODAL
    ══════════════════════════════════════════════════════════ #}
 <div class="exp-modal-overlay" id="editExpenseModal">
     <div class="exp-modal">
@@ -520,6 +521,7 @@
                                 <option value="Equipment Purchase">Equipment Purchase</option>
                                 <option value="Medical Supplies Purchase">Medical Supplies Purchase</option>
                                 <option value="Inventory Purchase">Inventory Purchase</option>
+                                <option value="Freight">Freight</option>
                             </optgroup>
                             <optgroup label="Operating Expenses">
                                 <option value="Utilities">Utilities</option>

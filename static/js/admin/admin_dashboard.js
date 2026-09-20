@@ -75,9 +75,14 @@ document.addEventListener('DOMContentLoaded', () => {
         fetch(url)
             .then(response => response.json())
             .then(data => {
-                // Compute overall metrics dynamically
-                const overallIncome = data.total_sales + data.total_rentals + data.total_refill_income;
-                const netProfit = overallIncome - data.total_expenses;
+                // Calculate Freight-adjusted Sales (Total Sales minus Total Freight Expense)
+                const rawSales = data.total_sales || 0;
+                const freightExpense = data.total_freight !== undefined ? data.total_freight : 0;
+                const adjustedSales = rawSales - freightExpense;
+
+                // Compute overall metrics dynamically using the adjusted sales
+                const overallIncome = adjustedSales + (data.total_rentals || 0) + (data.total_refill_income || 0);
+                const netProfit = overallIncome - (data.total_expenses || 0);
 
                 // Update Stat Cards
                 const valOverallIncome = document.getElementById("val-overall-income");
@@ -95,7 +100,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 const valTotalSales = document.getElementById("val-total-sales");
-                if (valTotalSales) valTotalSales.innerText = "₱" + data.total_sales.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                if (valTotalSales) {
+                    if (adjustedSales >= 0) {
+                        valTotalSales.innerText = "₱" + adjustedSales.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                    } else {
+                        valTotalSales.innerText = "−₱" + Math.abs(adjustedSales).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                    }
+                }
+
+                // Populate the explanatory breakdown subtitle text
+                const valSalesBreakdown = document.getElementById("val-sales-breakdown");
+                if (valSalesBreakdown) {
+                    const formattedGross = "₱" + rawSales.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                    const formattedFreight = "₱" + freightExpense.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                    valSalesBreakdown.innerText = `Gross: ${formattedGross} | Freight: -${formattedFreight}`;
+                }
 
                 const valSalesNet = document.getElementById("val-sales-net");
                 if (valSalesNet) {
@@ -129,7 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const valTotalCommission = document.getElementById("val-total-commission");
                 if (valTotalCommission) {
                     const refillBonus = (data.total_refills_count || 0) * 100;
-                    const salesCommission = (data.total_sales || 0) * 0.50;
+                    const salesCommission = adjustedSales * 0.50;
                     const totalCommission = rentalIncomeValue + refillBonus + salesCommission;
 
                     valTotalCommission.innerText = "₱" + totalCommission.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
@@ -150,7 +169,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     valCustomerDeposits.innerText = "₱" + Number(data.customer_deposits || 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
                 }
 
-                // Populate Tracking Freight 
+                // Populate Total Freight Expense
+                const valTotalFreight = document.getElementById("val-total-freight");
+                if (valTotalFreight) {
+                    valTotalFreight.innerText = "₱" + Number(freightExpense).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                }
+
+                // Populate Tracking Freight (Fallback support)
                 const valTrackingFreight = document.getElementById("val-tracking-freight");
                 if (valTrackingFreight) {
                     valTrackingFreight.innerText = data.tracking_freight || 0;
@@ -222,7 +247,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <tr class="table-empty-row">
                                 <td colspan="5" style="text-align: center; padding: 20px; color: #64748b;">No standard asset records found.</td>
                             </tr>
-                        `;
+                      `;
                     }
                 }
             })

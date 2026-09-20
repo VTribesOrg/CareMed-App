@@ -300,13 +300,17 @@ def dashboard_data():
             func.coalesce(func.sum(CustomerDeposit.amount), Decimal("0.00"))
         ).filter(CustomerDeposit.status == "Held").scalar() or 0.00
 
-        # Calculate active tracking freight shipments in transit (adjust model name if necessary, e.g., Freight/Shipment)
-        tracking_freight_count = 0
-        if 'Freight' in globals() or 'Freight' in locals():
-            tracking_freight_count = Freight.query.filter(Freight.status.in_(["In Transit", "Pending"])).count() or 0
-        elif hasattr(db.Model, '_class_registry') and 'Freight' in db.Model._class_registry:
-            freight_model = db.Model._class_registry['Freight']
-            tracking_freight_count = freight_model.query.filter(freight_model.status.in_(["In Transit", "Pending"])).count() or 0
+        # Calculate total freight expenses filtered by date period
+        freight_expenses_query = db.session.query(
+            func.coalesce(func.sum(Expense.amount), 0)
+        ).filter(Expense.category == 'Freight')
+        
+        if hasattr(Expense, 'created_at'):
+            freight_expenses_query = apply_date_filter(freight_expenses_query, Expense.created_at)
+        elif hasattr(Expense, 'date'):
+            freight_expenses_query = apply_date_filter(freight_expenses_query, Expense.date)
+        
+        total_freight = float(freight_expenses_query.scalar() or 0.0)
 
         expenses_query = db.session.query(
             func.coalesce(func.sum(Expense.amount), 0)
@@ -417,7 +421,7 @@ def dashboard_data():
             "active_rentals_count": int(active_rentals_count),
             "total_inventory": int(total_inventory),
             "customer_deposits": float(customer_deposits_total),
-            "tracking_freight": int(tracking_freight_count),
+            "total_freight": float(total_freight),
             "low_stock_count": int(low_stock_count),
             "total_expenses": float(total_expenses),
             "tank_statuses": combined_tank_statuses,
@@ -429,7 +433,7 @@ def dashboard_data():
         return jsonify({
             "error": "An internal error occurred while processing dashboard analytics. Please try again later."
         }), 500
-        
+          
 @admin_bp.route('/process-refill-transaction', methods=['POST'])
 @login_required
 @admin_or_staff_required

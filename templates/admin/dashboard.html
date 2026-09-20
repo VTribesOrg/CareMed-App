@@ -109,6 +109,7 @@
                 <div style="flex: 1; min-width: 0;">
                     <span class="stat-label" style="display: block; font-size: 0.8rem; font-weight: 600; color: #475569;">Total Profit Sold</span>
                     <span class="stat-value" id="val-total-sales" style="font-size: 1.25rem; font-weight: 700; color: #0f172a;">₱0</span>
+                    <small id="val-sales-breakdown" style="color: #64748b; font-size: 0.7rem; display: block; margin-top: 2px;">Gross: ₱0 | Freight: -₱0</small>
                 </div>
 
                 <div style="flex: 1; min-width: 0; text-align: right; border-left: 2px solid #cbd5e1; padding-left: 15px;">
@@ -177,7 +178,6 @@
             </div>
         </div>
 
-        <!-- Customer Deposit Card -->
         <div class="stat-card">
             <div class="stat-icon blue"><span class="material-symbols-rounded">lock</span></div>
             <div class="stat-info">
@@ -187,13 +187,12 @@
             </div>
         </div>
 
-        <!-- Tracking Freight Card -->
         <div class="stat-card">
             <div class="stat-icon purple"><span class="material-symbols-rounded">local_shipping</span></div>
             <div class="stat-info">
-                <span class="stat-label">Tracking Freight</span>
-                <span class="stat-value" id="val-tracking-freight">0</span>
-                <small style="color: #64748b; display: block; margin-top: 2px;">Active shipments in transit</small>
+                <span class="stat-label">Total Freight Expense</span>
+                <span class="stat-value" id="val-total-freight">₱0.00</span>
+                <small style="color: #64748b; display: block; margin-top: 2px;">Cost of freight incurred</small>
             </div>
         </div>
 
