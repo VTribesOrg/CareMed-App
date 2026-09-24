@@ -12,9 +12,72 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/admin/admin_dashboard.css') }}">
     {% block extra_css %}{% endblock %}
     <style>
+        /* ── Per-branch theme variables ──
+           Populated from the active branch's branding (see the
+           inject_branch_theme context processor). Changing one branch's
+           colors/content here never affects any other branch. */
+        :root {
+            --branch-theme: {{ branch_theme.theme_color }};
+            --branch-accent: {{ branch_theme.accent_color }};
+        }
+
         .medical-sidebar, .viewport-container, .nav-label, .logo-text {
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
+
+        /* ── Active branch badge (system header) ── */
+        .branch-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-right: 12px;
+            padding: 6px 14px;
+            border-radius: 999px;
+            background: color-mix(in srgb, var(--branch-theme) 8%, #ffffff);
+            border: 1px solid color-mix(in srgb, var(--branch-theme) 18%, #ffffff);
+            color: var(--branch-theme);
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            white-space: nowrap;
+        }
+        .branch-badge .branch-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: var(--branch-accent);
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--branch-accent) 30%, transparent);
+            flex-shrink: 0;
+        }
+        .branch-badge .branch-code {
+            margin-left: 2px;
+            padding: 1px 8px;
+            border-radius: 999px;
+            background: var(--branch-theme);
+            color: #ffffff;
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+        }
+        @media (max-width: 640px) {
+            .branch-badge .branch-name { display: none; }
+        }
+
+        /* ── Branch announcement banner ── */
+        .branch-announcement {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 16px 24px 0;
+            padding: 12px 16px;
+            border-radius: 10px;
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            color: #1f2937;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .branch-announcement .material-symbols-rounded { color: var(--branch-accent); }
 
         /* ── Flash Messages ── */
         .flash-wrapper {
@@ -119,7 +182,12 @@
                         <div class="box blue bottom"></div>
                     </div>
                     <div class="nav-label logo-text">
-                        Care<span>Med</span>
+                        {% if branch_theme.logo %}
+                            <img src="{{ url_for('static', filename='uploads/branches/' ~ branch_theme.logo) }}"
+                                 alt="{{ branch_theme.name }}" style="height: 22px;">
+                        {% else %}
+                            Care<span>Med</span>
+                        {% endif %}
                     </div>
                 </div>
                 <label for="sidebar-state" class="nav-toggle-label">
@@ -294,6 +362,14 @@
             <header class="system-header">
                 <h1>{% block page_title %}Admin{% endblock %}</h1>
                 <div class="header-actions">
+
+                    {% if branch_theme.id %}
+                    <div class="branch-badge" title="You are working in {{ branch_theme.branch_name }}">
+                        <span class="branch-dot"></span>
+                        <span class="branch-name">{{ branch_theme.name }}</span>
+                        <span class="branch-code">{{ branch_theme.location_code }}</span>
+                    </div>
+                    {% endif %}
 
                     {% block header_actions %}{% endblock %}
 

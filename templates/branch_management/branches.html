@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Branch Management - CareMed</title>
+    <!-- Font Awesome Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Custom Stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/branches.css') }}">
+</head>
+<body>
+
+    <div class="branch-container">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-stack">
+                    {% for category, message in messages %}
+                        <div class="flash-bar {{ category }}">
+                            <span class="flash-text">{{ message }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- Header Section -->
+        <div class="branch-header">
+            <div>
+                <h2>Branch Management</h2>
+                <p class="subtitle">Manage physical locations, isolated data, and per-branch branding.</p>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-primary" id="openModalBtn">
+                    <i class="fas fa-plus"></i> Add New Branch
+                </button>
+                <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-danger">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
+        </div>
+
+        <!-- Branch List Table Card -->
+        <div class="branch-card">
+            <div class="table-responsive">
+                <table class="branch-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Branch</th>
+                            <th>Location Code</th>
+                            <th>Branding</th>
+                            <th>Records</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if branches %}
+                            {% for branch in branches %}
+                            <tr>
+                                <td>{{ branch.id }}</td>
+                                <td>
+                                    <div class="branch-name-cell">
+                                        {% if branch.brand_logo %}
+                                            <img class="branch-logo-thumb"
+                                                 src="{{ url_for('static', filename='uploads/branches/' ~ branch.brand_logo) }}"
+                                                 alt="{{ branch.display_name }}">
+                                        {% else %}
+                                            <span class="branch-logo-placeholder">
+                                                {{ branch.display_name[:1] | upper }}
+                                            </span>
+                                        {% endif %}
+                                        <div>
+                                            <strong>{{ branch.display_name }}</strong>
+                                            {% if branch.brand_name %}
+                                                <div class="subtitle">{{ branch.branch_name }}</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td><code>{{ branch.location_code }}</code></td>
+                                <td>
+                                    <div class="theme-swatches">
+                                        <span class="swatch" style="background: {{ branch.theme_color }};" title="Theme {{ branch.theme_color }}"></span>
+                                        <span class="swatch" style="background: {{ branch.accent_color }};" title="Accent {{ branch.accent_color }}"></span>
+                                    </div>
+                                    {% if branch.tagline %}
+                                        <div class="subtitle">{{ branch.tagline }}</div>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% set stats = branch_stats.get(branch.id, {}) %}
+                                    <div class="stat-pills">
+                                        <span class="pill" title="Users"><i class="fas fa-user"></i> {{ stats.get('users', 0) }}</span>
+                                        <span class="pill" title="Customers"><i class="fas fa-users"></i> {{ stats.get('customers', 0) }}</span>
+                                        <span class="pill" title="Products"><i class="fas fa-box"></i> {{ stats.get('products', 0) }}</span>
+                                        <span class="pill" title="Transactions"><i class="fas fa-receipt"></i> {{ stats.get('transactions', 0) }}</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge {% if branch.is_active %}badge-success{% else %}badge-secondary{% endif %}">
+                                        {{ 'Active' if branch.is_active else 'Inactive' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="row-actions">
+                                        <a href="{{ url_for('developer.edit_branch', branch_id=branch.id) }}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-edit"></i> Edit
+                                        </a>
+                                        <form action="{{ url_for('developer.toggle_branch', branch_id=branch.id) }}" method="POST" class="inline-form">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-sm {% if branch.is_active %}btn-outline-danger{% else %}btn-outline-primary{% endif %}">
+                                                <i class="fas {% if branch.is_active %}fa-ban{% else %}fa-check{% endif %}"></i>
+                                                {{ 'Deactivate' if branch.is_active else 'Activate' }}
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="empty-state">
+                                    <i class="fas fa-store-slash fa-2x"></i>
+                                    <p>No branches found. Click "Add New Branch" to create one.</p>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Branch Modal -->
+    <div class="modal-overlay" id="addBranchModal">
+        <div class="modal-dialog modal-dialog-lg">
+            <div class="modal-content">
+                <form action="{{ url_for('developer.manage_branches') }}" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Add New Branch Location</h5>
+                        <button type="button" class="btn-close" id="closeModalBtn">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-section-title">Identity</div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Branch Name *</label>
+                                <input type="text" class="form-control" name="branch_name" placeholder="e.g. Downtown Branch" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Location Code *</label>
+                                <input type="text" class="form-control" name="location_code" placeholder="e.g. DT-02" required>
+                            </div>
+                        </div>
+
+                        <!-- Added Branch Administrator Email Field -->
+                        <div class="form-group">
+                            <label class="form-label">Branch Administrator Email *</label>
+                            <input type="email" class="form-control" name="admin_email" placeholder="admin@caremed.com" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Address</label>
+                            <textarea class="form-control" name="address" rows="2" placeholder="Full street address..."></textarea>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Contact Number</label>
+                                <input type="text" class="form-control" name="contact_number" placeholder="e.g. 555-0199">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Email</label>
+                                <input type="email" class="form-control" name="email" placeholder="branch@caremed.com">
+                            </div>
+                        </div>
+
+                        <div class="form-section-title">Branding & Content (isolated per branch)</div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Display Brand Name</label>
+                                <input type="text" class="form-control" name="brand_name" placeholder="e.g. CareMed Downtown">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Tagline</label>
+                                <input type="text" class="form-control" name="tagline" placeholder="e.g. Your health, our priority">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Theme Color</label>
+                                <input type="color" class="form-control form-control-color" name="theme_color" value="#002347">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Accent Color</label>
+                                <input type="color" class="form-control form-control-color" name="accent_color" value="#52B788">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Branch Logo</label>
+                                <input type="file" class="form-control" name="brand_logo" accept="image/*">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Hero Title</label>
+                            <input type="text" class="form-control" name="hero_title" placeholder="Headline shown on this branch's pages">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Hero Subtitle</label>
+                            <textarea class="form-control" name="hero_subtitle" rows="2" placeholder="Supporting text under the hero title"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Announcement Banner</label>
+                            <textarea class="form-control" name="announcement" rows="2" placeholder="Optional notice shown only to this branch"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Footer Text</label>
+                            <input type="text" class="form-control" name="footer_text" placeholder="Custom footer for this branch">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" id="cancelModalBtn">Cancel</button>
+                        <button type="submit" class="btn btn-success">Save Branch</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- CSP-Compliant External JS Controller -->
+    <script src="{{ url_for('static', filename='js/branches.js') }}"></script>
+</body>
+</html>

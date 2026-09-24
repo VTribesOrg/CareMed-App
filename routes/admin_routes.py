@@ -4729,10 +4729,15 @@ def delete_backup(filename):
 
 
 def _build_notifications():
-
     from models.product import PaymentProof, RentalInvoice
     from models.customer import Customer
     from datetime import timedelta, date
+    from flask_login import current_user
+    from utils.branch_scope import set_active_branch, get_active_branch_id
+
+    # Force the branch context to match the current user's assigned branch
+    if current_user.is_authenticated and hasattr(current_user, 'branch_id') and current_user.branch_id:
+        set_active_branch(current_user.branch_id)
 
     today = date.today()
     soon  = today + timedelta(days=5)
@@ -4917,17 +4922,22 @@ def _build_notifications():
 
     return notifications
 
+
 @admin_bp.route('/notifications/stream')
 @login_required
 @admin_or_staff_required
 @limiter.exempt
 def notification_stream():
     """Server-Sent Events endpoint — pushes notification data every 30s."""
- 
+    
+    # Capture the user's branch ID right before entering the generator scope
+    user_branch_id = getattr(current_user, 'branch_id', None)
+
     def generate():
-        # Tell the browser to wait 15s before auto-reconnecting if this
-        # connection drops (default is ~3s), so a flaky connection doesn't
-        # hammer the server with rapid reconnect attempts.
+        from utils.branch_scope import set_active_branch
+        if user_branch_id:
+            set_active_branch(user_branch_id)
+
         yield "retry: 15000\n\n"
 
         notifications = _build_notifications()
@@ -4942,6 +4952,8 @@ def notification_stream():
             elapsed += 1
             if elapsed >= interval:
                 elapsed = 0
+                if user_branch_id:
+                    set_active_branch(user_branch_id)
                 notifications = _build_notifications()
                 payload = json.dumps({"count": len(notifications), "notifications": notifications})
                 yield f"data: {payload}\n\n"
@@ -4963,6 +4975,10 @@ def notification_stream():
 def notification_data():
     """One-shot JSON endpoint — used for the initial page load."""
     try:
+        from utils.branch_scope import set_active_branch
+        if current_user.is_authenticated and getattr(current_user, 'branch_id', None):
+            set_active_branch(current_user.branch_id)
+            
         notifications = _build_notifications()
         return jsonify({"count": len(notifications), "notifications": notifications})
     except Exception as e:
@@ -4977,6 +4993,8 @@ def staff_management():
         flash("Access restricted to Administrators only.", "danger")
         return redirect(url_for('admin.dashboard'))
     
+    # User.query is auto-scoped to the administrator's active branch, so each
+    # administrator only ever sees and manages their own branch's staff.
     staff_members = User.query.filter(User.role.in_(['Staff', 'Administrator']))\
                               .options(joinedload(User.permissions))\
                               .all()
@@ -4985,12 +5003,21 @@ def staff_management():
     admin_count = sum(1 for u in staff_members if u.role == 'Administrator')
     active_staff_count = sum(1 for u in staff_members if u.is_active)
 
+    # Branch selector: a global administrator (no branch) can assign new users
+    # to any active branch; a branch-bound administrator is limited to theirs.
+    from models.branch import Branch
+    if getattr(current_user, 'branch_id', None):
+        available_branches = Branch.query.filter_by(id=current_user.branch_id).all()
+    else:
+        available_branches = Branch.query.filter_by(is_active=True).order_by(Branch.branch_name).all()
+
     return render_template(
         'admin/staff_management.html',
         staff_members=staff_members,
         total_staff_count=total_staff_count,
         admin_count=admin_count,
-        active_staff_count=active_staff_count
+        active_staff_count=active_staff_count,
+        available_branches=available_branches,
     )
 
 
@@ -5014,6 +5041,14 @@ def create_system_user():
         flash("All fields are mandatory.", "danger")
         return redirect(url_for("admin.staff_management"))
 
+    # Determine which branch the new staff account belongs to. Branch-bound
+    # administrators can only create users inside their own branch.
+    requested_branch = request.form.get("branch_id")
+    if getattr(current_user, "branch_id", None):
+        target_branch_id = current_user.branch_id
+    else:
+        target_branch_id = int(requested_branch) if requested_branch else None
+
     pwd_errors = []
     if len(data['pwd']) < 12: pwd_errors.append("12+ characters")
     if not any(c.isupper() for c in data['pwd']): pwd_errors.append("uppercase letter")
@@ -5033,6 +5068,7 @@ def create_system_user():
             first_name=data['first'],
             last_name=data['last'],
             role=data['role'],
+            branch_id=target_branch_id,
             is_active=True,
             is_verified=True
         )
@@ -5066,6 +5102,13 @@ def update_user_access():
     user = User.query.get_or_404(user_id)
 
     user.role = request.form.get("role")
+
+    # Global administrators may reassign staff to any branch. Branch-bound
+    # administrators can never move a user outside their own branch.
+    if not getattr(current_user, "branch_id", None):
+        new_branch = request.form.get("branch_id")
+        if new_branch:
+            user.branch_id = int(new_branch)
 
     perms = Permission.query.filter_by(user_id=user_id).first()
     if not perms:

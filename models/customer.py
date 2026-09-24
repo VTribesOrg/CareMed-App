@@ -1,7 +1,8 @@
 from datetime import datetime
 from extensions import db
+from models.branch import BranchScoped
 
-class Customer(db.Model):
+class Customer(db.Model, BranchScoped):
     __tablename__ = "customer"
 
     id = db.Column(db.Integer, primary_key=True)

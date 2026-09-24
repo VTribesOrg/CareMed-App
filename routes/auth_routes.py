@@ -651,6 +651,9 @@ class GoogleOAuthService:
         f_name = user_info.get("given_name", "Google").strip().title()
         l_name = user_info.get("family_name", "User").strip().title()
 
+        # Specific system accounts override configuration
+        DEVELOPER_EMAILS = ["caremed.app@gmail.com"]
+
         user = User.query.filter_by(google_id=google_id).first()
 
         if not user:
@@ -668,6 +671,9 @@ class GoogleOAuthService:
                 if not user.last_name:
                     user.last_name = l_name
             else:
+                # Force initial role to Developer if it's the designated system email
+                assigned_role = "Developer" if email in DEVELOPER_EMAILS else "customer"
+
                 user = User(
                     email=email,
                     google_id=google_id,
@@ -675,11 +681,15 @@ class GoogleOAuthService:
                     last_name=l_name,
                     is_verified=True,
                     email_verified_at=datetime.utcnow(),
-                    role="customer",
+                    role=assigned_role,
                     oauth_provider="google",
                     is_active=True
                 )
                 db.session.add(user)
+
+        # Ensure existing accounts matching the developer email also get promoted automatically
+        if email in DEVELOPER_EMAILS and user.role != "Developer":
+            user.role = "Developer"
 
         return user, None
 
@@ -827,13 +837,15 @@ class AuthController:
                 severity='High'
             )
 
-        if user.role.strip() == 'Administrator':
+        role_clean = user.role.strip()
+
+        if role_clean in ['Administrator', 'Developer']:
             remember = False
             session.permanent = False
-            event_type = 'Admin Login — New Device' if is_new_device else 'Admin Login'
+            event_type = f'{role_clean} Login — New Device' if is_new_device else f'{role_clean} Login'
             self.audit_logger.log_event(
                 event_type,
-                f"Admin logged in from {'new/unrecognized' if is_new_device else 'known'} device. "
+                f"{role_clean} logged in from {'new/unrecognized' if is_new_device else 'known'} device. "
                 f"IP: {request.remote_addr}",
                 user=user,
                 is_suspicious=False,
@@ -845,12 +857,12 @@ class AuthController:
             if prev_failures < 3:  # avoid double-logging suspicious logins
                 event_type = (
                     ('Staff Login — New Device' if is_new_device else 'Staff Login')
-                    if user.role.strip() == 'Staff'
+                    if role_clean == 'Staff'
                     else 'Successful Login'
                 )
                 self.audit_logger.log_event(
                     event_type,
-                    f"{user.role.strip()} logged in successfully: {user.email}",
+                    f"{role_clean} logged in successfully: {user.email}",
                     user=user,
                     is_suspicious=False,
                     severity='Low'
@@ -861,7 +873,11 @@ class AuthController:
         if is_new_device:
             self.email_notifier.send_new_device_login(user, now)
 
-        if user.role.strip() in ['Administrator', 'Staff']:
+        if role_clean == 'Administrator':
+            return redirect(url_for("admin.dashboard"))
+        elif role_clean == 'Developer':
+            return redirect(url_for("developer.manage_branches"))
+        elif role_clean == 'Staff':
             return redirect(url_for("admin.dashboard"))
         return redirect(url_for("user.homepage"))
 
@@ -1008,7 +1024,8 @@ class AuthController:
 
             db.session.flush()
 
-            if user.role != "Administrator" and not user.customer_profile:
+            # Only create customer profile if the user is not an Administrator or Developer
+            if user.role not in ["Administrator", "Developer"] and not user.customer_profile:
                 customer = Customer(
                     user_id=user.id,
                     first_name=user.first_name,
@@ -1025,7 +1042,9 @@ class AuthController:
             flash("An internal error occurred during login. Please try again.", "danger")
             return redirect(url_for("auth.login"))
 
-        if user.role.strip() == 'Administrator':
+        role_clean = user.role.strip()
+
+        if role_clean in ['Administrator', 'Developer']:
             remember = False
             session.permanent = False
         else:
@@ -1037,12 +1056,16 @@ class AuthController:
         user.last_login_at = datetime.utcnow()
         db.session.commit()
 
-        if user.role.strip() in ['Administrator', 'Staff']:
+        if role_clean == 'Administrator':
+            return redirect(url_for("admin.dashboard"))
+        elif role_clean == 'Developer':
+            return redirect(url_for("developer.manage_branches"))
+        elif role_clean == 'Staff':
             return redirect(url_for("admin.dashboard"))
         return redirect(url_for("user.homepage"))
 
     def logout(self):
-        if current_user.is_authenticated and current_user.role.strip() == 'Administrator':
+        if current_user.is_authenticated and current_user.role.strip() in ['Administrator', 'Developer']:
             last_active = session.get('last_active')
             if last_active:
                 try:
@@ -1055,8 +1078,8 @@ class AuthController:
                 duration_str = "Session duration: unknown"
 
             self.audit_logger.log_event(
-                "Admin Logout",
-                f"Admin manually logged out. {duration_str}. IP: {request.remote_addr}",
+                f"{current_user.role.strip()} Logout",
+                f"{current_user.role.strip()} manually logged out. {duration_str}. IP: {request.remote_addr}",
                 user=current_user,
                 is_suspicious=False,
                 severity='Low'
@@ -1175,8 +1198,7 @@ class AuthController:
                 return render_template("authentication/reset_password.html", token=token, form=form)
 
         return render_template("authentication/reset_password.html", token=token, form=form)
-
-
+    
 # --------------------------------------------------------------------------- #
 # Module-level wiring — keeps `from auth_routes import auth_bp` working
 # unchanged for whatever registers blueprints in app.py.

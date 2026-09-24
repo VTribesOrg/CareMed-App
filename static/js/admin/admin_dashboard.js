@@ -75,14 +75,25 @@ document.addEventListener('DOMContentLoaded', () => {
         fetch(url)
             .then(response => response.json())
             .then(data => {
+                // Safely parse incoming data values to prevent NaN errors
+                const rawSales = Number(data.total_sales) || 0;
+                const freightExpense = Number(data.total_freight) || 0;
+                const totalRentals = Number(data.total_rentals) || 0;
+                const totalRefillIncome = Number(data.total_refill_income) || 0;
+                const totalExpenses = Number(data.total_expenses) || 0;
+                const salesNet = Number(data.sales_net) || (rawSales - freightExpense);
+                const totalRefillsCount = Number(data.total_refills_count) || 0;
+                const activeRentalsCount = Number(data.active_rentals_count) || 0;
+                const totalInventory = Number(data.total_inventory) || 0;
+                const customerDeposits = Number(data.customer_deposits) || 0;
+                const lowStockCount = Number(data.low_stock_count) || 0;
+
                 // Calculate Freight-adjusted Sales (Total Sales minus Total Freight Expense)
-                const rawSales = data.total_sales || 0;
-                const freightExpense = data.total_freight !== undefined ? data.total_freight : 0;
                 const adjustedSales = rawSales - freightExpense;
 
                 // Compute overall metrics dynamically using the adjusted sales
-                const overallIncome = adjustedSales + (data.total_rentals || 0) + (data.total_refill_income || 0);
-                const netProfit = overallIncome - (data.total_expenses || 0);
+                const overallIncome = adjustedSales + totalRentals + totalRefillIncome;
+                const netProfit = overallIncome - totalExpenses;
 
                 // Update Stat Cards
                 const valOverallIncome = document.getElementById("val-overall-income");
@@ -118,36 +129,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const valSalesNet = document.getElementById("val-sales-net");
                 if (valSalesNet) {
-                    if (data.sales_net >= 0) {
+                    if (salesNet >= 0) {
                         valSalesNet.style.color = "#059669";
-                        valSalesNet.innerText = "₱" + data.sales_net.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                        valSalesNet.innerText = "₱" + salesNet.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
                     } else {
                         valSalesNet.style.color = "#dc2626";
-                        valSalesNet.innerText = "−₱" + Math.abs(data.sales_net).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                        valSalesNet.innerText = "−₱" + Math.abs(salesNet).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
                     }
                 }
 
                 const valTotalRefillIncome = document.getElementById("val-total-refill-income");
-                if (valTotalRefillIncome) valTotalRefillIncome.innerText = "₱" + data.total_refill_income.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                if (valTotalRefillIncome) valTotalRefillIncome.innerText = "₱" + totalRefillIncome.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
 
                 const valTotalRefillsCount = document.getElementById("val-total-refills-count");
-                if (valTotalRefillsCount) valTotalRefillsCount.innerText = data.total_refills_count;
+                if (valTotalRefillsCount) valTotalRefillsCount.innerText = totalRefillsCount;
 
                 const valTotalRentals = document.getElementById("val-total-rentals");
-                if (valTotalRentals) valTotalRentals.innerText = "₱" + data.total_rentals.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                if (valTotalRentals) valTotalRentals.innerText = "₱" + totalRentals.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
 
                 // Integration for Rental Income (Total Rentals Income * 30%)
                 const valRentalShare = document.getElementById("val-rental-share");
                 let rentalIncomeValue = 0;
                 if (valRentalShare) {
-                    rentalIncomeValue = (data.total_rentals || 0) * 0.30;
+                    rentalIncomeValue = totalRentals * 0.30;
                     valRentalShare.innerText = "₱" + rentalIncomeValue.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
                 }
 
                 // Integration for Total Commission Calculation
                 const valTotalCommission = document.getElementById("val-total-commission");
                 if (valTotalCommission) {
-                    const refillBonus = (data.total_refills_count || 0) * 100;
+                    const refillBonus = totalRefillsCount * 100;
                     const salesCommission = adjustedSales * 0.50;
                     const totalCommission = rentalIncomeValue + refillBonus + salesCommission;
 
@@ -155,24 +166,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 const valTotalExpenses = document.getElementById("val-total-expenses");
-                if (valTotalExpenses) valTotalExpenses.innerText = "₱" + data.total_expenses.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                if (valTotalExpenses) valTotalExpenses.innerText = "₱" + totalExpenses.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
 
                 const valActiveRentals = document.getElementById("val-active-rentals");
-                if (valActiveRentals) valActiveRentals.innerText = data.active_rentals_count;
+                if (valActiveRentals) valActiveRentals.innerText = activeRentalsCount;
 
                 const valTotalInventory = document.getElementById("val-total-inventory");
-                if (valTotalInventory) valTotalInventory.innerText = data.total_inventory;
+                if (valTotalInventory) valTotalInventory.innerText = totalInventory;
 
                 // Populate Customer Deposits 
                 const valCustomerDeposits = document.getElementById("val-customer-deposits");
                 if (valCustomerDeposits) {
-                    valCustomerDeposits.innerText = "₱" + Number(data.customer_deposits || 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                    valCustomerDeposits.innerText = "₱" + customerDeposits.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
                 }
 
                 // Populate Total Freight Expense
                 const valTotalFreight = document.getElementById("val-total-freight");
                 if (valTotalFreight) {
-                    valTotalFreight.innerText = "₱" + Number(freightExpense).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    valTotalFreight.innerText = "₱" + freightExpense.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
                 }
 
                 // Populate Tracking Freight (Fallback support)
@@ -184,10 +195,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const valLowStockContainer = document.getElementById("val-low-stock");
                 const valLowStockCount = document.getElementById("val-low-stock-count");
                 if (valLowStockContainer && valLowStockCount) {
-                    valLowStockCount.innerText = data.low_stock_count;
-                    if (data.low_stock_count > 0) {
+                    valLowStockCount.innerText = lowStockCount;
+                    if (lowStockCount > 0) {
                         valLowStockContainer.style.color = "#ef4444";
-                        valLowStockContainer.innerHTML = `<span id="val-low-stock-count">${data.low_stock_count}</span> Low stock items`;
+                        valLowStockContainer.innerHTML = `<span id="val-low-stock-count">${lowStockCount}</span> Low stock items`;
                     } else {
                         valLowStockContainer.style.color = "#10b981";
                         valLowStockContainer.innerHTML = `<span id="val-low-stock-count">0</span> Stock levels healthy`;

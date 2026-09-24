@@ -1,8 +1,9 @@
 from datetime import datetime
 from flask_login import UserMixin
 from extensions import db
+from models.branch import BranchScoped
 
-class User(UserMixin, db.Model):
+class User(UserMixin, db.Model, BranchScoped):
     __tablename__ = "users"
 
     id = db.Column(db.Integer, primary_key=True)

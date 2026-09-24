@@ -2,8 +2,9 @@ from extensions import db
 from datetime import datetime, timedelta
 from decimal import Decimal
 from dateutil.relativedelta import relativedelta
+from models.branch import BranchScoped
 
-class Product(db.Model):
+class Product(db.Model, BranchScoped):
     __tablename__ = "product"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -36,7 +37,7 @@ class Product(db.Model):
     tank_status = db.relationship("TankStatus", back_populates="product", uselist=False, cascade="all, delete-orphan")
     inventory_logs = db.relationship("InventoryLog", back_populates="product", passive_deletes=True)
     
-class TankStatus(db.Model):
+class TankStatus(db.Model, BranchScoped):
     __tablename__ = "tank_status"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -53,7 +54,7 @@ class TankStatus(db.Model):
     def total_available(self):
         return (self.full_in_stock or 0) + (self.empty_in_stock or 0)
 
-class RentalTankLog(db.Model):
+class RentalTankLog(db.Model, BranchScoped):
     __tablename__ = "rental_tank_log"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -70,7 +71,7 @@ class RentalTankLog(db.Model):
     rental = db.relationship("Rental", backref=db.backref("tank_logs", cascade="all, delete-orphan"))
     changed_by = db.relationship("User")
     
-class Purchase(db.Model):
+class Purchase(db.Model, BranchScoped):
     __tablename__ = "purchase"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -110,7 +111,7 @@ class Purchase(db.Model):
 
     customer = db.relationship("Customer", back_populates="purchases")
 
-class Transaction(db.Model):
+class Transaction(db.Model, BranchScoped):
     __tablename__ = "transaction"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -384,7 +385,7 @@ class Transaction(db.Model):
                 if self.status == "Closed":
                     self.status = "Open"  
                                                     
-class Payment(db.Model):
+class Payment(db.Model, BranchScoped):
     __tablename__ = "payments"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -408,7 +409,7 @@ class Payment(db.Model):
     verified_by = db.relationship("User", foreign_keys=[verified_by_id])
     rental_invoice = db.relationship("RentalInvoice", back_populates="payments")
 
-class PaymentProof(db.Model):
+class PaymentProof(db.Model, BranchScoped):
     __tablename__ = "payment_proof"
     id = db.Column(db.Integer, primary_key=True)
     transaction_id = db.Column(db.Integer, db.ForeignKey('transaction.id'), nullable=False)
@@ -418,7 +419,7 @@ class PaymentProof(db.Model):
     status = db.Column(db.String(20), default="Pending") 
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
 
-class CustomerDeposit(db.Model):
+class CustomerDeposit(db.Model, BranchScoped):
     __tablename__ = "customer_deposit"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -435,7 +436,7 @@ class CustomerDeposit(db.Model):
     customer = db.relationship("Customer", backref=db.backref("deposits", cascade="all, delete-orphan"))
     transaction = db.relationship("Transaction", backref=db.backref("customer_deposits", cascade="all, delete-orphan"))
     
-class Rental(db.Model):
+class Rental(db.Model, BranchScoped):
     __tablename__ = "rental"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -543,7 +544,7 @@ class Rental(db.Model):
         
         return False, "No associated invoice found for this rental."
     
-class RentalTank(db.Model):
+class RentalTank(db.Model, BranchScoped):
     __tablename__ = "rental_tank"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -566,7 +567,7 @@ class RentalTank(db.Model):
         )
     )
     
-class RentalInvoice(db.Model):
+class RentalInvoice(db.Model, BranchScoped):
     __tablename__ = "rental_invoice"
     
     id = db.Column(db.Integer, primary_key=True)
@@ -597,7 +598,7 @@ class RentalInvoice(db.Model):
         return max(self.total_invoice_value - self.amount_paid, Decimal("0.00"))
     
     
-class InventoryLog(db.Model):
+class InventoryLog(db.Model, BranchScoped):
     __tablename__ = "inventory_logs"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -613,7 +614,7 @@ class InventoryLog(db.Model):
     user = db.relationship("User", backref=db.backref("inventory_logs", lazy="dynamic"))
     
     
-class Expense(db.Model):
+class Expense(db.Model, BranchScoped):
     __tablename__ = "expenses"
 
     id = db.Column(db.Integer, primary_key=True)

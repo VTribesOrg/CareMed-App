@@ -16,6 +16,8 @@ from flask_login import current_user, logout_user
 from datetime import datetime, timezone, timedelta
 from flask import session
 from werkzeug.middleware.proxy_fix import ProxyFix
+from models.branch import Branch
+from utils import branch_scope
 
 
 app = Flask(__name__)
@@ -139,6 +141,70 @@ def enforce_admin_session_timeout():
         session['last_active'] = now.isoformat()
 
 
+# ── Per-branch isolation context ───────────────────────────────────────
+@app.before_request
+def resolve_active_branch():
+    """Activate the logged-in user's branch so scoped queries auto-filter.
+
+    Only Administrators and Staff are branch-bound (each belongs to exactly
+    one branch). Customers, guests, the login pages and the developer console
+    carry no branch, so the isolation layer stays inert for them.
+    """
+    branch_id = None
+    if current_user.is_authenticated:
+        role = (current_user.role or '').strip()
+        if role in ('Administrator', 'Staff'):
+            branch_id = getattr(current_user, 'branch_id', None)
+
+    request._branch_token = branch_scope.set_active_branch(
+        branch_id, enable_filter=branch_id is not None
+    )
+
+
+@app.teardown_request
+def release_active_branch(exc=None):
+    """Drop the branch context once the request finishes."""
+    token = getattr(request, '_branch_token', None)
+    if token is not None:
+        branch_scope.reset_active_branch(token)
+        request._branch_token = None
+
+
+@app.context_processor
+def inject_branch_theme():
+    """Expose the active branch's branding to every template.
+
+    Templates can read ``branch_theme.theme_color`` etc. so a change to one
+    branch's styling/content never touches any other branch.
+    """
+    default_theme = {
+        "id": None,
+        "name": "CareMed",
+        "branch_name": None,
+        "location_code": None,
+        "theme_color": "#002347",
+        "accent_color": "#52B788",
+        "logo": None,
+        "tagline": "Medical Equipment Rental & Sales",
+        "hero_title": "CareMed",
+        "hero_subtitle": "Medical Equipment Rental & Sales",
+        "announcement": "",
+        "footer_text": "CareMed — Medical Equipment Rental & Sales",
+        "contact_number": None,
+        "email": None,
+        "address": None,
+    }
+
+    branch = None
+    if current_user.is_authenticated:
+        branch_id = getattr(current_user, "branch_id", None)
+        if branch_id:
+            branch = db.session.get(Branch, branch_id)
+
+    theme = branch.as_theme() if branch else default_theme
+    return {"branch_theme": theme, "active_branch": branch}
+
+
 # Rate-limit handler: log to IDS + return user-friendly response 
 @app.errorhandler(429)
 def ratelimit_handler(e):
@@ -240,6 +306,9 @@ app.register_blueprint(auth_bp)
 
 from routes.admin_routes import admin_bp
 app.register_blueprint(admin_bp)
+
+from routes.developer_routes import developer_bp
+app.register_blueprint(developer_bp)
 
 # Admin/staff routes are already gated by admin_or_staff_required (login + role
 # check) on every view, independent of the rate limiter. The global 200/day,
