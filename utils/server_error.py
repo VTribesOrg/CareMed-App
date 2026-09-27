@@ -1,21 +1,3 @@
-"""Fallback response for unexpected server errors (HTTP 500).
-
-A 500 page is the one screen a user has to get right, so everything here is
-written to survive the failure that triggered it:
-
-* the database session is rolled back first, because an aborted transaction
-  turns every later query into ``PendingRollbackError`` and the error page would
-  never render;
-* the IDS write and the template render are best effort - if either one fails
-  the handler still answers with a hand-written HTML page;
-* the fallback page reads nothing from the database, and the two global context
-  processors in ``app.py`` degrade instead of raising, so a dead database cannot
-  take the error page down with it.
-
-The traceback always goes to the application log next to a short reference code
-that is also shown to the user. Log files get busy and rotate, but "reference
-4F9C2A7E" makes the exact traceback findable.
-"""
 import uuid
 
 from flask import current_app, jsonify, render_template, request, url_for
@@ -54,14 +36,6 @@ def reset_db_session():
 
 
 def wants_json_response():
-    """True when the caller is a script rather than a browser navigation.
-
-    ``fetch()`` calls in this app read the body with ``response.json()``, so
-    handing them an HTML page turns a recoverable failure into a JavaScript
-    parse error. Detection is header based (``Sec-Fetch-Dest`` from the browser,
-    ``X-Requested-With`` from older callers, JSON content type, or an Accept
-    header that prefers JSON) and defaults to HTML.
-    """
     if (request.headers.get("Sec-Fetch-Dest") or "").lower() in _FETCH_DESTINATIONS:
         return True
     if (request.headers.get("X-Requested-With") or "").lower() == "xmlhttprequest":
@@ -103,11 +77,7 @@ def log_server_error(error, reference):
 
 
 def record_incident(error, reference):
-    """Mirror the failure into the IDS log so admins can see it in the UI.
 
-    Best effort on purpose: the database may be the thing that broke, and a
-    failed audit write must never replace the user's error page.
-    """
     from models.users import SecurityLog
 
     try:

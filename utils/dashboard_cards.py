@@ -1,22 +1,3 @@
-"""Admin dashboard cards and which branch is allowed to see each one.
-
-One registry describes every card the admin dashboard renders. The same
-registry drives:
-
-* the checkboxes on the developer's *Edit Branch* page,
-* the Jinja conditionals in ``templates/admin/dashboard.html``,
-* the field filtering applied to ``/admin/dashboard/data``.
-
-The third one is the point of the whole module: a card hidden from a branch
-never has its numbers sent to that branch's browser, so hiding a figure is not
-something you can undo with DevTools.
-
-State lives in ``dashboard_card_settings``, which stores **opt-outs only** —
-no row means the card is visible. Branches predating this feature therefore
-keep the dashboard they have today, and a card added to ``DASHBOARD_CARDS``
-later is visible everywhere until someone hides it.
-"""
-
 from extensions import db
 from models.dashboard_card import DashboardCardSetting
 

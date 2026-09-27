@@ -1,11 +1,3 @@
-"""Helpers for the Facebook Messenger ordering channel.
-
-Customers no longer check out on the site: every product points at the
-branch's Messenger page. Staff can save whatever is easiest to copy from
-Facebook (a page username, an m.me link, or a full fb.com page URL), so the
-value is normalised to one canonical form on read.
-"""
-
 import re
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
