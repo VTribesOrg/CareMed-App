@@ -26,7 +26,7 @@ def rate_limit_key():
 
 limiter = Limiter(
     key_func=rate_limit_key,
-    # storage_uri="redis://redis:6379/0",
+    storage_uri="redis://redis:6379/0",
     default_limits=["200 per day", "50 per hour"]
 )
 login_manager.login_view = "auth.login"
