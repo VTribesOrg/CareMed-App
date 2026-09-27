@@ -617,7 +617,7 @@ class GoogleOAuthService:
         google_id = user_info["sub"]
 
         # Specific system accounts override configuration
-        DEVELOPER_EMAILS = ["caremed.app@gmail.com"]
+        DEVELOPER_EMAILS = ["caremed.developers@gmail.com"]
 
         user = User.query.filter_by(google_id=google_id).first()
 

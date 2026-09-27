@@ -28,7 +28,7 @@ def developer_required(f):
 
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or current_user.email != 'caremed.app@gmail.com':
+        if not current_user.is_authenticated or current_user.email != 'caremed.developers@gmail.com':
             flash('Access denied. Developer privileges required.', 'error')
             return redirect(url_for('admin.dashboard'))
         return f(*args, **kwargs)

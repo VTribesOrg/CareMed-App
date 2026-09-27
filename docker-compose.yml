@@ -2,8 +2,9 @@ services:
   web:
     build: .
     restart: always
+    # Bind strictly to localhost so only Nginx Proxy Manager can reach it
     ports:
-      - "5000:5000"
+      - "127.0.0.1:5000:5000"
     env_file:
       - .env
     depends_on:
@@ -12,7 +13,7 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      - .:/app
+      # REMOVED "- .:/app" so code is baked into the image safely
       - ./static/uploads:/app/caremed/static/uploads
     deploy:
       resources:
