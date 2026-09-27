@@ -154,10 +154,10 @@
                                         Admin #{{ customer.created_by_id }}
                                     </span>
                                 {% else %}
-                                    <span class="status-pill" title="Registered via User Account: {{ customer.user.email if customer.user else 'No Account Linked' }}"
+                                    <span class="status-pill" title="Linked User Account: {{ customer.user.email if customer.user else 'No Account Linked' }} - self-service signup is disabled"
                                         style="background:#f0fdf4; color:#166534; border:1px solid #bbf7d0; display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:6px; font-size:0.85rem; font-weight:500; cursor:help;">
-                                        <span class="material-symbols-rounded" style="font-size:18px;">app_registration</span>
-                                        Self-Registered
+                                        <span class="material-symbols-rounded" style="font-size:18px;">link</span>
+                                        Linked Account
                                     </span>
                                 {% endif %}
                             </div>
@@ -184,11 +184,6 @@
                                 data-secondary_idimg="{{ url_for('static', filename=customer.secondary_id_path) if customer.secondary_id_path else '' }}">
                                 <span class="material-symbols-rounded">edit</span>
                             </button>
-                            {% if customer.is_self_registered %}
-                                <button class="asset-action-btn security" data-registered="true">
-                                    <span class="material-symbols-rounded">lock_reset</span>
-                                </button>
-                            {% endif %}
                         </td>
                     </tr>
                     {% endfor %}
@@ -197,7 +192,7 @@
                         <td colspan="6" class="empty-state-container">
                             <div class="empty-state-wrapper">
                                 <div>No customers found</div>
-                                <small>New users will appear here after registration.</small>
+                                <small>Customers appear here once staff create their record.</small>
                             </div>
                         </td>
                     </tr>

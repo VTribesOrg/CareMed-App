@@ -48,26 +48,28 @@
                     </div>
                 </div>
 
-                <!-- Added Branch Administrator Email Field -->
-                {% set admin_user = branch.users | selectattr('role', 'equalto', 'admin') | first %}
+                <!-- The branch's contact e-mail IS its administrator's login -->
                 <div class="form-group">
                     <label class="form-label">Branch Administrator Email *</label>
                     <input type="email" class="form-control" name="admin_email" value="{{ admin_user.email if admin_user else '' }}" placeholder="admin@caremed.com" required>
+                    <small style="display:block; margin-top:4px; opacity:0.75;">
+                        {% if admin_user %}
+                            This is also the e-mail shown for the branch. Saving a different
+                            address moves the Administrator role to that account.
+                        {% else %}
+                            No administrator account is assigned to this branch yet. Saving
+                            creates one with a temporary password.
+                        {% endif %}
+                    </small>
                 </div>
 
                 <div class="form-group">
                     <label class="form-label">Address</label>
                     <textarea class="form-control" name="address" rows="2">{{ branch.address or '' }}</textarea>
                 </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">Contact Number</label>
-                        <input type="text" class="form-control" name="contact_number" value="{{ branch.contact_number or '' }}">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Email</label>
-                        <input type="email" class="form-control" name="email" value="{{ branch.email or '' }}">
-                    </div>
+                <div class="form-group">
+                    <label class="form-label">Contact Number</label>
+                    <input type="text" class="form-control" name="contact_number" value="{{ branch.contact_number or '' }}">
                 </div>
 
                 <div class="form-section-title">Branding & Content (isolated per branch)</div>
@@ -122,6 +124,40 @@
                 <div class="form-group">
                     <label class="form-label">Footer Text</label>
                     <input type="text" class="form-control" name="footer_text" value="{{ branch.footer_text or '' }}">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Messenger Page (ordering)</label>
+                    <input type="text" class="form-control" name="messenger_url" value="{{ branch.messenger_url or '' }}" placeholder="e.g. CareMedIloilo or m.me/CareMedIloilo">
+                    <small style="display:block; margin-top:4px; opacity:0.75;">
+                        Chat link used by this branch's "Order via Messenger" buttons.
+                        Current link:
+                        {% if branch.messenger_link %}
+                            <a href="{{ branch.messenger_link }}" target="_blank" rel="noopener noreferrer">{{ branch.messenger_link }}</a>
+                        {% else %}
+                            not set — visitors use the default ordering contact
+                        {% endif %}
+                    </small>
+                </div>
+
+                <div class="form-section-title">Admin Dashboard Cards (this branch only)</div>
+                <input type="hidden" name="dashboard_cards_sent" value="1">
+                <p class="form-section-note">
+                    Tick only what this branch's admin dashboard should show. Unticked cards are not
+                    rendered for this branch and their figures are left out of the data the dashboard
+                    loads, so a hidden number never reaches the browser. New branches start with
+                    everything ticked.
+                </p>
+                <div class="dashboard-card-grid">
+                    {% for card in card_options %}
+                        <label class="dashboard-card-option">
+                            <input type="checkbox" name="dashboard_cards" value="{{ card.key }}" {% if card.checked %}checked{% endif %}>
+                            <span class="dashboard-card-text">
+                                <span class="dashboard-card-label">{{ card.label }}</span>
+                                <small class="dashboard-card-hint">{{ card.hint }}</small>
+                            </span>
+                        </label>
+                    {% endfor %}
                 </div>
 
                 <div class="form-group">

@@ -4,3 +4,13 @@ venv/
 __pycache__/
 *.pyc
 instance/
+.env
+*.db
+backups/
+uploads/
+.claude/
+_heads.py
+_drift.py
+scripts/
+CareMed_Chapter1-5.pdf
+CareMed_Documentation_Chapters1-3.pdf

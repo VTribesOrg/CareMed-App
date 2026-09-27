@@ -149,9 +149,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Integration for Rental Income (Total Rentals Income * 30%)
                 const valRentalShare = document.getElementById("val-rental-share");
-                let rentalIncomeValue = 0;
+                // Derived from the payload, not from the share card being present:
+                // the commission card still needs the 30% figure when the share
+                // sub-panel alone is hidden for this branch.
+                let rentalIncomeValue = totalRentals * 0.30;
                 if (valRentalShare) {
-                    rentalIncomeValue = totalRentals * 0.30;
                     valRentalShare.innerText = "₱" + rentalIncomeValue.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
                 }
 

@@ -46,7 +46,8 @@ class User(UserMixin, db.Model, BranchScoped):
     
     @property
     def full_name(self):
-        return f"{self.first_name} {self.last_name}"
+
+        return " ".join(part for part in (self.first_name, self.last_name) if part)
     
     @property
     def masked_email(self):

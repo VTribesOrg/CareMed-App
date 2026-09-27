@@ -2,7 +2,7 @@ from gevent import monkey
 monkey.patch_all()
 
 import os
-from flask import Flask, request, redirect, url_for, flash, render_template, abort
+from flask import Flask, request, redirect, url_for, flash, render_template, abort, current_app
 from flask_login import current_user
 from extensions import db, migrate, login_manager, oauth, mail, csrf, limiter
 from models.users import User
@@ -16,8 +16,11 @@ from flask_login import current_user, logout_user
 from datetime import datetime, timezone, timedelta
 from flask import session
 from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.exceptions import HTTPException
 from models.branch import Branch
 from utils import branch_scope
+from utils.messenger import build_messenger_link, normalize_messenger_url
+from utils.server_error import server_error_response
 
 
 app = Flask(__name__)
@@ -195,14 +198,65 @@ def inject_branch_theme():
         "address": None,
     }
 
+    # This runs for every template - including the error pages - so a failure
+    # here must degrade to neutral branding instead of raising. Otherwise a dead
+    # database takes the 500 fallback page down with it (utils/server_error.py).
     branch = None
-    if current_user.is_authenticated:
-        branch_id = getattr(current_user, "branch_id", None)
-        if branch_id:
-            branch = db.session.get(Branch, branch_id)
+    theme = default_theme
+    try:
+        if current_user.is_authenticated:
+            branch_id = getattr(current_user, "branch_id", None)
+            if branch_id:
+                branch = db.session.get(Branch, branch_id)
+        if branch is not None:
+            theme = branch.as_theme()
+    except Exception:
+        current_app.logger.exception("BRANCH_THEME_FALLBACK | using neutral branding")
+        branch, theme = None, default_theme
 
-    theme = branch.as_theme() if branch else default_theme
     return {"branch_theme": theme, "active_branch": branch}
+
+
+def _resolve_messenger_url():
+    """Pick the Messenger contact visitors should be sent to for ordering.
+
+    A branch that has its own Messenger page wins; everyone else (public
+    visitors have no branch, and staff whose branch has none) falls back to the
+    deployment-wide ``MESSENGER_PAGE_URL``. Unparseable values degrade to
+    ``None`` so templates hide the button instead of rendering a dead link.
+    """
+    branch = None
+    try:
+        if current_user.is_authenticated:
+            branch_id = getattr(current_user, "branch_id", None)
+            if branch_id:
+                branch = db.session.get(Branch, branch_id)
+    except Exception:
+        # Same reason as inject_branch_theme: never block a page (least of all
+        # an error page) over a missing decoration lookup.
+        current_app.logger.exception("MESSENGER_CHANNEL_FALLBACK | branch lookup failed")
+        branch = None
+
+    branch_url = getattr(branch, "messenger_link", None) if branch else None
+    if branch_url:
+        return branch_url
+    return normalize_messenger_url(current_app.config.get("MESSENGER_PAGE_URL"))
+
+
+@app.context_processor
+def inject_messenger_channel():
+    """Expose the ordering channel (Messenger) to every template.
+
+    ``messenger_url`` is the bare chat link; ``messenger_link(message)`` adds a
+    prefilled first message, e.g. a product enquiry:
+    ``<a href="{{ messenger_link('Hi, is the Oxygen Concentrator available?') }}">``
+    """
+    resolved_url = _resolve_messenger_url()
+
+    def messenger_link(message=None):
+        return build_messenger_link(resolved_url, message=message)
+
+    return {"messenger_url": resolved_url, "messenger_link": messenger_link}
 
 
 # Rate-limit handler: log to IDS + return user-friendly response 
@@ -281,6 +335,39 @@ def forbidden_handler(e):
     ), 403
 
 
+# ── 500 fallback ──────────────────────────────────────────────────────────
+# Nothing unexpected should reach a user as a raw traceback or a blank page.
+# ``errorhandler(500)`` catches abort(500) and Flask's own wrap of an unhandled
+# error; the Exception handler catches the exceptions Flask has no code for.
+# Both funnel into the same builder, which answers JSON to API callers so their
+# response.json() keeps working. See utils/server_error.py.
+@app.errorhandler(500)
+def internal_server_error_handler(error):
+    return server_error_response(error)
+
+
+@app.errorhandler(Exception)
+def unhandled_exception_handler(error):
+    """Turn any non-HTTP failure into the 500 fallback page.
+
+    Flask resolves the registered HTTP handlers before walking the class MRO,
+    but a generic Exception handler does sit in front of codes it has no page
+    for (404, 405, ...), so those are returned untouched to keep the existing
+    403/429 pages and Flask's default behaviour for everything else.
+
+    In debug mode the exception is re-raised instead of answered. Flask reaches
+    this handler before it ever considers ``app.debug``, so without the guard a
+    developer would lose the Werkzeug traceback for exactly the bugs this page
+    hides in production. ``abort(500)`` is an HTTP error and still renders the
+    page, which is what makes it testable while debugging.
+    """
+    if isinstance(error, HTTPException):
+        return error
+    if current_app.debug:
+        raise error
+    return server_error_response(error)
+
+
 @app.template_filter('currency')
 def currency(value):
     from decimal import Decimal
@@ -293,8 +380,12 @@ def currency(value):
 @app.route('/')
 def root():
     if current_user.is_authenticated:
-        if current_user.role == 'Administrator':
+        role = (current_user.role or '').strip()
+        if role in ('Administrator', 'Staff'):
             return redirect(url_for('admin.dashboard'))
+        if role == 'Developer':
+            return redirect(url_for('developer.manage_branches'))
+        # Customer accounts are gone; any other signed-in role just browses.
         return redirect(url_for('user.products'))
     return redirect(url_for('user.homepage'))
 

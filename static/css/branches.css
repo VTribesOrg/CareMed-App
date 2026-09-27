@@ -436,6 +436,57 @@ textarea.form-control {
     cursor: pointer;
 }
 
+/* --- Dashboard card visibility picker (Edit Branch) --- */
+.form-section-note {
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin: 0 0 0.85rem;
+}
+
+.dashboard-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.dashboard-card-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.6rem 0.7rem;
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem;
+    cursor: pointer;
+}
+
+.dashboard-card-option:hover {
+    border-color: #002347;
+}
+
+.dashboard-card-option input {
+    margin-top: 0.2rem;
+}
+
+.dashboard-card-text {
+    display: block;
+}
+
+.dashboard-card-label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #212529;
+}
+
+.dashboard-card-hint {
+    display: block;
+    font-size: 0.75rem;
+    color: #6c757d;
+    line-height: 1.3;
+}
+
+
 /* --- Responsive Media Queries --- */
 @media (max-width: 768px) {
     .branch-header {

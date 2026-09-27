@@ -12,6 +12,8 @@ from models.users import User
 from models.customer import Customer
 from models.product import Product, Transaction
 from utils.branch_scope import bypass_branch_filter
+from utils.dashboard_cards import card_options, set_visible_cards
+from utils.messenger import normalize_messenger_url
 
 # Define a separate blueprint with its own URL prefix
 developer_bp = Blueprint('developer', __name__, url_prefix='/developer')
@@ -59,6 +61,26 @@ def _save_branch_logo(file_storage):
     return safe_name
 
 
+def _parse_messenger_field(raw):
+    """Validate the Messenger form field. Returns ``(value_to_store, error)``.
+
+    Staff may paste a page name, an m.me link or a facebook.com page URL; the
+    raw text is stored as-is and normalised by ``Branch.messenger_url`` on read.
+    Anything that cannot produce a chat link is rejected so a branch never
+    saves a button that goes nowhere.
+    """
+    value = (raw or '').strip()
+    if not value:
+        return None, None
+    if normalize_messenger_url(value) is None:
+        return None, (
+            'Messenger link must be a page name (CareMedIloilo) or a '
+            'Messenger/Facebook page link (m.me/CareMedIloilo). Leave it blank '
+            'to use the default ordering contact.'
+        )
+    return value, None
+
+
 @developer_bp.route('/branches', methods=['GET', 'POST'])
 @login_required
 @developer_required
@@ -78,6 +100,13 @@ def manage_branches():
                 flash(f'Location code "{location_code}" is already in use.', 'error')
                 return redirect(url_for('developer.manage_branches'))
 
+            messenger_url, messenger_error = _parse_messenger_field(
+                request.form.get('messenger_url')
+            )
+            if messenger_error:
+                flash(messenger_error, 'error')
+                return redirect(url_for('developer.manage_branches'))
+
             logo_filename = _save_branch_logo(request.files.get('brand_logo'))
 
             branch = Branch(
@@ -85,7 +114,6 @@ def manage_branches():
                 location_code=location_code,
                 address=(request.form.get('address') or '').strip() or None,
                 contact_number=(request.form.get('contact_number') or '').strip() or None,
-                email=(request.form.get('email') or '').strip() or None,
                 theme_color=request.form.get('theme_color') or '#002347',
                 accent_color=request.form.get('accent_color') or '#52B788',
                 brand_name=(request.form.get('brand_name') or '').strip() or None,
@@ -95,6 +123,8 @@ def manage_branches():
                 hero_subtitle=(request.form.get('hero_subtitle') or '').strip() or None,
                 announcement=(request.form.get('announcement') or '').strip() or None,
                 footer_text=(request.form.get('footer_text') or '').strip() or None,
+                # Ordering channel: stored as typed, normalised on read.
+                messenger_url=messenger_url,
                 is_active=True,
             )
 
@@ -179,7 +209,8 @@ def edit_branch(branch_id):
             branch.location_code = location_code
             branch.address = (request.form.get('address') or '').strip() or None
             branch.contact_number = (request.form.get('contact_number') or '').strip() or None
-            branch.email = (request.form.get('email') or '').strip() or None
+            # No branch e-mail field: the branch is contacted through its
+            # administrator account, exposed as ``Branch.contact_email``.
             branch.theme_color = request.form.get('theme_color') or branch.theme_color
             branch.accent_color = request.form.get('accent_color') or branch.accent_color
             branch.brand_name = (request.form.get('brand_name') or '').strip() or None
@@ -188,6 +219,13 @@ def edit_branch(branch_id):
             branch.hero_subtitle = (request.form.get('hero_subtitle') or '').strip() or None
             branch.announcement = (request.form.get('announcement') or '').strip() or None
             branch.footer_text = (request.form.get('footer_text') or '').strip() or None
+            messenger_url, messenger_error = _parse_messenger_field(
+                request.form.get('messenger_url')
+            )
+            if messenger_error:
+                flash(messenger_error, 'error')
+                return redirect(url_for('developer.edit_branch', branch_id=branch.id))
+            branch.messenger_url = messenger_url
             branch.is_active = request.form.get('is_active') == 'on'
 
             if new_logo:
@@ -211,6 +249,15 @@ def edit_branch(branch_id):
                 if hasattr(user, 'role'):
                     user.role = 'Administrator'
 
+            # Dashboard card visibility. An unchecked checkbox is not
+            # submitted, so the grid posts a sentinel: its presence means the
+            # grid was on the page and the missing keys are deliberate
+            # hide-offs, while its absence leaves the settings untouched.
+            if request.form.get('dashboard_cards_sent') == '1':
+                set_visible_cards(
+                    branch.id, request.form.getlist('dashboard_cards')
+                )
+
             try:
                 db.session.commit()
                 flash(f'Branch "{branch_name}" updated successfully.', 'success')
@@ -220,7 +267,17 @@ def edit_branch(branch_id):
                 current_app.logger.error(f"Branch update failed: {e}")
                 flash('Could not update the branch. Please try again.', 'error')
 
-    return render_template('branch_management/edit_branch.html', branch=branch)
+        # Resolved while still bypassing isolation: users are branch-scoped and
+        # the developer's own branch is rarely the one being edited.
+        admin_user = branch.primary_admin
+        cards = card_options(branch.id)
+
+    return render_template(
+        'branch_management/edit_branch.html',
+        branch=branch,
+        admin_user=admin_user,
+        card_options=cards,
+    )
 
 
 @developer_bp.route('/branches/<int:branch_id>/toggle', methods=['POST'])

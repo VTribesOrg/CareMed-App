@@ -13,39 +13,29 @@ from argon2.exceptions import VerifyMismatchError
 
 from extensions import db, passhasher, oauth, mail, limiter, get_remote_address
 from models.users import User, SecurityLog, BlockedIP
-from models.customer import Customer
-from forms.auth_forms import RegisterForm, LoginForm, ResetPasswordForm
-from utils.security import (
-    generate_reset_token, verify_reset_token,
-    email_verification_token, verify_email_token
-)
+from forms.auth_forms import LoginForm, ResetPasswordForm
+from utils.security import generate_reset_token, verify_reset_token
+
+
+# Accounts allowed into the back office. CareMed has no customer accounts:
+# visitors browse the catalog and place orders through Messenger
+# (utils/messenger.py), so nothing on this blueprint registers new people.
+# Accounts are provisioned by a Developer in the branch console
+# (developer_routes) or an Administrator in the admin users screen.
+BACKOFFICE_ROLES = ("Administrator", "Staff", "Developer")
 
 
 # --------------------------------------------------------------------------- #
 # Password policy
 # --------------------------------------------------------------------------- #
 class PasswordPolicy:
-    """Password strength rules used at registration and reset time."""
+    """Password strength rule enforced by the reset-password flow.
 
-    REGEX = r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$"
+    Self-service registration has been removed - accounts are provisioned by
+    staff - so the only place a policy still applies is a new password.
+    """
+
     REGEX_STRICT_CHARSET = r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$"
-
-    @staticmethod
-    def is_strong(password: str):
-        """Human-readable strength check used to produce a flash message."""
-        if len(password) < 8:
-            return False, "Password must be at least 8 characters"
-        if not re.search(r'[A-Z]', password):
-            return False, "Password must contain at least one uppercase letter"
-        if not re.search(r'[0-9]', password):
-            return False, "Password must contain at least one number"
-        if not re.search(r'[!@#$%^&*(),.?\":{}|<>]', password):
-            return False, "Password must contain at least one special character"
-        return True, "OK"
-
-    @classmethod
-    def matches_registration_regex(cls, password: str) -> bool:
-        return bool(re.match(cls.REGEX, password))
 
     @classmethod
     def matches_reset_regex(cls, password: str) -> bool:
@@ -377,29 +367,6 @@ If this was not you, reset your password immediately.
         except Exception:
             pass  # Never break login if email fails
 
-    def send_verification_email(self, user: User, first_name: str):
-        verification_token = email_verification_token(user.email)
-        verify_link = url_for("auth.verify_email", token=verification_token, _external=True)
-
-        msg = Message(
-            subject="CareMed | Verify Your Email",
-            recipients=[user.email],
-            sender=current_app.config.get("MAIL_DEFAULT_SENDER")
-        )
-        msg.body = f"""
-            Hello {first_name},
-
-            Please verify your email to activate your CareMed account.
-
-            Click the link below:
-            {verify_link}
-
-            This link will expire in 24 hours.
-
-            CareMed Security Team
-            """
-        mail.send(msg)
-
     def send_reset_link(self, user: User, token: str):
         reset_link = url_for('auth.reset_password', token=token, _external=True)
 
@@ -644,12 +611,10 @@ class GoogleOAuthService:
             return False
         return True
 
-    def find_or_create_user(self, user_info: dict):
-        """Returns (user, error_flash_message_or_None)."""
+    def find_user(self, user_info: dict):
+
         email = user_info["email"].lower()
         google_id = user_info["sub"]
-        f_name = user_info.get("given_name", "Google").strip().title()
-        l_name = user_info.get("family_name", "User").strip().title()
 
         # Specific system accounts override configuration
         DEVELOPER_EMAILS = ["caremed.app@gmail.com"]
@@ -659,37 +624,53 @@ class GoogleOAuthService:
         if not user:
             user = User.query.filter_by(email=email).first()
 
-            if user:
-                if user.google_id and user.google_id != google_id:
-                    return None, "This email is already linked to a different Google account."
-
-                user.google_id = google_id
-                user.oauth_provider = "google"
-
-                if not user.first_name:
-                    user.first_name = f_name
-                if not user.last_name:
-                    user.last_name = l_name
-            else:
-                # Force initial role to Developer if it's the designated system email
-                assigned_role = "Developer" if email in DEVELOPER_EMAILS else "customer"
-
-                user = User(
-                    email=email,
-                    google_id=google_id,
-                    first_name=f_name,
-                    last_name=l_name,
-                    is_verified=True,
-                    email_verified_at=datetime.utcnow(),
-                    role=assigned_role,
-                    oauth_provider="google",
-                    is_active=True
+            if not user:
+                self.audit_logger.log_event(
+                    "Unmatched OAuth Login",
+                    f"Google sign-in rejected — no CareMed account for {email}",
+                    is_suspicious=True,
+                    severity='Medium'
                 )
-                db.session.add(user)
+                return None, (
+                    "No CareMed account exists for this Google account. "
+                    "Staff accounts are created by an administrator — orders "
+                    "can be placed on the site through Messenger without one."
+                )
+
+            if user.google_id and user.google_id != google_id:
+                return None, "This email is already linked to a different Google account."
+
+            # First Google sign-in for a provisioned account: link the identity.
+            user.google_id = google_id
+            user.oauth_provider = "google"
+
+        f_name = user_info.get("given_name", "").strip().title()
+        l_name = user_info.get("family_name", "").strip().title()
+        if not user.first_name and f_name:
+            user.first_name = f_name
+        if not user.last_name and l_name:
+            user.last_name = l_name
 
         # Ensure existing accounts matching the developer email also get promoted automatically
         if email in DEVELOPER_EMAILS and user.role != "Developer":
             user.role = "Developer"
+
+        # Google sign-in only opens the back office, matching the email/password
+        # form. Legacy 'customer' rows (accounts are no longer issued) are
+        # refused rather than silently given a dashboard they cannot use.
+        if (user.role or '').strip() not in BACKOFFICE_ROLES:
+            self.audit_logger.log_event(
+                "Unauthorized OAuth Login",
+                f"Google sign-in blocked for non-back-office role "
+                f"'{user.role}': {email}",
+                user=user,
+                is_suspicious=True,
+                severity='Medium'
+            )
+            return None, (
+                "This sign-in is only for CareMed staff accounts. Orders are "
+                "placed through Messenger — no account needed."
+            )
 
         return user, None
 
@@ -725,15 +706,6 @@ class AuthController:
     def _login_rate_limit_key():
         return request.remote_addr
 
-    @staticmethod
-    def _create_customer_for_user(user: User):
-        if not user.customer_profile:
-            customer = Customer(
-                user_id=user.id,
-                name=f"{user.first_name or ''} {user.last_name or ''}".strip()
-            )
-            db.session.add(customer)
-
     def _register_routes(self):
         bp = self.blueprint
 
@@ -743,11 +715,9 @@ class AuthController:
             )(self.login),
             methods=["GET", "POST"]
         )
-        bp.add_url_rule(
-            "/register", view_func=limiter.limit("5 per minute; 20 per hour")(self.register),
-            methods=["GET", "POST"]
-        )
-        bp.add_url_rule("/verify-email/<token>", view_func=self.verify_email)
+        # No /register and no /verify-email: accounts are provisioned by an
+        # Administrator (admin users screen) or a Developer (branch console),
+        # and every back-office account is created with is_verified=True.
         bp.add_url_rule("/google-login", view_func=self.google_login)
         bp.add_url_rule("/callback", view_func=self.callback)
         bp.add_url_rule("/logout", view_func=login_required(self.logout))
@@ -791,9 +761,26 @@ class AuthController:
                 flash("Your account is temporarily locked. Please try again later.", "password-error")
                 return redirect(url_for("auth.login"))
 
-            if not user.is_verified:
-                flash("Please verify your email before logging in.", "email-error")
-                session['login_email'] = email
+            # Email verification is gone: back-office accounts are provisioned
+            # already verified, so a pending-verification state is not possible.
+            if not user.is_active:
+                flash("This account has been deactivated. Please contact support.", "password-error")
+                return redirect(url_for("auth.login"))
+
+            role_clean = (user.role or '').strip()
+            if role_clean not in BACKOFFICE_ROLES:
+                self.audit_logger.log_event(
+                    "Unauthorized Login",
+                    f"Login blocked for non-back-office role '{user.role}': {email}",
+                    user=user,
+                    is_suspicious=True,
+                    severity='Medium'
+                )
+                flash(
+                    "This sign-in is only for CareMed staff accounts. Orders are "
+                    "placed through Messenger — no account needed.",
+                    "password-error"
+                )
                 return redirect(url_for("auth.login"))
 
             try:
@@ -881,111 +868,6 @@ class AuthController:
             return redirect(url_for("admin.dashboard"))
         return redirect(url_for("user.homepage"))
 
-    def register(self):
-        form = RegisterForm()
-
-        if form.validate_on_submit():
-            email = form.email.data.strip().lower()
-            first_name = form.first_name.data.strip().title()
-            last_name = form.last_name.data.strip().title()
-            phone = form.phone.data.strip()
-            address = form.address.data.strip().title()
-            password = form.password.data
-            strong, msg = PasswordPolicy.is_strong(password)
-
-            if not strong:
-                flash(msg, "error")
-                return render_template("authentication/registration.html", form=form)
-
-            self.audit_logger.log_event(
-                "Registration Attempt",
-                f"New account registration attempt for: {email}",
-                is_suspicious=False,
-                severity='Low'
-            )
-
-            if not PasswordPolicy.matches_registration_regex(password):
-                form.password.errors.append(
-                    "Password must be at least 8 characters and include uppercase, number, and special character."
-                )
-                return render_template("authentication/registration.html", form=form)
-
-            try:
-                existing_user = User.query.filter_by(email=email).first()
-                if existing_user:
-                    if not existing_user.is_active:
-                        form.email.errors.append("This account is deactivated. Please contact support.")
-                    else:
-                        form.email.errors.append("Email already registered.")
-                    return render_template("authentication/registration.html", form=form)
-
-                hashed_password = passhasher.hash(password)
-
-                new_user = User(
-                    email=email,
-                    password_hash=hashed_password,
-                    first_name=first_name,
-                    last_name=last_name,
-                    is_verified=False,
-                    is_active=True,
-                    role="customer"
-                )
-                db.session.add(new_user)
-                db.session.flush()
-
-                new_customer = Customer(
-                    user_id=new_user.id,
-                    first_name=first_name,
-                    last_name=last_name,
-                    contact_number=phone,
-                    home_address=address,
-                    is_id_verified=False
-                )
-                db.session.add(new_customer)
-                db.session.commit()
-
-                try:
-                    self.email_notifier.send_verification_email(new_user, first_name)
-                except Exception as mail_error:
-                    current_app.logger.error(f"Mail failed for {email}: {mail_error}")
-                    flash("Account created, but we couldn't send a verification email. Please try 'Resend Email'.", "warning")
-                    return redirect(url_for('auth.login'))
-
-                flash("Registration successful. Please check your email to verify your account.", "info")
-                return redirect(url_for('auth.login', success='registered', email=email))
-
-            except Exception as e:
-                db.session.rollback()
-                current_app.logger.error(f"Registration error for {email}: {e}")
-                flash("Registration failed. Please try again.", "danger")
-                return render_template("authentication/registration.html", form=form)
-
-        return render_template("authentication/registration.html", form=form)
-
-    def verify_email(self, token):
-        email = verify_email_token(token)
-
-        if not email:
-            flash("Verification link is invalid or expired.", "danger")
-            return redirect(url_for("auth.login"))
-
-        user = User.query.filter_by(email=email).first()
-
-        if not user:
-            flash("Account not found.", "danger")
-            return redirect(url_for("auth.login"))
-
-        if user.is_verified:
-            flash("Your email is already verified.", "info")
-            return redirect(url_for("auth.login"))
-
-        user.is_verified = True
-        user.email_verified_at = datetime.utcnow()
-        db.session.commit()
-
-        flash("Email verified successfully! You can now login.", "success")
-        return redirect(url_for("auth.login"))
-
     def google_login(self):
         return self.google_oauth.start_login()
 
@@ -1009,7 +891,7 @@ class AuthController:
             return redirect(url_for("auth.login"))
 
         try:
-            user, error = self.google_oauth.find_or_create_user(user_info)
+            user, error = self.google_oauth.find_user(user_info)
             if error:
                 flash(error, "danger")
                 return redirect(url_for("auth.login"))
@@ -1019,20 +901,10 @@ class AuthController:
                 return redirect(url_for("auth.login"))
 
             if not user.is_verified:
+                # Google already proved ownership of the address, and email
+                # verification is no longer a step anyone has to complete.
                 user.is_verified = True
                 user.email_verified_at = datetime.utcnow()
-
-            db.session.flush()
-
-            # Only create customer profile if the user is not an Administrator or Developer
-            if user.role not in ["Administrator", "Developer"] and not user.customer_profile:
-                customer = Customer(
-                    user_id=user.id,
-                    first_name=user.first_name,
-                    last_name=user.last_name,
-                    is_id_verified=False
-                )
-                db.session.add(customer)
 
             db.session.commit()
 

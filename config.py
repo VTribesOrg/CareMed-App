@@ -29,6 +29,10 @@ class Config:
     GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
     GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET")
 
+    # Fallback Messenger contact for public visitors (they have no branch).
+    # Branch-specific values on Branch.messenger_url take precedence.
+    MESSENGER_PAGE_URL = os.environ.get("MESSENGER_PAGE_URL")
+
     SESSION_COOKIE_NAME = "caremed_session"
     SESSION_COOKIE_SECURE = True        
     SESSION_COOKIE_HTTPONLY = True      
@@ -86,6 +90,10 @@ class DevConfig:
 
     GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
     GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET")
+
+    # Fallback Messenger contact for public visitors (they have no branch).
+    # Branch-specific values on Branch.messenger_url take precedence.
+    MESSENGER_PAGE_URL = os.environ.get("MESSENGER_PAGE_URL")
 
     SESSION_COOKIE_NAME = "caremed_dev_session"
 

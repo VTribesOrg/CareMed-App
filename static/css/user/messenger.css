@@ -1,0 +1,100 @@
+/* ---------------------------------------------------------------------------
+   Shared "Order via Messenger" call-to-action used by the public catalogue
+   (homepage, products, product detail). Messenger replaced the old cart /
+   checkout buttons, so these styles live in one place instead of being pasted
+   into every page stylesheet.
+   --------------------------------------------------------------------------- */
+.messenger-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: linear-gradient(135deg, #0084ff 0%, #00a6ff 60%, #00b2ff 100%) !important;
+    color: #ffffff !important;
+    border: none !important;
+    text-decoration: none;
+    transition: filter .2s ease, transform .2s ease;
+}
+
+.messenger-cta:hover {
+    filter: brightness(1.08);
+    transform: translateY(-1px);
+    color: #ffffff !important;
+}
+
+.messenger-cta i {
+    color: #ffffff;
+    font-size: 1.05em;
+}
+
+/* Outline variant for secondary placement (e.g. next to "View Details"). */
+.messenger-ghost {
+    background: #ffffff !important;
+    color: #0084ff !important;
+    border: 1px solid #bfe0ff !important;
+}
+
+.messenger-ghost i,
+.messenger-ghost:hover {
+    color: #0084ff !important;
+}
+
+/* Rendered when no Messenger page is configured for the branch. */
+.messenger-unavailable {
+    background: #f1f5f9 !important;
+    color: #64748b !important;
+    border: 1px solid #e2e8f0 !important;
+    cursor: not-allowed;
+}
+
+.messenger-unavailable i {
+    color: #94a3b8;
+}
+
+/* Pill used in the top navigation bar. */
+.messenger-nav {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #0084ff;
+    color: #ffffff;
+    border-radius: 999px;
+    padding: 9px 18px;
+    font-size: .85rem;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.messenger-nav:hover {
+    background: #00a6ff;
+    color: #ffffff;
+}
+
+/* Drawer entry for the mobile navigation menu. */
+.messenger-drawer {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #0084ff;
+    color: #ffffff;
+    border-radius: 10px;
+    padding: 11px 14px;
+    font-size: .9rem;
+    font-weight: 700;
+    text-decoration: none;
+    margin: 6px 0;
+}
+
+.messenger-drawer:hover {
+    background: #00a6ff;
+    color: #ffffff;
+}
+
+/* Small reassurance line shown under an ordering button. */
+.messenger-hint {
+    font-size: .78rem;
+    color: #64748b;
+    margin-top: 8px;
+    text-align: center;
+}

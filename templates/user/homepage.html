@@ -1,3 +1,5 @@
+{% from 'user/macros/messenger_cta.html' import messenger_cta with context %}
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -9,6 +11,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='icons/favicon-circle.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/user/homepage.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/user/messenger.css') }}">
     <style>
         .feature-icon.material-symbols-outlined {
             font-size: 40px;
@@ -53,11 +56,7 @@
                 <div class="user-details">
                     <span class="user-name">
                         {% if current_user.is_authenticated %}
-                            {% if current_user.customer_profile %}
-                                Hello, {{ current_user.customer_profile.first_name }}
-                            {% else %}
-                                Hello, {{ current_user.email.split('@')[0] }} 
-                            {% endif %}
+                            Hello, {{ current_user.first_name or current_user.email.split('@')[0] }}
                         {% else %}
                             Welcome, Guest
                         {% endif %}
@@ -71,7 +70,7 @@
                 </div>
                 <div class="user-details">
                     <span class="user-name">Welcome, Guest</span>
-                    <span class="user-role">Sign in to manage rentals</span>
+                    <span class="user-role">Order through Messenger - no account needed</span>
                 </div>
             </div>
 
@@ -83,6 +82,12 @@
                 <i class="fa-solid fa-bag-shopping"></i> Browse Equipment
             </a>
 
+            {# Ordering happens in Messenger, so the drawer gets the same chat
+               entry point the desktop navigation bar has. #}
+            {{ messenger_cta('Hi CareMed, I would like to place an order.',
+                             'Order on Messenger',
+                             'messenger-drawer') }}
+
             <a href="{{ url_for('user.homepage')}}#how">
                 <i class="fa-solid fa-circle-info"></i> How It Works
             </a>
@@ -91,14 +96,17 @@
                 <i class="fa-solid fa-building"></i> About
             </a>
 
-            <a href="{{ url_for('user.profile')}}" class="auth-only">
-                <i class="fa-solid fa-user"></i> My Account
-            </a>
-
-            <!-- Updated: Now points to the Split Dashboard -->
-            <a href="{{ url_for('user.dashboard') }}" class="auth-only">
-                <i class="fa-solid fa-clock-rotate-left"></i> My Activity
-            </a>
+            {% if current_user.is_authenticated %}
+                {% if (current_user.role or '').strip() == 'Developer' %}
+                    <a href="{{ url_for('developer.manage_branches') }}">
+                        <i class="fa-solid fa-sitemap"></i> Developer Console
+                    </a>
+                {% else %}
+                    <a href="{{ url_for('admin.dashboard') }}">
+                        <i class="fa-solid fa-gauge-high"></i> Staff Dashboard
+                    </a>
+                {% endif %}
+            {% endif %}
 
             <hr class="auth-only" style="border: none; border-top: 1px solid #eee; margin: 10px 0;">
 
@@ -142,19 +150,11 @@
 
             {#  <a href="{{ url_for('user.products')}}" class="nav-cta-btn guest-only">Start Renting</a>  #}
 
-            {% if current_user.is_authenticated %}
-                <a href="{{ url_for('user.cart') }}" class="nav-cart-wrapper" title="View Cart">
-                    <div class="cart-icon-container">
-                        <i class="fa-solid fa-cart-shopping"></i>
-
-                        {% set cart_count = current_user.cart.items|length if current_user.cart else 0 %}
-
-                        {% if cart_count > 0 %}
-                            <span class="cart-badge" id="cartBadge">{{ cart_count }}</span>
-                        {% endif %}
-                    </div>
-                </a>
-            {% endif %}
+            {# Ordering happens in Messenger now, so the cart icon is gone and
+               everyone — guests and staff alike — gets the chat button. #}
+            {{ messenger_cta('Hi CareMed, I would like to place an order.',
+                             'Order on Messenger',
+                             'messenger-nav') }}
 
             <div class="user-profile-widget auth-only" id="profileDropdown">
                 <div class="profile-trigger" id="profileTrigger">
@@ -169,7 +169,7 @@
                     <div class="user-info">
                         <span class="user-name">
                             {% if current_user.is_authenticated %}
-                                Hello, {{ current_user.customer_profile.first_name }}
+                                Hello, {{ current_user.first_name or current_user.email.split('@')[0] }}
                             {% else %}
                                 Guest
                             {% endif %}
@@ -181,12 +181,15 @@
 
                 <div class="dropdown-menu" id="dropdownMenu">
                     {% if current_user.is_authenticated %}
-                        <a href="{{ url_for('user.profile') }}">
-                            <i class="fa-solid fa-user"></i> My Account
-                        </a>
-                        <a href="{{ url_for('user.dashboard') }}">
-                            <i class="fa-solid fa-clock-rotate-left"></i> My Activity
-                        </a>
+                        {% if (current_user.role or '').strip() == 'Developer' %}
+                            <a href="{{ url_for('developer.manage_branches') }}">
+                                <i class="fa-solid fa-sitemap"></i> Developer Console
+                            </a>
+                        {% else %}
+                            <a href="{{ url_for('admin.dashboard') }}">
+                                <i class="fa-solid fa-gauge-high"></i> Staff Dashboard
+                            </a>
+                        {% endif %}
                         <hr>
                         <a href="{{ url_for('auth.logout') }}" class="logout-item">
                             <i class="fa-solid fa-right-from-bracket"></i> Sign Out
@@ -419,66 +422,20 @@
                         </div>
 
                         <div class="action-grid">
-                            {% if product.transaction_type == 'Rental' %}
-                                {% if current_user.is_authenticated %}
-                                    {% if product.stock > 0 %}
-                                        <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
-                                        class="btn-action btn-rent-outline">
-                                            <i class="fa-solid fa-cart-plus"></i> Add Rental
-                                        </a>
+                            <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
+                               class="btn-action btn-rent-outline">
+                                <i class="fa-solid fa-circle-info"></i> View Details
+                            </a>
 
-                                        <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
-                                        class="btn-action btn-rent-outline">
-                                            <i class="fa-solid fa-calendar-day"></i> Rent Now
-                                        </a>
-                                    {% else %}
-                                        <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
-                                        class="btn-action btn-guest"
-                                        style="background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0;">
-                                            <i class="fa-solid fa-circle-info"></i> View Details
-                                        </a>
-                                    {% endif %}
-                                {% else %}
-                                    <a href="{{ url_for('auth.login') }}" class="btn-action btn-guest">
-                                        <i class="fa-solid fa-lock"></i> Login to Rent
-                                    </a>
-                                {% endif %}
-                            {% endif %}
-
-                            {% if product.transaction_type == 'Sale' %}
-                                {% if product.stock > 0 %}
-                                    {% if current_user.is_authenticated %}
-                                        {% if (product.id, 'Sale') in in_cart_items %}
-                                            <button class="btn-action" disabled style="background: #f1f5f9; color: #16a34a; border: 1px solid #16a34a; cursor: default;">
-                                                <i class="fa-solid fa-check"></i> In Cart
-                                            </button>
-                                        {% else %}
-                                            <form action="{{ url_for('user.add_to_cart', product_id=product.id) }}" method="POST" style="display: contents;">
-                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                                <input type="hidden" name="item_type" value="Sale">
-                                                <button type="submit" class="btn-action btn-buy-solid" style="background: #fff; color: #16a34a; border: 1px solid #16a34a;">
-                                                    <i class="fa-solid fa-cart-plus"></i> Add to Cart
-                                                </button>
-                                            </form>
-                                        {% endif %}
-
-                                        <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
-                                        class="btn-action btn-buy-solid">
-                                            <i class="fa-solid fa-bolt"></i> Buy Now
-                                        </a>
-                                    {% else %}
-                                        <a href="{{ url_for('auth.login') }}"
-                                        class="btn-action btn-buy-solid">
-                                            <i class="fa-solid fa-lock"></i> Login to Buy
-                                        </a>
-                                    {% endif %}
-                                {% else %}
-                                    <a href="{{ url_for('user.product_detail', product_id=product.id) }}"
-                                    class="btn-action btn-guest"
-                                    style="text-decoration: none; background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0;">
-                                        <i class="fa-solid fa-circle-info"></i> View Details
-                                    </a>
-                                {% endif %}
+                            {% if product.stock and product.stock > 0 %}
+                                {{ messenger_cta('Hi CareMed, I would like to order ' ~ product.name ~ '. Is it available?',
+                                                 'Order via Messenger',
+                                                 'btn-action btn-buy-solid messenger-cta') }}
+                            {% else %}
+                                <span class="btn-action"
+                                      style="background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0;">
+                                    <i class="fa-solid fa-ban"></i> Out of Stock
+                                </span>
                             {% endif %}
                         </div>
                     </div>

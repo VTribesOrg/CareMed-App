@@ -29,6 +29,8 @@ class Branch(db.Model):
     contact_number = db.Column(db.String(50), nullable=True)
     email = db.Column(db.String(120), nullable=True)
 
+    messenger_url = db.Column(db.String(255), nullable=True, index=True)
+
     theme_color = db.Column(db.String(20), nullable=False, default="#002347")
     accent_color = db.Column(db.String(20), nullable=False, default="#52B788")
     brand_name = db.Column(db.String(120), nullable=True)
@@ -50,8 +52,41 @@ class Branch(db.Model):
         return self.brand_name or self.branch_name
 
     @property
+    def primary_admin(self):
+        """The Administrator account running this branch, or ``None``.
+
+        There is no ``users`` relationship on this model, so this is an
+        explicit query; ``models.users`` imports this module for
+        ``BranchScoped``, which is why the import lives inside the method.
+        The result is cached on the instance because ``contact_email`` is read
+        from the theming context processor on every page render.
+        """
+        from models.users import User
+
+        if not hasattr(self, "_primary_admin_cache"):
+            self._primary_admin_cache = (
+                User.query
+                .filter_by(branch_id=self.id, role="Administrator")
+                .order_by(User.id.asc())
+                .first()
+            )
+        return self._primary_admin_cache
+
+    @property
+    def contact_email(self):
+        admin = self.primary_admin
+        return admin.email if admin else self.email
+
+    @property
     def display_tagline(self):
         return self.tagline or "Medical Equipment Rental & Sales"
+
+    @property
+    def messenger_link(self):
+        """Canonical ``https://m.me/<page>`` chat link, or ``None``."""
+        from utils.messenger import normalize_messenger_url
+
+        return normalize_messenger_url(self.messenger_url)
 
     def as_theme(self):
         """Return the values the templates need to theme this branch."""
@@ -70,7 +105,7 @@ class Branch(db.Model):
             "footer_text": self.footer_text
             or f"CareMed {self.display_name}",
             "contact_number": self.contact_number,
-            "email": self.email,
+            "email": self.contact_email,
             "address": self.address,
         }
 

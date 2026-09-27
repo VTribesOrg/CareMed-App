@@ -19,6 +19,8 @@ import os
 import uuid
 import random, string
 from utils.backup import create_backup, get_all_backups
+from utils.branch_scope import get_active_branch_id
+from utils.dashboard_cards import visible_card_keys, filter_dashboard_payload
 from flask import send_file, Response, stream_with_context
 import json
 import time
@@ -82,7 +84,6 @@ def permission_required(permission_name):
 from sqlalchemy import func
 
 def get_cogs_category(product):
-    """Smart category assignment for auto-generated Cost of Sales expenses."""
     if product.is_refillable:
         return 'Oxygen Refill Cost'
     et = (product.equipment_type or '').lower()
@@ -134,7 +135,11 @@ ALL_EXPENSE_CATEGORIES_ORDERED = [
 @login_required
 @admin_or_staff_required
 def dashboard():
-    return render_template("admin/dashboard.html")
+
+    return render_template(
+        "admin/dashboard.html",
+        visible_cards=visible_card_keys(get_active_branch_id()),
+    )
 
 def get_date_boundaries(period, custom_start=None, custom_end=None):
     now = datetime.now()
@@ -411,7 +416,7 @@ def dashboard_data():
 
         standard_assets = list(assets_aggregation.values())
 
-        return jsonify({
+        payload = {
             "total_sales": float(total_sales),
             "sales_net": float(sales_net),
             "total_rentals": float(total_rentals),
@@ -426,7 +431,11 @@ def dashboard_data():
             "total_expenses": float(total_expenses),
             "tank_statuses": combined_tank_statuses,
             "standard_assets": standard_assets,
-        })
+        }
+
+        # Hidden cards must not have their numbers reach the browser at all —
+        # a CSS-only hide can be undone with DevTools.
+        return jsonify(filter_dashboard_payload(payload, get_active_branch_id()))
         
     except Exception:
         current_app.logger.exception("Critical error encountered while fetching admin dashboard metrics.")
@@ -2532,6 +2541,11 @@ def cancel_transaction(txn_id):
         if hasattr(txn, 'cancellation_reason'):
             txn.cancellation_reason = reason
 
+        if hasattr(txn, 'customer_deposits') and txn.customer_deposits:
+            for deposit in txn.customer_deposits:
+                deposit.status = 'Refunded' 
+                deposit.notes = (deposit.notes or '') + f" | Cancelled due to transaction cancellation. Reason: {reason}"
+
         if txn.transaction_type == 'Sale' and txn.purchases:
             for purchase in txn.purchases:
                 product = purchase.product
@@ -2592,16 +2606,13 @@ def cancel_transaction(txn_id):
 
         return jsonify({
             'success': True,
-            'message': 'Transaction has been successfully cancelled, payment amounts cleared, and inventory levels have been restored.'
+            'message': 'Transaction has been successfully cancelled, deposit status updated, payment amounts cleared, and inventory levels have been restored.'
         }), 200
 
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"CANCEL_TRANSACTION_ERROR | ID: {txn_id} | Error: {str(e)}")
-        return jsonify({
-            'success': False,
-            'message': f'An error occurred while cancelling the transaction: {str(e)}'
-        }), 500
+        current_app.logger.error(f"CANCEL_TRANSACTION_ERROR: {str(e)}")
+        return jsonify({'success': False, 'message': 'An internal error occurred while canceling the transaction.'}), 500
         
 @admin_bp.route('/active-rentals')
 @login_required

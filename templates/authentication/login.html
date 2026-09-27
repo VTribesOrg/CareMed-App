@@ -82,44 +82,10 @@
                     <a href="{{ url_for('user.homepage')}}" class="guest-pill">Guest Mode</a>
                 </div>
 
-                {% if request.args.get('success') == 'registered' %}
-                <div id="successArea" class="success-screen">
-                    <div class="success-visual">
-                        <div class="confetti-icon">
-                            <i class="fa-solid fa-envelope-circle-check"></i>
-                        </div>
-                    </div>
-                    
-                    <div class="header-text">
-                        <h2>Verify your email</h2>
-                        <p class="subtitle">We've sent a verification link to:<br>
-                            <strong class="email-highlight">{{ request.args.get('email') }}</strong>
-                        </p>
-                    </div>
-
-                    <div class="next-steps-card">
-                        <h4>Next Steps:</h4>
-                        <ul>
-                            <li><i class="fa-solid fa-circle-check"></i> Check your inbox (and spam folder)</li>
-                            <li><i class="fa-solid fa-circle-check"></i> Click the link in the email</li>
-                            <li><i class="fa-solid fa-circle-check"></i> Return here to log in</li>
-                        </ul>
-                    </div>
-
-                    <a href="{{ url_for('auth.login') }}" class="btn-primary-outline">
-                        Back to Login
-                    </a>
-                    
-                    <p class="footer-note" style="margin-top: 20px;">
-                        Didn't get the email? <a href="#">Resend Link</a>
-                    </p>
-                </div>
-
-                {% else %}
                 <div id="loginArea">
                     <div class="header-text">
-                        <h2>Welcome Back</h2>
-                        <p class="subtitle">Log in to manage your orders and medical supplies.</p>
+                        <h2>Staff Portal</h2>
+                        <p class="subtitle">Sign in to manage products, rentals and records. Customers order through Messenger.</p>
                     </div>
 
                     <form id="loginForm" action="{{ url_for('auth.login') }}" method="POST">
@@ -200,16 +166,20 @@
 
                     <div class="divider"><span>OR CONTINUE WITH</span></div>
 
-                    <a href="/google-login" class="google-btn" style="text-decoration: none;">
+                    <a href="{{ url_for('auth.google_login') }}" class="google-btn" style="text-decoration: none;">
                         <img src="{{ url_for('static', filename='icons/google-avatar.svg') }}" alt="Google" width="18">
                         Sign in with Google
                     </a>
 
                     <p class="footer-note">
-                        Don't have an account? <a href="{{ url_for('auth.register') }}">Create one now</a>
+                        Staff access only — accounts are created by an administrator.
+                        {% if messenger_url %}
+                        Looking to order?
+                        <a href="{{ messenger_link('Hi CareMed, I would like to place an order.') }}"
+                           target="_blank" rel="noopener noreferrer">Message us on Messenger</a> — no account needed.
+                        {% endif %}
                     </p>
                 </div>
-                {% endif %}
 
             </div>
         </div>

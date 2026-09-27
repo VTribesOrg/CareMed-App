@@ -86,7 +86,9 @@
 
 </div>
 
+{% set visible_cards = visible_cards or [] %}
 <div class="dashboard-grid-layout">
+    {% if 'overall_income' in visible_cards %}
     <div class="stat-card overall-income-card">
         <div class="stat-icon emerald"><span class="material-symbols-rounded">account_balance_wallet</span></div>
         <div class="stat-info">
@@ -100,8 +102,10 @@
             </div>
         </div>
     </div>
+    {% endif %}
 
     <div class="right-cards-grid">
+        {% if 'sales_profit' in visible_cards %}
         <div class="stat-card" style="display: flex; align-items: center;">
             <div class="stat-icon blue"><span class="material-symbols-rounded">payments</span></div>
             <div class="stat-info" style="display: flex !important; flex-direction: row !important; justify-content: space-between !important; align-items: center !important; width: 100%; gap: 15px;">
@@ -119,7 +123,9 @@
 
             </div>
         </div>
+        {% endif %}
         
+        {% if 'refill_income' in visible_cards %}
         <div class="stat-card" style="display: flex; align-items: center;">
             <div class="stat-icon purple"><span class="material-symbols-rounded">water_drop</span></div>
             <div class="stat-info" style="display: flex !important; flex-direction: row !important; justify-content: space-between !important; align-items: center !important; width: 100%; gap: 15px;">
@@ -136,7 +142,9 @@
 
             </div>
         </div>
+        {% endif %}
 
+        {% if 'rentals_income' in visible_cards %}
         <div class="stat-card" style="display: flex; align-items: center;">
             <div class="stat-icon green"><span class="material-symbols-rounded">calendar_month</span></div>
             <div class="stat-info" style="display: flex !important; flex-direction: row !important; justify-content: space-between !important; align-items: center !important; width: 100%; gap: 15px;">
@@ -146,14 +154,18 @@
                     <span class="stat-value" id="val-total-rentals" style="font-size: 1.25rem; font-weight: 700; color: #0f172a;">₱0</span>
                 </div>
                 
+                {% if 'rental_share' in visible_cards %}
                 <div style="flex: 1; min-width: 0; text-align: right; border-left: 2px solid #cbd5e1; padding-left: 15px;">
                     <span style="font-size: 0.8rem; font-weight: 600; display: block; color: #475569;">30% of Rental Income</span>
                     <strong id="val-rental-share" style="color:#059669; font-size: 1.25rem; font-weight: 700;">0%</strong>
                 </div>
+                {% endif %}
 
             </div>
         </div>
+        {% endif %}
 
+        {% if 'expenses' in visible_cards %}
         <div class="stat-card">
             <div class="stat-icon orange"><span class="material-symbols-rounded">receipt_long</span></div>
             <div class="stat-info">
@@ -161,7 +173,9 @@
                 <span class="stat-value" id="val-total-expenses">₱0</span>
             </div>
         </div>
+        {% endif %}
         
+        {% if 'active_rentals' in visible_cards %}
         <div class="stat-card">
             <div class="stat-icon orange"><span class="material-symbols-rounded">vitals</span></div>
             <div class="stat-info">
@@ -169,7 +183,9 @@
                 <span class="stat-value" id="val-active-rentals">0</span>
             </div>
         </div>
+        {% endif %}
         
+        {% if 'inventory' in visible_cards %}
         <div class="stat-card">
             <div class="stat-icon red"><span class="material-symbols-rounded">inventory_2</span></div>
             <div class="stat-info">
@@ -177,7 +193,9 @@
                 <span class="stat-value" id="val-total-inventory">0</span>
             </div>
         </div>
+        {% endif %}
 
+        {% if 'deposits' in visible_cards %}
         <div class="stat-card">
             <div class="stat-icon blue"><span class="material-symbols-rounded">lock</span></div>
             <div class="stat-info">
@@ -186,7 +204,9 @@
                 <small style="color: #64748b; display: block; margin-top: 2px;">Active refundable deposits</small>
             </div>
         </div>
+        {% endif %}
 
+        {% if 'freight' in visible_cards %}
         <div class="stat-card">
             <div class="stat-icon purple"><span class="material-symbols-rounded">local_shipping</span></div>
             <div class="stat-info">
@@ -195,7 +215,9 @@
                 <small style="color: #64748b; display: block; margin-top: 2px;">Cost of freight incurred</small>
             </div>
         </div>
+        {% endif %}
 
+        {% if 'commission' in visible_cards %}
         <div class="stat-card" style="display: flex; align-items: center;">
             <div class="stat-icon purple"><span class="material-symbols-rounded">request_quote</span></div>
             <div class="stat-info" style="display: flex !important; flex-direction: row !important; justify-content: space-between !important; align-items: center !important; width: 100%; gap: 15px;">
@@ -212,23 +234,31 @@
 
             </div>
         </div>
+        {% endif %}
     </div>
 </div>
 
+{% set first_panel = 'oxygen_tracking' if 'oxygen_tracking' in visible_cards else 'standard_assets' %}
+{% if 'oxygen_tracking' in visible_cards or 'standard_assets' in visible_cards %}
 <div class="inventory-tracking-container">
     <div class="tab-navigation-bar">
-        <button class="custom-tab-trigger is-active" data-target="oxygen-tanks-panel">
+        {% if 'oxygen_tracking' in visible_cards %}
+        <button class="custom-tab-trigger{% if first_panel == 'oxygen_tracking' %} is-active{% endif %}" data-target="oxygen-tanks-panel">
             <span class="material-symbols-rounded">pulmonology</span>
             <span>Oxygen Tank Tracking</span>
         </button>
+        {% endif %}
 
-        <button class="custom-tab-trigger" data-target="standard-assets-panel">
+        {% if 'standard_assets' in visible_cards %}
+        <button class="custom-tab-trigger{% if first_panel == 'standard_assets' %} is-active{% endif %}" data-target="standard-assets-panel">
             <span class="material-symbols-rounded">bedroom_child</span>
             <span>Standard Equipment</span>
         </button>
+        {% endif %}
     </div>
 
-    <div id="oxygen-tanks-panel" class="inventory-data-panel is-active">
+    {% if 'oxygen_tracking' in visible_cards %}
+    <div id="oxygen-tanks-panel" class="inventory-data-panel{% if first_panel == 'oxygen_tracking' %} is-active{% endif %}">
         <div class="table-scroll-wrapper">
             <table class="medical-data-table">
                 <thead>
@@ -250,8 +280,10 @@
             </table>
         </div>
     </div>
+    {% endif %}
 
-    <div id="standard-assets-panel" class="inventory-data-panel">
+    {% if 'standard_assets' in visible_cards %}
+    <div id="standard-assets-panel" class="inventory-data-panel{% if first_panel == 'standard_assets' %} is-active{% endif %}">
         <div class="table-scroll-wrapper">
             <table class="medical-data-table">
                 <thead>
@@ -271,7 +303,8 @@
             </table>
         </div>
     </div>
-</div>
+    {% endif %}
+{% endif %}
 
 {% endblock %}
 

@@ -347,6 +347,7 @@
                         </div>
 
                         <div class="table-container">
+
                             <table class="item-list-table" style="width: 100%; border-collapse: collapse;">
                                 <thead>
                                     <tr style="background-color: #ffffff; border-bottom: 2px solid #cbd5e1;">
@@ -359,7 +360,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {% for invoice in rental.invoices %}
+                                    {% for invoice in rental.invoices | reverse %}
 
                                         {% set is_last_invoice = (loop.index0 == rental.invoices | length - 1) and (rental == txn.rentals[-1]) %}
                                         
@@ -480,6 +481,7 @@
                                     {% endfor %}
                                 </tbody>
                             </table>
+
                         </div>
                     </div>
                     {% endfor %}

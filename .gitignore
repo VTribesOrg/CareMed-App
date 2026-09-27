@@ -28,3 +28,13 @@ uploads/
 Thumbs.db
 .vscode/
 .idea/
+
+# ── Local developer tooling ──────────────────────────────────────────────
+# Verification helpers that run against a working copy only. Nothing here is
+# imported by the application, and docker-compose bind-mounts this checkout
+# over /app inside the container ("volumes: .:/app"), so anything committed
+# here also lands on the production filesystem - which is the reason these are
+# ignored rather than merely unused.
+/_heads.py
+/_drift.py
+/scripts/

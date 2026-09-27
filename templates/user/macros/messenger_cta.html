@@ -1,0 +1,29 @@
+{#
+  Shared "Order via Messenger" call-to-action.
+
+  `messenger_url` (the raw link) and `messenger_link(message)` (the link with a
+  in app.py — the current branch's Messenger page first, MESSENGER_PAGE_URL as
+
+  pre-filled message) are injected into every template by the context processor
+  the fallback. When neither is configured the macro renders a disabled-looking
+  placeholder instead of a dead link, so the page still tells the truth.
+
+  Usage:
+    {{ messenger_cta('Hi CareMed, I would like to order.') }}
+    {{ messenger_cta(message, 'Buy Now', 'btn-action btn-buy-solid messenger-cta') }}
+#}
+{% macro messenger_cta(message, label='Order via Messenger', css_class='btn-action btn-buy-solid messenger-cta', icon='fa-brands fa-facebook-messenger') %}
+    {% if messenger_url %}
+        <a href="{{ messenger_link(message) }}"
+           target="_blank" rel="noopener noreferrer"
+           class="{{ css_class }}"
+           title="Opens a Facebook Messenger chat with us">
+            <i class="{{ icon }}"></i> {{ label }}
+        </a>
+    {% else %}
+        <span class="{{ css_class }} messenger-unavailable"
+              title="Messenger ordering is not configured for this branch yet.">
+            <i class="fa-solid fa-comment-slash"></i> {{ label }}
+        </span>
+    {% endif %}
+{% endmacro %}

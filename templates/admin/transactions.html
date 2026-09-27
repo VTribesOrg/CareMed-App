@@ -271,7 +271,11 @@
                     <td style="color: #198754; font-weight: 500; text-align: right; padding: 12px;">₱{{ "{:,.2f}".format(txn.amount_paid) }}</td>
                     
                     <td style="text-align: right; padding: 12px;">
-                        {% if txn.balance_due > 0 %}
+                        {% set is_cancelled = (txn.status|lower == 'cancelled' or txn.tracking_status|lower == 'cancelled') %}
+                        
+                        {% if is_cancelled %}
+                            <span style="color: #6c757d; font-style: italic;">—</span>
+                        {% elif txn.balance_due > 0 %}
                             <span style="color: #dc3545; font-weight: bold;">₱{{ "{:,.2f}".format(txn.balance_due) }}</span>
                         {% else %}
                             <div style="display: flex; justify-content: flex-end;">
