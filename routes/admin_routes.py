@@ -2350,12 +2350,14 @@ def transactions():
     )
 
     if search_query:
-        query = query.outerjoin(Rental, Rental.transaction_id == Transaction.id).filter(or_(
-            Transaction.reference_no.ilike(f"%{search_query}%"),
-            Transaction.customer_name.ilike(f"%{search_query}%"),
-            Transaction.landmark.ilike(f"%{search_query}%"),
-            Rental.serial_number.ilike(f"%{search_query}%")
-        )).distinct()
+        query = query.outerjoin(Rental, Rental.transaction_id == Transaction.id)\
+                     .outerjoin(RentalTank, RentalTank.rental_id == Rental.id)\
+                     .filter(or_(
+                         Transaction.reference_no.ilike(f"%{search_query}%"),
+                         Transaction.customer_name.ilike(f"%{search_query}%"),
+                         Transaction.landmark.ilike(f"%{search_query}%"),
+                         RentalTank.serial_number.ilike(f"%{search_query}%")
+                     )).distinct()
     
     if txn_type:
         query = query.filter(Transaction.transaction_type == txn_type)
@@ -2551,7 +2553,11 @@ def cancel_transaction(txn_id):
                 product = purchase.product
                 if product and purchase.quantity:
                     product.stock = (product.stock or 0) + purchase.quantity
-                    
+
+                    if product.tank_status:
+                        product.tank_status.full_in_stock = (product.tank_status.full_in_stock or 0) + purchase.quantity
+                        product.tank_status.total_owned = (product.tank_status.total_owned or 0) + purchase.quantity
+
                     inv_log = InventoryLog(
                         product_id=product.id,
                         action='Transaction Cancelled Restock',
@@ -2571,7 +2577,12 @@ def cancel_transaction(txn_id):
 
                 if rental.product:
                     rental.product.stock = (rental.product.stock or 0) + rental.remaining_to_return
-                    
+
+                    if rental.product.tank_status:
+                        tank_stat = rental.product.tank_status
+                        tank_stat.rented_out = max(0, (tank_stat.rented_out or 0) - rental.remaining_to_return)
+                        tank_stat.full_in_stock = (tank_stat.full_in_stock or 0) + rental.remaining_to_return
+
                     inv_log = InventoryLog(
                         product_id=rental.product.id,
                         action='Rental Transaction Cancelled Restock',
@@ -2586,6 +2597,10 @@ def cancel_transaction(txn_id):
             product = Product.query.get(txn.product_id)
             if product and txn.quantity:
                 product.stock = (product.stock or 0) + txn.quantity
+
+                if product.tank_status:
+                    product.tank_status.full_in_stock = (product.tank_status.full_in_stock or 0) + txn.quantity
+                    product.tank_status.empty_in_stock = max(0, (product.tank_status.empty_in_stock or 0) - txn.quantity)
                 
                 inv_log = InventoryLog(
                     product_id=product.id,
@@ -2606,14 +2621,14 @@ def cancel_transaction(txn_id):
 
         return jsonify({
             'success': True,
-            'message': 'Transaction has been successfully cancelled, deposit status updated, payment amounts cleared, and inventory levels have been restored.'
+            'message': 'Transaction has been successfully cancelled, deposit status updated, payment amounts cleared, inventory levels and tank statuses have been restored.'
         }), 200
 
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"CANCEL_TRANSACTION_ERROR: {str(e)}")
         return jsonify({'success': False, 'message': 'An internal error occurred while canceling the transaction.'}), 500
-        
+    
 @admin_bp.route('/active-rentals')
 @login_required
 @admin_or_staff_required
@@ -2821,8 +2836,22 @@ def transaction_details(id):
 
     txn.update_totals()
     db.session.commit()
+
+    held_deposit_total = Decimal("0.00")
+    if txn.customer_id:
+        held_deposit_total = db.session.query(
+            func.coalesce(func.sum(CustomerDeposit.amount), 0)
+        ).filter(
+            CustomerDeposit.customer_id == txn.customer_id,
+            CustomerDeposit.status == 'Held'
+        ).scalar()
     
-    return render_template('admin/transaction_details.html', txn=txn, current_date=datetime.now().date())
+    return render_template(
+        'admin/transaction_details.html', 
+        txn=txn, 
+        current_date=datetime.now().date(),
+        held_deposit_total=held_deposit_total
+    )
 
 @admin_bp.route('/api/cron/generate-invoices', methods=['POST', 'GET'])
 def cron_generate_invoices():

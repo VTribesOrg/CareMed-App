@@ -1919,28 +1919,34 @@ textarea.clinical-input {
 }
 
 .rental-summary-box {
-    background: #f8fafc;
+    background: #ffffff;
     border: 1px solid #e2e8f0;
     border-radius: 12px;
-    padding: 16px;
-    margin-top: 10px;
+    padding: 1.25rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
 }
 
-.summary-header {
+.rental-summary-box .summary-header {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 0.75rem;
     font-weight: 700;
-    color: #64748b;
-    margin-bottom: 12px;
-    letter-spacing: 0.05em;
+    font-size: 0.9rem;
+    color: #334155;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #f1f5f9;
 }
 
-.summary-details {
+.rental-summary-box .summary-header .material-symbols-rounded {
+    color: #0284c7;
+    font-size: 1.25rem;
+}
+
+.rental-summary-box .summary-details {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 0.75rem;
 }
 
 .summary-row {
@@ -1950,19 +1956,57 @@ textarea.clinical-input {
     color: #334155;
 }
 
-.summary-row.deduction {
-    color: #10b981; 
-    font-size: 0.85rem;
+.rental-summary-box .summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.95rem;
+    color: #475569;
+}
+.rental-summary-box .summary-divider {
+    height: 1px;
+    background-color: #e2e8f0;
+    margin: 0.25rem 0;
 }
 
-.summary-divider {
-    height: 1px;
-    background: #e2e8f0;
-    margin: 8px 0;
+.rental-summary-box .summary-row.total-row {
+    background-color: #f8fafc;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    margin-top: 0.25rem;
+}
+
+.rental-summary-box .amount {
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.rental-summary-box .summary-row.deduction {
+    color: #059669;
+}
+
+.rental-summary-box .summary-row.deduction .amount {
+    color: #059669;
+}
+
+#rent-duration-text {
+    font-weight: 600;
+    color: #0369a1;
+    background: #e0f2fe;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.85rem;
 }
 
 .total-row {
     align-items: center;
+}
+
+.rental-summary-box .total-row small {
+    display: block;
+    color: #64748b;
+    font-size: 0.75rem;
 }
 
 .total-label-group {
@@ -1970,9 +2014,10 @@ textarea.clinical-input {
     flex-direction: column;
 }
 
-.main-total-label {
+.rental-summary-box .main-total-label {
     font-weight: 700;
-    color: #1e293b;
+    color: #0f172a;
+    font-size: 1rem;
 }
 
 #balance-label {
@@ -1980,11 +2025,36 @@ textarea.clinical-input {
     color: #64748b;
 }
 
-.total-amount-display {
-    font-size: 1.5rem;
+.rental-summary-box .total-amount-display {
+    font-size: 1.35rem;
     font-weight: 800;
-    color: #0f172a;
+    color: #ef4444;
 }
+
+#rent-summary-items-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 8px; 
+    padding: 8px 0 8px 12px; 
+    border-left: 2px solid #cbd5e1;
+    margin: 6px 0;
+}
+
+#rent-summary-items-breakdown .breakdown-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.9rem;
+    color: #334155;
+    line-height: 1.5; 
+    letter-spacing: 0.01em; 
+}
+
+
+#rent-summary-items-breakdown span {
+    margin-right: 4px; 
+}
+
 
 .status-paid { color: #10b981 !important; }
 .status-pending { color: #f59e0b !important; }
@@ -2005,11 +2075,7 @@ textarea.clinical-input {
     font-size: 1.1rem;
 }
 
-.total-amount-display {
-    color: #00a8cc;
-    font-size: 1.5rem;
-    font-weight: 800;
-}
+
 
 .btn-confirm-rental {
     background-color: #f97316 !important;

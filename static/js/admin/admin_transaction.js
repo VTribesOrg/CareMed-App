@@ -697,16 +697,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 itemRow.className = 'basket-item-row';
                 itemRow.style = 'display: flex; align-items: center; justify-content: space-between; gap: 12px; background: white; border: 1px solid #e2e8f0; padding: 8px 12px; border-radius: 6px;';
                 itemRow.innerHTML = `
-                    <div style="flex: 1;">
-                        <strong style="font-size: 13px; color: #1e293b; display:block;">${item.name}</strong>
-                        <span style="font-size: 11px; color: #64748b;">₱${item.price.toFixed(2)} each</span>
+                    <div style="flex: 1; display: flex; flex-direction: column; gap: 6px; padding: 4px 0;">
+                        <strong style="font-size: 13px; color: #1e293b; display: block; line-height: 1.6; letter-spacing: 0.04em; word-spacing: 0.1em;">${item.name}</strong>
+                        <span style="font-size: 11px; color: #64748b; letter-spacing: 0.04em; word-spacing: 0.08em;">₱${item.price.toFixed(2)} each</span>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 6px;">
-                        <label style="font-size: 11px; color: #64748b;">Qty:</label>
-                        <input type="number" class="clinical-input basket-qty-input" data-index="${index}" min="1" max="${item.maxStock}" value="${item.quantity}" style="width: 65px; height: 32px; padding: 0 6px; text-align: center;">
+
+                    <div style="display: flex; align-items: center; gap: 12px; margin-left: 16px;">
+                        <label style="font-size: 11px; color: #64748b; font-weight: 500; letter-spacing: 0.03em;">Qty:</label>
+                        <input type="number" class="clinical-input basket-qty-input" data-index="${index}" min="1" max="${item.maxStock}" value="${item.quantity}" style="width: 65px; height: 34px; padding: 0 8px; text-align: center;">
                     </div>
-                    <button type="button" class="remove-basket-item-btn" data-index="${index}" style="background: none; border: none; color: #ef4444; cursor: pointer; display: flex; align-items: center;">
-                        <span class="material-symbols-rounded" style="font-size: 18px;">delete</span>
+
+                    <button type="button" class="remove-basket-item-btn" data-index="${index}" style="background: none; border: none; color: #ef4444; cursor: pointer; display: flex; align-items: center; padding: 6px; margin-left: 12px;">
+                        <span class="material-symbols-rounded" style="font-size: 20px;">delete</span>
                     </button>
                 `;
                 purchaseBasketContainer.appendChild(itemRow);

@@ -604,8 +604,8 @@ body.ready .viewport-container {
 
 .dashboard-grid-layout {
     display: grid;
-    grid-template-columns: 320px 1fr;
-    gap: 20px;
+    grid-template-columns: 280px 1fr; /* Slightly narrowed left column to give more room to the right grid */
+    gap: 16px;
     grid-template-rows: repeat(2, auto);
     align-items: start;
     margin-bottom: 20px;
@@ -618,9 +618,11 @@ body.ready .viewport-container {
     display: flex;
     flex-direction: row !important;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
+    padding: 14px 16px; /* Added compact padding */
     background: linear-gradient(135deg, #fefce8 0%, #fef9c3 100%);
     border: 2px solid #fde047;
+    border-radius: 12px;
 }
 
 .right-cards-grid {
@@ -628,7 +630,7 @@ body.ready .viewport-container {
     grid-template-columns: repeat(3, 1fr);
     grid-column: 2;
     grid-row: 1 / span 2;
-    gap: 15px;
+    gap: 12px; /* Reduced gap for a tighter layout */
 }
 
 .stat-icon.emerald {
@@ -660,23 +662,23 @@ body.ready .viewport-container {
 .dashboard-stats-grid {
     display: grid !important; 
     grid-template-columns: repeat(3, 1fr) !important; 
-    gap: 20px !important;
+    gap: 16px !important;
     margin-bottom: 25px;
     width: 100% !important;
 }
 
 .stat-card {
     background: #ffffff;
-    padding: 14px 16px;
-    border-radius: 12px;
+    padding: 10px 12px; /* Reduced padding to make cards shorter */
+    border-radius: 10px;
     border: 1px solid #e2e8f0;
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     box-sizing: border-box;
     min-width: 0 !important;
     width: 100% !important;
-    min-height: 85px; /* Ensures enough vertical space for multi-line details */
+    min-height: 70px; /* Reduced minimum height */
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -744,18 +746,18 @@ body.ready .viewport-container {
 }
 
 .stat-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 10px 25px -5px rgba(0, 35, 71, 0.08);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px -5px rgba(0, 35, 71, 0.08);
 }
 
 .stat-icon {
-    width: 44px;
-    height: 44px;
-    border-radius: 10px;
+    width: 36px; /* Reduced icon container size */
+    height: 36px;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 22px;
+    font-size: 18px; /* Smaller icon glyph */
     flex-shrink: 0;
 }
 
@@ -792,17 +794,17 @@ body.ready .viewport-container {
 }
 
 .stat-label {
-    font-size: clamp(0.65rem, 1vw, 0.75rem);
+    font-size: clamp(0.6rem, 0.85vw, 0.7rem); /* Slightly smaller text for labels */
     color: #64748b;
     font-weight: 700;
-    margin-bottom: 1px;
+    margin-bottom: 0px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
 .stat-value {
-    font-size: clamp(0.95rem, 1.8vw, 1.15rem);
+    font-size: clamp(0.85rem, 1.4vw, 1.05rem); /* Scaled down slightly to fit long numbers safely */
     font-weight: 800;
     color: #002347;
     line-height: 1.2;
@@ -816,10 +818,10 @@ body.ready .viewport-container {
 .stat-info .stat-subtitle, 
 .stat-info span[id*="breakdown"],
 .stat-info div[id*="breakdown"] {
-    font-size: clamp(0.55rem, 0.9vw, 0.65rem) !important;
+    font-size: clamp(0.5rem, 0.75vw, 0.6rem) !important; /* Smaller text footprint for subtitles */
     font-weight: 600;
     color: #475569;
-    margin-top: 2px;
+    margin-top: 1px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
