@@ -97,7 +97,9 @@
                                     <div style="display: flex; align-items: center; gap: 8px;">
                                         <span class="material-symbols-rounded" style="color: #0284c7;">inventory_2</span>
                                         <div>
-                                            <strong class="prod-name-text">{{ item.name }}</strong>
+                                            <strong class="prod-name-text">
+                                                {{ item.name }} {% if item.size %}<span>({{ item.size }})</span>{% endif %}
+                                            </strong>
                                             
                                             {% if item.condition and item.condition|lower != 'n/a' %}
                                                 <span style="font-size: 10px; color: #475569; background: #e2e8f0; padding: 1px 5px; border-radius: 10px; margin-left: 4px;">
@@ -191,7 +193,7 @@
 
                     <div class="form-field" style="margin-bottom: 0;">
                         <label>Amount Paid (₱)</label>
-                        <input type="number" id="rent-amount-paid" name="amount_paid" class="clinical-input" step="0.01" placeholder="e.g. Deposit or 1st month">
+                        <input type="number" id="rent-amount-paid" name="amount_paid" class="clinical-input" step="0.01" placeholder="e.g. 1st month or payment amount">
                     </div>
 
                     <div class="form-field" style="margin-bottom: 0;">

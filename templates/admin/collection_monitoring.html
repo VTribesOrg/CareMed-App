@@ -6,6 +6,49 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/admin/admin_customer.css') }}">
 <style>
+    /* ========================================================== */
+    /* COMPACT INPUTS & CONTROLS STYLING                          */
+    /* ========================================================== */
+
+    .asset-registry-card {
+        padding: 12px 10px 12px 20px !important; /* Top, Right, Bottom, Left */
+        height: 420px !important;
+    }
+    
+    /* Reduce gap between search controls and the table container */
+    .asset-registry-card .registry-controls {
+        margin-bottom: 8px !important;
+    }
+
+    /* Reduce any internal padding or spacing at the top of the scroll container */
+    .asset-registry-card .table-scroll-container {
+        padding-top: 0 !important;
+        margin-top: 0 !important;
+    }
+
+    /* Optional: Make the table header row sit tighter */
+    .asset-registry-card .medical-data-table thead th {
+        padding-top: 6px !important;
+        padding-bottom: 6px !important;
+    }
+    
+    /* Shrink the search wrapper height and input padding */
+    .registry-controls .search-wrapper {
+        height: 40px !important;
+    }
+
+    .registry-controls .asset-search-input {
+        height: 40px !important;
+        font-size: 0.88rem !important;
+        padding: 0 14px 0 38px !important; /* Adjust left padding for the smaller search icon */
+    }
+
+    .registry-controls .search-icon {
+        font-size: 18px !important;
+        left: 12px !important;
+    }
+
+
     .medical-sidebar, .viewport-container, .nav-label, .logo-text {
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
@@ -276,6 +319,39 @@
 
 
     /*=================================== END OF ADD PAYMENT MODAL ===================================*/
+
+    /* ========================================================== */
+    /* COMPACT TABLE STYLING FOR 100% ZOOM FIT                     */
+    /* ========================================================== */
+    .asset-registry-card .medical-data-table th,
+    .asset-registry-card .medical-data-table td {
+        padding: 8px 10px !important; /* Reduces vertical & horizontal cell padding */
+        font-size: 0.82rem !important;  /* Slightly scales down font size */
+        white-space: nowrap !important; /* Prevents text from wrapping into multiple lines */
+    }
+
+    /* Allows specific columns like Customer Name or Product to handle wrapping if names are long */
+    .asset-registry-card .medical-data-table td:first-child,
+    .asset-registry-card .medical-data-table td:nth-child(3) {
+        white-space: normal !important;
+        max-width: 140px;
+    }
+
+    /* Shrinks status pill badges so they take up less horizontal space */
+    .asset-registry-card .status-pill {
+        padding: 3px 8px !important;
+        font-size: 0.75rem !important;
+    }
+
+    /* Compacts action buttons */
+    .asset-registry-card .asset-action-btn {
+        width: 30px !important;
+        height: 30px !important;
+    }
+
+    .asset-registry-card .asset-action-btn .material-symbols-rounded {
+        font-size: 16px !important;
+    }
 </style>
 {% endblock %}
 

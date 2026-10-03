@@ -252,11 +252,13 @@ def dashboard_data():
         
         sales_net = total_sales - float(total_cogs or 0.0)
 
+        # EXCLUDE deposits and deposit refunds from income metrics
         initial_fill_payments_query = db.session.query(
             func.coalesce(func.sum(Payment.amount), 0)
         ).join(Transaction, Payment.transaction_id == Transaction.id).filter(
             Payment.payment_type == "InitialFill", 
-            Payment.status == "Completed"
+            Payment.status == "Completed",
+            ~Payment.payment_type.in_(["Deposit", "Deposit Refund"])
         )
         initial_fill_payments_query = apply_date_filter(initial_fill_payments_query)
         initial_fill_payments_total = initial_fill_payments_query.scalar() or 0.0
@@ -267,7 +269,8 @@ def dashboard_data():
             Payment, Payment.transaction_id == Transaction.id
         ).filter(
             Payment.payment_type == "InitialFill", 
-            Payment.status == "Completed"
+            Payment.status == "Completed",
+            ~Payment.payment_type.in_(["Deposit", "Deposit Refund"])
         )
         initial_fill_tanks_query = apply_date_filter(initial_fill_tanks_query)
         initial_fill_tanks_count = initial_fill_tanks_query.scalar() or 0
@@ -277,7 +280,8 @@ def dashboard_data():
                 func.coalesce(func.sum(Transaction.quantity), 0)
             ).join(Payment, Payment.transaction_id == Transaction.id).filter(
                 Payment.payment_type == "InitialFill", 
-                Payment.status == "Completed"
+                Payment.status == "Completed",
+                ~Payment.payment_type.in_(["Deposit", "Deposit Refund"])
             )
             fallback_tanks_query = apply_date_filter(fallback_tanks_query)
             initial_fill_tanks_count = fallback_tanks_query.scalar() or 0
@@ -300,12 +304,17 @@ def dashboard_data():
 
         active_rentals_count = Rental.query.filter_by(status="Active").count() or 0
 
-        # Calculate active customer deposits (status == 'Held')
-        customer_deposits_total = db.session.query(
+        customer_deposits_query = db.session.query(
             func.coalesce(func.sum(CustomerDeposit.amount), Decimal("0.00"))
-        ).filter(CustomerDeposit.status == "Held").scalar() or 0.00
+        ).filter(CustomerDeposit.status == "Held")
+        
+        if hasattr(CustomerDeposit, 'created_at'):
+            customer_deposits_query = apply_date_filter(customer_deposits_query, CustomerDeposit.created_at)
+        elif hasattr(CustomerDeposit, 'date'):
+            customer_deposits_query = apply_date_filter(customer_deposits_query, CustomerDeposit.date)
+            
+        customer_deposits_total = customer_deposits_query.scalar() or 0.00
 
-        # Calculate total freight expenses filtered by date period
         freight_expenses_query = db.session.query(
             func.coalesce(func.sum(Expense.amount), 0)
         ).filter(Expense.category == 'Freight')
@@ -433,8 +442,6 @@ def dashboard_data():
             "standard_assets": standard_assets,
         }
 
-        # Hidden cards must not have their numbers reach the browser at all —
-        # a CSS-only hide can be undone with DevTools.
         return jsonify(filter_dashboard_payload(payload, get_active_branch_id()))
         
     except Exception:
@@ -442,7 +449,164 @@ def dashboard_data():
         return jsonify({
             "error": "An internal error occurred while processing dashboard analytics. Please try again later."
         }), 500
-          
+
+@admin_bp.route("/dashboard/sales-transactions")
+@login_required
+@admin_or_staff_required
+def dashboard_sales_transactions():
+    try:
+        period = request.args.get('period', 'this_month')
+        custom_start = request.args.get('start_date')
+        custom_end = request.args.get('end_date')
+
+        start_date, end_date = get_date_boundaries(period, custom_start, custom_end)
+
+        def apply_date_filter(query, date_column=Transaction.created_at):
+            if start_date:
+                query = query.filter(date_column >= start_date)
+            if end_date:
+                query = query.filter(date_column < end_date)
+            return query
+
+        query = Transaction.query.filter(Transaction.transaction_type == "Sale")
+        query = apply_date_filter(query)
+        transactions = query.all()
+
+        # Aggregate product sales data dictionary: { product_name: {"quantity_sold": int, "total_income": float} }
+        product_summary = {}
+
+        for tx in transactions:
+            if tx.purchases:
+                for p in tx.purchases:
+                    p_name = p.product_name or "Unknown Product"
+                    p_qty = int(p.quantity or 0)
+                    
+                    # Compute income for this purchase item (fallback to proportional or unit price calculation if needed)
+                    p_price = float(getattr(p, 'price', 0) or getattr(p, 'unit_price', 0) or 0)
+                    p_total = p_qty * p_price
+                    if p_total == 0:
+                        # Fallback to total amount distributed if item price isn't explicitly set
+                        p_total = float(getattr(tx, 'total_amount', 0) or getattr(tx, 'amount_paid', 0) or 0) / max(len(tx.purchases), 1)
+
+                    if p_name not in product_summary:
+                        product_summary[p_name] = {"quantity_sold": 0, "total_income": 0.0}
+                    
+                    product_summary[p_name]["quantity_sold"] += p_qty
+                    product_summary[p_name]["total_income"] += p_total
+            else:
+                # Handle sales without a explicit purchase items relationship using description or fallback name
+                p_name = tx.description or "General Sale Item"
+                p_qty = int(getattr(tx, 'quantity', 1) or 1)
+                p_total = float(getattr(tx, 'total_amount', 0) or getattr(tx, 'amount_paid', 0) or 0)
+
+                if p_name not in product_summary:
+                    product_summary[p_name] = {"quantity_sold": 0, "total_income": 0.0}
+                
+                product_summary[p_name]["quantity_sold"] += p_qty
+                product_summary[p_name]["total_income"] += p_total
+
+        # Convert dictionary to sorted list (highest quantity sold first)
+        summary_list = []
+        for name, data in sorted(product_summary.items(), key=lambda x: x[1]['quantity_sold'], reverse=True):
+            summary_list.append({
+                "product_name": name,
+                "quantity_sold": data["quantity_sold"],
+                "total_income": data["total_income"]
+            })
+
+        return jsonify({"transactions": summary_list})
+
+    except Exception:
+        current_app.logger.exception("Critical error encountered while fetching product sales summary.")
+        return jsonify({"error": "Failed to load product sales summary."}), 500
+    
+@admin_bp.route("/dashboard/rental-transactions")
+@login_required
+@admin_or_staff_required
+def dashboard_rental_transactions():
+    try:
+        period = request.args.get('period', 'this_month')
+        custom_start = request.args.get('start_date')
+        custom_end = request.args.get('end_date')
+
+        start_date, end_date = get_date_boundaries(period, custom_start, custom_end)
+
+        query = CustomerDeposit.query.options(
+            joinedload(CustomerDeposit.customer),
+            joinedload(CustomerDeposit.transaction).joinedload(Transaction.product),
+            joinedload(CustomerDeposit.transaction).joinedload(Transaction.rentals).joinedload(Rental.product)
+        ).join(CustomerDeposit.transaction)\
+         .filter(Transaction.status != 'Cancelled')\
+         .filter(CustomerDeposit.status != 'Refunded')
+
+        if start_date and end_date:
+            query = query.filter(
+                or_(
+                    CustomerDeposit.created_at >= start_date,
+                    CustomerDeposit.transaction.has(Transaction.created_at >= start_date)
+                )
+            ).filter(
+                or_(
+                    CustomerDeposit.created_at < end_date,
+                    CustomerDeposit.transaction.has(Transaction.created_at < end_date)
+                )
+            )
+        elif start_date:
+            query = query.filter(
+                or_(
+                    CustomerDeposit.created_at >= start_date,
+                    CustomerDeposit.transaction.has(Transaction.created_at >= start_date)
+                )
+            )
+
+        deposits = query.all()
+
+        rentals_list = []
+        for d in deposits:
+            cust_name = "Unknown Customer"
+            if d.customer:
+                if hasattr(d.customer, 'full_name') and d.customer.full_name:
+                    cust_name = d.customer.full_name
+                elif hasattr(d.customer, 'first_name') and hasattr(d.customer, 'last_name'):
+                    cust_name = f"{d.customer.first_name} {d.customer.last_name}".strip()
+
+            if cust_name == "Unknown Customer" and d.transaction and getattr(d.transaction, 'customer_name', None):
+                cust_name = d.transaction.customer_name
+
+            if cust_name == "Unknown Customer":
+                cust_name = getattr(d, 'customer_name', None) or "Unknown Customer"
+
+            prod_name = "N/A"
+            if d.transaction:
+                if d.transaction.rentals:
+                    for r in d.transaction.rentals:
+                        if r.product and r.product.name:
+                            prod_name = r.product.name
+                            break
+                
+                if prod_name == "N/A" and d.transaction.product and d.transaction.product.name:
+                    prod_name = d.transaction.product.name
+
+                if prod_name == "N/A":
+                    prod_name = getattr(d.transaction, 'product_name', None) or getattr(d.transaction, 'name', None) or "N/A"
+
+            if prod_name == "N/A" and hasattr(d, 'product_name'):
+                prod_name = d.product_name or "N/A"
+
+            deposit_amount = float(getattr(d, 'amount', None) or 0)
+
+            rentals_list.append({
+                "customer_name": cust_name,
+                "product_name": prod_name,
+                "customer_deposit": deposit_amount  
+            })
+
+        return jsonify({"rentals": rentals_list})
+
+    except Exception:
+        current_app.logger.exception("Critical error encountered while fetching rental and deposit transactions summary.")
+        return jsonify({"error": "Failed to load rental transactions summary."}), 500
+    
 @admin_bp.route('/process-refill-transaction', methods=['POST'])
 @login_required
 @admin_or_staff_required
@@ -825,8 +989,7 @@ def get_customer(id):
             "status": "error",
             "message": "An internal server error occurred while retrieving customer data."
         }), 500
-        
-        
+               
 @admin_bp.route('/customers/<int:id>')
 @login_required
 @admin_or_staff_required
@@ -1963,14 +2126,21 @@ def process_rental():
                 flash("Invalid return date.", "danger")
                 return redirect(request.referrer or url_for('admin.transactions'))
 
-        customer_id = request.form.get('customer_id') or None
-        if isinstance(customer_id, list):
-            customer_id = customer_id[0]
-            
+        customer_id_raw = request.form.get('customer_id')
+        if isinstance(customer_id_raw, list):
+            customer_id_raw = customer_id_raw[0]
+
+        customer_id = None
+        if customer_id_raw and str(customer_id_raw).strip() and str(customer_id_raw).lower() != 'none':
+            try:
+                customer_id = int(customer_id_raw)
+            except (ValueError, TypeError):
+                customer_id = None
+
         display_name = "Walk-in Customer"
 
         if customer_id:
-            customer = db.session.get(Customer, int(customer_id))
+            customer = db.session.get(Customer, customer_id)
             if customer:
                 display_name = customer.full_name
         else:
@@ -1986,7 +2156,7 @@ def process_rental():
 
         new_txn = Transaction(
             reference_no=ref_no,
-            customer_id=int(customer_id) if customer_id else None,
+            customer_id=customer_id,
             customer_name=display_name,
             processed_by=current_user.id,
             transaction_type="Rental",
@@ -2140,8 +2310,9 @@ def process_rental():
             for inv in r.invoices:
                 all_invoices.append(inv)
 
-        new_txn.update_totals() 
-        db.session.expire(new_txn, ['payments'])
+        # Ensure correct total calculation right after invoices are generated
+        computed_rental_total = sum(Decimal(str(inv.amount_due or 0)) for inv in all_invoices)
+        new_txn.total_amount = computed_rental_total + delivery_fee + (initial_fill_cost if has_initial_fill else Decimal('0.00')) - voucher_amount
 
         pm_raw = request.form.get('payment_method', 'Cash')
         if isinstance(pm_raw, list):
@@ -2173,7 +2344,6 @@ def process_rental():
 
         new_txn.payment_method = payment_method
 
-        # 1. Add to generic Payment ledger (as a Deposit type)
         if customer_deposit > 0:
             db.session.add(Payment(
                 transaction_id=new_txn.id,
@@ -2187,7 +2357,6 @@ def process_rental():
                 verified_at=datetime.utcnow()
             ))
 
-            # 2. ALSO explicitly populate the CustomerDeposit model table
             if new_txn.customer_id:
                 db.session.add(CustomerDeposit(
                     customer_id=new_txn.customer_id,
@@ -2262,7 +2431,7 @@ def process_rental():
                     ))
 
         db.session.flush()
-        db.session.expire(new_txn, ['payments'])
+        db.session.expire(new_txn, ['payments', 'rentals'])
 
         new_txn.update_totals() 
         db.session.commit()
@@ -2569,29 +2738,48 @@ def cancel_transaction(txn_id):
                     db.session.add(inv_log)
 
         elif txn.transaction_type == 'Rental' and txn.rentals:
+            user_display_name = f"{getattr(current_user, 'first_name', '')} {getattr(current_user, 'last_name', '')}".strip() or getattr(current_user, 'username', 'Admin')
+            
             for rental in txn.rentals:
-                rental.status = 'Cancelled'
+                qty_to_return = rental.remaining_to_return or 0
+                
+                if qty_to_return > 0:
+                    rental.quantity_returned = (rental.quantity_returned or 0) + qty_to_return
+                    rental.status = 'Returned'
+                    rental.actual_return_date = datetime.utcnow().date()
+
+                    if rental.product and rental.product.tank_status:
+                        tank_info = rental.product.tank_status
+                        tank_info.rented_out = max(0, (tank_info.rented_out or 0) - qty_to_return)
+                        
+                        # Default cancelled items back to full in stock
+                        tank_info.full_in_stock = (tank_info.full_in_stock or 0) + qty_to_return
+                        rental.product.stock = (rental.product.stock or 0) + qty_to_return
+                        
+                        if rental.product.stock > 0:
+                            rental.product.status = "Available"
+                            
+                        db.session.add(tank_info)
+                        db.session.add(rental.product)
+                    elif rental.product:
+                        rental.product.stock = (rental.product.stock or 0) + qty_to_return
+                        if rental.product.stock > 0:
+                            rental.product.status = "Available"
+                        db.session.add(rental.product)
+
+                    inv_log = InventoryLog(
+                        product_id=rental.product.id if rental.product else txn.product_id,
+                        action='Rental Transaction Cancelled Restock',
+                        quantity=qty_to_return,
+                        note=f'Restocked from cancelled rental txn {txn.reference_no}. Reason: {reason}',
+                        user_id=current_user.id if hasattr(current_user, 'id') else None,
+                        user_name=user_display_name
+                    )
+                    db.session.add(inv_log)
+                
                 for invoice in rental.invoices:
                     if invoice.status != 'Paid':
                         invoice.status = 'Cancelled'
-
-                if rental.product:
-                    rental.product.stock = (rental.product.stock or 0) + rental.remaining_to_return
-
-                    if rental.product.tank_status:
-                        tank_stat = rental.product.tank_status
-                        tank_stat.rented_out = max(0, (tank_stat.rented_out or 0) - rental.remaining_to_return)
-                        tank_stat.full_in_stock = (tank_stat.full_in_stock or 0) + rental.remaining_to_return
-
-                    inv_log = InventoryLog(
-                        product_id=rental.product.id,
-                        action='Rental Transaction Cancelled Restock',
-                        quantity=rental.remaining_to_return,
-                        note=f'Restocked from cancelled rental txn {txn.reference_no}. Reason: {reason}',
-                        user_id=current_user.id if hasattr(current_user, 'id') else None,
-                        user_name=getattr(current_user, 'username', 'Admin')
-                    )
-                    db.session.add(inv_log)
 
         elif txn.transaction_type == 'Refill' and txn.product_id:
             product = Product.query.get(txn.product_id)
@@ -2621,7 +2809,7 @@ def cancel_transaction(txn_id):
 
         return jsonify({
             'success': True,
-            'message': 'Transaction has been successfully cancelled, deposit status updated, payment amounts cleared, inventory levels and tank statuses have been restored.'
+            'message': 'Transaction has been successfully cancelled, deposit status updated, payment amounts cleared, and rental items properly returned/restored.'
         }), 200
 
     except Exception as e:
@@ -2629,6 +2817,7 @@ def cancel_transaction(txn_id):
         current_app.logger.error(f"CANCEL_TRANSACTION_ERROR: {str(e)}")
         return jsonify({'success': False, 'message': 'An internal error occurred while canceling the transaction.'}), 500
     
+from sqlalchemy.orm import contains_eager
 @admin_bp.route('/active-rentals')
 @login_required
 @admin_or_staff_required
@@ -2636,6 +2825,10 @@ def cancel_transaction(txn_id):
 def active_rentals():
     from datetime import date
 
+    # Pagination parameters
+    page = request.args.get('page', 1, type=int)
+    limit = request.args.get('limit', 10, type=int)
+    
     search_query = request.args.get('q', '').strip()
     filter_type = request.args.get('filter', '')  
    
@@ -2647,20 +2840,42 @@ def active_rentals():
             joinedload(Rental.transaction).joinedload(Transaction.customer)
         )
 
+    if search_query:
+        search_term = f"%{search_query}%"
+        query = query.join(Rental.product)\
+            .join(Rental.transaction)\
+            .join(Transaction.customer)\
+            .options(
+                contains_eager(Rental.product),
+                contains_eager(Rental.transaction).contains_eager(Transaction.customer)
+            )\
+            .filter(
+                or_(
+                    Product.name.ilike(search_term),
+                    Customer.first_name.ilike(search_term),
+                    Customer.last_name.ilike(search_term),
+                    Customer.email.ilike(search_term)
+                )
+            )
+
     today = date.today()
     if filter_type == 'overdue_return':
         query = query.filter(Rental.expected_return_date < today)
     elif filter_type == 'awaiting_return':
         query = query.filter(Rental.status == 'Awaiting Return')
     
-    rentals = query.order_by(Rental.expected_return_date.asc()).all()
+    query = query.order_by(Rental.expected_return_date.asc())
+    pagination = query.paginate(page=page, per_page=limit, error_out=False)
+    rentals = pagination.items
     
     return render_template(
         'admin/active_rentals.html',
         rentals=rentals,
+        pagination=pagination,
         search_query=search_query,
-        datetime_now_date=date.today(),
-        current_filter=filter_type 
+        datetime_now_date=today,
+        current_filter=filter_type,
+        current_limit=limit
     )
     
 @admin_bp.route('/collection-monitoring')
@@ -2843,6 +3058,7 @@ def transaction_details(id):
             func.coalesce(func.sum(CustomerDeposit.amount), 0)
         ).filter(
             CustomerDeposit.customer_id == txn.customer_id,
+            CustomerDeposit.transaction_id == txn.id,
             CustomerDeposit.status == 'Held'
         ).scalar()
     
@@ -2852,7 +3068,7 @@ def transaction_details(id):
         current_date=datetime.now().date(),
         held_deposit_total=held_deposit_total
     )
-
+    
 @admin_bp.route('/api/cron/generate-invoices', methods=['POST', 'GET'])
 def cron_generate_invoices():
 

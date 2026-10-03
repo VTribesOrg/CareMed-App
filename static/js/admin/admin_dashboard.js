@@ -28,35 +28,29 @@ document.addEventListener('DOMContentLoaded', () => {
     const oxygenModal = document.getElementById('oxygen-request-modal');
     const closeBtn = document.getElementById('close-oxygen-modal');
     const refillForm = document.getElementById('refill-form');
-    // Targeting the oxygen panel specifically ensures this only affects oxygen tanks
     const oxygenPanel = document.getElementById('oxygen-tanks-panel');
 
     if (oxygenPanel) {
         oxygenPanel.addEventListener('click', (e) => {
             const btn = e.target.closest('.btn-refill-trigger');
             if (btn) {
-                // Populate hidden inputs
                 document.getElementById('refill-product-id').value = btn.dataset.productId;
                 document.getElementById('refill-product-name').value = btn.dataset.productName;
                 
-                // Show modal
                 if (oxygenModal) oxygenModal.classList.remove('hidden');
             }
         });
     }
 
-    // Function to close and reset
     const closeAndResetModal = () => {
         if (oxygenModal) oxygenModal.classList.add('hidden');
         if (refillForm) refillForm.reset();
     };
 
-    // Close Button Listener
     if (closeBtn) {
         closeBtn.addEventListener('click', closeAndResetModal);
     }
 
-    // Close when clicking overlay background
     if (oxygenModal) {
         oxygenModal.addEventListener('click', (e) => {
             if (e.target === oxygenModal) {
@@ -66,6 +60,38 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /* ── 3. Asynchronous Dashboard Data Loader & Filters ───────── */
+    const filterPeriodSelect = document.getElementById('dashboard-filter-period');
+    const customDateInputs = document.getElementById('custom-date-inputs');
+    const applyCustomDateBtn = document.getElementById('apply-custom-date');
+    const startDateInput = document.getElementById('custom-start-date');
+    const endDateInput = document.getElementById('custom-end-date');
+
+    // Toggle custom date container visibility and auto-fetch on change
+    if (filterPeriodSelect) {
+        filterPeriodSelect.addEventListener('change', function () {
+            if (this.value === 'custom') {
+                if (customDateInputs) customDateInputs.style.display = 'flex';
+            } else {
+                if (customDateInputs) customDateInputs.style.display = 'none';
+                loadDashboardData(this.value);
+            }
+        });
+    }
+
+    if (applyCustomDateBtn) {
+        applyCustomDateBtn.addEventListener('click', () => {
+            const period = filterPeriodSelect ? filterPeriodSelect.value : 'custom';
+            const startVal = startDateInput ? startDateInput.value : '';
+            const endVal = endDateInput ? endDateInput.value : '';
+
+            if (period === 'custom' && startVal && endVal) {
+                loadDashboardData(period, startVal, endVal);
+            } else {
+                alert('Please select both start and end dates for the custom range.');
+            }
+        });
+    }
+
     const loadDashboardData = (period = 'this_month', startDate = '', endDate = '') => {
         let url = `/admin/dashboard/data?period=${period}`;
         if (period === 'custom' && startDate && endDate) {
@@ -75,7 +101,6 @@ document.addEventListener('DOMContentLoaded', () => {
         fetch(url)
             .then(response => response.json())
             .then(data => {
-                // Safely parse incoming data values to prevent NaN errors
                 const rawSales = Number(data.total_sales) || 0;
                 const freightExpense = Number(data.total_freight) || 0;
                 const totalRentals = Number(data.total_rentals) || 0;
@@ -88,14 +113,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const customerDeposits = Number(data.customer_deposits) || 0;
                 const lowStockCount = Number(data.low_stock_count) || 0;
 
-                // Calculate Freight-adjusted Sales (Total Sales minus Total Freight Expense)
                 const adjustedSales = rawSales - freightExpense;
-
-                // Compute overall metrics dynamically using the adjusted sales
                 const overallIncome = adjustedSales + totalRentals + totalRefillIncome;
                 const netProfit = overallIncome - totalExpenses;
 
-                // Update Stat Cards
                 const valOverallIncome = document.getElementById("val-overall-income");
                 if (valOverallIncome) valOverallIncome.innerText = "₱" + overallIncome.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
 
@@ -119,7 +140,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
 
-                // Populate the explanatory breakdown subtitle text
                 const valSalesBreakdown = document.getElementById("val-sales-breakdown");
                 if (valSalesBreakdown) {
                     const formattedGross = "₱" + rawSales.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
@@ -147,23 +167,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 const valTotalRentals = document.getElementById("val-total-rentals");
                 if (valTotalRentals) valTotalRentals.innerText = "₱" + totalRentals.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
 
-                // Integration for Rental Income (Total Rentals Income * 30%)
                 const valRentalShare = document.getElementById("val-rental-share");
-                // Derived from the payload, not from the share card being present:
-                // the commission card still needs the 30% figure when the share
-                // sub-panel alone is hidden for this branch.
                 let rentalIncomeValue = totalRentals * 0.30;
                 if (valRentalShare) {
                     valRentalShare.innerText = "₱" + rentalIncomeValue.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
                 }
 
-                // Integration for Total Commission Calculation
                 const valTotalCommission = document.getElementById("val-total-commission");
                 if (valTotalCommission) {
                     const refillBonus = totalRefillsCount * 100;
                     const salesCommission = adjustedSales * 0.50;
                     const totalCommission = rentalIncomeValue + refillBonus + salesCommission;
-
                     valTotalCommission.innerText = "₱" + totalCommission.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
                 }
 
@@ -176,28 +190,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 const valTotalInventory = document.getElementById("val-total-inventory");
                 if (valTotalInventory) valTotalInventory.innerText = totalInventory;
 
-                // Populate Customer Deposits 
                 const valCustomerDeposits = document.getElementById("val-customer-deposits");
                 if (valCustomerDeposits) {
-                    valCustomerDeposits.innerText = "₱" + customerDeposits.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                    valCustomerDeposits.innerText = "₱" + customerDeposits.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2});
                 }
 
-                // Populate Total Freight Expense
                 const valTotalFreight = document.getElementById("val-total-freight");
                 if (valTotalFreight) {
-                    valTotalFreight.innerText = "₱" + freightExpense.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    valTotalFreight.innerText = "₱" + freightExpense.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2});
                 }
 
-                // Populate Tracking Freight (Fallback support)
                 const valTrackingFreight = document.getElementById("val-tracking-freight");
                 if (valTrackingFreight) {
                     valTrackingFreight.innerText = data.tracking_freight || 0;
                 }
 
                 const valLowStockContainer = document.getElementById("val-low-stock");
-                const valLowStockCount = document.getElementById("val-low-stock-count");
-                if (valLowStockContainer && valLowStockCount) {
-                    valLowStockCount.innerText = lowStockCount;
+                const valLowStockCountElement = document.getElementById("val-low-stock-count");
+                if (valLowStockContainer && valLowStockCountElement) {
+                    valLowStockCountElement.innerText = lowStockCount;
                     if (lowStockCount > 0) {
                         valLowStockContainer.style.color = "#ef4444";
                         valLowStockContainer.innerHTML = `<span id="val-low-stock-count">${lowStockCount}</span> Low stock items`;
@@ -207,7 +218,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
 
-                // Populate Oxygen Tanks Table Body
                 const oxygenTanksTbody = document.getElementById("oxygen-tanks-tbody");
                 if (oxygenTanksTbody) {
                     if (data.tank_statuses && data.tank_statuses.length > 0) {
@@ -216,9 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             let sizeHtml = tank.size ? `<span style="font-weight: 400; color: #64748b; font-size: 0.9em;">(${tank.size})</span>` : "";
                             rowsHtml += `
                                 <tr>
-                                    <td style="font-weight: 600;">
-                                        ${tank.name} ${sizeHtml}
-                                    </td>
+                                    <td style="font-weight: 600;">${tank.name} ${sizeHtml}</td>
                                     <td style="text-align: center; font-weight: 500;">${tank.total_owned}</td>
                                     <td style="text-align: center;"><span class="pill-orange">${tank.rented_out}</span></td>
                                     <td style="text-align: center;"><span class="pill-green">${tank.full_in_stock}</span></td>
@@ -230,15 +238,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     } else {
                         oxygenTanksTbody.innerHTML = `
                             <tr class="table-empty-row">
-                                <td colspan="5" style="text-align: center; padding: 20px; color: #64748b;">
-                                    No oxygen tank metrics configured.
-                                </td>
+                                <td colspan="5" style="text-align: center; padding: 20px; color: #64748b;">No oxygen tank metrics configured.</td>
                             </tr>
                         `;
                     }
                 }
 
-                // Populate Standard Assets Table Body
                 const standardAssetsTbody = document.getElementById("standard-assets-tbody");
                 if (standardAssetsTbody) {
                     if (data.standard_assets && data.standard_assets.length > 0) {
@@ -260,44 +265,184 @@ document.addEventListener('DOMContentLoaded', () => {
                             <tr class="table-empty-row">
                                 <td colspan="5" style="text-align: center; padding: 20px; color: #64748b;">No standard asset records found.</td>
                             </tr>
-                      `;
+                        `;
                     }
                 }
             })
             .catch(error => console.error("Error loading dashboard data:", error));
     };
 
-    // Initial data load defaults to "this_month"
     loadDashboardData('this_month');
 
-    // Listen for changes on the period dropdown selector & manage custom inputs visibility
-    const filterPeriodSelect = document.getElementById('dashboard-filter-period');
-    const customDateInputs = document.getElementById('custom-date-inputs');
-    const applyCustomDateBtn = document.getElementById('apply-custom-date');
+    /* ── 4. Sales Summary Modal & Product Breakdown Loader ───────── */
+    const salesCard = document.getElementById('card-sales-profit');
+    const salesModal = document.getElementById('salesSummaryModal');
+    const closeSalesModalBtn = document.getElementById('closeSalesModal');
+    const closeSalesFooterBtn = document.getElementById('closeSalesModalFooter');
+    const salesSummaryTbody = document.getElementById('sales-summary-tbody');
+    const salesModalDateRange = document.getElementById('sales-modal-date-range');
+    const salesModalCount = document.getElementById('sales-modal-count');
 
-    if (filterPeriodSelect) {
-        filterPeriodSelect.addEventListener('change', (e) => {
-            const selectedVal = e.target.value;
-            if (selectedVal === 'custom') {
-                if (customDateInputs) customDateInputs.style.display = 'flex';
-            } else {
-                if (customDateInputs) customDateInputs.style.display = 'none';
-                loadDashboardData(selectedVal);
+    const closeSalesModal = () => {
+        if (salesModal) salesModal.style.display = 'none';
+    };
+
+    if (salesCard && salesModal) {
+        salesCard.addEventListener('click', () => {
+            salesModal.style.display = 'flex';
+
+            const currentPeriod = filterPeriodSelect ? filterPeriodSelect.value : 'this_month';
+            const startVal = startDateInput ? startDateInput.value : '';
+            const endVal = endDateInput ? endDateInput.value : '';
+
+            if (salesModalDateRange) {
+                salesModalDateRange.innerText = `Period: ${currentPeriod.replace('_', ' ').toUpperCase()}`;
             }
+
+            if (salesSummaryTbody) {
+                salesSummaryTbody.innerHTML = `<tr><td colspan="3" style="text-align: center; padding: 30px; color: #64748b;">Loading product sales performance...</td></tr>`;
+            }
+
+            let fetchUrl = `/admin/dashboard/sales-transactions?period=${currentPeriod}`;
+            if (currentPeriod === 'custom' && startVal && endVal) {
+                fetchUrl += `&start_date=${startVal}&end_date=${endVal}`;
+            }
+
+            fetch(fetchUrl)
+                .then(response => response.json())
+                .then(resData => {
+                    const products = resData.transactions || [];
+                    if (salesModalCount) {
+                        salesModalCount.innerText = `Showing ${products.length} product${products.length === 1 ? '' : 's'}`;
+                    }
+
+                    if (products.length > 0) {
+                        let rowsHtml = '';
+                        products.forEach(item => {
+                            const totalIncome = Number(item.total_income) || 0;
+                            const totalSold = Number(item.quantity_sold) || 0;
+
+                            rowsHtml += `
+                                <tr style="border-bottom: 1px solid #f1f5f9;">
+                                    <td style="padding: 8px; font-weight: 600; color: #0f172a;">${item.product_name}</td>
+                                    <td style="padding: 8px; text-align: center; font-weight: 500; color: #334155;">${totalSold}</td>
+                                    <td style="padding: 8px; text-align: right; font-weight: 600; color: #059669;">₱${totalIncome.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2})}</td>
+                                </tr>
+                            `;
+                        });
+                        salesSummaryTbody.innerHTML = rowsHtml;
+                    } else {
+                        salesSummaryTbody.innerHTML = `<tr><td colspan="3" style="text-align: center; padding: 30px; color: #64748b;">No product sales found for this period.</td></tr>`;
+                    }
+                })
+                .catch(err => {
+                    console.error("Error fetching product sales summary:", err);
+                    if (salesSummaryTbody) {
+                        salesSummaryTbody.innerHTML = `<tr><td colspan="3" style="text-align: center; padding: 30px; color: #dc2626;">Failed to load product performance.</td></tr>`;
+                    }
+                });
         });
     }
 
-    // Trigger fetch when clicking "Apply" on custom date fields
-    if (applyCustomDateBtn) {
-        applyCustomDateBtn.addEventListener('click', () => {
-            const startVal = document.getElementById('custom-start-date')?.value;
-            const endVal = document.getElementById('custom-end-date')?.value;
-            if (startVal && endVal) {
-                loadDashboardData('custom', startVal, endVal);
-            } else {
-                alert('Please select both start and end dates for the custom range.');
-            }
+    if (closeSalesModalBtn) closeSalesModalBtn.addEventListener('click', closeSalesModal);
+    if (closeSalesFooterBtn) closeSalesFooterBtn.addEventListener('click', closeSalesModal);
+
+    if (salesModal) {
+        salesModal.addEventListener('click', (e) => {
+            if (e.target === salesModal) closeSalesModal();
         });
     }
+
+    /* ── 5. Rental & Deposit Summary Modal Loader ──────────────── */
+    const rentalCard = document.getElementById('card-customer-deposits');
+    const rentalModal = document.getElementById('depositSummaryModal');
+    const closeRentalModalBtn = document.getElementById('closeDepositModal');
+    const closeRentalFooterBtn = document.getElementById('closeDepositModalFooter');
+    const rentalSummaryTbody = document.getElementById('deposit-summary-tbody');
+    const rentalModalDateRange = document.getElementById('deposit-modal-date-range');
+    const rentalModalCount = document.getElementById('deposit-modal-count');
+
+    const closeRentalModal = () => {
+        if (rentalModal) rentalModal.style.display = 'none';
+    };
+
+    if (rentalCard && rentalModal) {
+        rentalCard.addEventListener('click', () => {
+            rentalModal.style.display = 'flex';
+
+            const currentPeriod = filterPeriodSelect ? filterPeriodSelect.value : 'this_month';
+            const startVal = startDateInput ? startDateInput.value : '';
+            const endVal = endDateInput ? endDateInput.value : '';
+
+            if (rentalModalDateRange) {
+                rentalModalDateRange.innerText = `Period: ${currentPeriod.replace('_', ' ').toUpperCase()}`;
+            }
+
+            if (rentalSummaryTbody) {
+                rentalSummaryTbody.innerHTML = `<tr><td colspan="3" style="text-align: center; padding: 30px; color: #64748b;">Loading customer deposits and rentals...</td></tr>`;
+            }
+
+            let fetchUrl = `/admin/dashboard/rental-transactions?period=${currentPeriod}`;
+            if (currentPeriod === 'custom' && startVal && endVal) {
+                fetchUrl += `&start_date=${startVal}&end_date=${endVal}`;
+            }
+
+            fetch(fetchUrl)
+                .then(response => response.json())
+                .then(resData => {
+                    const rentals = resData.rentals || [];
+                    if (rentalModalCount) {
+                        rentalModalCount.innerText = `Showing ${rentals.length} record${rentals.length === 1 ? '' : 's'}`;
+                    }
+
+                    if (rentals.length > 0) {
+                        let rowsHtml = '';
+                        rentals.forEach(item => {
+                            const customerName = item.customer_name || 'Unknown Customer';
+                            const productName = item.product_name || 'N/A';
+                            const deposit = Number(item.amount !== undefined ? item.amount : (item.deposit_amount !== undefined ? item.deposit_amount : item.customer_deposit)) || 0;
+
+                            rowsHtml += `
+                                <tr style="border-bottom: 1px solid #f1f5f9;">
+                                    <td style="padding: 8px; font-weight: 600; color: #0f172a;">${customerName}</td>
+                                    <td style="padding: 8px; font-weight: 500; color: #334155;">${productName}</td>
+                                    <td style="padding: 8px; text-align: right; font-weight: 600; color: #059669;">₱${deposit.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2})}</td>
+                                </tr>
+                            `;
+                        });
+                        rentalSummaryTbody.innerHTML = rowsHtml;
+                    } else {
+                        rentalSummaryTbody.innerHTML = `<tr><td colspan="3" style="text-align: center; padding: 30px; color: #64748b;">No records found for this period.</td></tr>`;
+                    }
+                })
+                .catch(err => {
+                    console.error("Error fetching deposit summary:", err);
+                    if (rentalSummaryTbody) {
+                        rentalSummaryTbody.innerHTML = `<tr><td colspan="3" style="text-align: center; padding: 30px; color: #dc2626;">Failed to load details.</td></tr>`;
+                    }
+                });
+        });
+    }
+
+    if (closeRentalModalBtn) closeRentalModalBtn.addEventListener('click', closeRentalModal);
+    if (closeRentalFooterBtn) closeRentalFooterBtn.addEventListener('click', closeRentalModal);
+
+    if (rentalModal) {
+        rentalModal.addEventListener('click', (e) => {
+            if (e.target === rentalModal) closeRentalModal();
+        });
+    }
+
+    /* ── 6. Global Keyboard Esc Listener for Modals ──────────────── */
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            if (salesModal && salesModal.style.display === 'flex') {
+                closeSalesModal();
+            }
+            if (rentalModal && rentalModal.style.display === 'flex') {
+                closeRentalModal();
+            }
+        }
+    });
 
 });

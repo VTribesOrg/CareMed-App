@@ -106,7 +106,7 @@
 
     <div class="right-cards-grid">
         {% if 'sales_profit' in visible_cards %}
-        <div class="stat-card" style="display: flex; align-items: center;">
+        <div class="stat-card" id="card-sales-profit" style="display: flex; align-items: center; cursor: pointer; transition: transform 0.2s ease, box-shadow 0.2s ease;" title="Click to view sales summary">
             <div class="stat-icon blue"><span class="material-symbols-rounded">payments</span></div>
             <div class="stat-info" style="display: flex !important; flex-direction: row !important; justify-content: space-between !important; align-items: center !important; width: 100%; gap: 10px;">
 
@@ -196,7 +196,7 @@
         {% endif %}
 
         {% if 'deposits' in visible_cards %}
-        <div class="stat-card">
+        <div class="stat-card" id="card-customer-deposits" style="cursor: pointer; transition: transform 0.2s ease, box-shadow 0.2s ease;" title="Click to view deposit summary">
             <div class="stat-icon blue"><span class="material-symbols-rounded">lock</span></div>
             <div class="stat-info">
                 <span class="stat-label">Customer Deposits</span>
@@ -305,6 +305,98 @@
     </div>
     {% endif %}
 {% endif %}
+
+<!-- Product Sales Summary Modal -->
+<div id="salesSummaryModal" class="medical-modal-backdrop" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); z-index: 1050; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+    <div class="medical-modal-card" style="background: #fff; width: 92%; max-width: 800px; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); overflow: hidden; display: flex; flex-direction: column; max-height: 90vh;">
+
+        <div style="padding: 10px 16px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="background: #dbeafe; color: #2563eb; padding: 4px; border-radius: 4px; display: flex;">
+                    <span class="material-symbols-rounded" style="font-size: 0.95rem;">inventory_2</span>
+                </div>
+                <div>
+                    <h3 style="margin: 0; font-size: 0.85rem; color: #0f172a; font-weight: 700;">Product Sales & Income Summary</h3>
+                    <span style="font-size: 0.68rem; color: #64748b;" id="sales-modal-date-range">Filtered by selected period</span>
+                </div>
+            </div>
+            <button type="button" id="closeSalesModal" style="background: transparent; border: none; cursor: pointer; color: #64748b; padding: 2px; border-radius: 4px; display: flex; align-items: center;">
+                <span class="material-symbols-rounded" style="font-size: 0.95rem;">close</span>
+            </button>
+        </div>
+
+        <div style="padding: 10px 16px; overflow-y: auto; flex: 1;">
+            <div class="table-scroll-wrapper">
+                <table class="medical-data-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.73rem;">
+                    <thead>
+                        <tr style="border-bottom: 2px solid #e2e8f0; color: #475569; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.03em;">
+                            <th style="padding: 8px;">Product Name</th>
+                            <th style="padding: 8px; text-align: center;">Quantity Sold</th>
+                            <th style="padding: 8px; text-align: right;">Total Income</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sales-summary-tbody">
+                        <tr>
+                            <td colspan="3" style="text-align: center; padding: 18px; color: #64748b; font-size: 0.73rem;">Loading product summary...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div style="padding: 8px 16px; border-top: 1px solid #e2e8f0; background: #f8fafc; display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 0.7rem; color: #475569;" id="sales-modal-count">Showing 0 products</span>
+            <button type="button" id="closeSalesModalFooter" style="padding: 4px 12px; background: #0f172a; color: #fff; border: none; border-radius: 4px; font-weight: 500; font-size: 0.73rem; cursor: pointer;">Close</button>
+        </div>
+
+    </div>
+</div>
+
+<!-- Customer Deposits & Rentals Modal -->
+<div id="depositSummaryModal" class="medical-modal-backdrop" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); z-index: 1050; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+    <div class="medical-modal-card" style="background: #fff; width: 92%; max-width: 800px; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); overflow: hidden; display: flex; flex-direction: column; max-height: 90vh;">
+
+        <div style="padding: 10px 16px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="background: #dbeafe; color: #2563eb; padding: 4px; border-radius: 4px; display: flex;">
+                    <span class="material-symbols-rounded" style="font-size: 0.95rem;">lock</span>
+                </div>
+                <div>
+                    <h3 style="margin: 0; font-size: 0.85rem; color: #0f172a; font-weight: 700;">Customer Deposits & Rented Products</h3>
+                    <span style="font-size: 0.68rem; color: #64748b;" id="deposit-modal-date-range">Filtered by selected period</span>
+                </div>
+            </div>
+            <button type="button" id="closeDepositModal" style="background: transparent; border: none; cursor: pointer; color: #64748b; padding: 2px; border-radius: 4px; display: flex; align-items: center;">
+                <span class="material-symbols-rounded" style="font-size: 0.95rem;">close</span>
+            </button>
+        </div>
+
+        <div style="padding: 10px 16px; overflow-y: auto; flex: 1;">
+            <div class="table-scroll-wrapper">
+                <table class="medical-data-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.73rem;">
+                    <thead>
+                        <tr style="border-bottom: 2px solid #e2e8f0; color: #475569; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.03em;">
+                            <th style="padding: 8px;">Customer Name</th>
+                            <th style="padding: 8px;">Product Rented</th>
+                            <th style="padding: 8px; text-align: right;">Deposit Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody id="deposit-summary-tbody">
+                        <tr>
+                            <td colspan="3" style="text-align: center; padding: 18px; color: #64748b; font-size: 0.73rem;">Loading records...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div style="padding: 8px 16px; border-top: 1px solid #e2e8f0; background: #f8fafc; display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 0.7rem; color: #475569;" id="deposit-modal-count">Showing 0 records</span>
+            <button type="button" id="closeDepositModalFooter" style="padding: 4px 12px; background: #0f172a; color: #fff; border: none; border-radius: 4px; font-weight: 500; font-size: 0.73rem; cursor: pointer;">Close</button>
+        </div>
+
+    </div>
+</div>
 
 {% endblock %}
 
