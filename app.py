@@ -1,5 +1,5 @@
-# from gevent import monkey
-# monkey.patch_all()
+from gevent import monkey
+monkey.patch_all()
 
 import os
 from flask import Flask, request, redirect, url_for, flash, render_template, abort, current_app
