@@ -353,7 +353,86 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    /* ── 5. Rental & Deposit Summary Modal Loader ──────────────── */
+    /* ── 5. Refill Income Summary Modal Loader ──────────────────────── */
+    const cardRefillIncome = document.getElementById('card-refill-income');
+    const refillIncomeModal = document.getElementById('refillIncomeSummaryModal');
+    const closeRefillModalBtn = document.getElementById('closeRefillModal');
+    const closeRefillFooterBtn = document.getElementById('closeRefillModalFooter');
+    const refillSummaryTbody = document.getElementById('refill-summary-tbody');
+    const refillModalDateRange = document.getElementById('refill-modal-date-range');
+    const refillModalCount = document.getElementById('refill-modal-count');
+
+    const closeRefillIncomeModal = () => {
+        if (refillIncomeModal) refillIncomeModal.style.display = 'none';
+    };
+
+    if (cardRefillIncome && refillIncomeModal) {
+        cardRefillIncome.addEventListener('click', function() {
+            refillIncomeModal.style.display = 'flex';
+
+            const currentPeriod = filterPeriodSelect ? filterPeriodSelect.value : 'this_month';
+            const startVal = startDateInput ? startDateInput.value : '';
+            const endVal = endDateInput ? endDateInput.value : '';
+
+            if (refillModalDateRange) {
+                refillModalDateRange.innerText = `Period: ${currentPeriod.replace('_', ' ').toUpperCase()}`;
+            }
+
+            if (refillSummaryTbody) {
+                refillSummaryTbody.innerHTML = `<tr><td colspan="3" style="text-align: center; padding: 18px; color: #64748b;">Loading refill income data...</td></tr>`;
+            }
+
+            let fetchUrl = `/admin/dashboard/refill-transactions?period=${currentPeriod}`;
+            if (currentPeriod === 'custom' && startVal && endVal) {
+                fetchUrl += `&start_date=${startVal}&end_date=${endVal}`;
+            }
+
+            fetch(fetchUrl)
+                .then(response => response.json())
+                .then(data => {
+                    const refills = data.refills || [];
+                    if (refillModalCount) {
+                        refillModalCount.textContent = `Showing ${refills.length} record${refills.length === 1 ? '' : 's'}`;
+                    }
+
+                    if (refills.length === 0) {
+                        if (refillSummaryTbody) refillSummaryTbody.innerHTML = `<tr><td colspan="3" style="text-align: center; padding: 18px; color: #64748b;">No refill transactions found for this period.</td></tr>`;
+                        return;
+                    }
+
+                    let html = '';
+                    refills.forEach(item => {
+                        const productName = item.product_name || 'Oxygen Tank Refill';
+                        const quantity = Number(item.quantity) || 0;
+                        const totalIncome = Number(item.total_income) || 0;
+
+                        html += `
+                            <tr style="border-bottom: 1px solid #f1f5f9;">
+                                <td style="padding: 8px; font-weight: 500; color: #0f172a;">${productName}</td>
+                                <td style="padding: 8px; text-align: center; color: #334155;">${quantity}</td>
+                                <td style="padding: 8px; text-align: right; font-weight: 600; color: #7c3aed;">₱${totalIncome.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2})}</td>
+                            </tr>
+                        `;
+                    });
+                    if (refillSummaryTbody) refillSummaryTbody.innerHTML = html;
+                })
+                .catch(error => {
+                    console.error('Error fetching refill transactions:', error);
+                    if (refillSummaryTbody) refillSummaryTbody.innerHTML = `<tr><td colspan="3" style="text-align: center; padding: 18px; color: #dc2626;">Failed to load refill transactions.</td></tr>`;
+                });
+        });
+    }
+
+    if (closeRefillModalBtn) closeRefillModalBtn.addEventListener('click', closeRefillIncomeModal);
+    if (closeRefillFooterBtn) closeRefillFooterBtn.addEventListener('click', closeRefillIncomeModal);
+
+    if (refillIncomeModal) {
+        refillIncomeModal.addEventListener('click', function(e) {
+            if (e.target === refillIncomeModal) closeRefillIncomeModal();
+        });
+    }
+
+    /* ── 6.. Rental & Deposit Summary Modal Loader ──────────────── */
     const rentalCard = document.getElementById('card-customer-deposits');
     const rentalModal = document.getElementById('depositSummaryModal');
     const closeRentalModalBtn = document.getElementById('closeDepositModal');
@@ -433,7 +512,161 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    /* ── 6. Global Keyboard Esc Listener for Modals ──────────────── */
+    /* ── 7. Active Rentals Summary Modal Loader ─────────────────── */
+    const cardRentalsIncome = document.getElementById('card-rentals-income');
+    const rentalsModal = document.getElementById('rentalsSummaryModal');
+    const closeRentalsModalBtn = document.getElementById('closeRentalsModal');
+    const closeRentalsFooterBtn = document.getElementById('closeRentalsModalFooter');
+    const rentalsTbody = document.getElementById('rentals-summary-tbody');
+    const rentalsModalDateRange = document.getElementById('rentals-modal-date-range');
+    const rentalsModalCount = document.getElementById('rentals-modal-count');
+
+    const closeRentalsModal = () => {
+        if (rentalsModal) rentalsModal.style.display = 'none';
+    };
+
+    if (cardRentalsIncome && rentalsModal) {
+        cardRentalsIncome.addEventListener('click', function() {
+            rentalsModal.style.display = 'flex';
+
+            const currentPeriod = filterPeriodSelect ? filterPeriodSelect.value : 'this_month';
+            const startVal = startDateInput ? startDateInput.value : '';
+            const endVal = endDateInput ? endDateInput.value : '';
+
+            if (rentalsModalDateRange) {
+                rentalsModalDateRange.innerText = `Period: ${currentPeriod.replace('_', ' ').toUpperCase()}`;
+            }
+
+            if (rentalsTbody) {
+                rentalsTbody.innerHTML = `<tr><td colspan="3" style="text-align: center; padding: 18px; color: #64748b;">Loading active rentals summary...</td></tr>`;
+            }
+
+            let fetchUrl = `/admin/dashboard/active-rentals-summary?period=${currentPeriod}`;
+            if (currentPeriod === 'custom' && startVal && endVal) {
+                fetchUrl += `&start_date=${startVal}&end_date=${endVal}`;
+            }
+
+            fetch(fetchUrl)
+                .then(response => response.json())
+                .then(data => {
+                    const items = data.items || [];
+                    if (rentalsModalCount) {
+                        rentalsModalCount.textContent = `Showing ${items.length} product${items.length === 1 ? '' : 's'}`;
+                    }
+
+                    if (!data.success || items.length === 0) {
+                        if (rentalsTbody) rentalsTbody.innerHTML = `<tr><td colspan="3" style="text-align: center; padding: 18px; color: #64748b;">No rental records found for this period.</td></tr>`;
+                        return;
+                    }
+
+                    let html = '';
+                    items.forEach(item => {
+                        html += `
+                            <tr style="border-bottom: 1px solid #f1f5f9;">
+                                <td style="padding: 8px; font-weight: 500; color: #0f172a;">${item.product_name}</td>
+                                <td style="padding: 8px; text-align: center; color: #334155;">${item.quantity_rented}</td>
+                                <td style="padding: 8px; text-align: right; font-weight: 600; color: #059669;">₱${Number(item.rental_income || 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2})}</td>
+                            </tr>
+                        `;
+                    });
+                    if (rentalsTbody) rentalsTbody.innerHTML = html;
+                })
+                .catch(error => {
+                    console.error('Error fetching active rentals summary:', error);
+                    if (rentalsTbody) rentalsTbody.innerHTML = `<tr><td colspan="3" style="text-align: center; padding: 18px; color: #dc2626;">Failed to load active rentals summary.</td></tr>`;
+                });
+        });
+    }
+
+    if (closeRentalsModalBtn) closeRentalsModalBtn.addEventListener('click', closeRentalsModal);
+    if (closeRentalsFooterBtn) closeRentalsFooterBtn.addEventListener('click', closeRentalsModal);
+
+    if (rentalsModal) {
+        rentalsModal.addEventListener('click', function(e) {
+            if (e.target === rentalsModal) closeRentalsModal();
+        });
+    }
+
+    /* ── 8. Total Expenses Summary Modal Loader ─────────────────── */
+    const cardTotalExpenses = document.getElementById('card-total-expenses');
+    const expensesModal = document.getElementById('expensesSummaryModal');
+    const closeExpensesModalBtn = document.getElementById('closeExpensesModal');
+    const closeExpensesFooterBtn = document.getElementById('closeExpensesModalFooter');
+    const expensesTbody = document.getElementById('expenses-summary-tbody');
+    const expensesModalDateRange = document.getElementById('expenses-modal-date-range');
+    const expensesModalCount = document.getElementById('expenses-modal-count');
+
+    const closeExpensesModal = () => {
+        if (expensesModal) expensesModal.style.display = 'none';
+    };
+
+    if (cardTotalExpenses && expensesModal) {
+        cardTotalExpenses.addEventListener('click', function() {
+            expensesModal.style.display = 'flex';
+
+            const currentPeriod = filterPeriodSelect ? filterPeriodSelect.value : 'this_month';
+            const startVal = startDateInput ? startDateInput.value : '';
+            const endVal = endDateInput ? endDateInput.value : '';
+
+            if (expensesModalDateRange) {
+                expensesModalDateRange.innerText = `Period: ${currentPeriod.replace('_', ' ').toUpperCase()}`;
+            }
+
+            if (expensesTbody) {
+                expensesTbody.innerHTML = `<tr><td colspan="3" style="text-align: center; padding: 18px; color: #64748b;">Loading expense transactions...</td></tr>`;
+            }
+
+            let fetchUrl = `/admin/dashboard/expense-transactions?period=${currentPeriod}`;
+            if (currentPeriod === 'custom' && startVal && endVal) {
+                fetchUrl += `&start_date=${startVal}&end_date=${endVal}`;
+            }
+
+            fetch(fetchUrl)
+                .then(response => response.json())
+                .then(data => {
+                    const expenses = data.expenses || [];
+                    if (expensesModalCount) {
+                        expensesModalCount.textContent = `Showing ${expenses.length} record${expenses.length === 1 ? '' : 's'}`;
+                    }
+
+                    if (expenses.length === 0) {
+                        if (expensesTbody) expensesTbody.innerHTML = `<tr><td colspan="3" style="text-align: center; padding: 18px; color: #64748b;">No expense records found for this period.</td></tr>`;
+                        return;
+                    }
+
+                    let html = '';
+                    expenses.forEach(item => {
+                        const description = item.description || item.title || item.category || 'General Expense';
+                        const dateStr = item.date || item.created_at || '';
+                        const amount = Number(item.amount) || 0;
+
+                        html += `
+                            <tr style="border-bottom: 1px solid #f1f5f9;">
+                                <td style="padding: 8px; font-weight: 500; color: #0f172a;">${description}</td>
+                                <td style="padding: 8px; text-align: center; color: #64748b; font-size: 0.9rem;">${dateStr}</td>
+                                <td style="padding: 8px; text-align: right; font-weight: 600; color: #dc2626;">₱${amount.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2})}</td>
+                            </tr>
+                        `;
+                    });
+                    if (expensesTbody) expensesTbody.innerHTML = html;
+                })
+                .catch(error => {
+                    console.error('Error fetching expense transactions:', error);
+                    if (expensesTbody) expensesTbody.innerHTML = `<tr><td colspan="3" style="text-align: center; padding: 18px; color: #dc2626;">Failed to load expense transactions.</td></tr>`;
+                });
+        });
+    }
+
+    if (closeExpensesModalBtn) closeExpensesModalBtn.addEventListener('click', closeExpensesModal);
+    if (closeExpensesFooterBtn) closeExpensesFooterBtn.addEventListener('click', closeExpensesModal);
+
+    if (expensesModal) {
+        expensesModal.addEventListener('click', function(e) {
+            if (e.target === expensesModal) closeExpensesModal();
+        });
+    }
+
+    /* ── 9. Global Keyboard Esc Listener for Modals ──────────────── */
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             if (salesModal && salesModal.style.display === 'flex') {
@@ -442,6 +675,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (rentalModal && rentalModal.style.display === 'flex') {
                 closeRentalModal();
             }
+            if (rentalsModal && rentalsModal.style.display === 'flex') {
+                closeRentalsModal();
+            }
+            if (expensesModal && expensesModal.style.display === 'flex') {
+                closeExpensesModal();
+            }
+            if (refillModal && refillModal.style.display === 'flex') {
+                closeRefillModal(); }
         }
     });
 

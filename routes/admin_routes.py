@@ -520,6 +520,132 @@ def dashboard_sales_transactions():
         current_app.logger.exception("Critical error encountered while fetching product sales summary.")
         return jsonify({"error": "Failed to load product sales summary."}), 500
     
+@admin_bp.route('/dashboard/refill-transactions', methods=['GET'])
+@login_required
+@admin_or_staff_required
+def get_refill_transactions():
+    try:
+        period = request.args.get('period', 'this_month')
+        custom_start = request.args.get('start_date')
+        custom_end = request.args.get('end_date')
+
+        start_date, end_date = get_date_boundaries(period, custom_start, custom_end)
+
+        def apply_date_filter(query, date_column=Transaction.created_at):
+            if start_date:
+                query = query.filter(date_column >= start_date)
+            if end_date:
+                query = query.filter(date_column < end_date)
+            return query
+
+        query = Transaction.query.filter(
+            db.or_(
+                Transaction.transaction_type.ilike('%refill%'),
+                Transaction.walk_in_tank_size.isnot(None),
+                Transaction.refill_cost_per_unit > 0
+            )
+        )
+        
+        query = apply_date_filter(query)
+        transactions = query.order_by(Transaction.created_at.desc()).all()
+
+        refills_list = []
+        for tx in transactions:
+            qty = int(tx.quantity or 1)
+
+            if tx.product:
+                prod_name = tx.product.name
+                tank_desc = f" ({tx.walk_in_tank_size})" if tx.walk_in_tank_size and tx.walk_in_tank_size not in tx.product.name else ""
+            else:
+                prod_name = tx.walk_in_tank_size or "Tank Refill"
+                tank_desc = ""
+
+            refills_list.append({
+                'reference_no': tx.reference_no,
+                'product_name': f"{prod_name}{tank_desc}",
+                'quantity': qty,
+                'unit_price': float(tx.refill_cost_per_unit or 0),
+                'total_income': float(tx.total_amount or 0),
+                'customer_name': tx.customer_name or (tx.customer.full_name if tx.customer else "Walk-in Customer"),
+                'created_at': getattr(tx, 'display_date', None) or (tx.created_at.strftime('%b %d, %Y %I:%M %p') if tx.created_at else "N/A")
+            })
+
+        return jsonify({
+            'success': True,
+            'refills': refills_list
+        })
+
+    except Exception:
+        current_app.logger.exception("Critical error encountered while fetching refill transactions summary.")
+        return jsonify({'success': False, 'error': 'Failed to load refill transactions.'}), 500
+    
+@admin_bp.route("/dashboard/active-rentals-summary")
+@login_required
+@admin_or_staff_required
+def dashboard_active_rentals_summary():
+    try:
+        period = request.args.get('period', 'this_month')
+        custom_start = request.args.get('start_date')
+        custom_end = request.args.get('end_date')
+
+        start_date, end_date = get_date_boundaries(period, custom_start, custom_end)
+
+        def apply_date_filter(query, date_column=Transaction.created_at):
+            if start_date:
+                query = query.filter(date_column >= start_date)
+            if end_date:
+                query = query.filter(date_column < end_date)
+            return query
+
+        query = Transaction.query.filter(Transaction.transaction_type == "Rental")
+        query = apply_date_filter(query)
+        transactions = query.all()
+
+        # Aggregate product rental data dictionary: { product_name: {"quantity_rented": int, "rental_income": float} }
+        product_summary = {}
+
+        for tx in transactions:
+            items = getattr(tx, 'rentals', None) or getattr(tx, 'purchases', None) or []
+            if items:
+                for item in items:
+                    p_name = getattr(item, 'product_name', None) or (item.product.name if getattr(item, 'product', None) else "Unknown Rental Product")
+                    p_qty = int(getattr(item, 'quantity', 0) or getattr(item, 'quantity_rented', 0) or 1)
+                    
+                    p_price = float(getattr(item, 'price', 0) or getattr(item, 'unit_price', 0) or getattr(item, 'rental_price', 0) or 0)
+                    p_total = p_qty * p_price
+                    if p_total == 0:
+                        p_total = float(getattr(tx, 'total_amount', 0) or getattr(tx, 'amount_paid', 0) or 0) / max(len(items), 1)
+
+                    if p_name not in product_summary:
+                        product_summary[p_name] = {"quantity_rented": 0, "rental_income": 0.0}
+                    
+                    product_summary[p_name]["quantity_rented"] += p_qty
+                    product_summary[p_name]["rental_income"] += p_total
+            else:
+                p_name = tx.description or "General Rental Item"
+                p_qty = int(getattr(tx, 'quantity', 1) or 1)
+                p_total = float(getattr(tx, 'total_amount', 0) or getattr(tx, 'amount_paid', 0) or 0)
+
+                if p_name not in product_summary:
+                    product_summary[p_name] = {"quantity_rented": 0, "rental_income": 0.0}
+                
+                product_summary[p_name]["quantity_rented"] += p_qty
+                product_summary[p_name]["rental_income"] += p_total
+
+        summary_list = []
+        for name, data in sorted(product_summary.items(), key=lambda x: x[1]['quantity_rented'], reverse=True):
+            summary_list.append({
+                "product_name": name,
+                "quantity_rented": data["quantity_rented"],
+                "rental_income": data["rental_income"]
+            })
+
+        return jsonify({"success": True, "items": summary_list})
+
+    except Exception:
+        current_app.logger.exception("Critical error encountered while fetching active rentals summary.")
+        return jsonify({"success": False, "error": "Failed to load active rentals summary."}), 500
+        
 @admin_bp.route("/dashboard/rental-transactions")
 @login_required
 @admin_or_staff_required
@@ -607,6 +733,63 @@ def dashboard_rental_transactions():
         current_app.logger.exception("Critical error encountered while fetching rental and deposit transactions summary.")
         return jsonify({"error": "Failed to load rental transactions summary."}), 500
     
+@admin_bp.route('/dashboard/expense-transactions', methods=['GET'])
+@login_required 
+@admin_or_staff_required
+def get_expense_transactions():
+    period = request.args.get('period', 'this_month')
+    start_date_str = request.args.get('start_date')
+    end_date_str = request.args.get('end_date')
+
+    query = Expense.query
+
+    now = datetime.now()
+    if period == 'this_month':
+        start_date = datetime(now.year, now.month, 1).date()
+        if now.month == 12:
+            end_date = datetime(now.year + 1, 1, 1).date()
+        else:
+            end_date = datetime(now.year, now.month + 1, 1).date()
+        query = query.filter(Expense.date_incurred >= start_date, Expense.date_incurred < end_date)
+
+    elif period == 'last_month':
+        if now.month == 1:
+            start_date = datetime(now.year - 1, 12, 1).date()
+            end_date = datetime(now.year, 1, 1).date()
+        else:
+            start_date = datetime(now.year, now.month - 1, 1).date()
+            end_date = datetime(now.year, now.month, 1).date()
+        query = query.filter(Expense.date_incurred >= start_date, Expense.date_incurred < end_date)
+
+    elif period == 'custom' and start_date_str and end_date_str:
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            query = query.filter(Expense.date_incurred >= start_date, Expense.date_incurred <= end_date)
+        except ValueError:
+            pass
+
+    expenses = query.order_by(Expense.date_incurred.desc(), Expense.created_at.desc()).all()
+
+    expenses_list = []
+    for exp in expenses:
+        title_or_cat = exp.expense_title or exp.category or 'General Expense'
+        if exp.expense_title and exp.category:
+            display_desc = f"{exp.expense_title} ({exp.category})"
+        else:
+            display_desc = title_or_cat
+
+        expenses_list.append({
+            'description': display_desc,
+            'date': exp.date_incurred.strftime('%Y-%m-%d') if exp.date_incurred else '',
+            'amount': float(exp.amount or 0.0)
+        })
+
+    return jsonify({
+        'success': True,
+        'expenses': expenses_list
+    })
+        
 @admin_bp.route('/process-refill-transaction', methods=['POST'])
 @login_required
 @admin_or_staff_required
