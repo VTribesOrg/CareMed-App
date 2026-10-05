@@ -5,8 +5,226 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/admin/active_rentals.css') }}">
-{% endblock %}
+<style>
+    /*----------------------------- START OF MAIN CONTENT --------------------------------------- */
 
+    .content-area {
+        padding: 14px 24px 24px 24px;
+        flex-grow: 1;
+        min-height: calc(96vh - 80px); 
+        overflow-y: auto;
+        background-color: #f8fafc; 
+        display: flex;
+        flex-direction: column;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-bottom: 16px;
+    }
+
+    .header-titles h1 {
+        font-size: 1.6rem;
+        color: #1e293b;
+        margin: 0;
+        font-weight: 800;
+    }
+
+    .header-titles p {
+        color: #64748b;
+        font-size: 0.95rem;
+        margin: 4px 0 0 0;
+    }
+
+    .asset-registry-card {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 24px;
+        padding-bottom: 0;
+        border: 1px solid #dbe2e1;
+        box-shadow: 0 4px 20px rgba(0, 35, 71, 0.05);
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 80px);
+        min-height: 565px;
+        max-height: 90vh;
+        overflow: hidden; 
+    }
+
+    @media (max-width: 768px) {
+        .asset-registry-card {
+            padding: 16px;
+            border-radius: 12px;
+            min-height: auto;  
+            max-height: none;  
+        }
+    }
+
+    .table-header-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        gap: 20px;
+    }
+
+    .table-controls {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-grow: 1;
+        justify-content: flex-end;
+    }
+
+    .search-box {
+        position: relative;
+        width: 100%;
+        max-width: 350px; 
+        display: flex;
+        align-items: center;
+    }
+
+    .search-box input {
+        width: 100%;
+        height: 40px;
+        background: #f8fafc;
+        border: 1px solid #dbe2e1;
+        border-radius: 10px;
+        padding: 0 15px 0 40px; 
+        font-size: 0.9rem;
+        transition: all 0.2s ease;
+    }
+
+    .search-box input:focus {
+        background: #ffffff;
+        border-color: #52B788;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(82, 183, 136, 0.1);
+    }
+
+    .search-box .material-symbols-rounded {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+        font-size: 20px;
+        pointer-events: none;
+    }
+
+    .table-responsive {
+        flex-grow: 1;
+        background: white;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        margin: 16px 0;            
+        overflow-y: auto;          
+        overflow-x: auto;
+        position: relative;
+        -webkit-overflow-scrolling: touch;
+        min-height: 200px;
+        max-height: none; 
+    }
+
+    @media (max-width: 768px) {
+        .table-responsive {
+            border-radius: 8px;
+            min-height: 200px;
+            max-height: 60vh;
+        }
+    }
+
+    .medical-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 1100px;
+    }
+
+    .medical-table th {
+        background: #f8fafc;
+        text-align: left;
+        padding: 14px 12px;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #64748b;
+        font-weight: 700;
+        border-bottom: 2px solid #f1f5f9;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    .medical-table th, 
+    .medical-table td {
+        padding: 12px 16px;
+        vertical-align: middle !important;
+    }
+
+    .medical-table td {
+        border-bottom: 1px solid #f1f5f9;
+        font-size: 0.85rem;
+        color: #334155;
+        white-space: nowrap !important;
+    }
+
+    .medical-table tr:hover td {
+        background-color: #fbfcfe;
+    }
+
+    /* Action Menu & Icon Buttons */
+    .action-menu {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .icon-btn-sm {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        width: 32px;
+        height: 32px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: #64748b;
+        transition: all 0.2s ease;
+        text-decoration: none;
+    }
+
+    .icon-btn-sm:hover {
+        background: #f1f5f9;
+        color: #0f172a;
+        border-color: #cbd5e1;
+        transform: translateY(-1px);
+    }
+
+    @media (max-width: 1024px) {
+        .page-header { flex-direction: column; align-items: flex-start; gap: 16px; }
+    }
+
+    @media (max-width: 768px) {
+        .table-header-actions { flex-direction: column; align-items: flex-start; }
+        .search-box { width: 100%; max-width: 100%; }
+        .table-controls { width: 100%; justify-content: flex-start; flex-wrap: wrap; }
+        .pagination-footer {
+            flex-direction: column;
+            gap: 12px;
+            align-items: center;
+            text-align: center;
+        }
+        .pagination-controls {
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+    }
+</style>
+{% endblock %}
 
 {# Override flash block — this page uses toast-style flash messages #}
 {% block flash %}
@@ -51,59 +269,36 @@
 {% endblock %}
 
 {% block content %}
-
-<div class="page-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-    <p style="color:#64748b; font-size:0.9rem; margin:0;">
-        Live view of all active rentals 
-    </p>
-    <div class="rentals-count" id="rental-count-badge">
-        {{ pagination.total if pagination else rentals|length }} active rental{{ 's' if (pagination.total if pagination else rentals|length) != 1 }}
-    </div>
-</div>
-
-<div class="active-rentals-card">
-
-    <div class="rentals-toolbar">
-
-        <div class="search-box">
-            <span class="material-symbols-rounded search-icon">search</span>
-            <input
-                type="text"
-                id="rental-search"
-                placeholder="Search by serial number, customer or equipment..."
-                value="{{ search_query }}"
-                autocomplete="off">
-            <button
-                type="button"
-                id="clear-search"
-                class="search-clear-btn"
-                aria-label="Clear search">
-                <span class="material-symbols-rounded">close</span>
-            </button>
+<div class="asset-registry-card">
+    <div class="table-header-actions">
+        <div class="header-titles">
+            <h1>Active Rentals</h1>
+            <p>Live view of all active rentals</p>
         </div>
+        <div class="table-controls">
+            <!-- RETURN STATUS FILTER -->
+            <select id="return-filter" class="medical-select" style="height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid #dbe2e1; font-size: 0.9rem; background: #f8fafc; color: #334155;">
+                <option value="">All Active Rentals</option>
+                <option value="overdue_return" {{ 'selected' if current_filter == 'overdue_return' }}>Overdue Returns</option>
+            </select>
 
-        <!-- RETURN STATUS FILTER -->
-        <select id="return-filter" class="medical-select">
-            <option value="">All Active Rentals</option>
-            <option value="overdue_return" {{ 'selected' if current_filter == 'overdue_return' }}>
-                Overdue Returns 
-            </option>
-        </select>
+            <!-- CLEAR FILTER BUTTON -->
+            {% if current_filter or search_query %}
+            <button type="button" id="clear-filter-btn" class="clear-filter-btn" style="height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #f1f5f9; color: #475569; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600;">
+                <span class="material-symbols-rounded" style="font-size: 18px;">filter_alt_off</span>
+                Reset
+            </button>
+            {% endif %}
 
-        <!-- CLEAR FILTER BUTTON (shows only when filter is active) -->
-        {% if current_filter or search_query %}
-        <button type="button" id="clear-filter-btn" class="clear-filter-btn">
-            <span class="material-symbols-rounded">filter_alt_off</span>
-            Reset
-        </button>
-        {% endif %}
-
+            <div class="search-box">
+                <span class="material-symbols-rounded">search</span>
+                <input type="text" id="rental-search" value="{{ search_query }}" placeholder="Search by serial number, customer or equipment..." autocomplete="off">
+            </div>
+        </div>
     </div>
 
-    <div class="table-container">
-
-        <table class="rentals-table" id="rentals-table">
-
+    <div class="table-responsive">
+        <table class="medical-table" id="rentals-table">
             <thead>
                 <tr>
                     <th>Customer</th>
@@ -116,14 +311,11 @@
                     <th>Duration</th>
                     <th>Monthly Rate</th>
                     <th>Status</th>
-                    <th></th>
+                    <th>Actions</th>
                 </tr>
             </thead>
-
             <tbody>
-
             {% for rental in rentals %}
-
                 {% set txn = rental.transaction %}
                 {% set customer_name = (rental.customer.full_name if rental.customer else None) or (txn.customer_name if txn else None) or ((txn.customer.first_name ~ ' ' ~ txn.customer.last_name) if txn and txn.customer else '—') %}
                 {% set today = datetime_now_date %}
@@ -132,11 +324,9 @@
                 {% set tank_serials = rental.tanks | map(attribute='serial_number') | list if rental.tanks else [] %}
                 {% set serial_display = tank_serials | join(', ') if tank_serials else (txn.serial_numbers if txn and txn.serial_numbers else '') %}
 
-                <tr
-                    data-search="{{ customer_name|lower }} {{ rental.product.equipment_type|lower if rental.product and rental.product.equipment_type else '' }} {{ rental.product.name|lower if rental.product and rental.product.name else '' }} {{ serial_display|lower }}">
-
-                    <td class="customer-cell">
-                        {{ customer_name }}
+                <tr data-search="{{ customer_name|lower }} {{ rental.product.equipment_type|lower if rental.product and rental.product.equipment_type else '' }} {{ rental.product.name|lower if rental.product and rental.product.name else '' }} {{ serial_display|lower }}">
+                    <td>
+                        <strong>{{ customer_name }}</strong>
                     </td>
 
                     <td>
@@ -152,37 +342,26 @@
                         <div class="serial-wrapper" style="display: flex; flex-direction: column; gap: 4px;">
                             {% for tank in rental.tanks %}
                             <div style="display: flex; align-items: center; gap: 6px;">
-                                <input class="serial-input" value="{{ tank.serial_number }}" readonly style="max-width: 140px;">
-                                <button type="button" class="copy-serial" data-serial="{{ tank.serial_number }}" title="Copy serial number">
-                                    <span class="material-symbols-rounded" style="font-size: 16px;">content_copy</span>
+                                <input class="serial-input" value="{{ tank.serial_number }}" readonly style="max-width: 140px; height: 28px; padding: 0 6px; border: 1px solid #e2e8f0; border-radius: 6px; background: #f8fafc; font-size: 0.8rem;">
+                                <button type="button" class="copy-serial icon-btn-sm" style="width: 28px; height: 28px;" data-serial="{{ tank.serial_number }}" title="Copy serial number">
+                                    <span class="material-symbols-rounded" style="font-size: 14px;">content_copy</span>
                                 </button>
                             </div>
                             {% endfor %}
                         </div>
                         {% elif serial_display %}
-                        <div class="serial-wrapper">
-                            <input
-                                class="serial-input"
-                                value="{{ serial_display }}"
-                                readonly>
-                            <button
-                                type="button"
-                                class="copy-serial"
-                                data-serial="{{ serial_display }}"
-                                title="Copy serial number">
-                                <span class="material-symbols-rounded">
-                                    content_copy
-                                </span>
+                        <div class="serial-wrapper" style="display: flex; align-items: center; gap: 6px;">
+                            <input class="serial-input" value="{{ serial_display }}" readonly style="max-width: 140px; height: 28px; padding: 0 6px; border: 1px solid #e2e8f0; border-radius: 6px; background: #f8fafc; font-size: 0.8rem;">
+                            <button type="button" class="copy-serial icon-btn-sm" style="width: 28px; height: 28px;" data-serial="{{ serial_display }}" title="Copy serial number">
+                                <span class="material-symbols-rounded" style="font-size: 14px;">content_copy</span>
                             </button>
                         </div>
                         {% else %}
-                        <span class="empty-value">
-                            No serial
-                        </span>
+                        <span class="text-muted" style="font-style:italic;">No serial</span>
                         {% endif %}
                     </td>
 
-                    <td class="center">
+                    <td>
                         {{ rental.quantity }}
                     </td>
 
@@ -211,19 +390,22 @@
                     <td>
                         {% if days_remaining is not none %}
                             {% if days_remaining < 0 %}
-                                <span class="status-pill overdue">
+                                <span class="status-indicator unpaid" style="display:inline-flex; align-items:center; gap:4px;">
+                                    <span class="material-symbols-rounded" style="font-size:14px;">error</span>
                                     {{ days_remaining|abs }} day{{ 's' if days_remaining|abs != 1 }} overdue
                                 </span>
                             {% elif days_remaining == 0 %}
-                                <span class="status-pill due">
+                                <span class="status-indicator partial" style="display:inline-flex; align-items:center; gap:4px;">
+                                    <span class="material-symbols-rounded" style="font-size:14px;">today</span>
                                     Due today
                                 </span>
                             {% elif days_remaining <= 5 %}
-                                <span class="status-pill warning">
+                                <span class="badge" style="background:#ffedd5; color:#c2410c; border:1px solid #fed7aa; display:inline-flex; align-items:center; gap:4px;">
+                                    <span class="material-symbols-rounded" style="font-size:14px;">schedule</span>
                                     {{ days_remaining }} day{{ 's' if days_remaining != 1 }} left
                                 </span>
                             {% else %}
-                                <span class="days-left">
+                                <span class="text-muted">
                                     {{ days_remaining }} days
                                 </span>
                             {% endif %}
@@ -232,76 +414,61 @@
                         {% endif %}
                     </td>
 
-                    <td class="monthly-rate">
-                        ₱{{ "{:,.2f}".format(rental.monthly_rate or 0) }}
-                        <small>/month</small>
+                    <td>
+                        <strong>₱{{ "{:,.2f}".format(rental.monthly_rate or 0) }}</strong>
+                        <small style="color: #64748b; font-size: 0.75rem;">/mo</small>
                     </td>
 
                     <td>
-                        <span class="status-pill active">
-                            <span class="dot"></span>
+                        <span class="badge" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; display:inline-flex; align-items:center; gap:4px;">
+                            <span class="material-symbols-rounded" style="font-size:14px; color:#22c55e;">check_circle</span>
                             {{ rental.status or 'Active' }}
                         </span>
                     </td>
 
-                    <td class="actions">
-                        {% if txn %}
-                        <a
-                            href="{{ url_for('admin.transaction_details', id=txn.id) }}"
-                            class="action-btn"
-                            title="View transaction">
-                            <span class="material-symbols-rounded">
-                                visibility
-                            </span>
-                        </a>
-                        {% endif %}
-                    </td>
-
-                </tr>
-
-            {% else %}
-
-                <tr>
-                    <td colspan="11">
-                        <div class="empty-state">
-                            <span class="material-symbols-rounded">
-                                inventory_2
-                            </span>
-                            <h3>No active rentals</h3>
-                            <p>
-                                There are currently no active rental records.
-                            </p>
+                    <td>
+                        <div class="action-menu">
+                            {% if txn %}
+                            <a href="{{ url_for('admin.transaction_details', id=txn.id) }}" class="icon-btn-sm" title="View transaction">
+                                <span class="material-symbols-rounded" style="font-size:18px;">visibility</span>
+                            </a>
+                            {% endif %}
                         </div>
                     </td>
                 </tr>
-
+            {% else %}
+                <tr>
+                    <td colspan="11">
+                        <div class="no-data-wrapper" style="text-align: center; padding: 40px;">
+                            <div style="font-weight: 700; font-size: 1rem; color: #475569;">No active rentals</div>
+                            <small style="margin-top: 4px; color: #64748b; display: block;">There are currently no active rental records.</small>
+                        </div>
+                    </td>
+                </tr>
             {% endfor %}
-
             </tbody>
-
         </table>
-
     </div>
 
     {% if pagination %}
-    <div class="pagination-footer" style="margin-top: auto;">
-        <div class="table-limit-control">
-            <span class="limit-label">Show</span>
-            <select class="medical-select" id="row-limit-select">
+    <div class="pagination-footer" style="margin-top: auto; padding: 12px 0; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9;">
+        <div class="table-limit-control" style="display: flex; align-items: center; gap: 8px;">
+            <span class="limit-label" style="font-size: 13px; color: #64748b;">Show</span>
+            <select class="medical-select" id="row-limit-select" style="height: 34px; padding: 0 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 13px;">
                 <option value="10" {{ 'selected' if current_limit == 10 }}>10</option>
                 <option value="25" {{ 'selected' if current_limit == 25 }}>25</option>
                 <option value="50" {{ 'selected' if current_limit == 50 }}>50</option>
             </select>
-            <span class="limit-label">entries</span>
+            <span class="limit-label" style="font-size: 13px; color: #64748b;">entries</span>
         </div>
  
-        <div class="pagination-info">
+        <div class="pagination-info" style="font-size: 13px; color: #64748b;">
             Showing <strong>{{ (pagination.page - 1) * pagination.per_page + 1 if pagination.total > 0 else 0 }}</strong> to
             <strong>{{ [pagination.page * pagination.per_page, pagination.total]|min }}</strong>
             of <strong>{{ pagination.total }}</strong> rentals
         </div>
  
-        <div class="pagination-controls">
+        <div class="pagination-controls" style="display: flex; align-items: center; gap: 8px;">
             {% if pagination.has_prev %}
             <a href="{{ url_for('admin.active_rentals', page=pagination.prev_num, limit=current_limit, q=search_query, filter=current_filter) }}" class="pag-btn">
                 <span class="material-symbols-rounded">chevron_left</span>
@@ -310,7 +477,7 @@
             <div class="pag-btn disabled" style="opacity: 0.4;"><span class="material-symbols-rounded">chevron_left</span></div>
             {% endif %}
  
-            <span class="page-number">Page <strong>{{ pagination.page }}</strong> of {{ pagination.pages or 1 }}</span>
+            <span class="page-number" style="font-size: 13px; color: #64748b;">Page <strong>{{ pagination.page }}</strong> of {{ pagination.pages or 1 }}</span>
  
             {% if pagination.has_next %}
             <a href="{{ url_for('admin.active_rentals', page=pagination.next_num, limit=current_limit, q=search_query, filter=current_filter) }}" class="pag-btn">
@@ -320,17 +487,15 @@
             <div class="pag-btn disabled" style="opacity: 0.4;"><span class="material-symbols-rounded">chevron_right</span></div>
             {% endif %}
  
-            <div class="jump-to-wrapper">
-                <span class="jump-text">Go to</span>
-                <input type="number" id="jump-page-input" class="jump-input" min="1" max="{{ pagination.pages or 1 }}" value="{{ pagination.page }}">
-                <button class="jump-btn" onclick="jumpToPage()">Go</button>
+            <div class="jump-to-wrapper" style="display: flex; align-items: center; gap: 6px; margin-left: 12px;">
+                <span class="jump-text" style="font-size: 13px; color: #64748b;">Go to</span>
+                <input type="number" id="jump-page-input" class="jump-input" min="1" max="{{ pagination.pages or 1 }}" value="{{ pagination.page }}" style="width: 50px; height: 32px; text-align: center; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;">
+                <button class="jump-btn" onclick="jumpToPage()" style="height: 32px; padding: 0 10px; border: none; background: #52B788; color: white; border-radius: 6px; font-weight: 600; font-size: 12px; cursor: pointer;">Go</button>
             </div>
         </div>
     </div>
     {% endif %}
-    
 </div>
-
 {% endblock %}
 
 {% block extra_js %}
