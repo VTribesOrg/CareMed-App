@@ -252,37 +252,53 @@ function resetUpload() {
     statusIcon.style.color = "#aaa";
 }
 
-input.addEventListener("change", function () {
-    const file = this.files[0];
+if (input) {
+    input.addEventListener("change", function () {
+        const file = this.files[0];
 
-    if (!file) return;
+        if (!file) return;
 
-    fileName.textContent = file.name;
+        fileName.textContent = file.name;
 
-    statusIcon.textContent = "check_circle";
-    statusIcon.style.color = "#2e7d32";
+        statusIcon.textContent = "check_circle";
+        statusIcon.style.color = "#2e7d32";
 
-    previewWrap.style.display = "flex";
+        previewWrap.style.display = "flex";
 
-    // Image preview only (skip PDF)
-    if (file.type.startsWith("image/")) {
-        const reader = new FileReader();
-        reader.onload = e => previewImg.src = e.target.result;
-        reader.readAsDataURL(file);
-    } else {
-        previewImg.src =
-            "data:image/svg+xml;charset=UTF-8," +
-            encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='60' height='60'>
-                <rect width='100%' height='100%' fill='#f2f2f2'/>
-                <text x='50%' y='50%' text-anchor='middle' dy='.3em' font-size='10'>PDF</text>
-            </svg>`);
-    }
-});
+        // Image preview only (skip PDF)
+        if (file.type.startsWith("image/")) {
+            const reader = new FileReader();
+            reader.onload = e => previewImg.src = e.target.result;
+            reader.readAsDataURL(file);
+        } else {
+            previewImg.src =
+                "data:image/svg+xml;charset=UTF-8," +
+                encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='60' height='60'>
+                    <rect width='100%' height='100%' fill='#f2f2f2'/>
+                    <text x='50%' y='50%' text-anchor='middle' dy='.3em' font-size='10'>PDF</text>
+                </svg>`);
+        }
+    });
+}
 
-replaceBtn.addEventListener("click", () => {
-    input.click();
-});
+if (replaceBtn) {
+    replaceBtn.addEventListener("click", () => {
+        input.click();
+    });
+}
 
-removeBtn.addEventListener("click", () => {
-    resetUpload();
+if (removeBtn) {
+    removeBtn.addEventListener("click", () => {
+        resetUpload();
+    });
+}
+
+// CSP-compliant "Go Back" history handler
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.go-back-btn').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            history.back();
+        });
+    });
 });

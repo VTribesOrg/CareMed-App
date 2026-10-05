@@ -3066,12 +3066,19 @@ def active_rentals():
 def collection_monitoring():
     page = request.args.get('page', 1, type=int)
     limit = request.args.get('limit', 10, type=int)
-    search_query = request.args.get('q', '', type=str)
+    search_query = request.args.get('q', '', type=str).strip()
 
     today = datetime.now().date()
     three_days_later = today + timedelta(days=3)
 
-    query = RentalInvoice.query.join(RentalInvoice.rental).filter(
+    # 1. Build the base query with all your date, status, and search filters
+    base_query = RentalInvoice.query.join(
+        RentalInvoice.rental
+    ).join(
+        Rental.customer, isouter=True
+    ).join(
+        Rental.product, isouter=True
+    ).filter(
         and_(
             or_(
                 RentalInvoice.service_period_start <= three_days_later,
@@ -3083,9 +3090,25 @@ def collection_monitoring():
     
     if search_query:
         search_term = f"%{search_query}%"
-        query = query.filter(
-            RentalInvoice.invoice_number.ilike(search_term)
-        )
+        filter_conditions = [
+            Customer.first_name.ilike(search_term),
+            Customer.last_name.ilike(search_term),
+            Product.name.ilike(search_term)
+        ]
+
+        if search_query.isdigit():
+            filter_conditions.append(RentalInvoice.id == int(search_query))
+
+        base_query = base_query.filter(or_(*filter_conditions))
+
+ 
+    subquery = base_query.with_entities(
+        func.min(RentalInvoice.id).label('min_id')
+    ).group_by(Rental.transaction_id).subquery()
+
+    query = RentalInvoice.query.join(
+        subquery, RentalInvoice.id == subquery.c.min_id
+    )
 
     pagination = query.paginate(page=page, per_page=limit, error_out=False)
     due_invoices = pagination.items

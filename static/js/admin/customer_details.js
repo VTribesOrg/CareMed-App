@@ -94,3 +94,13 @@ document.querySelectorAll('.clickable-row').forEach(row => {
         }
     });
 });
+
+// CSP-compliant "Go Back" history handler
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.go-back-btn').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            history.back();
+        });
+    });
+});

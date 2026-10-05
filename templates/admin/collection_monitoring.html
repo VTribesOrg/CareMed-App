@@ -430,144 +430,126 @@
             </thead>
             <tbody id="collectionTableBody">
                 {% if due_invoices %}
-                    {% set ns = namespace(displayed_count=0) %}
                     {% for invoice in due_invoices %}
-                        {% set target_date = invoice.service_period_start if invoice.service_period_start else (invoice.due_date if invoice.due_date else invoice.rental.expected_return_date) %}
+                        {% set target_date = invoice.service_period_start if invoice.service_period_start else (invoice.due_date if invoice.due_date else (invoice.rental.expected_return_date if invoice.rental else none)) %}
                         {% if target_date %}
                             {% set days_left = (target_date - now.date()).days %}
-                            {% if days_left <= 3 %}
-                                {% set ns.displayed_count = ns.displayed_count + 1 %}
-                                <tr>
-                                    <td>
-                                        {% if invoice.rental and invoice.rental.customer %}
-                                            <strong>{{ invoice.rental.customer.first_name }} {{ invoice.rental.customer.last_name }}</strong>
-                                        {% else %}
-                                            <span style="color:#94a3b8; font-style:italic;">N/A</span>
-                                        {% endif %}
-                                    </td>
+                            <tr>
+                                <td>
+                                    {% if invoice.rental and invoice.rental.customer %}
+                                        <strong>{{ invoice.rental.customer.first_name }} {{ invoice.rental.customer.last_name }}</strong>
+                                    {% else %}
+                                        <span style="color:#94a3b8; font-style:italic;">N/A</span>
+                                    {% endif %}
+                                </td>
 
-                                    <td>
-                                        {% if invoice.rental and invoice.rental.customer and invoice.rental.customer.contact_number %}
-                                            {{ invoice.rental.customer.contact_number }}
-                                        {% elif invoice.rental and invoice.rental.customer and invoice.rental.customer.phone %}
-                                            {{ invoice.rental.customer.phone }}
-                                        {% else %}
-                                            <span style="color:#94a3b8; font-style:italic;">N/A</span>
-                                        {% endif %}
-                                    </td>
+                                <td>
+                                    {% if invoice.rental and invoice.rental.customer and invoice.rental.customer.contact_number %}
+                                        {{ invoice.rental.customer.contact_number }}
+                                    {% elif invoice.rental and invoice.rental.customer and invoice.rental.customer.phone %}
+                                        {{ invoice.rental.customer.phone }}
+                                    {% else %}
+                                        <span style="color:#94a3b8; font-style:italic;">N/A</span>
+                                    {% endif %}
+                                </td>
 
-                                    <td>
-                                        {% if invoice.rental and invoice.rental.product %}
-                                            {{ invoice.rental.product.name }}{% if invoice.rental.product.size %} ({{ invoice.rental.product.size }}){% endif %}
-                                        {% else %}
-                                            <span style="color:#94a3b8; font-style:italic;">N/A</span>
-                                        {% endif %}
-                                    </td>
+                                <td>
+                                    {% if invoice.rental and invoice.rental.product %}
+                                        {{ invoice.rental.product.name }}{% if invoice.rental.product.size %} ({{ invoice.rental.product.size }}){% endif %}
+                                    {% else %}
+                                        <span style="color:#94a3b8; font-style:italic;">N/A</span>
+                                    {% endif %}
+                                </td>
 
-                                    <td>
-                                        {% if invoice.rental and invoice.rental.tanks %}
-                                            {% for tank in invoice.rental.tanks %}
-                                                {{ tank.serial_number }}{% if not loop.last %}, {% endif %}
-                                            {% endfor %}
-                                        {% else %}
-                                            <span style="color:#94a3b8; font-style:italic;">N/A</span>
-                                        {% endif %}
-                                    </td>
+                                <td>
+                                    {% if invoice.rental and invoice.rental.tanks %}
+                                        {% for tank in invoice.rental.tanks %}
+                                            {{ tank.serial_number }}{% if not loop.last %}, {% endif %}
+                                        {% endfor %}
+                                    {% else %}
+                                        <span style="color:#94a3b8; font-style:italic;">N/A</span>
+                                    {% endif %}
+                                </td>
 
-                                    <td>
-                                        {% if invoice.rental and invoice.rental.quantity %}
-                                            {{ invoice.rental.quantity }}
-                                        {% else %}
-                                            <span style="color:#94a3b8; font-style:italic;">1</span>
-                                        {% endif %}
-                                    </td>
+                                <td>
+                                    {% if invoice.rental and invoice.rental.quantity %}
+                                        {{ invoice.rental.quantity }}
+                                    {% else %}
+                                        <span style="color:#94a3b8; font-style:italic;">1</span>
+                                    {% endif %}
+                                </td>
 
-                                    <td>
-                                        {% if invoice.rental and invoice.rental.start_date %}
-                                            {{ invoice.rental.start_date.strftime('%b %d, %Y') }}
-                                        {% else %}
-                                            <span style="color:#94a3b8; font-style:italic;">N/A</span>
-                                        {% endif %}
-                                    </td>
+                                <td>
+                                    {% if invoice.rental and invoice.rental.start_date %}
+                                        {{ invoice.rental.start_date.strftime('%b %d, %Y') }}
+                                    {% else %}
+                                        <span style="color:#94a3b8; font-style:italic;">N/A</span>
+                                    {% endif %}
+                                </td>
 
-                                    <td>
-                                        {% if target_date %}
-                                            {{ target_date.strftime('%b %d, %Y') }}
-                                        {% else %}
-                                            <span style="color:#94a3b8; font-style:italic;">N/A</span>
-                                        {% endif %}
-                                    </td>
+                                <td>
+                                    {{ target_date.strftime('%b %d, %Y') }}
+                                </td>
 
-                                    <td>
-                                        {% if invoice.rental and invoice.rental.is_open_duration %}
-                                            <span class="status-pill" style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:4px; font-size:0.8rem;">Open Duration</span>
-                                        {% else %}
-                                            <span style="color:#64748b;">Fixed</span>
-                                        {% endif %}
-                                    </td>
+                                <td>
+                                    {% if invoice.rental and invoice.rental.is_open_duration %}
+                                        <span class="status-pill" style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:4px; font-size:0.8rem;">Open Duration</span>
+                                    {% else %}
+                                        <span style="color:#64748b;">Fixed</span>
+                                    {% endif %}
+                                </td>
 
-                                    <td>
-                                        <strong>₱{{ "%.2f"|format(invoice.rental.monthly_rate if invoice.rental and invoice.rental.monthly_rate else invoice.amount_due or 0.00) }}</strong>
-                                    </td>
+                                <td>
+                                    <strong>₱{{ "%.2f"|format(invoice.rental.monthly_rate if invoice.rental and invoice.rental.monthly_rate else invoice.amount_due or 0.00) }}</strong>
+                                </td>
 
-                                    <td>
-                                        {% if days_left < 0 %}
-                                            {% set days_late = -days_left %}
-                                            <span class="status-pill" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:6px; font-size:0.85rem; font-weight:500;">
-                                                <span class="material-symbols-rounded" style="font-size:18px;">error</span>
-                                                {{ days_late }} day{% if days_late > 1 %}s{% endif %} late
-                                            </span>
-                                        {% elif days_left == 0 %}
-                                            <span class="status-pill" style="background:#fef3c7; color:#d97706; border:1px solid #fde68a; display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:6px; font-size:0.85rem; font-weight:500;">
-                                                <span class="material-symbols-rounded" style="font-size:18px;">today</span>
-                                                Due Today
-                                            </span>
-                                        {% elif days_left <= 3 %}
-                                            <span class="status-pill" style="background:#ffedd5; color:#c2410c; border:1px solid #fed7aa; display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:6px; font-size:0.85rem; font-weight:500;">
-                                                <span class="material-symbols-rounded" style="font-size:18px;">schedule</span>
-                                                Due in {{ days_left }} day{% if days_left > 1 %}s{% endif %}
-                                            </span>
-                                        {% endif %}
-                                    </td>
+                                <td>
+                                    {% if days_left < 0 %}
+                                        {% set days_late = -days_left %}
+                                        <span class="status-pill" style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:6px; font-size:0.85rem; font-weight:500;">
+                                            <span class="material-symbols-rounded" style="font-size:18px;">error</span>
+                                            {{ days_late }} day{% if days_late > 1 %}s{% endif %} late
+                                        </span>
+                                    {% elif days_left == 0 %}
+                                        <span class="status-pill" style="background:#fef3c7; color:#d97706; border:1px solid #fde68a; display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:6px; font-size:0.85rem; font-weight:500;">
+                                            <span class="material-symbols-rounded" style="font-size:18px;">today</span>
+                                            Due Today
+                                        </span>
+                                    {% else %}
+                                        <span class="status-pill" style="background:#ffedd5; color:#c2410c; border:1px solid #fed7aa; display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:6px; font-size:0.85rem; font-weight:500;">
+                                            <span class="material-symbols-rounded" style="font-size:18px;">schedule</span>
+                                            Due in {{ days_left }} day{% if days_left > 1 %}s{% endif %}
+                                        </span>
+                                    {% endif %}
+                                </td>
 
-                                    <td class="col-actions" style="display: flex; gap: 4px; align-items: center;">
-                                        <button type="button"
-                                            class="asset-action-btn pay open-payment-modal" title="Pay Now"
-                                            data-txn-id="{{ invoice.rental.transaction_id if invoice.rental else '' }}"
-                                            data-invoice-id="{{ invoice.id }}"
-                                            data-type="Rental"
-                                            data-ref="{{ invoice.invoice_number if invoice.invoice_number else 'INV-' ~ invoice.id }}"
-                                            data-balance="{{ invoice.remaining_balance if invoice.remaining_balance is defined else (invoice.rental.monthly_rate if invoice.rental else 0.00) }}"
-                                            style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center; background-color: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; cursor: pointer;">
-                                            <span class="material-symbols-rounded">payments</span>
-                                        </button>
-                                        <a href="{{ url_for('admin.transaction_details', id=invoice.rental.transaction_id) if invoice.rental and invoice.rental.transaction_id else 'javascript:void(0)' }}"
-                                            class="asset-action-btn logs" title="View Transaction"
-                                            style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center;">
-                                            <span class="material-symbols-rounded">visibility</span>
-                                        </a>
-                                    </td>
-                                </tr>
-                            {% endif %}
+                                <td class="col-actions" style="display: flex; gap: 4px; align-items: center;">
+                                    <button type="button"
+                                        class="asset-action-btn pay open-payment-modal" title="Pay Now"
+                                        data-txn-id="{{ invoice.rental.transaction_id if invoice.rental else '' }}"
+                                        data-invoice-id="{{ invoice.id }}"
+                                        data-type="Rental"
+                                        data-ref="{{ invoice.invoice_number if invoice.invoice_number else 'INV-' ~ invoice.id }}"
+                                        data-balance="{{ invoice.remaining_balance if invoice.remaining_balance is defined else (invoice.rental.monthly_rate if invoice.rental else 0.00) }}"
+                                        style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center; background-color: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; cursor: pointer;">
+                                        <span class="material-symbols-rounded">payments</span>
+                                    </button>
+                                    <a href="{{ url_for('admin.transaction_details', id=invoice.rental.transaction_id) if invoice.rental and invoice.rental.transaction_id else 'javascript:void(0)' }}"
+                                        class="asset-action-btn logs" title="View Transaction"
+                                        style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center;">
+                                        <span class="material-symbols-rounded">visibility</span>
+                                    </a>
+                                </td>
+                            </tr>
                         {% endif %}
                     {% endfor %}
-                    {% if ns.displayed_count == 0 %}
-                        <tr>
-                            <td colspan="11" class="empty-state-container">
-                                <div class="empty-state-wrapper">
-                                    <div>No collections due within the next 3 days</div>
-                                    <small>Invoices due or overdue within the 3-day window will appear here.</small>
-                                </div>
-                            </td>
-                        </tr>
-                    {% endif %}
                 {% else %}
                     <tr>
                         <td colspan="11" class="empty-state-container">
                             <div class="empty-state-wrapper">
-                                    <div>No collections due within the next 3 days</div>
-                                    <small>Invoices due or overdue within the 3-day window will appear here.</small>
-                                </div>
+                                <div>No collections due within the next 3 days</div>
+                                <small>Invoices due or overdue within the 3-day window will appear here.</small>
+                            </div>
                         </td>
                     </tr>
                 {% endif %}
