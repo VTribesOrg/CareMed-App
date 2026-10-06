@@ -204,13 +204,15 @@ document.addEventListener('DOMContentLoaded', () => {
             'edit-product-id': productData.id,
             'edit-type': productData.type,
             'edit-name': productData.name,
-            'edit-size': productData.size,     
+            'edit-stock': productData.stock,
+            'edit-size': productData.size,    
             'edit-condition': productData.condition,
+            'edit-unit-cost': productData.cost_price ? parseFloat(productData.cost_price) : '', 
             'edit-description': productData.description,
             'edit-offer-type': offerType,
-            'edit-rent': productData.rent_price,
+            'edit-rent': productData.rent_price ? parseFloat(productData.rent_price) : '',     
             'edit-rent-period': productData.rent_period,
-            'edit-price': productData.sale_price
+            'edit-price': productData.sale_price ? parseFloat(productData.sale_price) : ''    
         };
 
         const costDisplay = document.getElementById('edit-cost-display');
@@ -259,8 +261,10 @@ document.addEventListener('DOMContentLoaded', () => {
             'edit-product-id': document.getElementById('edit-product-id').value,
             'edit-type': document.getElementById('edit-type').value,
             'edit-name': document.getElementById('edit-name').value,
+            'edit-stock': document.getElementById('edit-stock').value,
             'edit-size': document.getElementById('edit-size').value,      
             'edit-condition': document.getElementById('edit-condition').value,
+            'edit-unit-cost': document.getElementById('edit-unit-cost')?.value || '',
             'edit-description': document.getElementById('edit-description').value,
             'edit-offer-type': document.getElementById('edit-offer-type').value,
             'edit-rent': document.getElementById('edit-rent').value,
@@ -440,9 +444,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         id: editBtn.dataset.id,
                         type: editBtn.dataset.type || '',
                         name: editBtn.dataset.name || '',
-                        size: editBtn.dataset.size || '',          // <--- ADD THIS LINE HERE
+                        size: editBtn.dataset.size || '',          
                         cost_price: editBtn.dataset.costPrice || 0,
-                        stock: editBtn.dataset.stock || 0,
+                        stock: editBtn.dataset.stock || 0, // <--- ADDED HERE
                         condition: editBtn.dataset.condition || 'N/A',
                         offer_type: editBtn.dataset.offer || '',
                         rent_period: editBtn.dataset.period || 'Monthly',
@@ -595,14 +599,19 @@ document.addEventListener('DOMContentLoaded', function() {
         if (btn) {
             activeProductId = btn.dataset.id;
             currentBaseStock = parseInt(btn.dataset.stock) || 0;
+            
+            // Grab the cost price from the dataset and parse it cleanly (stripping .00 if whole number)
+            const baseCost = btn.dataset.costPrice ? parseFloat(btn.dataset.costPrice) : '';
 
             stockEquipName.innerText = btn.dataset.name;
             currentStockDisplay.innerText = `${currentBaseStock} Units`;
             newTotalDisplay.innerText = `${currentBaseStock} Units`;
 
-            // Reset fields
+            // Reset fields and pre-fill unit cost
             stockInput.value = '';
-            if (unitCostInput) unitCostInput.value = '';
+            if (unitCostInput) {
+                unitCostInput.value = baseCost; // <--- PRE-FILLS THE UNIT COST HERE
+            }
             totalCostInput.value = '';
             reasonInput.value = '';
             unitCostPreview.style.display = 'none';

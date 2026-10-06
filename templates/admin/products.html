@@ -103,8 +103,12 @@
                                 alt="Equipment" class="table-equipment-img">
                         </div>
                     </td>
-                    <td style="color: #546e7a;">{{ product.equipment_type or 'N/A' }}</td>
-                    <td>{{ product.name or 'N/A' }} {{ product.size}}</td>
+                    <td style="font-size: 1rem; font-weight: 700; color: #1e293b;">
+                        {{ product.equipment_type or 'N/A' }}
+                    </td>
+                    <td style="font-size: 1rem; font-weight: 700; color: #1e293b;">
+                        {{ product.name or 'N/A' }} {{ product.size }}
+                    </td>
                     <td class="stock">
                         {% if product.is_refillable and product.tank_status %}
                             {{ product.tank_status.full_in_stock or 0 }} Units
@@ -169,7 +173,8 @@
                                     <button class="dropdown-item add-stock-trigger" style="color:#52B788;"
                                         data-id="{{ product.id }}"
                                         data-name="{{ product.equipment_type }} {{ product.name }}"
-                                        data-stock="{{ product.stock }}">
+                                        data-stock="{{ product.stock }}"
+                                        data-cost-price="{{ product.cost_price }}">
                                         <span class="material-symbols-rounded">add_box</span> Add Stock
                                     </button>
                                     <button class="dropdown-item edit" style="color:#00a8cc;"
@@ -453,6 +458,10 @@
 
                     <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:15px;">
                         <div class="form-field">
+                            <label class="clinical-label">Stock</label>
+                            <input type="number" name="stock" id="edit-stock" class="clinical-input" placeholder="0" min="0" required>
+                        </div>
+                        <div class="form-field">
                             <label class="clinical-label">Size</label>
                             <input type="text" name="size" id="edit-size" class="clinical-input" placeholder="e.g. Large">
                         </div>
@@ -464,13 +473,17 @@
                                 <option value="Brand New">Brand New</option>
                             </select>
                         </div>
-                        <div class="form-field" style="grid-column: span 2;">
-                            <label class="clinical-label" style="color:#94a3b8;">Current Unit Cost</label>
-                            <div style="height:44px; display:flex; align-items:center; background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:8px; padding:0 12px; font-size:0.9rem; color:#64748b;">
-                                <span id="edit-cost-display">—</span>
-                                <span style="font-size:0.72rem; color:#94a3b8; margin-left:8px;">(update via Add Stock)</span>
+                        {% if current_user.role == 'Administrator' %}
+                        <div class="form-field">
+                            <label class="clinical-label">Unit Cost</label>
+                            <div class="input-wrapper" style="position:relative; height:44px;">
+                                <input type="number" name="unit_cost" id="edit-unit-cost" class="clinical-input" placeholder="0.00" step="0.01" 
+                                    style="width:100%; border:1.5px solid #cbd5e1; border-radius:8px; padding-left:35px; height:100%; font-size:0.95rem; background:#ffffff;"
+                                    {% if current_user.role != 'Administrator' %}readonly style="background:#f8fafc; color:#64748b;"{% endif %} required>
+                                <span class="material-symbols-rounded" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8; font-size:18px;">payments</span>
                             </div>
                         </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -480,13 +493,17 @@
                     <label class="clinical-label" style="color:#64748b; font-weight:700; font-size:0.7rem; margin-bottom:8px; display:block; text-transform:uppercase; letter-spacing:0.05em;">Transaction Type</label>
                     <div class="input-wrapper" style="position:relative;">
                         <select name="offer_type" id="edit-offer-type" class="clinical-input"
-                                style="width:100%; cursor:pointer; -webkit-appearance:none; appearance:none; padding:0 35px 0 12px; border:1.5px solid #cbd5e1; border-radius:8px; height:44px; font-size:0.9rem; color:#1e293b; background:#ffffff;" required>
+                                style="width:100%; cursor:pointer; -webkit-appearance:none; appearance:none; padding:0 35px 0 12px; border:1.5px solid #cbd5e1; border-radius:8px; height:44px; font-size:0.9rem; color:#1e293b; background:#ffffff;" 
+                                {% if current_user.role != 'Administrator' %}disabled{% endif %} required>
                             <option value="" disabled>Select...</option>
                             <option value="Rental">Rent Only</option>
                             <option value="Sale">Sale Only</option>
                         </select>
                         <span class="material-symbols-rounded" style="pointer-events:none; position:absolute; right:10px; top:50%; transform:translateY(-50%); color:#94a3b8; font-size:20px;">unfold_more</span>
                     </div>
+                    {% if current_user.role != 'Administrator' %}
+                    <input type="hidden" name="offer_type" id="edit-offer-type-hidden">
+                    {% endif %}
                 </div>
                 
                 <div class="form-field" id="edit-rent-field" style="display:none; width:260px;">
@@ -495,10 +512,14 @@
                     </label>
                     <div style="display:flex; align-items:stretch; border-radius:8px; overflow:hidden; height:44px; border:1.5px solid #cbd5e1; background:#ffffff;">
                         <div class="input-wrapper" style="flex:1; position:relative; min-width:150px;">
-                            <input type="number" name="rent_price" id="edit-rent" class="clinical-input" placeholder="0.00" step="0.01" style="border:none; width:100%; padding:0 10px 0 35px; height:100%; font-size:0.95rem; outline:none;">
+                            <input type="number" name="rent_price" id="edit-rent" class="clinical-input" placeholder="0.00" step="0.01" 
+                                   style="border:none; width:100%; padding:0 10px 0 35px; height:100%; font-size:0.95rem; outline:none; {% if current_user.role != 'Administrator' %}background:#f8fafc; color:#64748b;{% endif %}"
+                                   {% if current_user.role != 'Administrator' %}readonly{% endif %}>
                             <span class="material-symbols-rounded" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8; font-size:18px; pointer-events:none;">payments</span>
                         </div>
-                        <select name="rent_period" id="edit-rent-period" class="clinical-input" style="width:30px; border:none; border-left:1.5px solid #cbd5e1; background-color:#f8fafc; cursor:pointer; font-size:0.8rem; font-weight:600; color:#475569; text-align:center; outline:none; -webkit-appearance:none; appearance:none;">
+                        <select name="rent_period" id="edit-rent-period" class="clinical-input" 
+                                style="width:30px; border:none; border-left:1.5px solid #cbd5e1; background-color:#f8fafc; cursor:pointer; font-size:0.8rem; font-weight:600; color:#475569; text-align:center; outline:none; -webkit-appearance:none; appearance:none;"
+                                {% if current_user.role != 'Administrator' %}disabled{% endif %}>
                             <option value="Day">/ Day</option>
                             <option value="Week">/ Week</option>
                             <option value="Monthly">/ Monthly</option>
@@ -511,7 +532,9 @@
                         <span class="material-symbols-rounded" style="font-size:16px; color:#10b981;">shopping_bag</span> Sale Price
                     </label>
                     <div class="input-wrapper" style="position:relative; height:44px;">
-                        <input type="number" name="sale_price" id="edit-price" class="clinical-input" placeholder="0.00" step="0.01" style="width:100%; border:1.5px solid #cbd5e1; border-radius:8px; padding-left:35px; height:100%; font-size:0.95rem;">
+                        <input type="number" name="sale_price" id="edit-price" class="clinical-input" placeholder="0.00" step="0.01" 
+                               style="width:100%; border:1.5px solid #cbd5e1; border-radius:8px; padding-left:35px; height:100%; font-size:0.95rem; {% if current_user.role != 'Administrator' %}background:#f8fafc; color:#64748b;{% endif %}"
+                               {% if current_user.role != 'Administrator' %}readonly{% endif %}>
                         <span class="material-symbols-rounded" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8; font-size:18px;">sell</span>
                     </div>
                 </div>

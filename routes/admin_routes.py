@@ -1691,9 +1691,16 @@ def edit_product(product_id):
     try:
         raw_rent = Decimal(request.form.get("rent_price") or "0.00")
         raw_sale = Decimal(request.form.get("sale_price") or "0.00")
+        new_stock = int(request.form.get("stock") or 0)
 
         new_rent = raw_rent if new_offer_type in ['Both', 'Rental'] else Decimal("0.00")
         new_sale = raw_sale if new_offer_type in ['Both', 'Sale'] else Decimal("0.00")
+
+        if current_user.role == 'Administrator':
+            raw_cost = Decimal(request.form.get("unit_cost") or "0.00")
+            if product.cost_price != raw_cost:
+                changes.append(f"Changed unit cost to ₱{raw_cost:,.2f}")
+                product.cost_price = raw_cost
 
         if product.transaction_type != new_offer_type:
             changes.append(f"Changed type from '{product.transaction_type}' to '{new_offer_type}'")
@@ -1731,8 +1738,29 @@ def edit_product(product_id):
             changes.append(f"Changed sale price to ₱{new_sale:,.2f}")
             product.sale_price = new_sale
 
+        if product.stock != new_stock:
+            stock_diff = new_stock - product.stock
+
+            if hasattr(product, 'tank_status') and product.tank_status:
+                tank_status = product.tank_status
+                min_required_tanks = (tank_status.rented_out or 0) + (tank_status.empty_in_stock or 0)
+                projected_total_owned = tank_status.total_owned + stock_diff
+                
+                if projected_total_owned < min_required_tanks:
+                    flash(f"Cannot reduce stock below active constraints. You have {tank_status.rented_out} rented out and {tank_status.empty_in_stock} empty tanks in stock.", "error")
+                    return redirect(url_for('admin.products'))
+
+            changes.append(f"Updated stock quantity from {product.stock} to {new_stock}")
+            product.stock = new_stock
+
+            if hasattr(product, 'tank_status') and product.tank_status:
+                tank_status = product.tank_status
+                tank_status.full_in_stock = max(0, tank_status.full_in_stock + stock_diff)
+                tank_status.total_owned = max(0, tank_status.total_owned + stock_diff)
+                changes.append(f"Updated tank status metrics (Full/Total owned adjusted by {stock_diff:+d})")
+
     except (ValueError, InvalidOperation):
-        flash("Oops! Please double-check your pricing fields. Ensure you've entered valid numbers.", "error")
+        flash("Oops! Please double-check your pricing and stock fields. Ensure you've entered valid numbers.", "error")
         return redirect(url_for('admin.products'))
 
     # Image Handling

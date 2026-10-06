@@ -2829,3 +2829,12 @@ textarea.clinical-input {
 }
 
 /*================== END OF MESSAGE NOTIFICATION ==================*/
+
+
+/* Hide arrows for Chrome, Safari, Edge, Opera */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
