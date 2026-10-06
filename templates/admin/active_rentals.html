@@ -390,24 +390,13 @@
                     <td>
                         {% if days_remaining is not none %}
                             {% if days_remaining < 0 %}
-                                <span class="status-indicator unpaid" style="display:inline-flex; align-items:center; gap:4px;">
-                                    <span class="material-symbols-rounded" style="font-size:14px;">error</span>
-                                    {{ days_remaining|abs }} day{{ 's' if days_remaining|abs != 1 }} overdue
-                                </span>
+                                <span class="text-muted">{{ days_remaining|abs }} day{{ 's' if days_remaining|abs != 1 }} overdue</span>
                             {% elif days_remaining == 0 %}
-                                <span class="status-indicator partial" style="display:inline-flex; align-items:center; gap:4px;">
-                                    <span class="material-symbols-rounded" style="font-size:14px;">today</span>
-                                    Due today
-                                </span>
+                                <span class="text-muted">Due today</span>
                             {% elif days_remaining <= 5 %}
-                                <span class="badge" style="background:#ffedd5; color:#c2410c; border:1px solid #fed7aa; display:inline-flex; align-items:center; gap:4px;">
-                                    <span class="material-symbols-rounded" style="font-size:14px;">schedule</span>
-                                    {{ days_remaining }} day{{ 's' if days_remaining != 1 }} left
-                                </span>
+                                <span class="text-muted">{{ days_remaining }} day{{ 's' if days_remaining != 1 }} left</span>
                             {% else %}
-                                <span class="text-muted">
-                                    {{ days_remaining }} days
-                                </span>
+                                <span class="text-muted">{{ days_remaining }} days</span>
                             {% endif %}
                         {% else %}
                             —
@@ -420,10 +409,22 @@
                     </td>
 
                     <td>
-                        <span class="badge" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; display:inline-flex; align-items:center; gap:4px;">
+                        {% if days_remaining is not none and days_remaining < 0 %}
+                        <span class="status-indicator unpaid" style="display:inline-flex; align-items:center; gap:4px; background:#fef2f2; color:#dc2626; border:1px solid #fee2e2; padding: 2px 8px; border-radius: 6px;">
+                            <span class="material-symbols-rounded" style="font-size:14px;">error</span>
+                            Overdue
+                        </span>
+                        {% elif rental.status == 'Awaiting Return' %}
+                        <span class="badge" style="background:#fffbeb; color:#d97706; border:1px solid #fef3c7; display:inline-flex; align-items:center; gap:4px; padding: 2px 8px; border-radius: 6px;">
+                            <span class="material-symbols-rounded" style="font-size:14px;">schedule</span>
+                            Awaiting Return
+                        </span>
+                        {% else %}
+                        <span class="badge" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; display:inline-flex; align-items:center; gap:4px; padding: 2px 8px; border-radius: 6px;">
                             <span class="material-symbols-rounded" style="font-size:14px; color:#22c55e;">check_circle</span>
                             {{ rental.status or 'Active' }}
                         </span>
+                        {% endif %}
                     </td>
 
                     <td>

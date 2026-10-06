@@ -4,34 +4,51 @@ document.addEventListener("DOMContentLoaded", () => {
     const clearButton = document.getElementById("clear-search");
     const returnFilter = document.getElementById("return-filter");
     const clearFilterBtn = document.getElementById("clear-filter-btn");
-    const rows = document.querySelectorAll("#rentals-table tbody tr[data-search]");
+    const rowLimitSelect = document.getElementById("row-limit-select");
+
+    let searchTimeout;
 
     /**
-     * Live Search
+     * Server-Side Live Search with Debounce & Page Reset
      */
-    function filterTable() {
-        const term = searchInput.value.trim().toLowerCase();
-
-        rows.forEach(row => {
-            row.style.display = row.dataset.search.includes(term) ? "" : "none";
-        });
-
-        clearButton.style.display = term ? "flex" : "none";
-    }
-
     if (searchInput) {
-        searchInput.addEventListener("input", filterTable);
-        filterTable(); // Show clear button if page loads with search text
+        // Show/hide clear button on load depending on existing input value
+        if (clearButton) {
+            clearButton.style.display = searchInput.value.trim() ? "flex" : "none";
+        }
+
+        searchInput.addEventListener("input", function () {
+            clearTimeout(searchTimeout);
+            const term = this.value.trim();
+
+            if (clearButton) {
+                clearButton.style.display = term ? "flex" : "none";
+            }
+
+            // Debounce the server request so it doesn't reload on every keystroke instantly
+            searchTimeout = setTimeout(() => {
+                const url = new URL(window.location.href);
+                if (term) {
+                    url.searchParams.set("q", term);
+                } else {
+                    url.searchParams.delete("q");
+                }
+                url.searchParams.set("page", "1"); // Always reset to page 1 on search change
+                window.location.href = url.toString();
+            }, 500);
+        });
     }
 
     /**
      * Clear Search
      */
-    if (clearButton) {
+    if (clearButton && searchInput) {
         clearButton.addEventListener("click", () => {
             searchInput.value = "";
-            filterTable();
-            searchInput.focus();
+            const url = new URL(window.location.href);
+            url.searchParams.delete("q");
+            url.searchParams.set("page", "1");
+            window.location.href = url.toString();
         });
     }
 
@@ -41,26 +58,41 @@ document.addEventListener("DOMContentLoaded", () => {
     if (returnFilter) {
         returnFilter.addEventListener("change", function() {
             const filter = this.value;
-            const url = new URL(window.location);
+            const url = new URL(window.location.href);
             
             if (filter) {
                 url.searchParams.set("filter", filter);
             } else {
                 url.searchParams.delete("filter");
             }
-            
-            window.location = url.toString();
+            url.searchParams.set("page", "1"); // Reset to page 1 on filter change
+            window.location.href = url.toString();
         });
     }
 
     /**
-     * Clear Return Filter
+     * Clear Return Filter & Search
      */
     if (clearFilterBtn) {
         clearFilterBtn.addEventListener("click", function() {
-            const url = new URL(window.location);
+            const url = new URL(window.location.href);
             url.searchParams.delete("filter");
-            window.location = url.toString();
+            url.searchParams.delete("q");
+            url.searchParams.set("page", "1");
+            window.location.href = url.toString();
+        });
+    }
+
+    /**
+     * Show Entries Row Limit Dropdown
+     */
+    if (rowLimitSelect) {
+        rowLimitSelect.addEventListener("change", function() {
+            const limit = this.value;
+            const url = new URL(window.location.href);
+            url.searchParams.set("limit", limit);
+            url.searchParams.set("page", "1"); // Reset to page 1 on limit change
+            window.location.href = url.toString();
         });
     }
 

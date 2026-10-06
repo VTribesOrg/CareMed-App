@@ -409,19 +409,27 @@ def dashboard_data():
                 assets_aggregation[prod_name] = {
                     "name": prod_name,
                     "total_stock": 0,
+                    "total_units": 0,
                     "rented_count": 0,
+                    "rented_out": 0,
                     "used_count": 0,
                     "brand_new_count": 0,
                 }
 
-            assets_aggregation[prod_name]["total_stock"] += prod.stock or 0
+            prod_stock = prod.stock or 0
             assets_aggregation[prod_name]["rented_count"] += rented_map.get(prod.id, 0)
+            assets_aggregation[prod_name]["rented_out"] += rented_map.get(prod.id, 0)
 
             condition_str = (prod.condition or "").strip()
             if condition_str == "Brand New":
-                assets_aggregation[prod_name]["brand_new_count"] += prod.stock or 0
+                assets_aggregation[prod_name]["brand_new_count"] += prod_stock
             elif condition_str == "Used":
-                assets_aggregation[prod_name]["used_count"] += prod.stock or 0
+                assets_aggregation[prod_name]["used_count"] += prod_stock
+
+        for data in assets_aggregation.values():
+            combined_total = data["rented_out"] + data["used_count"] + data["brand_new_count"]
+            data["total_stock"] = combined_total
+            data["total_units"] = combined_total
 
         standard_assets = list(assets_aggregation.values())
 
@@ -3006,40 +3014,34 @@ from sqlalchemy.orm import contains_eager
 @admin_or_staff_required
 @permission_required('can_view_active_rentals')
 def active_rentals():
-    from datetime import date
-
-    # Pagination parameters
     page = request.args.get('page', 1, type=int)
     limit = request.args.get('limit', 10, type=int)
-    
     search_query = request.args.get('q', '').strip()
     filter_type = request.args.get('filter', '')  
    
     active_statuses = ['Active', 'Overdue', 'Awaiting Return']
     
-    query = Rental.query.filter(Rental.status.in_(active_statuses))\
-        .options(
-            joinedload(Rental.product),
-            joinedload(Rental.transaction).joinedload(Transaction.customer)
-        )
+    query = Rental.query.filter(Rental.status.in_(active_statuses))
 
     if search_query:
         search_term = f"%{search_query}%"
-        query = query.join(Rental.product)\
-            .join(Rental.transaction)\
-            .join(Transaction.customer)\
-            .options(
-                contains_eager(Rental.product),
-                contains_eager(Rental.transaction).contains_eager(Transaction.customer)
-            )\
-            .filter(
-                or_(
-                    Product.name.ilike(search_term),
-                    Customer.first_name.ilike(search_term),
-                    Customer.last_name.ilike(search_term),
-                    Customer.email.ilike(search_term)
-                )
-            )
+        query = query.outerjoin(Rental.product)\
+                     .outerjoin(Rental.transaction)\
+                     .outerjoin(Rental.customer)\
+                     .outerjoin(Rental.tanks)\
+                     .filter(
+                         or_(
+                             Product.name.ilike(search_term),
+                             Product.equipment_type.ilike(search_term),
+                             Customer.first_name.ilike(search_term),
+                             Customer.last_name.ilike(search_term),
+                             Customer.contact_number.ilike(search_term),
+                             Customer.secondary_contact_number.ilike(search_term),
+                             Customer.home_address.ilike(search_term),
+                             RentalTank.serial_number.ilike(search_term),
+                             Transaction.serial_numbers.ilike(search_term)
+                         )
+                     ).distinct()
 
     today = date.today()
     if filter_type == 'overdue_return':
@@ -3047,13 +3049,15 @@ def active_rentals():
     elif filter_type == 'awaiting_return':
         query = query.filter(Rental.status == 'Awaiting Return')
     
-    query = query.order_by(Rental.expected_return_date.asc())
-    pagination = query.paginate(page=page, per_page=limit, error_out=False)
-    rentals = pagination.items
+    pagination = query.order_by(Rental.expected_return_date.asc()).paginate(
+        page=page,
+        per_page=limit,
+        error_out=False
+    )
     
     return render_template(
         'admin/active_rentals.html',
-        rentals=rentals,
+        rentals=pagination.items,
         pagination=pagination,
         search_query=search_query,
         datetime_now_date=today,
