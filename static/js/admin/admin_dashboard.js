@@ -176,7 +176,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 const valTotalCommission = document.getElementById("val-total-commission");
                 if (valTotalCommission) {
                     const refillBonus = totalRefillsCount * 100;
-                    const salesCommission = adjustedSales * 0.50;
+
+                    // "Net Profit Income" = sales_net from /admin/dashboard/data
+                    // (the figure shown as val-sales-net). This must be defined
+                    // here -- an undefined identifier threw a ReferenceError that
+                    // aborted this whole update callback before it reached the
+                    // cards below (Customer Deposits stayed at its default ₱0).
+                    const salesCommission = salesNet * 0.50;
+
                     const totalCommission = rentalIncomeValue + refillBonus + salesCommission;
                     valTotalCommission.innerText = "₱" + totalCommission.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
                 }

@@ -311,8 +311,8 @@ class Transaction(db.Model, BranchScoped):
     def update_totals(self):
         delivery_fee = Decimal(str(self.delivery_fee or 0))
         voucher_amount = Decimal(str(self.voucher_amount or 0))
-        initial_fill = Decimal(str(self.initial_fill_cost or 0))
-        deposit_amt = Decimal(str(self.deposit_amount or 0))
+
+        initial_fill = Decimal(str(self.initial_fill_cost or 0)) if self.has_initial_fill else Decimal("0.00")
 
         if self.transaction_type == "Refill":
             raw_cost = Decimal(str(self.quantity or 1)) * Decimal(str(self.refill_cost_per_unit or 0))
@@ -323,7 +323,6 @@ class Transaction(db.Model, BranchScoped):
             self.status = "Closed"
             return
 
-        # Completed payments filtered to exclude deposits and deposit refunds from operational sales revenue
         completed_payments = [p for p in self.payments if p.status == "Completed"]
         
         operational_paid = sum(
@@ -332,16 +331,9 @@ class Transaction(db.Model, BranchScoped):
         )
         self.amount_paid = operational_paid
 
-        total_deposit_held = sum(
-            (Decimal(str(p.amount)) for p in completed_payments if p.payment_type == "Deposit"),
-            Decimal("0.00")
-        )
-        total_deposit_refunded = sum(
-            (Decimal(str(p.amount)) for p in completed_payments if p.payment_type == "Deposit Refund"),
-            Decimal("0.00")
-        )
-        net_deposit_paid = max(Decimal("0.00"), total_deposit_held - total_deposit_refunded)
-
+        # Customer deposits are held funds tracked separately (CustomerDeposit /
+        # the "Held Balance" panel on the details page) -- they are NOT part of
+        # the balance due. balance_due is simply: charges - operational payments.
         if self.transaction_type == "Rental":
             total_invoice_sum = Decimal("0.00")
             for rental in self.rentals:
@@ -352,8 +344,7 @@ class Transaction(db.Model, BranchScoped):
 
             self.total_amount = max(total_invoice_sum + delivery_fee + initial_fill - voucher_amount, Decimal("0.00"))
 
-            gross_liability = self.total_amount + deposit_amt + net_deposit_paid
-            self.balance_due = max(Decimal("0.00"), gross_liability - self.amount_paid)
+            self.balance_due = max(Decimal("0.00"), self.total_amount - self.amount_paid)
             
         elif self.transaction_type == "Sale":
             subtotal = sum(
@@ -363,8 +354,7 @@ class Transaction(db.Model, BranchScoped):
             
             self.total_amount = max(subtotal + delivery_fee - voucher_amount, Decimal("0.00"))
 
-            gross_liability = self.total_amount + deposit_amt + net_deposit_paid
-            self.balance_due = max(Decimal("0.00"), gross_liability - self.amount_paid)
+            self.balance_due = max(Decimal("0.00"), self.total_amount - self.amount_paid)
             
         current_total = Decimal(str(self.total_amount or 0))
 

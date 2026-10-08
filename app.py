@@ -335,12 +335,6 @@ def forbidden_handler(e):
     ), 403
 
 
-# ── 500 fallback ──────────────────────────────────────────────────────────
-# Nothing unexpected should reach a user as a raw traceback or a blank page.
-# ``errorhandler(500)`` catches abort(500) and Flask's own wrap of an unhandled
-# error; the Exception handler catches the exceptions Flask has no code for.
-# Both funnel into the same builder, which answers JSON to API callers so their
-# response.json() keeps working. See utils/server_error.py.
 @app.errorhandler(500)
 def internal_server_error_handler(error):
     return server_error_response(error)
@@ -348,19 +342,6 @@ def internal_server_error_handler(error):
 
 @app.errorhandler(Exception)
 def unhandled_exception_handler(error):
-    """Turn any non-HTTP failure into the 500 fallback page.
-
-    Flask resolves the registered HTTP handlers before walking the class MRO,
-    but a generic Exception handler does sit in front of codes it has no page
-    for (404, 405, ...), so those are returned untouched to keep the existing
-    403/429 pages and Flask's default behaviour for everything else.
-
-    In debug mode the exception is re-raised instead of answered. Flask reaches
-    this handler before it ever considers ``app.debug``, so without the guard a
-    developer would lose the Werkzeug traceback for exactly the bugs this page
-    hides in production. ``abort(500)`` is an HTTP error and still renders the
-    page, which is what makes it testable while debugging.
-    """
     if isinstance(error, HTTPException):
         return error
     if current_app.debug:
