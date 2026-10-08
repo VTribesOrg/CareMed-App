@@ -99,32 +99,27 @@
         </div>
     </div>
 
-    <div class="dashboard-split">
+    <div class="profile-tabbar" role="tablist" aria-label="Account settings sections">
+        <button type="button" class="profile-tab active" role="tab" aria-selected="true" data-tab="personal-info">
+            <span class="material-symbols-rounded">account_circle</span>
+            <span>Personal Info</span>
+        </button>
+        <button type="button" class="profile-tab" role="tab" aria-selected="false" data-tab="security-settings">
+            <span class="material-symbols-rounded">shield_lock</span>
+            <span>Security</span>
+        </button>
+        <button type="button" class="profile-tab" role="tab" aria-selected="false" data-tab="system-prefs">
+            <span class="material-symbols-rounded">tune</span>
+            <span>Preferences</span>
+        </button>
+    </div>
 
-        <aside class="settings-nav">
-            <div class="activity-section" style="padding:12px; height:fit-content; position:sticky; top:20px;">
-                <nav style="display:flex; flex-direction:column; gap:4px;">
-                    <a href="#personal-info" class="nav-link active">
-                        <span class="material-symbols-rounded">account_circle</span>
-                        <span class="setting-nav-label">Personal Info</span>
-                    </a>
-                    <a href="#security-settings" class="nav-link">
-                        <span class="material-symbols-rounded">shield_lock</span>
-                        <span class="setting-nav-label">Security</span>
-                    </a>
-                    <a href="#system-prefs" class="nav-link">
-                        <span class="material-symbols-rounded">tune</span>
-                        <span class="setting-nav-label">Preferences</span>
-                    </a>
-                </nav>
-            </div>
-        </aside>
-
-        <div style="display:flex; flex-direction:column; gap:24px; flex:1;">
+    <div class="profile-tab-panels">
+        <div class="profile-tab-panel active" id="panel-personal-info" role="tabpanel" data-panel="personal-info">
             <form id="profile-master-form" method="POST" action="{{ url_for('admin.profile') }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-                <section id="personal-info" class="activity-section content-section" style="margin-bottom:24px;">
+                <section id="personal-info" class="activity-section">
                     <div class="form-section-header" style="margin-bottom: 20px;">
                         <h3 class="registry-title" style="margin: 0;">Personal Information</h3>
                     </div>
@@ -141,18 +136,96 @@
                             <label>Email Address</label>
                             <input type="email" name="email" value="{{ current_user.email }}" required>
                         </div>
+                        <div class="input-group">
+                            <label>Contact Number</label>
+                            <input type="text" name="contact_number" value="{{ current_user.contact_number or '' }}" placeholder="N/A">
+                        </div>
+                        <div class="input-group">
+                            <label>Address</label>
+                            <input type="text" name="address" value="{{ current_user.address or '' }}" placeholder="N/A">
+                        </div>
                     </div>
                 </section>
 
-                <div style="display:flex; justify-content:flex-end; gap:12px; margin-bottom:40px;">
+                <div class="profile-form-actions">
                     <button type="reset" class="view-all-btn">Discard</button>
                     <button type="submit" class="btn-save">Save All Changes</button>
                 </div>
             </form>
-        </div>
+        </div>{# /.profile-tab-panel personal-info #}
 
-    </div>
-</div>
+        <div class="profile-tab-panel" id="panel-security-settings" role="tabpanel" data-panel="security-settings">
+            {# ── Security: change password (separate form → form_kind=password) ── #}
+            <form id="password-change-form" method="POST" action="{{ url_for('admin.profile') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="form_kind" value="password">
+
+                <section id="security-settings" class="activity-section">
+                    <div class="form-section-header" style="margin-bottom: 20px;">
+                        <h3 class="registry-title" style="margin: 0;">Security</h3>
+                        <p style="margin:6px 0 0; color:#64748b; font-size:0.85rem;">
+                            Change your password. You'll need your current password to confirm.
+                            Last changed:
+                            <strong>{{ current_user.password_last_reset_at.strftime('%b %d, %Y %I:%M %p') if current_user.password_last_reset_at else 'Never' }}</strong>
+                        </p>
+                    </div>
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px,1fr)); gap:20px;">
+                        <div class="input-group" style="grid-column:1 / -1;">
+                            <label>Current Password</label>
+                            <input type="password" name="current_password" placeholder="Enter your current password" required autocomplete="current-password">
+                        </div>
+                        <div class="input-group">
+                            <label>New Password</label>
+                            <input type="password" name="new_password" id="new-password" placeholder="Min. 8 chars, upper + number + symbol" required autocomplete="new-password" minlength="8">
+                        </div>
+                        <div class="input-group">
+                            <label>Confirm New Password</label>
+                            <input type="password" name="confirm_password" id="confirm-password" placeholder="Re-enter new password" required autocomplete="new-password" minlength="8">
+                        </div>
+                    </div>
+                    <p id="password-match-hint" style="margin:10px 0 0; font-size:0.8rem; color:#64748b;">
+                        Password must be at least 8 characters and include an uppercase letter, a number, and a special character (@$!%*?&amp;).
+                    </p>
+                </section>
+
+                <div class="profile-form-actions">
+                    <button type="reset" class="view-all-btn">Clear</button>
+                    <button type="submit" class="btn-save">Change Password</button>
+                </div>
+            </form>
+        </div>{# /.profile-tab-panel security-settings #}
+
+        <div class="profile-tab-panel" id="panel-system-prefs" role="tabpanel" data-panel="system-prefs">
+            {# ── Account overview (read-only; matches the "Preferences" tab) ── #}
+            <section id="system-prefs" class="activity-section">
+                <div class="form-section-header" style="margin-bottom: 20px;">
+                    <h3 class="registry-title" style="margin: 0;">Account Overview</h3>
+                    <p style="margin:6px 0 0; color:#64748b; font-size:0.85rem;">
+                        Role, branch assignment, and account status. Managed by an administrator.
+                    </p>
+                </div>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px,1fr)); gap:20px;">
+                    <div class="input-group">
+                        <label>Role</label>
+                        <input type="text" value="{{ current_user.role | capitalize }}" disabled>
+                    </div>
+                    <div class="input-group">
+                        <label>Status</label>
+                        <input type="text" value="{{ 'Active' if current_user.is_active else 'Disabled' }}" disabled>
+                    </div>
+                    <div class="input-group">
+                        <label>Branch ID</label>
+                        <input type="text" value="{{ current_user.branch_id if current_user.branch_id else 'N/A' }}" disabled>
+                    </div>
+                    <div class="input-group">
+                        <label>Last Login</label>
+                        <input type="text" value="{{ current_user.last_login_at.strftime('%b %d, %Y %I:%M %p') if current_user.last_login_at else 'N/A' }}" disabled>
+                    </div>
+                </div>
+            </section>
+        </div>{# /.profile-tab-panel system-prefs #}
+    </div>{# /.profile-tab-panels #}
+</div>{# /.profile-settings-wrapper #}
 
 {% endblock %}
 

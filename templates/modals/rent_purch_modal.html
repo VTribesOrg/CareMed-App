@@ -79,7 +79,7 @@
                     <label>Add Equipment / Medical Products</label>
                     <div class="select-wrapper">
                         <span class="material-symbols-rounded filter-icon">manage_search</span>
-                        <input type="text" id="product-search-input" class="clinical-input" style="padding-left: 40px;" placeholder="Search rentable items by name or ID..." autocomplete="off">
+                        <input type="text" id="product-search-input" class="clinical-input" style="padding-left: 40px;" placeholder="Search rentable items by name, type, or ID..." autocomplete="off">
                         <span class="material-symbols-rounded select-icon" style="color: #64748b;">expand_more</span>
                     </div>
 
@@ -91,7 +91,7 @@
                                     data-name="{{ item.name }}" 
                                     data-stock="{{ item.available_stock }}" 
                                     data-rent="{{ item.rent_price or '0.00' }}" 
-                                    data-search-string="{{ item.name.lower() }} {% if item.asset_tag %}{{ item.asset_tag.lower() }}{% endif %}{% if item.condition and item.condition|lower != 'n/a' %} {{ item.condition|lower }}{% endif %}" 
+                                    data-search-string="{{ item.name.lower() }} {% if item.asset_tag %}{{ item.asset_tag.lower() }}{% endif %}{% if item.condition and item.condition|lower != 'n/a' %} {{ item.condition|lower }}{% endif %} {{ item.equipment_type.lower() }}" 
                                     style="padding: 10px 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9;">
                                     
                                     <div style="display: flex; align-items: center; gap: 8px;">
@@ -398,7 +398,7 @@
                     <label>Add Equipment / Medical Products</label>
                     <div class="select-wrapper">
                         <span class="material-symbols-rounded filter-icon">manage_search</span>
-                        <input type="text" id="purchase-product-search-input" class="clinical-input" style="padding-left: 40px;" placeholder="Search commercial items by name or ID..." autocomplete="off">
+                        <input type="text" id="purchase-product-search-input" class="clinical-input" style="padding-left: 40px;" placeholder="Search commercial items by name, type, or ID..." autocomplete="off">
                         <span class="material-symbols-rounded select-icon" style="color: #64748b;">expand_more</span>
                     </div>
 
@@ -410,7 +410,7 @@
                                     data-name="{{ item.name }}" 
                                     data-stock="{{ item.stock }}" 
                                     data-price="{{ item.sale_price or '0.00' }}" 
-                                    data-search-string="{{ item.name.lower() }} {% if item.asset_tag %}{{ item.asset_tag.lower() }}{% endif %}" 
+                                    data-search-string="{{ item.name.lower() }} {% if item.asset_tag %}{{ item.asset_tag.lower() }}{% endif %} {{ item.equipment_type.lower() }}" 
                                     style="padding: 10px 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9;">
                                     <div style="display: flex; align-items: center; gap: 8px;">
                                         <span class="material-symbols-rounded" style="color: #f59e0b;">shopping_cart</span>
@@ -691,7 +691,7 @@
 </div>
 
 <div id="primegasModal" class="medical-modal-overlay hidden">
-    <div class="medical-modal-content" style="max-width: 500px; position: relative; padding: 32px 24px 24px 24px;">
+    <div class="medical-modal-content" style="max-width: 760px; position: relative; padding: 32px 24px 24px 24px;">
         
         <button class="modal-close-btn" id="close-primegas-modal" type="button" 
                 style="position: absolute; top: 16px; right: 16px; background: transparent; border: none; color: #64748b; cursor: pointer; padding: 8px; display: flex; align-items: center; justify-content: center; transition: color 0.15s ease; outline: none; z-index: 50 !important;">
@@ -713,44 +713,71 @@
                 <strong style="font-size: 0.95rem; color: #1e293b;">Primegas Refill</strong>
             </div>
 
+            {# Only Oxygen Tank equipment can be refilled via Primegas #}
+            {% set primegas_products = refillable_products | default([], true) | selectattr('equipment_type', 'equalto', 'Oxygen Tank') | list %}
+
             <div style="display: flex; flex-direction: column; gap: 18px;">
-                <div class="form-field">
-                    <label style="font-weight: 700; color: #1e293b; margin-bottom: 6px; display: block; font-size: 0.9rem;">Select Product</label>
-                    <div style="position: relative;">
-                        <select name="product_id" id="primegasProductSelect" class="medical-select" required style="width: 100%; height: 44px; padding: 0 16px 0 40px; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #1e293b; font-size: 0.95rem; outline: none; box-sizing: border-box; appearance: none;">
-                            <option value="">-- Choose Product --</option>
-                            {% for product in refillable_products %}
-                                <option value="{{ product.id }}" 
-                                        data-max="{{ product.tank_status.empty_in_stock if product.tank_status else 0 }}">
-                                    {{ product.name }}{% if product.size %} (Size: {{ product.size }}){% endif %}
-                                </option>
-                            {% endfor %}
-                        </select>
-                        <span class="material-symbols-rounded" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #64748b; pointer-events: none; font-size: 20px;">inventory_2</span>
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <label style="font-weight: 700; color: #1e293b; font-size: 0.9rem; margin: 0;">Refill Items</label>
+                        <button type="button" id="primegas-add-item" style="padding: 6px 12px; border-radius: 6px; border: 1px dashed #f97316; background: #fff7ed; color: #c2410c; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                            <span class="material-symbols-rounded" style="font-size: 16px;">add</span>
+                            Add Item
+                        </button>
                     </div>
-                </div>
 
-                <div class="form-field">
-                    <label style="font-weight: 700; color: #1e293b; margin-bottom: 6px; display: block; font-size: 0.9rem;">
-                        Quantity (Max: <span id="maxEmptyStock" style="color: #0d9488;">0</span>)
-                    </label>
-                    <div style="position: relative;">
-                        <input type="number" name="quantity" id="primegasQty" placeholder="Enter quantity" min="1" required style="width: 100%; height: 44px; padding: 0 16px 0 40px; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #1e293b; font-size: 0.95rem; outline: none; box-sizing: border-box;">
-                        <span class="material-symbols-rounded" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #64748b; pointer-events: none; font-size: 20px;">pin</span>
+                    <div id="primegas-items" style="display: flex; flex-direction: column; gap: 14px;">
+                        {# Row markup lives in the <template> below and is cloned by JS. #}
                     </div>
-                </div>
 
-                <!-- NEW: Amount Field for Expense Tracking -->
-                <div class="form-field">
-                    <label style="font-weight: 700; color: #1e293b; margin-bottom: 6px; display: block; font-size: 0.9rem;">
-                        Total Cost / Amount (₱)
-                    </label>
-                    <div style="position: relative;">
-                        <input type="number" step="0.01" name="amount" id="primegasAmount" placeholder="Enter total expense amount" min="0" required style="width: 100%; height: 44px; padding: 0 16px 0 40px; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #1e293b; font-size: 0.95rem; outline: none; box-sizing: border-box;">
-                        <span class="material-symbols-rounded" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #64748b; pointer-events: none; font-size: 20px;">payments</span>
+                    <div style="display: flex; justify-content: flex-end; margin-top: 14px; padding: 10px 14px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px;">
+                        <span style="font-weight: 700; color: #1e293b; font-size: 0.9rem;">Total Amount:</span>
+                        <span id="primegas-total-amount" style="font-weight: 700; color: #f97316; font-size: 0.95rem; margin-left: 8px;">₱0.00</span>
                     </div>
                 </div>
             </div>
+
+            <template id="primegas-item-template">
+                <div class="primegas-item-row" style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; align-items: end; padding: 12px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px;">
+                    <div class="form-field" style="margin-bottom: 0;">
+                        <label style="font-weight: 700; color: #1e293b; margin-bottom: 6px; display: block; font-size: 0.85rem;">Select Product</label>
+                        <div style="position: relative;">
+                            <select name="product_id[]" class="medical-select primegas-product-select" required style="width: 100%; height: 44px; padding: 0 16px 0 40px; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #1e293b; font-size: 0.9rem; outline: none; box-sizing: border-box; appearance: none;">
+                                <option value="">-- Choose Product --</option>
+                                {% for product in primegas_products %}
+                                    <option value="{{ product.id }}"
+                                            data-max="{{ product.tank_status.empty_in_stock if product.tank_status else 0 }}">
+                                        {{ product.name }}{% if product.size %} (Size: {{ product.size }}){% endif %}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <span class="material-symbols-rounded" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #64748b; pointer-events: none; font-size: 20px;">inventory_2</span>
+                        </div>
+                    </div>
+
+                    <div class="form-field" style="margin-bottom: 0;">
+                        <label style="font-weight: 700; color: #1e293b; margin-bottom: 6px; display: block; font-size: 0.85rem;">
+                            Qty (Max: <span class="primegas-max-stock" style="color: #0d9488;">0</span>)
+                        </label>
+                        <div style="position: relative;">
+                            <input type="number" name="quantity[]" class="primegas-qty" placeholder="Qty" min="1" required style="width: 100%; height: 44px; padding: 0 12px 0 40px; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #1e293b; font-size: 0.9rem; outline: none; box-sizing: border-box;">
+                            <span class="material-symbols-rounded" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #64748b; pointer-events: none; font-size: 20px;">pin</span>
+                        </div>
+                    </div>
+
+                    <div class="form-field" style="margin-bottom: 0;">
+                        <label style="font-weight: 700; color: #1e293b; margin-bottom: 6px; display: block; font-size: 0.85rem;">Amount (₱)</label>
+                        <div style="position: relative;">
+                            <input type="number" step="0.01" name="amount[]" class="primegas-amount" placeholder="0.00" min="0" required style="width: 100%; height: 44px; padding: 0 12px 0 40px; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #1e293b; font-size: 0.9rem; outline: none; box-sizing: border-box;">
+                            <span class="material-symbols-rounded" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #64748b; pointer-events: none; font-size: 20px;">payments</span>
+                        </div>
+                    </div>
+
+                    <button type="button" class="primegas-remove-item" title="Remove item" style="height: 44px; width: 44px; border-radius: 6px; border: 1px solid #fecaca; background: #fef2f2; color: #dc2626; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0;">
+                        <span class="material-symbols-rounded" style="font-size: 18px; pointer-events: none;">delete</span>
+                    </button>
+                </div>
+            </template>
 
             <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 28px; border-top: 1px solid #e2e8f0; padding-top: 16px;">
                 <button type="button" id="close-primegas-modal-btn" style="padding: 10px 18px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #475569; font-size: 0.9rem; font-weight: 600; cursor: pointer;">

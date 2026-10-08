@@ -1044,6 +1044,182 @@ input:checked+.slider:before {
     padding-right: 40px;
 }
 
+/*================== ACCOUNT SETTINGS: TAB LAYOUT ==================*/
+
+/* Section-based single column: the tab bar replaces the old sidebar. */
+.profile-settings-wrapper {
+    grid-template-columns: 1fr !important;
+    align-items: start;
+}
+
+/* --- Horizontal tab bar --- */
+.profile-tabbar {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    padding: 6px;
+    background: #f1f5f9;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+}
+
+.profile-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #64748b;
+    transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+    white-space: nowrap;
+}
+
+.profile-tab .material-symbols-rounded {
+    font-size: 20px;
+}
+
+.profile-tab:hover:not(.active) {
+    background: #e2e8f0;
+    color: #002347;
+}
+
+.profile-tab.active {
+    background: #ffffff;
+    color: #52B788;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.profile-tab.active .material-symbols-rounded {
+    color: #52B788;
+}
+
+/* --- Panels: only the active one is shown --- */
+.profile-tab-panel {
+    display: none;
+    animation: tabFadeIn 0.22s ease-out;
+}
+
+.profile-tab-panel.active {
+    display: block;
+}
+
+@keyframes tabFadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* --- Tighter cards --- */
+.profile-settings-wrapper .activity-section {
+    padding: 22px 26px;
+    border-radius: 12px;
+}
+
+.profile-settings-wrapper .profile-header-banner {
+    padding: 18px 24px;
+}
+
+/* --- Form action row (Discard / Save) --- */
+.profile-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 22px;
+}
+
+/* 2-column field grids collapse cleanly on narrow screens. */
+.profile-grid-2col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+
+.profile-grid-2col .span-full {
+    grid-column: 1 / -1;
+}
+
+@media (max-width: 640px) {
+    .profile-grid-2col {
+        grid-template-columns: 1fr;
+    }
+    .profile-grid-2col .span-full {
+        grid-column: auto;
+    }
+}
+
+/* Compact section headers with inline actions. */
+.profile-card-head {
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.profile-card-head h3 {
+    margin: 0;
+}
+
+.profile-card-head p {
+    margin: 4px 0 0;
+    color: #64748b;
+    font-size: 0.82rem;
+}
+
+.profile-card-actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* Tighter inputs inside settings cards. */
+.profile-settings-wrapper .input-group input,
+.profile-settings-wrapper .input-group select {
+    padding: 9px 14px;
+    font-size: 0.9rem;
+    border-radius: 8px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.profile-settings-wrapper .input-group label {
+    font-size: 0.78rem;
+    margin-bottom: 5px;
+}
+
+/* Empty-value styling: unset fields render as muted "N/A" instead of a
+   blank box. Applied to editable inputs left empty AND disabled fields. */
+.profile-settings-wrapper .input-group input.is-empty {
+    color: #94a3b8;
+    font-style: italic;
+    border-style: dashed;
+}
+
+.profile-settings-wrapper .input-group input:disabled {
+    background-color: #f8fafc;
+    color: #475569;
+    cursor: not-allowed;
+    border-color: #e2e8f0;
+}
+
+.profile-settings-wrapper .input-group input:disabled.is-empty {
+    color: #94a3b8;
+    font-style: italic;
+}
+
+/* Password hint line. */
+#password-match-hint {
+    margin: 8px 0 0;
+    font-size: 0.78rem;
+    color: #64748b;
+}
+
 .input-helper {
     font-size: 0.75rem;
     color: #64748b;

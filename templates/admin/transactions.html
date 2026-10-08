@@ -257,17 +257,23 @@
                                 {% set qty = item.quantity | int if item.quantity else 1 %}
                                 {% set ns.total_monthly = ns.total_monthly + (item_rate * qty) %}
                             {% endfor %}
+                            <span>₱{{ "{:,.2f}".format(ns.total_monthly) }}</span>
+                        {% elif txn.transaction_type == 'Refill' %}
+                            {# Refills are one-time services - they have no monthly rate. #}
+                            <span style="color: #64748b; font-style: italic;">—</span>
                         {% elif txn.product %}
                             {% if txn.product.rent_price %}
                                 {% set ns.total_monthly = txn.product.rent_price | float %}
                             {% elif txn.product.price %}
                                 {% set ns.total_monthly = txn.product.price | float %}
                             {% endif %}
+                            <span>₱{{ "{:,.2f}".format(ns.total_monthly) }}</span>
                         {% elif txn.rent_price %}
-                            {% set ns.total_monthly = txn.txn.rent_price | float %}
+                            {% set ns.total_monthly = txn.rent_price | float %}
+                            <span>₱{{ "{:,.2f}".format(ns.total_monthly) }}</span>
+                        {% else %}
+                            <span>₱0.00</span>
                         {% endif %}
-
-                        <span>₱{{ "{:,.2f}".format(ns.total_monthly) }}</span>
                     </td>
                     
                     

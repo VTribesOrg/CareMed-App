@@ -1,6 +1,9 @@
 from flask import Blueprint, render_template, url_for, redirect, flash, request, jsonify, current_app, send_from_directory, abort
 from flask_login import current_user
-from extensions import db, limiter, csrf
+from argon2.exceptions import VerifyMismatchError
+import re
+
+from extensions import db, limiter, csrf, passhasher
 from sqlalchemy.orm import joinedload
 from sqlalchemy import func, or_, and_
 from flask_login import login_required
@@ -1029,6 +1032,10 @@ def process_refill_transaction():
                 verified_by_id=current_user.id,
                 verified_at=datetime.utcnow()
             ))
+            # Recompute totals AFTER the payment row exists so amount_paid
+            # reflects what the customer paid for this refill.
+            db.session.flush()
+            new_transaction.update_totals()
 
         log = InventoryLog(
             product_id=product.id if product else None,
@@ -2875,7 +2882,11 @@ def transactions():
 
     raw_refillables = Product.query.options(
         joinedload(Product.tank_status)
-    ).join(TankStatus).filter(Product.is_active == True).all()
+    ).join(TankStatus).filter(
+        Product.is_active == True,
+        Product.equipment_type == "Oxygen Tank",
+        Product.transaction_type == "Rental",
+    ).all()
     
     grouped_refills = {}
     for p in raw_refillables:
@@ -3795,50 +3806,91 @@ def process_return(txn_id):
 @login_required
 @admin_or_staff_required
 def process_primegas():
-    product_id = request.form.get('product_id')
-    
-    try:
-        quantity = int(request.form.get('quantity', 0))
-    except (TypeError, ValueError):
-        flash('Invalid quantity provided.', 'danger')
+    # A single Primegas transaction can carry multiple line items (different
+    # tank sizes / refills). The form posts parallel arrays.
+    product_ids = request.form.getlist('product_id[]')
+    quantities = request.form.getlist('quantity[]')
+    amounts = request.form.getlist('amount[]')
+
+    if not product_ids or len(product_ids) != len(quantities) or len(product_ids) != len(amounts):
+        flash('Invalid Primegas transaction payload.', 'danger')
         return redirect(url_for('admin.transactions'))
 
-    try:
-        amount = float(request.form.get('amount', 0))
-    except (TypeError, ValueError):
-        flash('Invalid amount provided.', 'danger')
+    items = []
+    for pid_raw, qty_raw, amt_raw in zip(product_ids, quantities, amounts):
+        if not (pid_raw or '').strip():
+            continue  # skip blank rows
+        try:
+            product_id = int(pid_raw)
+        except (TypeError, ValueError):
+            flash('Invalid product selected.', 'danger')
+            return redirect(url_for('admin.transactions'))
+        try:
+            quantity = int(qty_raw)
+        except (TypeError, ValueError):
+            flash('Invalid quantity provided.', 'danger')
+            return redirect(url_for('admin.transactions'))
+        try:
+            amount = float(amt_raw)
+        except (TypeError, ValueError):
+            flash('Invalid amount provided.', 'danger')
+            return redirect(url_for('admin.transactions'))
+        if quantity <= 0 or amount < 0:
+            flash('Please select a valid product, quantity, and amount.', 'warning')
+            return redirect(url_for('admin.transactions'))
+        items.append((product_id, quantity, amount))
+
+    if not items:
+        flash('Please add at least one refill item.', 'warning')
         return redirect(url_for('admin.transactions'))
 
-    if not product_id or quantity <= 0 or amount < 0:
-        flash('Please select a valid product, quantity, and amount.', 'warning')
-        return redirect(url_for('admin.transactions'))
+    # Aggregate quantities per product so duplicated rows cannot oversell stock.
+    required_per_product = {}
+    for product_id, quantity, _ in items:
+        required_per_product[product_id] = required_per_product.get(product_id, 0) + quantity
 
-    tank_status = TankStatus.query.filter_by(product_id=product_id).first()
+    # Validate every row BEFORE touching stock so a failure cannot half-apply.
+    tank_status_map = {}
+    for product_id, total_qty in required_per_product.items():
+        tank_status = TankStatus.query.filter_by(product_id=product_id).first()
+        if not tank_status:
+            flash('Tank status tracking not found for this product.', 'danger')
+            return redirect(url_for('admin.transactions'))
+        available = tank_status.empty_in_stock or 0
+        if available < total_qty:
+            flash(f'Insufficient empty stock. Only {available} empty tanks available.', 'danger')
+            return redirect(url_for('admin.transactions'))
+        tank_status_map[product_id] = tank_status
 
-    if not tank_status:
-        flash('Tank status tracking not found for this product.', 'danger')
-        return redirect(url_for('admin.transactions'))
+    for product_id, total_qty in required_per_product.items():
+        tank_status = tank_status_map[product_id]
+        tank_status.empty_in_stock = (tank_status.empty_in_stock or 0) - total_qty
+        tank_status.full_in_stock = (tank_status.full_in_stock or 0) + total_qty
 
-    if tank_status.empty_in_stock < quantity:
-        flash(f'Insufficient empty stock. Only {tank_status.empty_in_stock} empty tanks available.', 'danger')
-        return redirect(url_for('admin.transactions'))
+    # One expense record per line item keeps per-product expense reporting intact.
+    for product_id, quantity, amount in items:
+        product = db.session.get(Product, product_id)
+        label = product.name if product else f'Product ID {product_id}'
+        if product and product.size:
+            label = f'{label} ({product.size})'
+        db.session.add(Expense(
+            category="Primegas Refill",
+            expense_title=f"Refilled {quantity} unit(s) - {label}",
+            amount=amount,
+            description=f"Primegas transaction processing batch refill for {label}",
+            product_id=product_id,
+            recorded_by_id=current_user.id
+        ))
 
-    tank_status.empty_in_stock -= quantity
-    tank_status.full_in_stock += quantity
-
-    new_expense = Expense(
-        category="Primegas Refill",
-        expense_title=f"Refilled {quantity} units",
-        amount=amount,
-        description=f"Primegas transaction processing batch refill for Product ID: {product_id}",
-        product_id=product_id,
-        recorded_by_id=current_user.id
-    )
-    db.session.add(new_expense)
-    
     db.session.commit()
-    
-    flash(f'Successfully refilled {quantity} tank(s) and recorded expense!', 'success')
+
+    total_units = sum(qty for _, qty, _ in items)
+    total_amount = sum(amt for _, _, amt in items)
+    flash(
+        f'Successfully refilled {total_units} tank(s) across {len(items)} item(s) '
+        f'- total expense of ₱{total_amount:,.2f} recorded!',
+        'success'
+    )
     return redirect(url_for('admin.transactions'))
 
 @admin_bp.route('/system_logs')
@@ -3942,12 +3994,85 @@ def allowed_file(filename):
 @admin_or_staff_required
 def profile():
     if request.method == 'POST':
+        form_kind = request.form.get('form_kind', 'profile')
+
+        # ── Password change ──────────────────────────────────────────
+        if form_kind == 'password':
+            current_pw = request.form.get('current_password', '')
+            new_pw = request.form.get('new_password', '')
+            confirm_pw = request.form.get('confirm_password', '')
+
+            if not current_pw or not new_pw or not confirm_pw:
+                flash('Please fill in all password fields.', 'danger')
+                return redirect(url_for('admin.profile') + '#security-settings')
+
+            if new_pw != confirm_pw:
+                flash('New passwords do not match.', 'danger')
+                return redirect(url_for('admin.profile') + '#security-settings')
+
+            # Same strict policy as the reset-password flow
+            # (8+ chars, upper + lower + digit + special @$!%*?&).
+            if not re.match(r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$", new_pw):
+                flash('Password must be at least 8 characters and include an uppercase letter, a number, and a special character (@$!%*?&).', 'danger')
+                return redirect(url_for('admin.profile') + '#security-settings')
+
+            try:
+                valid = passhasher.verify(current_user.password_hash or '', current_pw)
+            except VerifyMismatchError:
+                valid = False
+            except Exception:
+                valid = False
+
+            if not valid:
+                try:
+                    log = SecurityLog(
+                        ip_address=request.remote_addr,
+                        event_type="Failed Password Change",
+                        description=f"Wrong current password entered for {current_user.email}",
+                        user_id=current_user.id,
+                        user_email=current_user.email,
+                        user_agent=request.headers.get('User-Agent', 'Unknown')[:255],
+                        severity='Medium',
+                        is_suspicious=True,
+                    )
+                    db.session.add(log)
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+                flash('Current password is incorrect.', 'danger')
+                return redirect(url_for('admin.profile') + '#security-settings')
+
+            try:
+                current_user.password_hash = passhasher.hash(new_pw)
+                current_user.password_last_reset_at = datetime.utcnow()
+                log = SecurityLog(
+                    ip_address=request.remote_addr,
+                    event_type="Password Changed",
+                    description=f"Password changed via Account Settings for {current_user.email}",
+                    user_id=current_user.id,
+                    user_email=current_user.email,
+                    user_agent=request.headers.get('User-Agent', 'Unknown')[:255],
+                    severity='Low',
+                    is_suspicious=False,
+                )
+                db.session.add(log)
+                db.session.commit()
+                flash('Password changed successfully!', 'success')
+            except Exception:
+                db.session.rollback()
+                flash('An error occurred while changing your password.', 'danger')
+
+            return redirect(url_for('admin.profile') + '#security-settings')
+
+        # ── Profile info update (default) ────────────────────────────
         fname = request.form.get('fname', '').strip()
         lname = request.form.get('lname', '').strip()
         email = request.form.get('email', '').strip()
+        contact = request.form.get('contact_number', '').strip()
+        address = request.form.get('address', '').strip()
 
         if not fname or not lname or not email:
-            flash('All fields are required.', 'danger')
+            flash('First name, last name and email are required.', 'danger')
             return redirect(url_for('admin.profile'))
 
         existing_user = User.query.filter_by(email=email).first()
@@ -3958,6 +4083,8 @@ def profile():
         current_user.first_name = fname
         current_user.last_name = lname
         current_user.email = email
+        current_user.contact_number = contact or None
+        current_user.address = address or None
 
         try:
             db.session.commit()
@@ -3965,8 +4092,8 @@ def profile():
         except Exception as e:
             db.session.rollback()
             flash('An error occurred while updating your information.', 'danger')
-            
-        return redirect(url_for('admin.profile')) 
+
+        return redirect(url_for('admin.profile'))
 
     return render_template("admin/profile.html")
 

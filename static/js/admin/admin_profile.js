@@ -15,6 +15,21 @@ document.addEventListener('DOMContentLoaded', function () {
     const csrfTokenInput = document.querySelector('input[name="csrf_token"]');
     const csrfToken = csrfTokenInput ? csrfTokenInput.value : '';
 
+    // --- Empty-field styling: mark empty editable inputs so they render the
+    //     muted / dashed "N/A" look from admin_profile.css (.is-empty). ---
+    const editableTextInputs = document.querySelectorAll(
+        '.profile-settings-wrapper .input-group input[type="text"]:not([disabled])'
+    );
+    function refreshEmptyStates() {
+        editableTextInputs.forEach(function (input) {
+            input.classList.toggle('is-empty', input.value.trim() === '');
+        });
+    }
+    editableTextInputs.forEach(function (input) {
+        input.addEventListener('input', refreshEmptyStates);
+    });
+    refreshEmptyStates();
+
     // --- Avatar Interaction & Upload Logic ---
     
     // Open system file selector on click wrapper
@@ -139,21 +154,69 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // --- Sticky Layout Navigation Intersection Observer ---
-    const settingsLinks = document.querySelectorAll('.settings-nav .nav-link');
-    const sections = document.querySelectorAll('section.content-section');
+    // --- Password match hint ---
+    const newPw = document.getElementById('new-password');
+    const confirmPw = document.getElementById('confirm-password');
+    const pwHint = document.getElementById('password-match-hint');
+    const pwForm = document.getElementById('password-change-form');
 
-    if (settingsLinks.length > 0 && sections.length > 0) {
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    settingsLinks.forEach(link => {
-                        link.classList.toggle('active', link.getAttribute('href') === `#${entry.target.id}`);
-                    });
-                }
+    function refreshPwHint() {
+        if (!pwHint || !newPw || !confirmPw) return;
+        if (!newPw.value && !confirmPw.value) {
+            pwHint.textContent = 'Password must be at least 8 characters and include an uppercase letter, a number, and a special character (@$!%*?&).';
+            pwHint.style.color = '#64748b';
+            return;
+        }
+        if (newPw.value === confirmPw.value) {
+            pwHint.textContent = 'Passwords match.';
+            pwHint.style.color = '#16a34a';
+        } else {
+            pwHint.textContent = 'Passwords do not match yet.';
+            pwHint.style.color = '#dc2626';
+        }
+    }
+
+    newPw?.addEventListener('input', refreshPwHint);
+    confirmPw?.addEventListener('input', refreshPwHint);
+    pwForm?.addEventListener('submit', function (e) {
+        if (newPw && confirmPw && newPw.value !== confirmPw.value) {
+            e.preventDefault();
+            refreshPwHint();
+            confirmPw.focus();
+        }
+    });
+
+    // --- Tab-based section navigation ---
+    // Clicking a tab shows only that panel (no page scrolling) and
+    // reflects the choice in the URL hash for deep-linking.
+    const tabs = document.querySelectorAll('.profile-tabbar .profile-tab');
+    const panels = document.querySelectorAll('.profile-tab-panels .profile-tab-panel');
+
+    function activateTab(name) {
+        let matched = false;
+        tabs.forEach(tab => {
+            const on = tab.dataset.tab === name;
+            tab.classList.toggle('active', on);
+            tab.setAttribute('aria-selected', on ? 'true' : 'false');
+            if (on) matched = true;
+        });
+        panels.forEach(panel => {
+            panel.classList.toggle('active', panel.dataset.panel === name);
+        });
+        return matched;
+    }
+
+    if (tabs.length > 0 && panels.length > 0) {
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                activateTab(tab.dataset.tab);
             });
-        }, { threshold: 0.6 });
+        });
 
-        sections.forEach(section => observer.observe(section));
+        // Deep-link: open the panel named in the URL hash on load (e.g. #security-settings).
+        const initial = window.location.hash.replace('#', '');
+        if (initial) {
+            activateTab(initial);
+        }
     }
 });

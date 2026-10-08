@@ -318,6 +318,14 @@ class Transaction(db.Model, BranchScoped):
             raw_cost = Decimal(str(self.quantity or 1)) * Decimal(str(self.refill_cost_per_unit or 0))
             self.total_amount = max(raw_cost + delivery_fee - voucher_amount, Decimal("0.00"))
 
+
+            self.amount_paid = sum(
+                (Decimal(str(p.amount)) for p in self.payments
+                 if getattr(p, 'status', None) == "Completed"
+                 and getattr(p, 'payment_type', None) not in ["Deposit", "Deposit Refund"]),
+                Decimal("0.00")
+            )
+
             self.balance_due = Decimal("0.00")
             self.payment_status = "Fully Paid"
             self.status = "Closed"

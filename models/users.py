@@ -13,6 +13,9 @@ class User(UserMixin, db.Model, BranchScoped):
     
     first_name = db.Column(db.String(100)) 
     last_name = db.Column(db.String(100))
+
+    contact_number = db.Column(db.String(50), nullable=True)
+    address = db.Column(db.String(255), nullable=True)
     
     profile_path = db.Column(db.String(255), nullable=True)
     

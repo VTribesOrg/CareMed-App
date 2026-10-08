@@ -1973,38 +1973,117 @@ document.addEventListener('DOMContentLoaded', function() {
 /*=================================== START OF PRIMEGAS ===================================*/
 
 const primegasModal = document.getElementById('primegasModal');
-const productSelect = document.getElementById('primegasProductSelect');
-const maxStockSpan = document.getElementById('maxEmptyStock');
-const qtyInput = document.getElementById('primegasQty');
+const primegasItemsWrap = document.getElementById('primegas-items');
+const primegasItemTemplate = document.getElementById('primegas-item-template');
+const primegasAddItemBtn = document.getElementById('primegas-add-item');
+const primegasTotalSpan = document.getElementById('primegas-total-amount');
+const primegasForm = document.getElementById('primegasForm');
+
+// Recompute the running total across every amount field
+const primegasUpdateTotal = () => {
+    if (!primegasTotalSpan || !primegasItemsWrap) return;
+    let total = 0;
+    primegasItemsWrap.querySelectorAll('.primegas-amount').forEach(input => {
+        total += parseFloat(input.value) || 0;
+    });
+    primegasTotalSpan.textContent = '₱' + total.toLocaleString(undefined, {
+        minimumFractionDigits: 2, maximumFractionDigits: 2
+    });
+};
+
+// Prevent the same product from being chosen in two rows at once
+const primegasSyncDuplicateOptions = () => {
+    const selects = primegasItemsWrap.querySelectorAll('.primegas-product-select');
+    selects.forEach(select => {
+        const chosenElsewhere = new Set();
+        selects.forEach(other => {
+            if (other !== select && other.value) chosenElsewhere.add(other.value);
+        });
+        select.querySelectorAll('option').forEach(option => {
+            if (!option.value) return; // keep the placeholder selectable
+            option.disabled = chosenElsewhere.has(option.value);
+        });
+    });
+};
+
+// Wire up per-row behaviour (max stock, amount total, remove)
+const primegasBindRow = (row) => {
+    const select = row.querySelector('.primegas-product-select');
+    const qtyInput = row.querySelector('.primegas-qty');
+    const amountInput = row.querySelector('.primegas-amount');
+    const maxStockSpan = row.querySelector('.primegas-max-stock');
+    const removeBtn = row.querySelector('.primegas-remove-item');
+
+    select.addEventListener('change', function () {
+        const selectedOption = this.options[this.selectedIndex];
+        const maxStock = parseInt(selectedOption.getAttribute('data-max')) || 0;
+
+        maxStockSpan.textContent = maxStock;
+        qtyInput.max = maxStock;
+
+        if (qtyInput.value && parseInt(qtyInput.value) > maxStock) {
+            qtyInput.value = maxStock > 0 ? maxStock : '';
+        }
+
+        primegasSyncDuplicateOptions();
+    });
+
+    amountInput.addEventListener('input', primegasUpdateTotal);
+
+    removeBtn.addEventListener('click', () => {
+        row.remove();
+        primegasSyncDuplicateOptions();
+        primegasUpdateTotal();
+    });
+};
+
+// Clone a fresh row from the <template> into the items list
+const primegasAddRow = () => {
+    if (!primegasItemsWrap || !primegasItemTemplate) return;
+    const row = primegasItemTemplate.content.firstElementChild.cloneNode(true);
+    primegasItemsWrap.appendChild(row);
+    primegasBindRow(row);
+    primegasSyncDuplicateOptions();
+};
 
 // 1. Open Modal & Reset Form
 document.querySelector('.type-choice-btn.primegas').addEventListener('click', () => {
     document.getElementById('txnSelectionModal').classList.add('hidden');
     primegasModal.classList.remove('hidden');
-    
-    // Reset fields on open
-    productSelect.value = "";
-    maxStockSpan.textContent = "0";
-    qtyInput.value = "";
-    qtyInput.removeAttribute('max');
+
+    // Reset to a single clean row on every open
+    primegasItemsWrap.innerHTML = '';
+    primegasAddRow();
+    primegasUpdateTotal();
 });
 
-// 2. Update Max Limit dynamically on change
-productSelect.addEventListener('change', function() {
-    const selectedOption = this.options[this.selectedIndex];
-    const maxStock = parseInt(selectedOption.getAttribute('data-max')) || 0;
-    
-    // Update display text and input max attribute
-    maxStockSpan.textContent = maxStock;
-    qtyInput.max = maxStock;
-    
-    // Reset quantity if it exceeds the new maximum
-    if (qtyInput.value && parseInt(qtyInput.value) > maxStock) {
-        qtyInput.value = maxStock;
-    }
-});
+// 2. Add Item button
+if (primegasAddItemBtn) {
+    primegasAddItemBtn.addEventListener('click', primegasAddRow);
+}
 
-// 3. Close Modal
+// 3. Guard: at least one fully-filled row before submitting
+if (primegasForm) {
+    primegasForm.addEventListener('submit', (e) => {
+        const rows = primegasItemsWrap.querySelectorAll('.primegas-item-row');
+        if (rows.length === 0) {
+            e.preventDefault();
+            alert('Please add at least one refill item.');
+            return;
+        }
+        for (const row of rows) {
+            const select = row.querySelector('.primegas-product-select');
+            const qtyInput = row.querySelector('.primegas-qty');
+            if (!select.value || !qtyInput.value) {
+                e.preventDefault();
+                alert('Please complete every item row (product and quantity are required).');
+                return;
+            }
+        }
+    });
+}
+
+// 4. Close Modal
 const closePrimegas = () => {
     primegasModal.classList.add('hidden');
 };
