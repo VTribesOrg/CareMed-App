@@ -1,8 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
 
     /* ==========================================================
-       1. GLOBAL REFERENCES & SETUP
-       ========================================================== */
+        1. GLOBAL REFERENCES & SETUP
+        ========================================================== */
     const regModal = document.getElementById('registerAssetModal');
     const histModal = document.getElementById('assetHistoryModal');
     const editModal = document.getElementById('editAssetModal');
@@ -13,8 +13,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     /* ==========================================================
-       2. ACTION DROPDOWN TOGGLE LOGIC
-       ========================================================== */
+        2. ACTION DROPDOWN TOGGLE LOGIC
+        ========================================================== */
     allRows.forEach(row => {
         row.addEventListener('click', function(e) {
             if (e.target.closest('.asset-action-btn')) return;
@@ -71,8 +71,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     /* ==========================================================
-       3. HISTORY MODAL LOGIC
-       ========================================================== */
+        3. HISTORY MODAL LOGIC
+        ========================================================== */
     function getMarkerClass(action) {
         const actionLower = action.toLowerCase();
         if (actionLower.includes('return') || actionLower.includes('sold')) return 'warning';
@@ -147,10 +147,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     /* ==========================================================
-       4. REGISTER ASSET MODAL LOGIC
-       ========================================================== */
+        4. REGISTER ASSET MODAL LOGIC
+        ========================================================== */
     window.openAssetModal = function() {
         regModal?.classList.remove('hidden');
+        // Ensure refill visibility is correctly evaluated when opening modal
+        updateRefillVisibility();
     };
 
     window.closeAssetModal = function() {
@@ -180,6 +182,9 @@ document.addEventListener('DOMContentLoaded', () => {
             dropzone.style.backgroundColor = '#f8fafc';
             dropzone.style.cursor = 'pointer';
         }
+        
+        // Reset dynamic pricing & refill field state on close
+        updateRefillVisibility();
     };
 
     document.querySelectorAll('.close-reg-modal').forEach(btn => btn.addEventListener('click', window.closeAssetModal));
@@ -187,8 +192,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     /* ==========================================================
-       5. EDIT ASSET MODAL & CHANGE DETECTION LOGIC
-       ========================================================== */
+        5. EDIT ASSET MODAL & CHANGE DETECTION LOGIC
+        ========================================================== */
     let originalAssetData = {};
 
     window.openEditModal = function(productData) {
@@ -210,9 +215,10 @@ document.addEventListener('DOMContentLoaded', () => {
             'edit-unit-cost': productData.cost_price ? parseFloat(productData.cost_price) : '', 
             'edit-description': productData.description,
             'edit-offer-type': offerType,
-            'edit-rent': productData.rent_price ? parseFloat(productData.rent_price) : '',     
+            'edit-rent': productData.rent_price ? parseFloat(productData.rent_price) : '',    
             'edit-rent-period': productData.rent_period,
-            'edit-price': productData.sale_price ? parseFloat(productData.sale_price) : ''    
+            'edit-price': productData.sale_price ? parseFloat(productData.sale_price) : '',
+            'edit-refill-cost': productData.refill_cost ? parseFloat(productData.refill_cost) : ''
         };
 
         const costDisplay = document.getElementById('edit-cost-display');
@@ -251,6 +257,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (updateBtn) updateBtn.disabled = true;
         editModal.classList.remove('hidden');
+        
+        // Trigger visibility update on open
+        updateEditRefillVisibility();
     };
 
     document.getElementById('editAssetForm')?.addEventListener('input', function() {
@@ -269,7 +278,8 @@ document.addEventListener('DOMContentLoaded', () => {
             'edit-offer-type': document.getElementById('edit-offer-type').value,
             'edit-rent': document.getElementById('edit-rent').value,
             'edit-rent-period': document.getElementById('edit-rent-period').value,
-            'edit-price': document.getElementById('edit-price').value
+            'edit-price': document.getElementById('edit-price').value,
+            'edit-refill-cost': document.getElementById('edit-refill-cost').value
         };
 
         const hasChanged = Object.keys(currentData).some(key => 
@@ -329,8 +339,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     /* ==========================================================
-       6. IMAGE UPLOAD & DRAG-DROP HANDLER
-       ========================================================== */
+        6. IMAGE UPLOAD & DRAG-DROP HANDLER
+        ========================================================== */
     const setupUpload = (dropzoneId, inputId, placeholderId, previewContainerId, imagePreviewId, resetBtnId) => {
         const dropzone = document.getElementById(dropzoneId);
         const fileInput = document.getElementById(inputId);
@@ -432,42 +442,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     /* ==========================================================
-       7. INVENTORY TABLE INTERACTIONS
-       ========================================================== */
-        if (inventoryTable) {
-            inventoryTable.addEventListener('click', (e) => {
-                const editBtn = e.target.closest('.dropdown-item.edit');
-                const deleteBtn = e.target.closest('.dropdown-item.delete');
+        7. INVENTORY TABLE INTERACTIONS
+        ========================================================== */
+    if (inventoryTable) {
+        inventoryTable.addEventListener('click', (e) => {
+            const editBtn = e.target.closest('.dropdown-item.edit');
+            const deleteBtn = e.target.closest('.dropdown-item.delete');
 
-                if (editBtn) {
-                    const productData = {
-                        id: editBtn.dataset.id,
-                        type: editBtn.dataset.type || '',
-                        name: editBtn.dataset.name || '',
-                        size: editBtn.dataset.size || '',          
-                        cost_price: editBtn.dataset.costPrice || 0,
-                        stock: editBtn.dataset.stock || 0, // <--- ADDED HERE
-                        condition: editBtn.dataset.condition || 'N/A',
-                        offer_type: editBtn.dataset.offer || '',
-                        rent_period: editBtn.dataset.period || 'Monthly',
-                        rent_price: editBtn.dataset.rent || 0,
-                        sale_price: editBtn.dataset.price || 0,
-                        description: (editBtn.dataset.description === "None" || !editBtn.dataset.description) ? "" : editBtn.dataset.description.trim(),
-                        image: editBtn.dataset.image || ''
-                    };
-                    window.openEditModal(productData);
-                } else if (deleteBtn) {
-                    const row = deleteBtn.closest('tr');
-                    const assetTag = row.cells[1].innerText;
-                    console.log("Deleting...", assetTag);
-                }
-            });
-        }
+            if (editBtn) {
+                const productData = {
+                    id: editBtn.dataset.id,
+                    type: editBtn.dataset.type || '',
+                    name: editBtn.dataset.name || '',
+                    size: editBtn.dataset.size || '',          
+                    cost_price: editBtn.dataset.costPrice || 0,
+                    stock: editBtn.dataset.stock || 0,
+                    condition: editBtn.dataset.condition || 'N/A',
+                    offer_type: editBtn.dataset.offer || '',
+                    rent_period: editBtn.dataset.period || 'Monthly',
+                    rent_price: editBtn.dataset.rent || 0,
+                    sale_price: editBtn.dataset.price || 0,
+                    refill_cost: editBtn.dataset.refillCost || 0,
+                    description: (editBtn.dataset.description === "None" || !editBtn.dataset.description) ? "" : editBtn.dataset.description.trim(),
+                    image: editBtn.dataset.image || ''
+                };
+                window.openEditModal(productData);
+            } else if (deleteBtn) {
+                const row = deleteBtn.closest('tr');
+                const assetTag = row.cells[1].innerText;
+                console.log("Deleting...", assetTag);
+            }
+        });
+    }
 
 
     /* ==========================================================
-       8. TRANSACTION & FORM DYNAMIC ROUTING / CALCULATIONS
-       ========================================================== */
+        8. TRANSACTION & FORM DYNAMIC ROUTING / CALCULATIONS
+        ========================================================== */
     document.querySelectorAll('.asset-action-btn.rent').forEach(btn => {
         btn.addEventListener('click', () => window.location.href = '/admin/transactions?type=Rental');
     });
@@ -510,8 +521,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     /* ==========================================================
-       9. PRODUCT TYPE CONDITIONAL PRICING CONFIGURATORS
-       ========================================================== */
+        9. PRODUCT TYPE CONDITIONAL PRICING CONFIGURATORS
+        ========================================================== */
     // Registration Offer Type Toggle
     const offerTypeSelect = document.getElementById('reg-offer-type');
     const pricingRow = document.getElementById('pricing-row-container');
@@ -540,34 +551,118 @@ document.addEventListener('DOMContentLoaded', () => {
                 saleField.style.display = 'block';
                 pricingRow.style.gridTemplateColumns = '200px 260px 180px'; 
             }
+            
+            updateRefillVisibility();
         });
     }
 
-    // Edit Modal Offer Type Toggle
-    const editOfferType = document.getElementById('edit-offer-type');
-    const editPricingRow = document.getElementById('edit-pricing-row-container');
-    const editRentField = document.getElementById('edit-rent-field');
-    const editSaleField = document.getElementById('edit-sale-field');
+    // Oxygen Tank Refill Visibility Logic
+    function updateRefillVisibility() {
+        const equipTypeEl = document.getElementById('reg-equipment-type');
+        const offerTypeEl = document.getElementById('reg-offer-type');
+        const refillField = document.getElementById('refill-cost-field');
+        const refillFlag = document.getElementById('is_refillable_flag');
+        const container = document.getElementById('pricing-row-container');
 
-    if (editOfferType && editPricingRow && editRentField && editSaleField) {
-        const editRentInput = editRentField.querySelector('input[name="rent_price"]');
-        const editSaleInput = editSaleField.querySelector('input[name="sale_price"]');
+        if (!equipTypeEl || !offerTypeEl || !refillField || !refillFlag || !container) return;
 
-        editOfferType.addEventListener('change', function() {
-            const val = this.value;
-            editRentField.style.display = 'none';
-            editSaleField.style.display = 'none';
+        const equipTypeVal = equipTypeEl.value.toLowerCase().trim();
+        const offerTypeVal = offerTypeEl.value;
 
-            if (val === 'Rental') {
-                editRentField.style.display = 'block';
-                editPricingRow.style.gridTemplateColumns = '200px 260px'; 
-                if (editSaleInput) editSaleInput.value = ''; 
-            } else if (val === 'Sale') {
-                editSaleField.style.display = 'block';
-                editPricingRow.style.gridTemplateColumns = '200px 180px'; 
-                if (editRentInput) editRentInput.value = '';
+        const isOxygenTank = equipTypeVal.includes('oxygen tank');
+        const isRental = offerTypeVal === 'Rental';
+
+        if (isOxygenTank && isRental) {
+            refillField.style.display = 'block';
+            refillFlag.value = 'true';
+            container.style.gridTemplateColumns = '180px 260px 0px 180px'; 
+        } else {
+            refillField.style.display = 'none';
+            refillFlag.value = 'false';
+            
+            if (offerTypeVal === 'Rental') {
+                container.style.gridTemplateColumns = '180px 260px 0px 0px';
+            } else if (offerTypeVal === 'Sale') {
+                container.style.gridTemplateColumns = '180px 0px 180px 0px';
+            } else {
+                container.style.gridTemplateColumns = '180px 0px 0px 0px';
             }
-        });
+        }
+    }
+
+    const regEquipmentTypeInput = document.getElementById('reg-equipment-type');
+    if (regEquipmentTypeInput) {
+        regEquipmentTypeInput.addEventListener('input', updateRefillVisibility);
+    }
+    if (offerTypeSelect) {
+        offerTypeSelect.addEventListener('change', updateRefillVisibility);
+    }
+
+    // Run once on load to ensure it starts hidden properly
+    updateRefillVisibility();
+
+
+    /* ==========================================================
+        10. EDIT MODAL OXYGEN TANK REFILL VISIBILITY LOGIC
+        ========================================================== */
+    function updateEditRefillVisibility() {
+        const equipTypeEl = document.getElementById('edit-type');
+        const offerTypeEl = document.getElementById('edit-offer-type');
+        const editRentField = document.getElementById('edit-rent-field');
+        const editSaleField = document.getElementById('edit-sale-field');
+        const refillField = document.getElementById('edit-refill-cost-field');
+        const refillFlag = document.getElementById('edit-is-refillable-flag');
+        const container = document.getElementById('edit-pricing-row-container');
+
+        if (!equipTypeEl || !offerTypeEl || !refillField || !refillFlag || !container) return;
+
+        const equipTypeVal = equipTypeEl.value.toLowerCase().trim();
+        const offerTypeVal = offerTypeEl.value;
+
+        const isOxygenTank = equipTypeVal.includes('oxygen tank');
+        const isRental = offerTypeVal === 'Rental';
+        const isSale = offerTypeVal === 'Sale';
+
+        // Show/hide rent and sale fields based on transaction type
+        if (isRental) {
+            if (editRentField) editRentField.style.display = 'block';
+            if (editSaleField) editSaleField.style.display = 'none';
+        } else if (isSale) {
+            if (editRentField) editRentField.style.display = 'none';
+            if (editSaleField) editSaleField.style.display = 'block';
+        } else {
+            if (editRentField) editRentField.style.display = 'none';
+            if (editSaleField) editSaleField.style.display = 'none';
+        }
+
+        // Handle oxygen tank refill grid layout & flag
+        if (isOxygenTank && isRental) {
+            refillField.style.display = 'block';
+            refillFlag.value = 'true';
+            container.style.gridTemplateColumns = '180px 260px 0px 180px'; 
+        } else {
+            refillField.style.display = 'none';
+            refillFlag.value = 'false';
+            
+            if (offerTypeVal === 'Rental') {
+                container.style.gridTemplateColumns = '180px 260px 0px 0px';
+            } else if (offerTypeVal === 'Sale') {
+                container.style.gridTemplateColumns = '180px 0px 180px 0px';
+            } else {
+                container.style.gridTemplateColumns = '180px 0px 0px 0px';
+            }
+        }
+    }
+
+    const editTypeInput = document.getElementById('edit-type');
+    const editOfferInput = document.getElementById('edit-offer-type');
+
+    if (editTypeInput) {
+        editTypeInput.addEventListener('input', updateEditRefillVisibility);
+        editTypeInput.addEventListener('change', updateEditRefillVisibility);
+    }
+    if (editOfferInput) {
+        editOfferInput.addEventListener('change', updateEditRefillVisibility);
     }
 
 });
@@ -578,8 +673,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const stockModal = document.getElementById('addStockModal');
     const stockForm = document.getElementById('addStockForm');
     const stockInput = document.getElementById('stock-increment-input');
-    
-    // Changed: unitCostInput is now the typed input, totalCostInput is the hidden/calculated field
+
     const unitCostInput = document.getElementById('stock-unit-cost-input');
     const totalCostInput = document.getElementById('stock-total-cost-input');
     

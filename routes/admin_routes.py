@@ -1518,8 +1518,9 @@ def add_product():
     name = request.form.get("name", "").strip().title()
     size = request.form.get("size", "").strip()
     description = request.form.get("description", "").strip()
-    
-    is_refillable = True if request.form.get("is_refillable") == "on" else False
+
+    is_refillable_val = request.form.get("is_refillable", "false")
+    is_refillable = True if is_refillable_val in ["on", "true", "True"] else False
 
     if "oxygen" in equipment_type.lower() or "oxygen" in name.lower():
         is_refillable = True
@@ -1533,6 +1534,7 @@ def add_product():
         rent_price_raw = request.form.get("rent_price", "").strip()
         sale_price_raw = request.form.get("sale_price", "").strip()
         cost_price_raw = request.form.get("cost_price", "").strip()
+        refill_cost_raw = request.form.get("refill_cost", "").strip() 
 
         if transaction_type == 'Rental':
             rent_price = Decimal(rent_price_raw) if rent_price_raw else Decimal("0.00")
@@ -1545,6 +1547,7 @@ def add_product():
             sale_price = Decimal(sale_price_raw) if sale_price_raw else Decimal("0.00")
 
         cost_price = Decimal(cost_price_raw) if cost_price_raw else Decimal("0.00")
+        refill_cost = Decimal(refill_cost_raw) if refill_cost_raw else Decimal("0.00")  # Added Decimal conversion
         
         if transaction_type == 'Rental' and rent_price <= 0:
             flash("Please provide a valid rent price for 'Rent Only' items.", "warning")
@@ -1599,6 +1602,7 @@ def add_product():
             rent_price=rent_price,
             sale_price=sale_price,
             cost_price=cost_price, 
+            refill_cost=refill_cost, 
             condition=condition,   
             image=image_path,
             status="Available" if stock > 0 else "Out of Stock"
@@ -1621,7 +1625,7 @@ def add_product():
             product_id=new_product.id,
             action="Initial Stock Entry",
             quantity=stock,
-            note=f"Registered {name} (Size: {size}). Mode: {transaction_type}. Refillable: {is_refillable}. Condition: {condition}. Cost: {cost_price}",
+            note=f"Registered {name} (Size: {size}). Mode: {transaction_type}. Refillable: {is_refillable}. Condition: {condition}. Cost: {cost_price} (Refill Cost: {refill_cost})",
             user_id=current_user.id,
             user_name=current_user.full_name 
         )
@@ -1691,10 +1695,14 @@ def edit_product(product_id):
     try:
         raw_rent = Decimal(request.form.get("rent_price") or "0.00")
         raw_sale = Decimal(request.form.get("sale_price") or "0.00")
+        raw_refill = Decimal(request.form.get("refill_cost") or "0.00")
         new_stock = int(request.form.get("stock") or 0)
 
         new_rent = raw_rent if new_offer_type in ['Both', 'Rental'] else Decimal("0.00")
         new_sale = raw_sale if new_offer_type in ['Both', 'Sale'] else Decimal("0.00")
+        
+        is_oxygen_tank = "oxygen tank" in new_type.lower()
+        new_refill_cost = raw_refill if (is_oxygen_tank and new_offer_type == 'Rental') else Decimal("0.00")
 
         if current_user.role == 'Administrator':
             raw_cost = Decimal(request.form.get("unit_cost") or "0.00")
@@ -1737,6 +1745,11 @@ def edit_product(product_id):
         if product.sale_price != new_sale:
             changes.append(f"Changed sale price to ₱{new_sale:,.2f}")
             product.sale_price = new_sale
+
+        # Refill cost update tracking
+        if getattr(product, 'refill_cost', Decimal("0.00")) != new_refill_cost:
+            changes.append(f"Changed refill cost to ₱{new_refill_cost:,.2f}")
+            product.refill_cost = new_refill_cost
 
         if product.stock != new_stock:
             stock_diff = new_stock - product.stock

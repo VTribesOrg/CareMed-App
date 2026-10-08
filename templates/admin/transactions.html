@@ -150,9 +150,10 @@
                     <th style="min-width: 180px; white-space: nowrap; text-align: left; padding: 12px;">Customer Name</th>
                     <th style="padding: 12px;">Type</th>
                     <th style="min-width: 180px; padding: 12px;">Items</th>
-                    <th style="padding: 12px;">Delivery Method</th>
+                    <!--<th style="padding: 12px;">Delivery Method</th>-->
+                    <th class="text-end" style="min-width: 100px; text-align: right; padding: 12px;">Amount</th>
                     <th class="text-end" style="min-width: 100px; text-align: right; padding: 12px;">Monthly Rate</th>
-                    <th class="text-end" style="min-width: 100px; text-align: right; padding: 12px;">Paid</th>
+                    
                     <th class="text-end" style="min-width: 120px; text-align: right; padding: 12px;">Balance Due</th>
                     <th class="text-center" style="min-width: 130px; text-align: center; padding: 12px;">Status</th>
                     <th style="min-width: 140px; padding: 12px;">Ref No.</th>
@@ -219,7 +220,7 @@
                         {% endif %}
                     </td>
 
-                    <td style="padding: 12px;">
+                    <!--<td style="padding: 12px;">
                         {% if txn.fulfillment_type == 'Delivery' %}
                             <span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; font-size: 12px; font-weight: 600; white-space: nowrap; background-color: #fef3c7; color: #b45309; border: 1px solid #fde68a; border-radius: 4px;">
                                 <i class="material-symbols-rounded" style="font-size: 13px; vertical-align: middle;">local_shipping</i> Home Delivery
@@ -235,7 +236,8 @@
                                 </span>
                             {% endif %}
                         {% endif %}
-                    </td>
+                    </td>-->
+                    <td style="color: #198754; font-weight: 500; text-align: right; padding: 12px;">₱{{ "{:,.2f}".format(txn.amount_paid) }}</td>
 
                     <td style="font-weight: bold; color: #212529; text-align: right; padding: 12px;">
                         {% set ns = namespace(total_monthly=0) %}
@@ -268,7 +270,6 @@
                         <span>₱{{ "{:,.2f}".format(ns.total_monthly) }}</span>
                     </td>
                     
-                    <td style="color: #198754; font-weight: 500; text-align: right; padding: 12px;">₱{{ "{:,.2f}".format(txn.amount_paid) }}</td>
                     
                     <td style="text-align: right; padding: 12px;">
                         {% set is_cancelled = (txn.status|lower == 'cancelled' or txn.tracking_status|lower == 'cancelled') %}
@@ -591,7 +592,7 @@
                     <div class="form-field" style="margin-bottom: 0;">
                         <label style="font-weight: 700; color: #1e293b; margin-bottom: 6px; display: block; font-size: 0.9rem;">Refill Amount Cost (PHP)</label>
                         <div style="position: relative;">
-                            <input type="number" step="0.01" name="amount" id="refill-amount-cost" placeholder="0.00" value="450.00" required style="width: 100%; height: 44px; padding: 0 16px 0 40px; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #1e293b; font-size: 0.95rem; outline: none; box-sizing: border-box;">
+                            <input type="number" step="0.01" name="amount" id="refill-amount-cost" placeholder="0.00" required style="width: 100%; height: 44px; padding: 0 16px 0 40px; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #1e293b; font-size: 0.95rem; outline: none; box-sizing: border-box;">
                             <span class="material-symbols-rounded" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #64748b; pointer-events: none; font-size: 20px;">payments</span>
                         </div>
                     </div>
@@ -626,6 +627,18 @@
             "serial_number": "{{ rental.serial_number }}",
             "product_name": "{{ rental.product_name }}",
             "product_size": "{{ rental.product_size }}"
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ]
+</script>
+
+<script id="refillable-products-data" type="application/json">
+    [
+        {% for product in refillable_products %}
+        {
+            "name": {{ product.name | tojson }},
+            "size": {{ product.size | tojson }},
+            "refill_cost": {{ product.refill_cost | float }}
         }{% if not loop.last %},{% endif %}
         {% endfor %}
     ]

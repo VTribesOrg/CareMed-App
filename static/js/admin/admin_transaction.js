@@ -102,6 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const quantityInput = document.getElementById('refill-quantity');
     const dynamicRowsContainer = document.getElementById('refill-dynamic-rows-container');
+    const refillAmountInput = document.getElementById('refill-amount-cost');
 
     // Parse active oxygen rentals JSON dataset from template
     let activeOxygenRentals = [];
@@ -122,8 +123,51 @@ document.addEventListener('DOMContentLoaded', () => {
             refillableProducts = JSON.parse(scriptTag.textContent);
         }
     } catch (e) {
-        // Fallback or read from existing select options if no separate JSON script tag exists
         refillableProducts = Array.from(tankSelect.options).map(opt => opt.value);
+    }
+
+    // Helper function to find and update the refill cost based on the selected product
+    function updateRefillCost() {
+        if (!refillAmountInput) return;
+        
+        const buyerTypeElement = document.querySelector('input[name="refill_buyer_type"]:checked');
+        if (!buyerTypeElement) return;
+
+        const buyerType = buyerTypeElement.value;
+        const isRegistered = buyerType === 'registered';
+        let selectedProductKey = '';
+
+        if (isRegistered) {
+            selectedProductKey = tankSelect ? tankSelect.value : '';
+        } else {
+            const firstUnregSelect = dynamicRowsContainer.querySelector('select[name="unregistered_product_size"]');
+            if (firstUnregSelect) {
+                selectedProductKey = firstUnregSelect.value;
+            }
+        }
+
+        // If no product is selected, clear the input completely (no 0.00)
+        if (!selectedProductKey) {
+            refillAmountInput.value = '';
+            return;
+        }
+
+        // Find matching product in refillableProducts array
+        const matchedProduct = refillableProducts.find(prod => {
+            if (typeof prod === 'object' && prod !== null) {
+                const combinedName = `${prod.name} - ${prod.size}`;
+                return combinedName === selectedProductKey || prod.name === selectedProductKey;
+            }
+            return prod === selectedProductKey;
+        });
+
+        if (matchedProduct && typeof matchedProduct === 'object' && matchedProduct.refill_cost !== undefined && matchedProduct.refill_cost !== '') {
+            // Assign the clean value without forcing unnecessary trailing zeros if blank/empty
+            const costVal = parseFloat(matchedProduct.refill_cost);
+            refillAmountInput.value = isNaN(costVal) ? '' : costVal;
+        } else {
+            refillAmountInput.value = '';
+        }
     }
 
     function renderDynamicRows() {
@@ -150,7 +194,6 @@ document.addEventListener('DOMContentLoaded', () => {
         dynamicRowsContainer.innerHTML = '';
 
         if (!isRegistered) {
-            // Build dropdown options for products/sizes
             let productOptionsHtml = '<option value="">Select tank size...</option>';
             if (refillableProducts.length > 0 && typeof refillableProducts[0] === 'object') {
                 refillableProducts.forEach(prod => {
@@ -195,6 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
                 dynamicRowsContainer.appendChild(row);
             }
+            updateRefillCost();
             return;
         }
 
@@ -227,6 +271,21 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
             dynamicRowsContainer.appendChild(row);
         }
+        updateRefillCost();
+    }
+
+    // Attach event listener to main tank select for cost updates
+    if (tankSelect) {
+        tankSelect.addEventListener('change', updateRefillCost);
+    }
+
+    // Attach delegated event listener to dynamic container for unregistered product change events
+    if (dynamicRowsContainer) {
+        dynamicRowsContainer.addEventListener('change', (e) => {
+            if (e.target.matches('select[name="unregistered_product_size"]')) {
+                updateRefillCost();
+            }
+        });
     }
 
     // 1. Toggle Buyer Type UI
@@ -260,6 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 labelUnreg.style.display = 'none';
             }
             renderDynamicRows();
+            updateRefillCost();
         });
     });
 
@@ -303,6 +363,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (checkedRadio) {
         checkedRadio.dispatchEvent(new Event('change'));
     }
+    
+    updateRefillCost();
 });
 
 document.addEventListener("DOMContentLoaded", function() {

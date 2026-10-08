@@ -686,4 +686,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    document.getElementById('depositSearchInput').addEventListener('input', function(e) {
+        const searchTerm = e.target.value.toLowerCase().trim();
+        const tbody = document.getElementById('deposit-summary-tbody');
+        const rows = tbody.querySelectorAll('tr');
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            if (row.cells.length < 3) return;
+
+            const customerName = row.cells[0].textContent.toLowerCase();
+            const productName = row.cells[1].textContent.toLowerCase();
+
+            if (customerName.includes(searchTerm) || productName.includes(searchTerm)) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        document.getElementById('deposit-modal-count').textContent = `Showing ${visibleCount} records`;
+    });
+
 });

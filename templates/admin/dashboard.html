@@ -495,6 +495,7 @@
 <div id="depositSummaryModal" class="medical-modal-backdrop" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); z-index: 1050; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
     <div class="medical-modal-card" style="background: #fff; width: 92%; max-width: 800px; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); overflow: hidden; display: flex; flex-direction: column; max-height: 90vh;">
 
+        <!-- Modal Header -->
         <div style="padding: 10px 16px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
             <div style="display: flex; align-items: center; gap: 8px;">
                 <div style="background: #dbeafe; color: #2563eb; padding: 4px; border-radius: 4px; display: flex;">
@@ -510,7 +511,15 @@
             </button>
         </div>
 
+        <!-- Modal Body -->
         <div style="padding: 10px 16px; overflow-y: auto; flex: 1;">
+            
+            <!-- Live Search Bar -->
+            <div style="margin-bottom: 10px; position: relative; display: flex; align-items: center;">
+                <span class="material-symbols-rounded" style="position: absolute; left: 10px; font-size: 0.95rem; color: #94a3b8;">search</span>
+                <input type="text" id="depositSearchInput" placeholder="Search by customer name or product..." style="width: 100%; padding: 6px 10px 6px 32px; font-size: 0.73rem; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; background: #fff; color: #0f172a;" />
+            </div>
+
             <div class="table-scroll-wrapper">
                 <table class="medical-data-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.73rem;">
                     <thead>
@@ -529,6 +538,7 @@
             </div>
         </div>
 
+        <!-- Modal Footer -->
         <div style="padding: 8px 16px; border-top: 1px solid #e2e8f0; background: #f8fafc; display: flex; justify-content: space-between; align-items: center;">
             <span style="font-size: 0.7rem; color: #475569;" id="deposit-modal-count">Showing 0 records</span>
             <button type="button" id="closeDepositModalFooter" style="padding: 4px 12px; background: #0f172a; color: #fff; border: none; border-radius: 4px; font-weight: 500; font-size: 0.73rem; cursor: pointer;">Close</button>
