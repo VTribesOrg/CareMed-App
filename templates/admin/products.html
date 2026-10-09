@@ -54,33 +54,46 @@
 
 <div class="asset-registry-card">
 
-    <div class="registry-controls style="flex-shrink: 0;"">
-        <div class="filter-search-container">
+    <div class="registry-controls" style="flex-shrink: 0; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+        <div class="filter-search-container" style="display: flex; gap: 12px; flex-grow: 1; flex-wrap: wrap;">
             <div class="search-wrapper">
                 <span class="material-symbols-rounded search-icon">search</span>
                 <input type="text" id="table-search" class="asset-search-input"
                     value="{{ search_query }}"
                     placeholder="Search equipment type or product name...">
             </div>
+
             <div class="filter-group">
                 <div class="select-wrapper">
                     <span class="material-symbols-rounded filter-icon">filter_list</span>
                     <select class="medical-select" id="type-filter">
-                        <option value="all" {{ 'selected' if current_type == 'all' }}>All Equipment</option>
+                        <option value="all" {{ 'selected' if current_type == 'all' or not current_type }}>All Equipment</option>
                         {% for et in equipment_types %}
                         <option value="{{ et }}" {{ 'selected' if current_type == et }}>{{ et }}</option>
                         {% endfor %}
                     </select>
                 </div>
             </div>
+
+            <div class="filter-group">
+                <div class="select-wrapper">
+                    <span class="material-symbols-rounded filter-icon">swap_horiz</span>
+                    <select class="medical-select" id="transaction-type-filter">
+                        <option value="all" {{ 'selected' if current_txn_type == 'all' or not current_txn_type }}>All Transactions</option>
+                        <option value="Rental" {{ 'selected' if current_txn_type == 'Rental' }}>Rental</option>
+                        <option value="Sale" {{ 'selected' if current_txn_type == 'Sale' }}>Sale</option>
+                    </select>
+                </div>
+            </div>
         </div>
+
         <button class="register-asset-btn primary-action-btn" id="add-equipment-btn">
             <span class="material-symbols-rounded">add_circle</span>
             <div class="btn-label"><strong>New Equipment</strong></div>
         </button>
     </div>
 
-    <section class="table-scroll-container"  style="overflow-x: auto; flex-grow: 1;">
+    <section class="table-scroll-container" style="overflow-x: auto; flex-grow: 1;">
         <table class="medical-data-table" id="inventory-table" style="width: 100%; border-collapse: collapse;">
             <thead>
                 <tr>
@@ -120,7 +133,12 @@
                         {% endif %}
                     </td>
                     <td>
-                        {% if product.stock > 0 %}
+                        {% set full_stock = product.tank_status.full_in_stock if (product.is_refillable and product.tank_status) else product.stock %}
+                        {% set rented_count = product.tank_status.rented_out if (product.is_refillable and product.tank_status) else 0 %}
+
+                        {% if full_stock == 0 and rented_count > 0 %}
+                            <span class="status-pill" style="background:#e0f2fe; color:#0369a1; border: 1px solid #bae6fd;">Fully Rented</span>
+                        {% elif full_stock > 0 %}
                             <span class="status-pill status-ready">Available</span>
                         {% else %}
                             <span class="status-pill" style="background:#fee2e2; color:#991b1b;">Out of Stock</span>
@@ -158,11 +176,11 @@
                     <td class="col-actions">
                         <div class="asset-actions">
                             <a href="{{ url_for('admin.transactions') }}?open=rental" 
-                               class="asset-action-btn rent" title="Process Rental" style="color:#0077b6;">
+                            class="asset-action-btn rent" title="Process Rental" style="color:#0077b6;">
                                 <span class="material-symbols-rounded">assignment</span>
                             </a>
                             <a href="{{ url_for('admin.transactions') }}?open=sale"
-                               class="asset-action-btn purchase" title="Process Sale" style="color:#f59e0b;">
+                            class="asset-action-btn purchase" title="Process Sale" style="color:#f59e0b;">
                                 <span class="material-symbols-rounded">shopping_cart_checkout</span>
                             </a>
                             <div class="action-dropdown">

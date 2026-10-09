@@ -113,8 +113,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const customerDeposits = Number(data.customer_deposits) || 0;
                 const lowStockCount = Number(data.low_stock_count) || 0;
 
-                const adjustedSales = rawSales - freightExpense;
-                const overallIncome = adjustedSales + totalRentals + totalRefillIncome;
+                const overallIncome = rawSales + totalRentals + totalRefillIncome;
                 const netProfit = overallIncome - totalExpenses;
 
                 const valOverallIncome = document.getElementById("val-overall-income");
@@ -131,22 +130,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
 
+                // Sold Profit (Left Card) remains pure rawSales without freight deduction
                 const valTotalSales = document.getElementById("val-total-sales");
                 if (valTotalSales) {
-                    if (adjustedSales >= 0) {
-                        valTotalSales.innerText = "₱" + adjustedSales.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                    if (rawSales >= 0) {
+                        valTotalSales.innerText = "₱" + rawSales.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
                     } else {
-                        valTotalSales.innerText = "−₱" + Math.abs(adjustedSales).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                        valTotalSales.innerText = "−₱" + Math.abs(rawSales).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
                     }
                 }
 
-                const valSalesBreakdown = document.getElementById("val-sales-breakdown");
-                if (valSalesBreakdown) {
-                    const formattedGross = "₱" + rawSales.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
-                    const formattedFreight = "₱" + freightExpense.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
-                    valSalesBreakdown.innerText = `Gross: ${formattedGross} | Freight: -${formattedFreight}`;
-                }
-
+                // Net Profit Income (Right Card) has freight deducted
                 const valSalesNet = document.getElementById("val-sales-net");
                 if (valSalesNet) {
                     if (salesNet >= 0) {
@@ -156,6 +150,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         valSalesNet.style.color = "#dc2626";
                         valSalesNet.innerText = "−₱" + Math.abs(salesNet).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
                     }
+                }
+
+                const valSalesBreakdown = document.getElementById("val-sales-breakdown");
+                if (valSalesBreakdown) {
+                    const preFreightNetProfit = salesNet + freightExpense;
+                    
+                    const formattedPreFreight = "₱" + preFreightNetProfit.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                    const formattedFreight = "₱" + freightExpense.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                    
+                    valSalesBreakdown.innerText = `NPI: ${formattedPreFreight} | Frt: -${formattedFreight}`;
                 }
 
                 const valTotalRefillIncome = document.getElementById("val-total-refill-income");
@@ -176,14 +180,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const valTotalCommission = document.getElementById("val-total-commission");
                 if (valTotalCommission) {
                     const refillBonus = totalRefillsCount * 100;
-
-                    // "Net Profit Income" = sales_net from /admin/dashboard/data
-                    // (the figure shown as val-sales-net). This must be defined
-                    // here -- an undefined identifier threw a ReferenceError that
-                    // aborted this whole update callback before it reached the
-                    // cards below (Customer Deposits stayed at its default ₱0).
                     const salesCommission = salesNet * 0.50;
-
                     const totalCommission = rentalIncomeValue + refillBonus + salesCommission;
                     valTotalCommission.innerText = "₱" + totalCommission.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
                 }
@@ -280,6 +277,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     loadDashboardData('this_month');
+
 
     /* ── 4. Sales Summary Modal & Product Breakdown Loader ───────── */
     const salesCard = document.getElementById('card-sales-profit');
@@ -673,7 +671,92 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    /* ── 9. Global Keyboard Esc Listener for Modals ──────────────── */
+    /* ── Total Freight Expense Summary Modal Loader ─────────────────── */
+    const cardTotalFreight = document.getElementById('card-total-freight');
+    const freightModal = document.getElementById('freightSummaryModal');
+    const closeFreightModalBtn = document.getElementById('closeFreightModal');
+    const closeFreightFooterBtn = document.getElementById('closeFreightModalFooter');
+    const freightTbody = document.getElementById('freight-summary-tbody');
+    const freightModalDateRange = document.getElementById('freight-modal-date-range');
+    const freightModalCount = document.getElementById('freight-modal-count');
+
+    const closeFreightModal = () => {
+        if (freightModal) freightModal.style.display = 'none';
+    };
+
+    if (cardTotalFreight && freightModal) {
+        cardTotalFreight.addEventListener('click', function() {
+            freightModal.style.display = 'flex';
+
+            const currentPeriod = filterPeriodSelect ? filterPeriodSelect.value : 'this_month';
+            const startVal = startDateInput ? startDateInput.value : '';
+            const endVal = endDateInput ? endDateInput.value : '';
+
+            if (freightModalDateRange) {
+                freightModalDateRange.innerText = `Period: ${currentPeriod.replace('_', ' ').toUpperCase()}`;
+            }
+
+            if (freightTbody) {
+                freightTbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 18px; color: #64748b;">Loading freight expenses...</td></tr>`;
+            }
+
+            let fetchUrl = `/admin/dashboard/freight-transactions?period=${currentPeriod}`;
+            if (currentPeriod === 'custom' && startVal && endVal) {
+                fetchUrl += `&start_date=${startVal}&end_date=${endVal}`;
+            }
+
+            fetch(fetchUrl)
+                .then(response => response.json())
+                .then(data => {
+                    const freights = data.expenses || [];
+                    if (freightModalCount) {
+                        freightModalCount.textContent = `Showing ${freights.length} record${freights.length === 1 ? '' : 's'}`;
+                    }
+
+                    if (freights.length === 0) {
+                        if (freightTbody) {
+                            freightTbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 18px; color: #64748b;">No freight expense records found for this period.</td></tr>`;
+                        }
+                        return;
+                    }
+
+                    let html = '';
+                    freights.forEach(item => {
+                        const dateStr = item.date || '';
+                        const title = item.expense_title || 'Freight Expense';
+                        const notes = item.description || '—';
+                        const amount = Number(item.amount) || 0;
+
+                        html += `
+                            <tr style="border-bottom: 1px solid #f1f5f9;">
+                                <td style="padding: 8px; color: #64748b; font-size: 0.9rem;">${dateStr}</td>
+                                <td style="padding: 8px; font-weight: 500; color: #0f172a;">${title}</td>
+                                <td style="padding: 8px; color: #475569;">${notes}</td>
+                                <td style="padding: 8px; text-align: right; font-weight: 600; color: #9333ea;">₱${amount.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2})}</td>
+                            </tr>
+                        `;
+                    });
+                    if (freightTbody) freightTbody.innerHTML = html;
+                })
+                .catch(error => {
+                    console.error('Error fetching freight expenses:', error);
+                    if (freightTbody) {
+                        freightTbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 18px; color: #dc2626;">Failed to load freight expenses.</td></tr>`;
+                    }
+                });
+        });
+    }
+
+    if (closeFreightModalBtn) closeFreightModalBtn.addEventListener('click', closeFreightModal);
+    if (closeFreightFooterBtn) closeFreightFooterBtn.addEventListener('click', closeFreightModal);
+
+    if (freightModal) {
+        freightModal.addEventListener('click', function(e) {
+            if (e.target === freightModal) closeFreightModal();
+        });
+    }
+
+    /* ── 10. Global Keyboard Esc Listener for Modals ──────────────── */
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             if (salesModal && salesModal.style.display === 'flex') {

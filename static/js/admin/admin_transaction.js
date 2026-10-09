@@ -88,6 +88,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
 /*============= START OF REFILL PROCESS =============*/
 document.addEventListener('DOMContentLoaded', () => {
+    const refillModal = document.getElementById('refillAssetModal');
+    const refillForm = document.getElementById('refill-transaction-form');
+    const closeRefillModalBtn = document.getElementById('close-refill-modal');
+    const cancelRefillModalBtn = document.getElementById('cancel-refill-modal');
+
     const refillSearchInput = document.getElementById('refill-search-input');
     const refillDropdown = document.getElementById('refill-customer-dropdown-list');
     const refillOptions = document.querySelectorAll('.refill-option-item');
@@ -104,7 +109,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const dynamicRowsContainer = document.getElementById('refill-dynamic-rows-container');
     const refillAmountInput = document.getElementById('refill-amount-cost');
 
-    // Parse active oxygen rentals JSON dataset from template
     let activeOxygenRentals = [];
     try {
         const scriptTag = document.getElementById('active-oxygen-rentals-data');
@@ -115,7 +119,6 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error("Failed to parse active oxygen rentals JSON", e);
     }
 
-    // Parse refillable products JSON dataset from template for unregistered dropdowns
     let refillableProducts = [];
     try {
         const scriptTag = document.getElementById('refillable-products-data');
@@ -123,51 +126,54 @@ document.addEventListener('DOMContentLoaded', () => {
             refillableProducts = JSON.parse(scriptTag.textContent);
         }
     } catch (e) {
-        refillableProducts = Array.from(tankSelect.options).map(opt => opt.value);
+        refillableProducts = [];
     }
 
-    // Helper function to find and update the refill cost based on the selected product
+    // Helper function to sum up costs directly from active rentals or selected option data-cost attributes
     function updateRefillCost() {
         if (!refillAmountInput) return;
         
+        let totalCost = 0;
         const buyerTypeElement = document.querySelector('input[name="refill_buyer_type"]:checked');
-        if (!buyerTypeElement) return;
-
-        const buyerType = buyerTypeElement.value;
-        const isRegistered = buyerType === 'registered';
-        let selectedProductKey = '';
+        const isRegistered = buyerTypeElement && buyerTypeElement.value === 'registered';
 
         if (isRegistered) {
-            selectedProductKey = tankSelect ? tankSelect.value : '';
+            const rentalSelects = dynamicRowsContainer.querySelectorAll('select[name="swapped_rental_serial"]');
+            rentalSelects.forEach(select => {
+                const selectedSerial = select.value;
+                if (selectedSerial) {
+                    const matchedRental = activeOxygenRentals.find(r => String(r.serial_number) === String(selectedSerial));
+                    if (matchedRental) {
+                        if (matchedRental.refill_cost !== undefined && matchedRental.refill_cost !== null && !isNaN(matchedRental.refill_cost)) {
+                            totalCost += parseFloat(matchedRental.refill_cost) || 0.00;
+                        } else if (matchedRental.product_id) {
+                            const matchedProduct = refillableProducts.find(p => String(p.id) === String(matchedRental.product_id));
+                            if (matchedProduct && matchedProduct.refill_cost !== undefined) {
+                                totalCost += parseFloat(matchedProduct.refill_cost) || 0.00;
+                            }
+                        } else if (matchedRental.product_name) {
+                            const matchedProduct = refillableProducts.find(p => 
+                                String(p.name).toLowerCase() === String(matchedRental.product_name).toLowerCase() && 
+                                String(p.size || '').toLowerCase() === String(matchedRental.product_size || '').toLowerCase()
+                            );
+                            if (matchedProduct && matchedProduct.refill_cost !== undefined) {
+                                totalCost += parseFloat(matchedProduct.refill_cost) || 0.00;
+                            }
+                        }
+                    }
+                }
+            });
         } else {
-            const firstUnregSelect = dynamicRowsContainer.querySelector('select[name="unregistered_product_size"]');
-            if (firstUnregSelect) {
-                selectedProductKey = firstUnregSelect.value;
-            }
+            const allRowSelects = dynamicRowsContainer.querySelectorAll('select[name="unregistered_product_size"]');
+            allRowSelects.forEach(select => {
+                const selectedOption = select.options[select.selectedIndex];
+                if (selectedOption && selectedOption.dataset.cost) {
+                    totalCost += parseFloat(selectedOption.dataset.cost) || 0.00;
+                }
+            });
         }
 
-        // If no product is selected, clear the input completely (no 0.00)
-        if (!selectedProductKey) {
-            refillAmountInput.value = '';
-            return;
-        }
-
-        // Find matching product in refillableProducts array
-        const matchedProduct = refillableProducts.find(prod => {
-            if (typeof prod === 'object' && prod !== null) {
-                const combinedName = `${prod.name} - ${prod.size}`;
-                return combinedName === selectedProductKey || prod.name === selectedProductKey;
-            }
-            return prod === selectedProductKey;
-        });
-
-        if (matchedProduct && typeof matchedProduct === 'object' && matchedProduct.refill_cost !== undefined && matchedProduct.refill_cost !== '') {
-            // Assign the clean value without forcing unnecessary trailing zeros if blank/empty
-            const costVal = parseFloat(matchedProduct.refill_cost);
-            refillAmountInput.value = isNaN(costVal) ? '' : costVal;
-        } else {
-            refillAmountInput.value = '';
-        }
+        refillAmountInput.value = totalCost > 0 ? totalCost.toFixed(2) : '';
     }
 
     function renderDynamicRows() {
@@ -176,16 +182,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const isRegistered = buyerType === 'registered';
         const currentCustomerId = refillIdInput.value;
 
-        // Capture existing values before clearing to prevent loss on input change
         const existingRows = Array.from(dynamicRowsContainer.children);
         const savedValues = existingRows.map(row => {
-            const select = row.querySelector('select[name="swapped_rental_serial"]');
-            const selectUnregProd = row.querySelector('select[name="unregistered_product_size"]');
+            const select = row.querySelector('select');
             const inputEmpty = row.querySelector('input[name="empty_serial_numbers"]');
             const inputFull = row.querySelector('input[name="serial_numbers"]');
             return {
-                selectedRental: select ? select.value : '',
-                selectedUnregProd: selectUnregProd ? selectUnregProd.value : '',
+                selectedValue: select ? select.value : '',
                 emptySerial: inputEmpty ? inputEmpty.value : '',
                 incomingSerial: inputFull ? inputFull.value : ''
             };
@@ -195,24 +198,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!isRegistered) {
             let productOptionsHtml = '<option value="">Select tank size...</option>';
-            if (refillableProducts.length > 0 && typeof refillableProducts[0] === 'object') {
-                refillableProducts.forEach(prod => {
-                    productOptionsHtml += `<option value="${prod.name} - ${prod.size}">${prod.name} - ${prod.size}</option>`;
-                });
-            } else {
-                Array.from(tankSelect.options).forEach(opt => {
-                    productOptionsHtml += `<option value="${opt.value}">${opt.textContent.trim()}</option>`;
-                });
-            }
+            refillableProducts.forEach(prod => {
+                productOptionsHtml += `<option value="${prod.id}" data-cost="${prod.refill_cost || 0.00}">${prod.name} ${prod.size ? '(' + prod.size + ')' : ''} - ₱${parseFloat(prod.refill_cost || 0).toFixed(2)}</option>`;
+            });
 
             for (let i = 1; i <= qty; i++) {
-                const prevData = savedValues[i - 1] || { selectedUnregProd: '', emptySerial: '', incomingSerial: '' };
+                const prevData = savedValues[i - 1] || { selectedValue: '', emptySerial: '', incomingSerial: '' };
                 const row = document.createElement('div');
                 row.style.cssText = 'display: flex; flex-direction: column; gap: 8px; width: 100%; background: #f8fafc; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0; box-sizing: border-box; margin-bottom: 10px;';
                 
-                let currentProdOpts = productOptionsHtml;
-                if (prevData.selectedUnregProd) {
-                    currentProdOpts = currentProdOpts.replace(`value="${prevData.selectedUnregProd}"`, `value="${prevData.selectedUnregProd}" selected`);
+                let optionsHtml = productOptionsHtml;
+                if (prevData.selectedValue) {
+                    optionsHtml = optionsHtml.replace(`value="${prevData.selectedValue}"`, `value="${prevData.selectedValue}" selected`);
                 }
 
                 row.innerHTML = `
@@ -220,7 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <label style="font-weight: 700; color: #1e293b; margin-bottom: 4px; display: block; font-size: 0.8rem;">Tank Product & Size #${i}</label>
                         <select name="unregistered_product_size" class="medical-select" required
                                 style="width: 100%; height: 38px; padding: 0 10px; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #1e293b; font-size: 0.85rem; outline: none; box-sizing: border-box;">
-                            ${currentProdOpts}
+                            ${optionsHtml}
                         </select>
                     </div>
                     <div style="display: flex; gap: 10px; width: 100%;">
@@ -245,13 +242,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const customerRentals = activeOxygenRentals.filter(r => String(r.customer_id) === String(currentCustomerId));
 
         for (let i = 1; i <= qty; i++) {
-            const prevData = savedValues[i - 1] || { selectedRental: '', incomingSerial: '' };
+            const prevData = savedValues[i - 1] || { selectedValue: '', incomingSerial: '' };
             const row = document.createElement('div');
             row.style.cssText = 'display: flex; gap: 10px; width: 100%; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0; align-items: flex-end; box-sizing: border-box;';
             
             let rentalOptionsHtml = '<option value="">Select tank to return...</option>';
             customerRentals.forEach(rental => {
-                const isSelected = rental.serial_number === prevData.selectedRental ? 'selected' : '';
+                const isSelected = rental.serial_number === prevData.selectedValue ? 'selected' : '';
                 rentalOptionsHtml += `<option value="${rental.serial_number}" ${isSelected}>${rental.product_name} (${rental.product_size}) - SN: ${rental.serial_number}</option>`;
             });
 
@@ -274,56 +271,39 @@ document.addEventListener('DOMContentLoaded', () => {
         updateRefillCost();
     }
 
-    // Attach event listener to main tank select for cost updates
     if (tankSelect) {
         tankSelect.addEventListener('change', updateRefillCost);
     }
 
-    // Attach delegated event listener to dynamic container for unregistered product change events
     if (dynamicRowsContainer) {
         dynamicRowsContainer.addEventListener('change', (e) => {
-            if (e.target.matches('select[name="unregistered_product_size"]')) {
+            if (e.target.matches('select')) {
                 updateRefillCost();
             }
         });
     }
 
-    // 1. Toggle Buyer Type UI
     document.querySelectorAll('input[name="refill_buyer_type"]').forEach(radio => {
         radio.addEventListener('change', (e) => {
             const isRegistered = e.target.value === 'registered';
             
+            // Cleanly clear fields when switching between tabs
+            if (refillAmountInput) refillAmountInput.value = '';
+            if (quantityInput) quantityInput.value = '1';
+            if (refillSearchInput) refillSearchInput.value = '';
+            if (refillIdInput) refillIdInput.value = '';
+            if (unregNameIndex = document.querySelector('input[name="unregistered_customer_name"]')) {
+                unregNameIndex.value = '';
+            }
+            
             document.getElementById('refill-registered-group').style.display = isRegistered ? 'block' : 'none';
             document.getElementById('refill-unregistered-group').style.display = isRegistered ? 'none' : 'block';
             
-            if (isRegistered) {
-                unregNameInput.value = '';
-            } else {
-                refillSearchInput.value = '';
-                refillIdInput.value = '';
-            }
-            
-            if (isRegistered) {
-                tankSelect.style.display = 'block';
-                tankSelect.setAttribute('name', 'tank_size');
-                tankText.style.display = 'none';
-                tankText.removeAttribute('name');
-                labelReg.style.display = 'inline';
-                labelUnreg.style.display = 'none';
-            } else {
-                tankSelect.style.display = 'none';
-                tankSelect.removeAttribute('name');
-                tankText.style.display = 'none';
-                tankText.removeAttribute('name');
-                labelReg.style.display = 'none';
-                labelUnreg.style.display = 'none';
-            }
             renderDynamicRows();
             updateRefillCost();
         });
     });
 
-    // 2. Search Filter for Customers
     refillSearchInput.addEventListener('input', () => {
         const term = refillSearchInput.value.toLowerCase();
         refillDropdown.classList.remove('hidden');
@@ -337,54 +317,62 @@ document.addEventListener('DOMContentLoaded', () => {
         noMatch.style.display = hasMatch ? 'none' : 'block';
     });
 
-    // 3. Selection of Customer
     refillOptions.forEach(opt => {
         opt.addEventListener('click', () => {
             refillSearchInput.value = opt.dataset.name;
             refillIdInput.value = opt.dataset.id;
             refillDropdown.classList.add('hidden');
             renderDynamicRows();
+            updateRefillCost();
         });
     });
 
-    // 4. Quantity Change Event
-    quantityInput.addEventListener('input', renderDynamicRows);
-    quantityInput.addEventListener('change', renderDynamicRows);
+    quantityInput.addEventListener('input', () => {
+        renderDynamicRows();
+        updateRefillCost();
+    });
+    quantityInput.addEventListener('change', () => {
+        renderDynamicRows();
+        updateRefillCost();
+    });
 
-    // 5. Close dropdown when clicking outside
     document.addEventListener('click', (event) => {
         if (!refillSearchInput.contains(event.target) && !refillDropdown.contains(event.target)) {
             refillDropdown.classList.add('hidden');
         }
     });
 
-    // 6. Initialize UI state on page load
+    // Complete Reset Functionality on Modal Close/Cancel
+    function resetRefillModal() {
+        if (refillForm) refillForm.reset();
+        if (dynamicRowsContainer) dynamicRowsContainer.innerHTML = '';
+        if (refillAmountInput) refillAmountInput.value = '';
+        if (quantityInput) quantityInput.value = '1';
+        if (refillSearchInput) refillSearchInput.value = '';
+        if (refillIdInput) refillIdInput.value = '';
+        if (unregNameInput) unregNameInput.value = '';
+        
+        const registeredRadio = document.getElementById('refill-buyer-registered');
+        if (registeredRadio) {
+            registeredRadio.checked = true;
+            registeredRadio.dispatchEvent(new Event('change'));
+        }
+        if (refillModal) refillModal.classList.add('hidden');
+    }
+
+    if (closeRefillModalBtn) {
+        closeRefillModalBtn.addEventListener('click', resetRefillModal);
+    }
+    if (cancelRefillModalBtn) {
+        cancelRefillModalBtn.addEventListener('click', resetRefillModal);
+    }
+
     const checkedRadio = document.querySelector('input[name="refill_buyer_type"]:checked');
     if (checkedRadio) {
         checkedRadio.dispatchEvent(new Event('change'));
     }
     
     updateRefillCost();
-});
-
-document.addEventListener("DOMContentLoaded", function() {
-    const regRadio = document.getElementById("refill-buyer-registered");
-    const unregRadio = document.getElementById("refill-buyer-unregistered");
-    const tankContainer = document.getElementById("refill-tank-selection-container");
-
-    function updateTankVisibility() {
-        if (regRadio.checked) {
-            tankContainer.style.display = "none";
-        } else {
-            tankContainer.style.display = "none";
-        }
-    }
-
-    if (regRadio && unregRadio && tankContainer) {
-        regRadio.addEventListener("change", updateTankVisibility);
-        unregRadio.addEventListener("change", updateTankVisibility);
-        updateTankVisibility();
-    }
 });
 /*============= END OF REFILL PROCESS =============*/
 

@@ -111,14 +111,14 @@
             <div class="stat-info" style="display: flex !important; flex-direction: row !important; justify-content: space-between !important; align-items: center !important; width: 100%; gap: 10px;">
 
                 <div style="flex: 1; min-width: 0;">
-                    <span class="stat-label" style="display: block; font-size: 0.55rem; font-weight: 600; color: #475569;">Total Profit Sold</span>
+                    <span class="stat-label" style="display: block; font-size: 0.55rem; font-weight: 600; color: #475569;">Sold Profit</span>
                     <span class="stat-value" id="val-total-sales" style="font-size: 0.85rem; font-weight: 700; color: #0f172a;">₱0</span>
-                    <small id="val-sales-breakdown" style="color: #64748b; font-size: 0.45rem; display: block; margin-top: 1px;">Gross: ₱0 | Freight: -₱0</small>
                 </div>
 
                 <div style="flex: 1; min-width: 0; text-align: right; border-left: 2px solid #cbd5e1; padding-left: 10px;">
                     <span style="font-size: 0.55rem; font-weight: 600; display: block; color: #475569;">Net Profit Income</span>
-                    <strong id="val-sales-net" style="color:#059669; font-size: 0.85rem; font-weight: 700;">₱0</strong>
+                    <strong id="val-sales-net" style="color:#059669; font-size: 0.85rem; font-weight: 700; display: block;">₱0</strong>
+                    <small id="val-sales-breakdown" style="color: #64748b; font-size: 0.45rem; display: block; margin-top: 1px;">Net Profit Income | Freight: -₱0</small>
                 </div>
 
             </div>
@@ -207,7 +207,7 @@
         {% endif %}
 
         {% if 'freight' in visible_cards %}
-        <div class="stat-card">
+        <div class="stat-card" id="card-total-freight" style="cursor: pointer;">
             <div class="stat-icon purple"><span class="material-symbols-rounded">local_shipping</span></div>
             <div class="stat-info">
                 <span class="stat-label">Total Freight Expense</span>
@@ -229,7 +229,6 @@
                 
                 <div style="flex: 1; min-width: 0; text-align: right; border-left: 2px solid #cbd5e1; padding-left: 10px;">
                     <span style="font-size: 0.55rem; font-weight: 600; display: block; color: #475569;">Formula Breakdown</span>
-                    <!-- Updated text breakdown -->
                     <span style="font-size: 0.4rem; color: #64748b; display: block; line-height: 1.1;">30% Rental + Refills×100 + 50% Net Profit Income</span>
                 </div>
 
@@ -548,6 +547,52 @@
     </div>
 </div>
 
+<!-- Freight Expense Summary Modal -->
+<div id="freightSummaryModal" class="medical-modal-backdrop" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); z-index: 1050; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+    <div class="medical-modal-card" style="background: #fff; width: 92%; max-width: 800px; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); overflow: hidden; display: flex; flex-direction: column; max-height: 90vh;">
+
+        <div style="padding: 10px 16px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="background: #f3e8ff; color: #9333ea; padding: 4px; border-radius: 4px; display: flex;">
+                    <span class="material-symbols-rounded" style="font-size: 0.95rem;">local_shipping</span>
+                </div>
+                <div>
+                    <h3 style="margin: 0; font-size: 0.85rem; color: #0f172a; font-weight: 700;">Freight Expense Summary</h3>
+                    <span style="font-size: 0.68rem; color: #64748b;" id="freight-modal-date-range">Filtered by selected period</span>
+                </div>
+            </div>
+            <button type="button" id="closeFreightModal" style="background: transparent; border: none; cursor: pointer; color: #64748b; padding: 2px; border-radius: 4px; display: flex; align-items: center;">
+                <span class="material-symbols-rounded" style="font-size: 0.95rem;">close</span>
+            </button>
+        </div>
+
+        <div style="padding: 10px 16px; overflow-y: auto; flex: 1;">
+            <div class="table-scroll-wrapper">
+                <table class="medical-data-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.73rem;">
+                    <thead>
+                        <tr style="border-bottom: 2px solid #e2e8f0; color: #475569; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.03em;">
+                            <th style="padding: 8px;">Date</th>
+                            <th style="padding: 8px;">Expense Title / Details</th>
+                            <th style="padding: 8px;">Notes</th>
+                            <th style="padding: 8px; text-align: right;">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody id="freight-summary-tbody">
+                        <tr>
+                            <td colspan="4" style="text-align: center; padding: 18px; color: #64748b; font-size: 0.73rem;">Loading freight expense summary...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div style="padding: 8px 16px; border-top: 1px solid #e2e8f0; background: #f8fafc; display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 0.7rem; color: #475569;" id="freight-modal-count">Showing 0 records</span>
+            <button type="button" id="closeFreightModalFooter" style="padding: 4px 12px; background: #0f172a; color: #fff; border: none; border-radius: 4px; font-weight: 500; font-size: 0.73rem; cursor: pointer;">Close</button>
+        </div>
+
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}

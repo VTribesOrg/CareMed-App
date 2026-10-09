@@ -237,6 +237,7 @@ def dashboard_data():
         sales_rentals_query = apply_date_filter(sales_rentals_query)
         sales_and_rentals = sales_rentals_query.first()
         
+        # 1. Sold Profit (Gross) stays pure and un-deducted
         total_sales = float(sales_and_rentals[0]) if sales_and_rentals and sales_and_rentals[0] is not None else 0.0
         total_rentals = float(sales_and_rentals[1]) if sales_and_rentals and sales_and_rentals[1] is not None else 0.0
 
@@ -253,7 +254,21 @@ def dashboard_data():
         cogs_query = apply_date_filter(cogs_query)
         total_cogs = cogs_query.scalar()
         
-        sales_net = total_sales - float(total_cogs or 0.0)
+        # Fetch Freight Expenses
+        freight_expenses_query = db.session.query(
+            func.coalesce(func.sum(Expense.amount), 0)
+        ).filter(db.func.upper(Expense.category) == 'FREIGHT')
+        
+        if hasattr(Expense, 'created_at'):
+            freight_expenses_query = apply_date_filter(freight_expenses_query, Expense.created_at)
+        elif hasattr(Expense, 'date'):
+            freight_expenses_query = apply_date_filter(freight_expenses_query, Expense.date)
+        
+        total_freight = float(freight_expenses_query.scalar() or 0.0)
+
+        # 2. Net Profit Income = (Total Sales - COGS) - Total Freight Expense
+        base_sales_net = total_sales - float(total_cogs or 0.0)
+        sales_net = base_sales_net - total_freight
 
         # EXCLUDE deposits and deposit refunds from income metrics
         initial_fill_payments_query = db.session.query(
@@ -298,7 +313,7 @@ def dashboard_data():
         refill_stats = refill_stats_query.first()
         
         base_refill_income = float(refill_stats[0]) if refill_stats and refill_stats[0] is not None else 0.0
-        base_refill_profit = float(refill_stats[1]) if refill_stats and refill_stats[1] is not None else 0.0
+        base_refill_profit = float(refill_stats[1]) if refill_stats and refill_stats[1] is not None else 0.5
         base_refills_count = int(refill_stats[2]) if refill_stats and refill_stats[2] is not None else 0
 
         total_refills_count = base_refills_count + int(initial_fill_tanks_count)
@@ -317,17 +332,6 @@ def dashboard_data():
             customer_deposits_query = apply_date_filter(customer_deposits_query, CustomerDeposit.date)
             
         customer_deposits_total = customer_deposits_query.scalar() or 0.00
-
-        freight_expenses_query = db.session.query(
-            func.coalesce(func.sum(Expense.amount), 0)
-        ).filter(Expense.category == 'Freight')
-        
-        if hasattr(Expense, 'created_at'):
-            freight_expenses_query = apply_date_filter(freight_expenses_query, Expense.created_at)
-        elif hasattr(Expense, 'date'):
-            freight_expenses_query = apply_date_filter(freight_expenses_query, Expense.date)
-        
-        total_freight = float(freight_expenses_query.scalar() or 0.0)
 
         expenses_query = db.session.query(
             func.coalesce(func.sum(Expense.amount), 0)
@@ -800,7 +804,44 @@ def get_expense_transactions():
         'success': True,
         'expenses': expenses_list
     })
-        
+      
+@admin_bp.route("/dashboard/freight-transactions")
+@login_required
+@admin_or_staff_required
+def dashboard_freight_transactions():
+    try:
+        period = request.args.get('period', 'this_month')
+        custom_start = request.args.get('start_date')
+        custom_end = request.args.get('end_date')
+
+        start_date, end_date = get_date_boundaries(period, custom_start, custom_end)
+
+        def apply_date_filter(query, date_column=Expense.date_incurred):
+            if start_date:
+                query = query.filter(date_column >= start_date)
+            if end_date:
+                query = query.filter(date_column < end_date)
+            return query
+
+        query = Expense.query.filter(db.func.upper(Expense.category) == "FREIGHT")
+        query = apply_date_filter(query)
+        expenses = query.order_by(Expense.date_incurred.desc()).all()
+
+        freight_list = []
+        for exp in expenses:
+            freight_list.append({
+                "date": exp.date_incurred.strftime('%b %d, %Y') if exp.date_incurred else (exp.created_at.strftime('%b %d, %Y') if exp.created_at else ''),
+                "expense_title": exp.expense_title or exp.category or 'Freight Expense',
+                "description": exp.description or '—',
+                "amount": float(exp.amount or 0)
+            })
+
+        return jsonify({"expenses": freight_list})
+
+    except Exception:
+        current_app.logger.exception("Critical error encountered while fetching freight expense transactions.")
+        return jsonify({"error": "Failed to load freight transactions."}), 500
+            
 @admin_bp.route('/process-refill-transaction', methods=['POST'])
 @login_required
 @admin_or_staff_required
@@ -988,7 +1029,7 @@ def process_refill_transaction():
         db.session.add(new_transaction)
         db.session.flush() 
 
-        new_transaction.update_totals()
+        # Assign unique reference number based on generated ID
         new_transaction.reference_no = f"RFL-{new_transaction.id:06d}"
 
         if amount_paid > 0:
@@ -1032,10 +1073,9 @@ def process_refill_transaction():
                 verified_by_id=current_user.id,
                 verified_at=datetime.utcnow()
             ))
-            # Recompute totals AFTER the payment row exists so amount_paid
-            # reflects what the customer paid for this refill.
             db.session.flush()
-            new_transaction.update_totals()
+
+        new_transaction.update_totals()
 
         log = InventoryLog(
             product_id=product.id if product else None,
@@ -1445,7 +1485,8 @@ def products():
     limit          = request.args.get('limit', 10, type=int)
     search_query   = request.args.get('q', '').strip()
     equipment_type = request.args.get('type', 'all')
-    filter_type    = request.args.get('filter', '')         
+    txn_type       = request.args.get('txn_type', 'all')
+    filter_type    = request.args.get('filter', '')        
  
     query = Product.query.filter(Product.status != 'Archived')
  
@@ -1457,6 +1498,9 @@ def products():
  
     if equipment_type and equipment_type != 'all':
         query = query.filter(Product.equipment_type.ilike(f"%{equipment_type}%"))
+
+    if txn_type and txn_type != 'all':
+        query = query.filter(Product.transaction_type == txn_type)
  
     # ── filter deep-links from notifications ──────────────────────────────
     if filter_type == 'low_stock':
@@ -1509,13 +1553,14 @@ def products():
         search_query=search_query,
         current_limit=limit,
         current_type=equipment_type,
-        current_filter=filter_type,      
+        current_txn_type=txn_type,
+        current_filter=filter_type,       
         start_entry=start_entry,
         end_entry=end_entry,
         equipment_types=equipment_types,
         **stats
     )
-
+    
 @admin_bp.route('/add-product', methods=['POST'])
 @login_required
 @admin_or_staff_required
@@ -1536,6 +1581,17 @@ def add_product():
     rent_period = request.form.get("rent_period", "Monthly").strip().title()
     condition = request.form.get("condition", "Brand New").strip()
 
+    # Check for existing duplicate product by equipment type, name, and size securely
+    existing_product = Product.query.filter(
+        db.func.lower(Product.equipment_type) == equipment_type.lower(),
+        db.func.lower(Product.name) == name.lower(),
+        db.func.lower(db.func.coalesce(Product.size, '')) == size.lower()
+    ).first()
+
+    if existing_product:
+        flash(f"A product with the equipment type '{equipment_type}', name '{name}'{f' and size {size}' if size else ''} already exists in your inventory.", "warning")
+        return redirect(request.referrer)
+
     try:
         stock = int(request.form.get("stock", 0))
         rent_price_raw = request.form.get("rent_price", "").strip()
@@ -1554,7 +1610,7 @@ def add_product():
             sale_price = Decimal(sale_price_raw) if sale_price_raw else Decimal("0.00")
 
         cost_price = Decimal(cost_price_raw) if cost_price_raw else Decimal("0.00")
-        refill_cost = Decimal(refill_cost_raw) if refill_cost_raw else Decimal("0.00")  # Added Decimal conversion
+        refill_cost = Decimal(refill_cost_raw) if refill_cost_raw else Decimal("0.00")
         
         if transaction_type == 'Rental' and rent_price <= 0:
             flash("Please provide a valid rent price for 'Rent Only' items.", "warning")
@@ -2896,6 +2952,13 @@ def transactions():
     
     unique_refillable_products = list(grouped_refills.values())
 
+    refillable_products_json = [{
+        "id": p.id,
+        "name": p.name,
+        "size": p.size or "",
+        "refill_cost": float(p.refill_cost or 0.00)
+    } for p in unique_refillable_products]
+
     raw_active_rentals = Rental.query.join(Product).filter(
         Rental.status == 'Active',
         Product.name.ilike('%Oxygen%')
@@ -2911,7 +2974,8 @@ def transactions():
                         'customer_id': rental.customer_id,
                         'serial_number': clean_sn,
                         'product_name': rental.product.name if rental.product else 'Oxygen Tank',
-                        'product_size': rental.product.size if rental.product and rental.product.size else 'Standard'
+                        'product_size': rental.product.size if rental.product and rental.product.size else 'Standard',
+                        'refill_cost': float(rental.product.refill_cost or 0.00) if rental.product else 0.00
                     })
     
     return render_template(
@@ -2928,11 +2992,12 @@ def transactions():
         customers=customers,
         all_equipment=all_equipment,
         refillable_products=unique_refillable_products,
+        refillable_products_json=refillable_products_json,
         active_rentals_list=active_rentals_list,
         datetime_now_date=current_date,
         **stats
     )
-
+    
 @admin_bp.route('/transactions/cancel/<int:txn_id>', methods=['POST'])
 @login_required
 @admin_or_staff_required
@@ -3069,7 +3134,7 @@ def active_rentals():
     page = request.args.get('page', 1, type=int)
     limit = request.args.get('limit', 10, type=int)
     search_query = request.args.get('q', '').strip()
-    filter_type = request.args.get('filter', '')  
+    equipment_filter = request.args.get('equipment_type', '').strip()  
    
     active_statuses = ['Active', 'Overdue', 'Awaiting Return']
     
@@ -3095,11 +3160,8 @@ def active_rentals():
                          )
                      ).distinct()
 
-    today = date.today()
-    if filter_type == 'overdue_return':
-        query = query.filter(Rental.expected_return_date < today)
-    elif filter_type == 'awaiting_return':
-        query = query.filter(Rental.status == 'Awaiting Return')
+    if equipment_filter:
+        query = query.join(Rental.product).filter(Product.equipment_type == equipment_filter)
     
     pagination = query.order_by(Rental.expected_return_date.asc()).paginate(
         page=page,
@@ -3107,16 +3169,25 @@ def active_rentals():
         error_out=False
     )
     
+    equipment_types_query = db.session.query(Product.equipment_type)\
+                                       .join(Rental.product)\
+                                       .filter(Rental.status.in_(active_statuses))\
+                                       .distinct()\
+                                       .all()
+    equipment_types = [et[0] for et in equipment_types_query if et[0]]
+    
+    today = date.today()
     return render_template(
         'admin/active_rentals.html',
         rentals=pagination.items,
         pagination=pagination,
         search_query=search_query,
         datetime_now_date=today,
-        current_filter=filter_type,
+        current_equipment_filter=equipment_filter,
+        equipment_types=equipment_types,
         current_limit=limit
     )
-    
+       
 @admin_bp.route('/collection-monitoring')
 @login_required
 def collection_monitoring():
@@ -3186,9 +3257,117 @@ def process_payment(id):
     return render_template('admin/process_payment.html')
 
 import openpyxl
-from openpyxl.styles import Font, PatternFill, Alignment
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
 from io import BytesIO
 from flask import make_response
+
+# ── Shared styling for spreadsheet exports (matches CareMed green theme) ──
+_XLSX_GREEN = "16A34A"
+_XLSX_GREEN_DARK = "0F7A37"
+_XLSX_BAND = "ECFDF5"
+_XLSX_KPI_FILL = "F0FDF4"
+_XLSX_CURRENCY_FMT = '"₱"#,##0.00'
+_XLSX_THIN = Side(style="thin", color="D1D5DB")
+_XLSX_BORDER = Border(left=_XLSX_THIN, right=_XLSX_THIN, top=_XLSX_THIN, bottom=_XLSX_THIN)
+
+
+def _xlsx_num(value):
+    """Return a float for numeric cells (openpyxl-safe) or the value unchanged."""
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return value
+
+
+def _xlsx_dash(value):
+    return "—" if value is None or (isinstance(value, str) and not value.strip()) else value
+
+
+def _xlsx_date(value, fmt="%Y-%m-%d"):
+    if not value:
+        return "—"
+    try:
+        return value.strftime(fmt)
+    except (AttributeError, ValueError):
+        return str(value)
+
+
+def _xlsx_write_table(ws, title, headers, rows, currency_cols=None, center_cols=None, widths=None):
+    """Write a styled, filterable data table.
+
+    Row 1 = banner title, Row 2 = header (frozen + AutoFilter), Row 3+ = data.
+    ``currency_cols`` / ``center_cols`` are 1-based column indexes.
+    """
+    currency_cols = set(currency_cols or [])
+    center_cols = set(center_cols or [])
+    ncols = len(headers)
+
+    # Banner title row
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=ncols)
+    title_cell = ws.cell(row=1, column=1, value=title)
+    title_cell.font = Font(name="Calibri", size=13, bold=True, color="FFFFFF")
+    title_cell.fill = PatternFill("solid", fgColor=_XLSX_GREEN)
+    title_cell.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+    ws.row_dimensions[1].height = 26
+
+    # Header row
+    header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+    header_fill = PatternFill("solid", fgColor=_XLSX_GREEN_DARK)
+    header_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    for col_idx, header in enumerate(headers, 1):
+        cell = ws.cell(row=2, column=col_idx, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_align
+        cell.border = _XLSX_BORDER
+    ws.row_dimensions[2].height = 30
+
+    band_fill = PatternFill("solid", fgColor=_XLSX_BAND)
+    right_align = Alignment(horizontal="right", vertical="center")
+    center_align = Alignment(horizontal="center", vertical="center")
+    left_align = Alignment(horizontal="left", vertical="center", indent=1)
+
+    for offset, row_values in enumerate(rows):
+        excel_row = 3 + offset
+        is_band = offset % 2 == 1
+        for col_idx, value in enumerate(row_values, 1):
+            if col_idx in currency_cols:
+                value = _xlsx_num(value)
+            cell = ws.cell(row=excel_row, column=col_idx, value=value)
+            cell.border = _XLSX_BORDER
+            if is_band:
+                cell.fill = band_fill
+            if col_idx in currency_cols:
+                cell.number_format = _XLSX_CURRENCY_FMT
+                cell.alignment = right_align
+            elif col_idx in center_cols:
+                cell.alignment = center_align
+            else:
+                cell.alignment = left_align
+
+    # Column widths (auto-fit with sensible bounds)
+    for col_idx, header in enumerate(headers, 1):
+        letter = get_column_letter(col_idx)
+        if widths and col_idx in widths:
+            ws.column_dimensions[letter].width = widths[col_idx]
+            continue
+        longest = len(str(header))
+        for row_values in rows:
+            raw = row_values[col_idx - 1] if col_idx - 1 < len(row_values) else ""
+            if col_idx in currency_cols and raw is not None:
+                try:
+                    raw = f"{float(raw):,.2f}"
+                except (TypeError, ValueError):
+                    pass
+            longest = max(longest, len(str(raw if raw is not None else "")))
+        ws.column_dimensions[letter].width = min(max(longest + 3, 12), 40)
+
+    last_row = 2 + len(rows)
+    ws.auto_filter.ref = f"A2:{get_column_letter(ncols)}{last_row}"
+    ws.freeze_panes = "A3"
 
 @admin_bp.route('/transactions/export')
 @login_required
@@ -3199,94 +3378,384 @@ def export_transactions():
     txn_type = request.args.get('type', '')
     fulfillment = request.args.get('fulfillment', '')
     status_filter = request.args.get('status', '')
+    start_date = request.args.get('start_date', '').strip()
+    end_date = request.args.get('end_date', '').strip()
+    current_date = datetime.now().date()
 
     query = Transaction.query.options(
         joinedload(Transaction.customer),
-        selectinload(Transaction.rentals)
+        selectinload(Transaction.rentals).options(
+            selectinload(Rental.product),
+            selectinload(Rental.invoices)
+        ),
+        selectinload(Transaction.payments)
     )
 
     if search_query:
-        query = query.filter(or_(
-            Transaction.reference_no.ilike(f"%{search_query}%"),
-            Transaction.customer_name.ilike(f"%{search_query}%"),
-            Transaction.landmark.ilike(f"%{search_query}%")
-        ))
+        query = query.outerjoin(Rental, Rental.transaction_id == Transaction.id)\
+                     .outerjoin(RentalTank, RentalTank.rental_id == Rental.id)\
+                     .filter(or_(
+                         Transaction.reference_no.ilike(f"%{search_query}%"),
+                         Transaction.customer_name.ilike(f"%{search_query}%"),
+                         Transaction.landmark.ilike(f"%{search_query}%"),
+                         RentalTank.serial_number.ilike(f"%{search_query}%")
+                     )).distinct()
+
     if txn_type:
         query = query.filter(Transaction.transaction_type == txn_type)
+
     if fulfillment:
         query = query.filter(Transaction.fulfillment_type == fulfillment)
-    if status_filter == 'overdue':
-        current_date = datetime.now().date()
+
+    if start_date:
+        try:
+            parsed_start = datetime.strptime(start_date, '%Y-%m-%d')
+            query = query.filter(Transaction.created_at >= parsed_start)
+        except ValueError:
+            pass
+
+    if end_date:
+        try:
+            parsed_end = datetime.strptime(end_date, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
+            query = query.filter(Transaction.created_at <= parsed_end)
+        except ValueError:
+            pass
+
+    # Status filtering (mirrors the transactions list view)
+    if status_filter == 'expiring':
+        soon = current_date + timedelta(days=5)
+        query = query.filter(
+            Transaction.transaction_type == 'Rental',
+            Transaction.rentals.any(
+                and_(
+                    Rental.status == 'Active',
+                    Rental.expected_return_date >= current_date,
+                    Rental.expected_return_date <= soon
+                )
+            )
+        )
+    elif status_filter == 'overdue_return':
+        query = query.filter(
+            Transaction.transaction_type == 'Rental',
+            Transaction.rentals.any(
+                and_(
+                    Rental.status == 'Active',
+                    Rental.expected_return_date < current_date
+                )
+            )
+        )
+    elif status_filter == 'overdue_payment':
         query = query.filter(
             Transaction.balance_due > 0,
+            Transaction.rentals.any(
+                Rental.invoices.any(
+                    and_(
+                        RentalInvoice.service_period_end < current_date,
+                        RentalInvoice.status != 'Paid'
+                    )
+                )
+            )
+        )
+    elif status_filter == 'unpaid':
+        query = query.filter(
+            Transaction.balance_due > 0,
+            or_(Transaction.amount_paid == 0, Transaction.amount_paid.is_(None))
+        )
+    elif status_filter == 'partial':
+        query = query.filter(
+            Transaction.balance_due > 0,
+            Transaction.amount_paid > 0
+        )
+    elif status_filter == 'submitted':
+        query = query.filter(
             or_(
-                Transaction.status == 'Due', 
-                Transaction.rentals.any(Rental.expected_return_date < current_date)
+                Transaction.tracking_status == 'SUBMITTED',
+                Transaction.status == 'submitted'
             )
         )
 
     transactions_list = query.order_by(Transaction.created_at.desc()).all()
 
+    # ── Reference datasets (full data; branch scope applied automatically) ──
+    products = Product.query.order_by(Product.equipment_type, Product.name).all()
+    customers = Customer.query.order_by(Customer.last_name, Customer.first_name).all()
+    expenses = Expense.query.order_by(Expense.date_incurred.desc()).all()
+    payments = Payment.query.options(joinedload(Payment.transaction)).order_by(Payment.created_at.desc()).all()
+    rentals = Rental.query.options(
+        joinedload(Rental.transaction),
+        joinedload(Rental.product),
+        joinedload(Rental.customer),
+    ).order_by(Rental.created_at.desc()).all()
+    invoices = RentalInvoice.query.options(
+        joinedload(RentalInvoice.rental).joinedload(Rental.transaction),
+        joinedload(RentalInvoice.rental).joinedload(Rental.customer),
+    ).order_by(RentalInvoice.service_period_end.desc()).all()
+
+    generated_at = datetime.now().strftime("%B %d, %Y %I:%M %p")
+
+    # ── KPI calculations from the (filtered) transaction set ──
+    def _money(items, attr):
+        return sum((float(getattr(i, attr) or 0) for i in items), 0.0)
+
+    total_sales = sum((float(t.total_amount or 0) for t in transactions_list if t.transaction_type == "Sale"))
+    total_rental_rev = sum((float(t.total_amount or 0) for t in transactions_list if t.transaction_type == "Rental"))
+    total_refill_income = sum((float(t.total_amount or 0) for t in transactions_list if t.transaction_type == "Refill"))
+    total_collected = _money(transactions_list, "amount_paid")
+    outstanding = _money(transactions_list, "balance_due")
+    total_expenses_amt = sum((float(e.amount or 0) for e in expenses))
+    active_rentals_count = Rental.query.filter_by(status="Active").count()
+    total_inventory_units = sum((int(p.stock or 0) for p in products))
+    customer_count = len(customers)
+    deposits_held = sum(
+        (float(d.amount or 0) for d in CustomerDeposit.query.filter_by(status="Held").all())
+    )
+
+    kpis = [
+        ("Total Transactions", len(transactions_list), False),
+        ("Total Sales", total_sales, True),
+        ("Rental Revenue", total_rental_rev, True),
+        ("Refill Income", total_refill_income, True),
+        ("Total Collected", total_collected, True),
+        ("Outstanding Balance", outstanding, True),
+        ("Total Expenses", total_expenses_amt, True),
+        ("Customer Deposits (Held)", deposits_held, True),
+        ("Active Rentals", active_rentals_count, False),
+        ("Inventory Units", total_inventory_units, False),
+        ("Total Customers", customer_count, False),
+    ]
+
+    # Group summaries for the dashboard
+    type_summary = {}
+    for t in transactions_list:
+        key = t.transaction_type or "Unknown"
+        bucket = type_summary.setdefault(key, {"count": 0, "total": 0.0})
+        bucket["count"] += 1
+        bucket["total"] += float(t.total_amount or 0)
+
+    status_summary = {}
+    for t in transactions_list:
+        key = t.payment_status or "Unknown"
+        bucket = status_summary.setdefault(key, {"count": 0, "total": 0.0})
+        bucket["count"] += 1
+        bucket["total"] += float(t.total_amount or 0)
+
+    # ── Build the workbook ──
     wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "Transactions"
 
-    header_font = Font(name="Arial", size=11, bold=True, color="FFFFFF")
-    header_fill = PatternFill(start_color="16A34A", end_color="16A34A", fill_type="solid") # Matching dashboard green
-    center_align = Alignment(horizontal="center", vertical="center")
-    right_align = Alignment(horizontal="right", vertical="center")
+    # Dashboard sheet (first / active)
+    dash = wb.active
+    dash.title = "Dashboard"
+    dash.sheet_view.showGridLines = False
+    for col, width in {"A": 3, "B": 30, "C": 20, "D": 3, "E": 30, "F": 20}.items():
+        dash.column_dimensions[col].width = width
 
-    headers = ['Reference No', 'Customer Name', 'Type', 'Fulfillment', 'Total Amount', 'Amount Paid', 'Balance Due', 'Status', 'Date']
-    ws.append(headers)
+    dash.merge_cells("B2:F2")
+    banner = dash["B2"]
+    banner.value = "CareMed — Business Overview"
+    banner.font = Font(name="Calibri", size=18, bold=True, color="FFFFFF")
+    banner.fill = PatternFill("solid", fgColor=_XLSX_GREEN)
+    banner.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+    dash.row_dimensions[2].height = 36
 
-    for col_num, header in enumerate(headers, 1):
-        cell = ws.cell(row=1, column=col_num)
-        cell.font = header_font
-        cell.fill = header_fill
-        cell.alignment = center_align
+    dash.merge_cells("B3:F3")
+    subtitle = dash["B3"]
+    subtitle.value = f"Generated on {generated_at}"
+    subtitle.font = Font(name="Calibri", size=10, italic=True, color="6B7280")
+    subtitle.alignment = Alignment(horizontal="left", vertical="center", indent=1)
 
-    for txn in transactions_list:
-        cust_name = txn.customer_name or (f"{txn.customer.first_name} {txn.customer.last_name}" if txn.customer else "—")
-        txn_date = txn.created_at.strftime('%Y-%m-%d') if txn.created_at else "—"
-        
-        row_data = [
-            txn.reference_no,
+    label_font = Font(name="Calibri", size=11, bold=True, color="374151")
+    value_font = Font(name="Calibri", size=12, bold=True, color=_XLSX_GREEN_DARK)
+    kpi_fill = PatternFill("solid", fgColor=_XLSX_KPI_FILL)
+
+    half = (len(kpis) + 1) // 2
+    for idx, (label, value, is_currency) in enumerate(kpis):
+        col_pair = (2, 3) if idx < half else (5, 6)
+        row = 5 + (idx if idx < half else idx - half)
+        lc = dash.cell(row=row, column=col_pair[0], value=label)
+        lc.font = label_font
+        lc.fill = kpi_fill
+        lc.border = _XLSX_BORDER
+        lc.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+        vc = dash.cell(row=row, column=col_pair[1], value=(_xlsx_num(value) if is_currency else value))
+        vc.font = value_font
+        vc.fill = kpi_fill
+        vc.border = _XLSX_BORDER
+        vc.alignment = Alignment(horizontal="right", vertical="center")
+        if is_currency:
+            vc.number_format = _XLSX_CURRENCY_FMT
+        dash.row_dimensions[row].height = 22
+
+    # Summary tables on the dashboard
+    summary_top = 5 + half + 2
+
+    def _mini_table(anchor_col, title, headers, rows, currency_idx):
+        span = len(headers)
+        dash.merge_cells(start_row=summary_top, start_column=anchor_col,
+                         end_row=summary_top, end_column=anchor_col + span - 1)
+        tc = dash.cell(row=summary_top, column=anchor_col, value=title)
+        tc.font = Font(name="Calibri", size=12, bold=True, color="FFFFFF")
+        tc.fill = PatternFill("solid", fgColor=_XLSX_GREEN_DARK)
+        tc.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+        dash.row_dimensions[summary_top].height = 24
+        for c, header in enumerate(headers):
+            cell = dash.cell(row=summary_top + 1, column=anchor_col + c, value=header)
+            cell.font = Font(name="Calibri", size=10, bold=True, color="FFFFFF")
+            cell.fill = PatternFill("solid", fgColor=_XLSX_GREEN)
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+            cell.border = _XLSX_BORDER
+        for r, row_values in enumerate(rows):
+            for c, value in enumerate(row_values):
+                cell = dash.cell(row=summary_top + 2 + r, column=anchor_col + c)
+                cell.border = _XLSX_BORDER
+                if c == currency_idx:
+                    cell.value = _xlsx_num(value)
+                    cell.number_format = _XLSX_CURRENCY_FMT
+                    cell.alignment = Alignment(horizontal="right", vertical="center")
+                else:
+                    cell.value = value
+                    cell.alignment = Alignment(horizontal="left" if c == 0 else "center",
+                                               vertical="center", indent=1 if c == 0 else 0)
+
+    type_rows = [[k, v["count"], v["total"]] for k, v in
+                 sorted(type_summary.items(), key=lambda kv: kv[1]["total"], reverse=True)]
+    status_rows = [[k, v["count"], v["total"]] for k, v in
+                   sorted(status_summary.items(), key=lambda kv: kv[1]["total"], reverse=True)]
+
+    _mini_table(2, "Transactions by Type", ["Type", "Count", "Total"], type_rows, currency_idx=2)
+    _mini_table(5, "By Payment Status", ["Status", "Count", "Total"], status_rows, currency_idx=2)
+
+    # ── Transactions sheet ──
+    txn_headers = ["Reference No", "Date", "Customer Name", "Type", "Fulfillment",
+                   "Payment Method", "Total Amount", "Amount Paid", "Balance Due",
+                   "Payment Status", "Status", "Tracking", "Processed By", "Landmark / Address"]
+    txn_rows = []
+    for t in transactions_list:
+        cust_name = t.customer_name or (f"{t.customer.first_name} {t.customer.last_name}" if t.customer else "—")
+        processed_by = t.admin.full_name if t.admin else "—"
+        txn_rows.append([
+            t.reference_no,
+            _xlsx_date(t.created_at),
             cust_name,
-            txn.transaction_type,
-            txn.fulfillment_type,
-            txn.total_amount,
-            txn.amount_paid,
-            txn.balance_due,
-            txn.status,
-            txn_date
-        ]
-        ws.append(row_data)
-        
-        current_row = ws.max_row
-        ws.cell(row=current_row, column=5).number_format = '"₱"#,##0.00' 
-        ws.cell(row=current_row, column=6).number_format = '"₱"#,##0.00' 
-        ws.cell(row=current_row, column=7).number_format = '"₱"#,##0.00' 
-        
-        ws.cell(row=current_row, column=5).alignment = right_align
-        ws.cell(row=current_row, column=6).alignment = right_align
-        ws.cell(row=current_row, column=7).alignment = right_align
-        ws.cell(row=current_row, column=8).alignment = center_align
-        ws.cell(row=current_row, column=9).alignment = center_align
+            t.transaction_type,
+            t.fulfillment_type,
+            _xlsx_dash(t.payment_method),
+            t.total_amount,
+            t.amount_paid,
+            t.balance_due,
+            _xlsx_dash(t.payment_status),
+            _xlsx_dash(t.status),
+            _xlsx_dash(t.tracking_status),
+            processed_by,
+            _xlsx_dash(t.landmark or t.delivery_address),
+        ])
+    _xlsx_write_table(wb.create_sheet("Transactions"), "Transactions", txn_headers, txn_rows,
+                      currency_cols={7, 8, 9}, center_cols={2, 4, 5, 10, 11, 12})
 
-    # Auto-fit column widths
-    for col in ws.columns:
-        max_len = max(len(str(cell.value or '')) for cell in col)
-        col_letter = openpyxl.utils.get_column_letter(col[0].column)
-        ws.column_dimensions[col_letter].width = max(max_len + 3, 12)
+    # ── Products / Inventory ──
+    prod_headers = ["Asset Tag", "Name", "Equipment Type", "Size", "Category", "Condition",
+                    "Stock", "Status", "Cost Price", "Sale Price", "Rent Price", "Rent Period", "Refillable"]
+    prod_rows = []
+    for p in products:
+        prod_rows.append([
+            _xlsx_dash(p.asset_tag), p.name, _xlsx_dash(p.equipment_type), _xlsx_dash(p.size),
+            _xlsx_dash(p.category), _xlsx_dash(p.condition), int(p.stock or 0), _xlsx_dash(p.status),
+            p.cost_price, p.sale_price, p.rent_price, _xlsx_dash(p.rent_period),
+            "Yes" if p.is_refillable else "No",
+        ])
+    _xlsx_write_table(wb.create_sheet("Products"), "Products & Inventory", prod_headers, prod_rows,
+                      currency_cols={9, 10, 11}, center_cols={5, 6, 7, 8, 12, 13})
 
-    # Save to memory buffer
+    # ── Customers ──
+    cust_headers = ["Full Name", "Gender", "Contact Number", "Secondary Contact", "Address",
+                    "ID Verified", "Active", "Created"]
+    cust_rows = []
+    for c in customers:
+        cust_rows.append([
+            c.full_name, _xlsx_dash(c.gender), _xlsx_dash(c.contact_number),
+            _xlsx_dash(c.secondary_contact_number), _xlsx_dash(c.home_address),
+            "Yes" if c.is_id_verified else "No", "Yes" if c.is_active else "No",
+            _xlsx_date(c.created_at),
+        ])
+    _xlsx_write_table(wb.create_sheet("Customers"), "Customers", cust_headers, cust_rows,
+                      center_cols={2, 3, 4, 6, 7, 8})
+
+    # ── Rentals ──
+    rent_headers = ["Reference No", "Customer", "Product", "Start Date", "Expected Return",
+                    "Actual Return", "Monthly Rate", "Qty", "Qty Returned", "Deposit",
+                    "Deposit Status", "Late Fees", "Status"]
+    rent_rows = []
+    for r in rentals:
+        ref = r.transaction.reference_no if r.transaction else "—"
+        cust = r.customer.full_name if r.customer else (r.transaction.customer_name if r.transaction else "—")
+        rent_rows.append([
+            ref, cust, r.product.name if r.product else "—",
+            _xlsx_date(r.start_date), _xlsx_date(r.expected_return_date), _xlsx_date(r.actual_return_date),
+            r.monthly_rate, int(r.quantity or 0), int(r.quantity_returned or 0), r.deposit_amount,
+            _xlsx_dash(r.deposit_status), r.late_fees_incurred, _xlsx_dash(r.status),
+        ])
+    _xlsx_write_table(wb.create_sheet("Rentals"), "Rentals", rent_headers, rent_rows,
+                      currency_cols={7, 10, 12}, center_cols={4, 5, 6, 8, 9, 11, 13})
+
+    # ── Payments ──
+    pay_headers = ["Reference No", "Payment Type", "Amount", "Method", "Reference Number",
+                   "Status", "Created", "Verified At"]
+    pay_rows = []
+    for p in payments:
+        ref = p.transaction.reference_no if p.transaction else "—"
+        pay_rows.append([
+            ref, _xlsx_dash(p.payment_type), p.amount, _xlsx_dash(p.payment_method),
+            _xlsx_dash(p.reference_number), _xlsx_dash(p.status),
+            _xlsx_date(p.created_at), _xlsx_date(p.verified_at),
+        ])
+    _xlsx_write_table(wb.create_sheet("Payments"), "Payments", pay_headers, pay_rows,
+                      currency_cols={3}, center_cols={2, 4, 6, 7, 8})
+
+    # ── Expenses ──
+    exp_headers = ["Category", "Title", "Amount", "Description", "Product", "Recorded By",
+                   "Date Incurred", "Created"]
+    exp_rows = []
+    for e in expenses:
+        recorded_by = e.recorded_by.full_name if e.recorded_by else "—"
+        exp_rows.append([
+            _xlsx_dash(e.category), _xlsx_dash(e.expense_title), e.amount, _xlsx_dash(e.description),
+            e.product.name if e.product else "—", recorded_by,
+            _xlsx_date(e.date_incurred), _xlsx_date(e.created_at),
+        ])
+    _xlsx_write_table(wb.create_sheet("Expenses"), "Expenses", exp_headers, exp_rows,
+                      currency_cols={3}, center_cols={1, 7, 8})
+
+    # ── Rental Invoices ──
+    inv_headers = ["Reference No", "Customer", "Period Start", "Period End", "Amount Due",
+                   "Late Fee", "Total", "Amount Paid", "Remaining", "Status"]
+    inv_rows = []
+    for inv in invoices:
+        rental = inv.rental
+        ref = rental.transaction.reference_no if (rental and rental.transaction) else "—"
+        cust = "—"
+        if rental:
+            if rental.customer:
+                cust = rental.customer.full_name
+            elif rental.transaction:
+                cust = rental.transaction.customer_name or "—"
+        inv_rows.append([
+            ref, cust, _xlsx_date(inv.service_period_start), _xlsx_date(inv.service_period_end),
+            inv.amount_due, inv.late_fee, inv.total_invoice_value, inv.amount_paid,
+            inv.remaining_balance, _xlsx_dash(inv.status),
+        ])
+    _xlsx_write_table(wb.create_sheet("Rental Invoices"), "Rental Invoices", inv_headers, inv_rows,
+                      currency_cols={5, 6, 7, 8, 9}, center_cols={3, 4, 10})
+
+    # Tab colors + save to an in-memory buffer
+    for sheet in wb.worksheets:
+        sheet.sheet_properties.tabColor = _XLSX_GREEN
+
     output = BytesIO()
     wb.save(output)
     output.seek(0)
 
-    # Send response file download stream
+    filename = f"caremed_full_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
     response = make_response(output.getvalue())
-    response.headers["Content-Disposition"] = "attachment; filename=transactions_export.xlsx"
+    response.headers["Content-Disposition"] = f"attachment; filename={filename}"
     response.headers["Content-type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     return response
 

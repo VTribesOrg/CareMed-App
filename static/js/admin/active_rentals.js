@@ -2,7 +2,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const searchInput = document.getElementById("rental-search");
     const clearButton = document.getElementById("clear-search");
-    const returnFilter = document.getElementById("return-filter");
+    const equipmentFilter = document.getElementById("equipment-filter");
     const clearFilterBtn = document.getElementById("clear-filter-btn");
     const rowLimitSelect = document.getElementById("row-limit-select");
 
@@ -53,17 +53,17 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     /**
-     * Return Status Filter Dropdown
+     * Equipment Type Filter Dropdown
      */
-    if (returnFilter) {
-        returnFilter.addEventListener("change", function() {
-            const filter = this.value;
+    if (equipmentFilter) {
+        equipmentFilter.addEventListener("change", function() {
+            const equipmentType = this.value;
             const url = new URL(window.location.href);
             
-            if (filter) {
-                url.searchParams.set("filter", filter);
+            if (equipmentType) {
+                url.searchParams.set("equipment_type", equipmentType);
             } else {
-                url.searchParams.delete("filter");
+                url.searchParams.delete("equipment_type");
             }
             url.searchParams.set("page", "1"); // Reset to page 1 on filter change
             window.location.href = url.toString();
@@ -71,12 +71,12 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     /**
-     * Clear Return Filter & Search
+     * Clear Equipment Filter & Search
      */
     if (clearFilterBtn) {
         clearFilterBtn.addEventListener("click", function() {
             const url = new URL(window.location.href);
-            url.searchParams.delete("filter");
+            url.searchParams.delete("equipment_type");
             url.searchParams.delete("q");
             url.searchParams.set("page", "1");
             window.location.href = url.toString();

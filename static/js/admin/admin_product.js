@@ -852,6 +852,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const searchVal = document.getElementById('table-search')?.value.trim();
         const limitVal = document.getElementById('row-limit-select')?.value;
         const typeVal = document.getElementById('type-filter')?.value;
+        const txnTypeVal = document.getElementById('transaction-type-filter')?.value; // Added transaction type filter value
         const fullVal = document.getElementById('fulfillment-filter')?.value;
 
         const urlParams = new URLSearchParams();
@@ -859,6 +860,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (searchVal) urlParams.set('q', searchVal);
         if (limitVal) urlParams.set('limit', limitVal);
         if (typeVal) urlParams.set('type', typeVal);
+        if (txnTypeVal && txnTypeVal !== 'all') urlParams.set('txn_type', txnTypeVal); // Map to backend parameter
         if (fullVal) urlParams.set('fulfillment', fullVal);
         
         urlParams.set('page', 1);
@@ -880,7 +882,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    const filters = ['row-limit-select', 'type-filter', 'fulfillment-filter'];
+    const filters = ['row-limit-select', 'type-filter', 'transaction-type-filter', 'fulfillment-filter']; // Added 'transaction-type-filter'
     filters.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.addEventListener('change', updateFilters);
@@ -919,7 +921,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 /*============= END OF PAGINATION =============*/
-
 
 
 /*============= START OF FLASK MESSAGE =============*/

@@ -536,10 +536,10 @@
                                         style="width: 70px; margin: 0 auto;">
                                 </td>
                                 <td style="padding: 10px; text-align: center; vertical-align: middle;">
-                                    {% if item.product.tank_status %}
+                                    {% if item.product.equipment_type == 'Oxygen Tank' or item.product.category == 'Oxygen Tank' %}
                                         <select name="status_{{ item.id }}" class="form-control" style="padding: 5px; width: 100px; margin: 0 auto;">
                                             <option value="Full">Full</option>
-                                            <option value="Empty">Empty</option>
+                                            <option value="Empty" selected>Empty</option>
                                         </select>
                                     {% else %}
                                         <span class="text-muted" style="font-size: 0.85em;">N/A</span>
@@ -564,7 +564,7 @@
 
                     <!-- Customer Deposit Return Section -->
                     <div style="margin-top: 20px; padding: 18px; background: #fffdf4; border: 1px solid #fce588; border-left: 4px solid #d97706; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
- 
+  
                         <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
                             <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 600; font-size: 1rem; color: #1e293b;">
                                 <input type="checkbox" name="refund_deposit" value="yes" style="width: 18px; height: 18px; accent-color: #d97706; cursor: pointer;">
