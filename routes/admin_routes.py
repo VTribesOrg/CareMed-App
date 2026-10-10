@@ -389,6 +389,15 @@ def dashboard_data():
             total_tank_count += ((tank.full_in_stock or 0) + (tank.empty_in_stock or 0) + (tank.rented_out or 0))
 
         combined_tank_statuses = list(tank_aggregation.values())
+        
+        import re
+        def extract_tank_size(tank):
+            size_str = tank.get("size", "") or ""
+            numbers = re.findall(r'\d+', size_str)
+            return int(numbers[0]) if numbers else 0
+
+        combined_tank_statuses.sort(key=extract_tank_size)
+
         total_inventory = product_inventory + total_tank_count
 
         all_products = Product.query.filter(
@@ -464,7 +473,7 @@ def dashboard_data():
         return jsonify({
             "error": "An internal error occurred while processing dashboard analytics. Please try again later."
         }), 500
-
+        
 @admin_bp.route("/dashboard/sales-transactions")
 @login_required
 @admin_or_staff_required
@@ -3135,6 +3144,7 @@ def active_rentals():
     limit = request.args.get('limit', 10, type=int)
     search_query = request.args.get('q', '').strip()
     equipment_filter = request.args.get('equipment_type', '').strip()  
+    product_name_filter = request.args.get('product_name', '').strip()
    
     active_statuses = ['Active', 'Overdue', 'Awaiting Return']
     
@@ -3162,6 +3172,9 @@ def active_rentals():
 
     if equipment_filter:
         query = query.join(Rental.product).filter(Product.equipment_type == equipment_filter)
+
+    if product_name_filter:
+        query = query.join(Rental.product).filter(Product.name == product_name_filter)
     
     pagination = query.order_by(Rental.expected_return_date.asc()).paginate(
         page=page,
@@ -3175,6 +3188,13 @@ def active_rentals():
                                        .distinct()\
                                        .all()
     equipment_types = [et[0] for et in equipment_types_query if et[0]]
+
+    product_names_query = db.session.query(Product.name)\
+                                     .join(Rental.product)\
+                                     .filter(Rental.status.in_(active_statuses))\
+                                     .distinct()\
+                                     .all()
+    product_names = sorted([pn[0] for pn in product_names_query if pn[0]])
     
     today = date.today()
     return render_template(
@@ -3184,10 +3204,12 @@ def active_rentals():
         search_query=search_query,
         datetime_now_date=today,
         current_equipment_filter=equipment_filter,
+        current_product_name_filter=product_name_filter,
         equipment_types=equipment_types,
+        product_names=product_names,
         current_limit=limit
     )
-       
+    
 @admin_bp.route('/collection-monitoring')
 @login_required
 def collection_monitoring():

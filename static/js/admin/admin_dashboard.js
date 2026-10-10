@@ -225,9 +225,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 const oxygenTanksTbody = document.getElementById("oxygen-tanks-tbody");
                 if (oxygenTanksTbody) {
                     if (data.tank_statuses && data.tank_statuses.length > 0) {
+                        const sortedTanks = [...data.tank_statuses].sort((a, b) => {
+                            const getLbs = (str) => {
+                                const match = (str || "").match(/\d+/);
+                                return match ? parseInt(match[0], 10) : 0;
+                            };
+                            return getLbs(a.size) - getLbs(b.size);
+                        });
+
                         let rowsHtml = "";
-                        data.tank_statuses.forEach(tank => {
-                            let sizeHtml = tank.size ? `<span style="font-weight: 400; color: #64748b; font-size: 0.9em;">(${tank.size})</span>` : "";
+                        sortedTanks.forEach(tank => {
+                            let sizeHtml = tank.size ? `<span>(${tank.size})</span>` : "";
                             rowsHtml += `
                                 <tr>
                                     <td style="font-weight: 600;">${tank.name} ${sizeHtml}</td>

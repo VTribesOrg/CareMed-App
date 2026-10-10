@@ -275,7 +275,7 @@
             <h1>Active Rentals</h1>
             <p>Live view of all active rentals</p>
         </div>
-        <div class="table-controls">
+        <div class="table-controls" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
             <!-- EQUIPMENT TYPE FILTER -->
             <select id="equipment-filter" class="medical-select" style="height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid #dbe2e1; font-size: 0.9rem; background: #f8fafc; color: #334155;">
                 <option value="">All Equipment Types</option>
@@ -284,8 +284,16 @@
                 {% endfor %}
             </select>
 
+            <!-- PRODUCT NAME FILTER -->
+            <select id="product-name-filter" class="medical-select" style="height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid #dbe2e1; font-size: 0.9rem; background: #f8fafc; color: #334155;">
+                <option value="">All Products</option>
+                {% for pname in product_names %}
+                <option value="{{ pname }}" {{ 'selected' if current_product_name_filter == pname }}>{{ pname }}</option>
+                {% endfor %}
+            </select>
+
             <!-- CLEAR FILTER BUTTON -->
-            {% if current_equipment_filter or search_query %}
+            {% if current_equipment_filter or current_product_name_filter or search_query %}
             <button type="button" id="clear-filter-btn" class="clear-filter-btn" style="height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #f1f5f9; color: #475569; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600;">
                 <span class="material-symbols-rounded" style="font-size: 18px;">filter_alt_off</span>
                 Reset
@@ -473,7 +481,7 @@
 
         <div class="pagination-controls" style="display: flex; align-items: center; gap: 8px;">
             {% if pagination.has_prev %}
-            <a href="{{ url_for('admin.active_rentals', page=pagination.prev_num, limit=current_limit, q=search_query, equipment_type=current_equipment_filter) }}" class="pag-btn">
+            <a href="{{ url_for('admin.active_rentals', page=pagination.prev_num, limit=current_limit, q=search_query, equipment_type=current_equipment_filter, product_name=current_product_name_filter) }}" class="pag-btn">
                 <span class="material-symbols-rounded">chevron_left</span>
             </a>
             {% else %}
@@ -483,7 +491,7 @@
             <span class="page-number" style="font-size: 13px; color: #64748b;">Page <strong>{{ pagination.page }}</strong> of {{ pagination.pages or 1 }}</span>
 
             {% if pagination.has_next %}
-            <a href="{{ url_for('admin.active_rentals', page=pagination.next_num, limit=current_limit, q=search_query, equipment_type=current_equipment_filter) }}" class="pag-btn">
+            <a href="{{ url_for('admin.active_rentals', page=pagination.next_num, limit=current_limit, q=search_query, equipment_type=current_equipment_filter, product_name=current_product_name_filter) }}" class="pag-btn">
                 <span class="material-symbols-rounded">chevron_right</span>
             </a>
             {% else %}
@@ -500,7 +508,6 @@
     {% endif %}
 </div>
 {% endblock %}
-
 
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/admin/active_rentals.js') }}"></script>

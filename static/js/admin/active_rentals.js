@@ -3,6 +3,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const searchInput = document.getElementById("rental-search");
     const clearButton = document.getElementById("clear-search");
     const equipmentFilter = document.getElementById("equipment-filter");
+    const productNameFilter = document.getElementById("product-name-filter");
     const clearFilterBtn = document.getElementById("clear-filter-btn");
     const rowLimitSelect = document.getElementById("row-limit-select");
 
@@ -71,12 +72,31 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     /**
-     * Clear Equipment Filter & Search
+     * Product Name Filter Dropdown
+     */
+    if (productNameFilter) {
+        productNameFilter.addEventListener("change", function() {
+            const productName = this.value;
+            const url = new URL(window.location.href);
+            
+            if (productName) {
+                url.searchParams.set("product_name", productName);
+            } else {
+                url.searchParams.delete("product_name");
+            }
+            url.searchParams.set("page", "1"); // Reset to page 1 on filter change
+            window.location.href = url.toString();
+        });
+    }
+
+    /**
+     * Clear All Filters & Search
      */
     if (clearFilterBtn) {
         clearFilterBtn.addEventListener("click", function() {
             const url = new URL(window.location.href);
             url.searchParams.delete("equipment_type");
+            url.searchParams.delete("product_name");
             url.searchParams.delete("q");
             url.searchParams.set("page", "1");
             window.location.href = url.toString();
