@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Settings - CareMed</title>
+    <!-- Font Awesome Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Custom Stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/branches.css') }}">
+</head>
+<body>
+
+    <div class="branch-container">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-stack">
+                    {% for category, message in messages %}
+                        <div class="flash-bar {{ category }}">
+                            <span class="flash-text">{{ message }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- Header Section -->
+        <div class="branch-header">
+            <div>
+                <h2>Account Settings</h2>
+                <p class="subtitle">Change the email or password that opens this branch management console.</p>
+            </div>
+            <div class="header-actions">
+                <a href="{{ url_for('developer.manage_branches') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Branches
+                </a>
+                <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-danger">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
+        </div>
+
+        <div style="display:flex; gap:1.25rem; flex-wrap:wrap; align-items:stretch;">
+            <!-- ── Sign-in Email ── -->
+            <div class="branch-card edit-card" style="flex: 1 1 380px;" id="email-settings">
+                <form action="{{ url_for('developer.account_settings') }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="form_kind" value="email">
+
+                    <div class="form-section-title">Sign-in Email</div>
+
+                    <div class="form-group">
+                        <label class="form-label">Current Email</label>
+                        <input type="email" class="form-control" value="{{ current_user.email }}" disabled>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">New Email *</label>
+                        <input type="email" class="form-control" name="email"
+                               value="{{ current_user.email }}" placeholder="you@example.com" required>
+                        <small style="display:block; margin-top:4px; opacity:0.75;">
+                            This becomes the address you sign in to the branch console with.
+                        </small>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Save Email
+                    </button>
+                </form>
+            </div>
+
+            <!-- ── Password ── -->
+            <div class="branch-card edit-card" style="flex: 1 1 380px;" id="password-settings">
+                <form action="{{ url_for('developer.account_settings') }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="form_kind" value="password">
+
+                    <div class="form-section-title">Password</div>
+
+                    <div class="form-group">
+                        <label class="form-label">Current Password</label>
+                        <input type="password" class="form-control" name="current_password"
+                               autocomplete="current-password" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">New Password</label>
+                        <input type="password" class="form-control" name="new_password"
+                               autocomplete="new-password" minlength="8" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Confirm New Password</label>
+                        <input type="password" class="form-control" name="confirm_password"
+                               autocomplete="new-password" minlength="8" required>
+                        <small style="display:block; margin-top:4px; opacity:0.75;">
+                            At least 8 characters with an uppercase letter, a number, and a
+                            special character (@$!%*?&amp;). Never set a password before?
+                            Use "Forgot Password" on the login page.
+                        </small>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-key"></i> Change Password
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

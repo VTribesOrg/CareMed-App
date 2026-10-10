@@ -1,14 +1,17 @@
 import os
+import re
 import uuid
+from datetime import datetime
 
 from flask import (
     Blueprint, render_template, redirect, url_for, flash, request, current_app
 )
 from flask_login import login_required, current_user
+from argon2.exceptions import VerifyMismatchError
 
-from extensions import db
+from extensions import db, passhasher
 from models.branch import Branch
-from models.users import User
+from models.users import User, SecurityLog
 from models.customer import Customer
 from models.product import Product, Transaction
 from utils.branch_scope import bypass_branch_filter
@@ -21,14 +24,24 @@ developer_bp = Blueprint('developer', __name__, url_prefix='/developer')
 ALLOWED_LOGO_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "svg"}
 BRANCH_LOGO_SUBFOLDER = "branches"
 
+PASSWORD_POLICY_REGEX = r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$"
+EMAIL_REGEX = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
+
 
 def developer_required(f):
-    """Custom decorator to block anyone who isn't you."""
     from functools import wraps
 
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or current_user.email != 'caremed.developers@gmail.com':
+        if not current_user.is_authenticated:
+            flash('Access denied. Developer privileges required.', 'error')
+            return redirect(url_for('admin.dashboard'))
+
+        role = (getattr(current_user, 'role', None) or '').strip()
+        email = (getattr(current_user, 'email', None) or '').strip().lower()
+        allowed_emails = current_app.config.get('DEVELOPER_EMAILS', ())
+
+        if role != 'Developer' and email not in allowed_emails:
             flash('Access denied. Developer privileges required.', 'error')
             return redirect(url_for('admin.dashboard'))
         return f(*args, **kwargs)
@@ -62,13 +75,6 @@ def _save_branch_logo(file_storage):
 
 
 def _parse_messenger_field(raw):
-    """Validate the Messenger form field. Returns ``(value_to_store, error)``.
-
-    Staff may paste a page name, an m.me link or a facebook.com page URL; the
-    raw text is stored as-is and normalised by ``Branch.messenger_url`` on read.
-    Anything that cannot produce a chat link is rejected so a branch never
-    saves a button that goes nowhere.
-    """
     value = (raw or '').strip()
     if not value:
         return None, None
@@ -179,6 +185,138 @@ def manage_branches():
     )
 
 
+@developer_bp.route('/account-settings', methods=['GET', 'POST'])
+@login_required
+@developer_required
+def account_settings():
+    if request.method == 'POST':
+        form_kind = request.form.get('form_kind', 'email')
+
+        # ── Password change ──────────────────────────────────────────
+        if form_kind == 'password':
+            current_pw = request.form.get('current_password', '')
+            new_pw = request.form.get('new_password', '')
+            confirm_pw = request.form.get('confirm_password', '')
+
+            if not current_pw or not new_pw or not confirm_pw:
+                flash('Please fill in all password fields.', 'error')
+                return redirect(url_for('developer.account_settings') + '#password-settings')
+
+            if new_pw != confirm_pw:
+                flash('New passwords do not match.', 'error')
+                return redirect(url_for('developer.account_settings') + '#password-settings')
+
+            if not re.match(PASSWORD_POLICY_REGEX, new_pw):
+                flash(
+                    'Password must be at least 8 characters and include an '
+                    'uppercase letter, a number, and a special character (@$!%*?&).',
+                    'error'
+                )
+                return redirect(url_for('developer.account_settings') + '#password-settings')
+
+            try:
+                valid = passhasher.verify(current_user.password_hash or '', current_pw)
+            except VerifyMismatchError:
+                valid = False
+            except Exception:
+                valid = False
+
+            if not valid:
+                try:
+                    db.session.add(SecurityLog(
+                        ip_address=request.remote_addr,
+                        event_type="Failed Password Change",
+                        description=f"Wrong current password entered for {current_user.email}"[:255],
+                        user_id=current_user.id,
+                        user_email=current_user.email,
+                        user_agent=request.headers.get('User-Agent', 'Unknown')[:255],
+                        severity='Medium',
+                        is_suspicious=True,
+                    ))
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+                flash('Current password is incorrect.', 'error')
+                return redirect(url_for('developer.account_settings') + '#password-settings')
+
+            try:
+                current_user.password_hash = passhasher.hash(new_pw)
+                current_user.password_last_reset_at = datetime.utcnow()
+                db.session.add(SecurityLog(
+                    ip_address=request.remote_addr,
+                    event_type="Password Changed",
+                    description=f"Password changed in the branch console for {current_user.email}"[:255],
+                    user_id=current_user.id,
+                    user_email=current_user.email,
+                    user_agent=request.headers.get('User-Agent', 'Unknown')[:255],
+                    severity='Low',
+                    is_suspicious=False,
+                ))
+                db.session.commit()
+                flash('Password changed successfully!', 'success')
+            except Exception:
+                db.session.rollback()
+                flash('An error occurred while changing your password.', 'error')
+            return redirect(url_for('developer.account_settings') + '#password-settings')
+
+        # ── Email change ─────────────────────────────────────────────
+        new_email = (request.form.get('email') or '').strip().lower()
+
+        if not new_email:
+            flash('Email is required.', 'error')
+            return redirect(url_for('developer.account_settings') + '#email-settings')
+
+        if not re.match(EMAIL_REGEX, new_email):
+            flash('Please enter a valid email address.', 'error')
+            return redirect(url_for('developer.account_settings') + '#email-settings')
+
+        # Users are branch-scoped, so the uniqueness check spans every branch.
+        with bypass_branch_filter():
+            email_taken = User.query.filter(
+                User.email == new_email,
+                User.id != current_user.id,
+            ).first() is not None
+
+        if email_taken:
+            flash('That email address is already in use.', 'error')
+            return redirect(url_for('developer.account_settings') + '#email-settings')
+
+        old_email = current_user.email
+        current_user.email = new_email
+
+        try:
+            db.session.add(SecurityLog(
+                ip_address=request.remote_addr,
+                event_type="Email Changed",
+                description=f"Sign-in email changed from {old_email} to {new_email}"[:255],
+                user_id=current_user.id,
+                user_email=new_email,
+                user_agent=request.headers.get('User-Agent', 'Unknown')[:255],
+                severity='Low',
+                is_suspicious=False,
+            ))
+            db.session.commit()
+            flash('Sign-in email updated successfully.', 'success')
+        except Exception:
+            db.session.rollback()
+            flash('An error occurred while updating your email.', 'error')
+            return redirect(url_for('developer.account_settings') + '#email-settings')
+
+        if (
+            (current_user.role or '').strip() != 'Developer'
+            and new_email not in current_app.config.get('DEVELOPER_EMAILS', ())
+        ):
+            flash(
+                'Heads-up: this address is not in DEVELOPER_EMAILS, so it '
+                'will no longer open the branch console.',
+                'warning'
+            )
+
+        return redirect(url_for('developer.account_settings') + '#email-settings')
+
+    return render_template('branch_management/account_settings.html')
+
+
 @developer_bp.route('/branches/<int:branch_id>/edit', methods=['GET', 'POST'])
 @login_required
 @developer_required
@@ -209,8 +347,6 @@ def edit_branch(branch_id):
             branch.location_code = location_code
             branch.address = (request.form.get('address') or '').strip() or None
             branch.contact_number = (request.form.get('contact_number') or '').strip() or None
-            # No branch e-mail field: the branch is contacted through its
-            # administrator account, exposed as ``Branch.contact_email``.
             branch.theme_color = request.form.get('theme_color') or branch.theme_color
             branch.accent_color = request.form.get('accent_color') or branch.accent_color
             branch.brand_name = (request.form.get('brand_name') or '').strip() or None
@@ -233,7 +369,6 @@ def edit_branch(branch_id):
             elif request.form.get('remove_logo') == 'on':
                 branch.brand_logo = None
 
-            # Optional update/reassignment of admin email during edit
             if admin_email:
                 user = User.query.filter_by(email=admin_email).first()
                 if not user:
@@ -249,10 +384,7 @@ def edit_branch(branch_id):
                 if hasattr(user, 'role'):
                     user.role = 'Administrator'
 
-            # Dashboard card visibility. An unchecked checkbox is not
-            # submitted, so the grid posts a sentinel: its presence means the
-            # grid was on the page and the missing keys are deliberate
-            # hide-offs, while its absence leaves the settings untouched.
+
             if request.form.get('dashboard_cards_sent') == '1':
                 set_visible_cards(
                     branch.id, request.form.getlist('dashboard_cards')
@@ -267,8 +399,6 @@ def edit_branch(branch_id):
                 current_app.logger.error(f"Branch update failed: {e}")
                 flash('Could not update the branch. Please try again.', 'error')
 
-        # Resolved while still bypassing isolation: users are branch-scoped and
-        # the developer's own branch is rarely the one being edited.
         admin_user = branch.primary_admin
         cards = card_options(branch.id)
 

@@ -3561,6 +3561,90 @@ def export_transactions():
         bucket["count"] += 1
         bucket["total"] += float(t.total_amount or 0)
 
+    # ── Oxygen tank tracking + Standard equipment (mirrors the live dashboard) ──
+    raw_tank_data = (
+        TankStatus.query.join(Product)
+        .filter(
+            Product.is_active == True,
+            db.or_(
+                Product.equipment_type == "Oxygen Tank",
+                Product.category == "Oxygen Tank",
+            ),
+        )
+        .all()
+    )
+
+    tank_aggregation = {}
+    for tank in raw_tank_data:
+        key = (tank.product.name, tank.product.size)
+        if key not in tank_aggregation:
+            tank_aggregation[key] = {
+                "name": tank.product.name,
+                "size": tank.product.size,
+                "total_owned": 0,
+                "rented_out": 0,
+                "full_in_stock": 0,
+                "empty_in_stock": 0,
+            }
+        tank_aggregation[key]["total_owned"] += tank.total_owned or 0
+        tank_aggregation[key]["rented_out"] += tank.rented_out or 0
+        tank_aggregation[key]["full_in_stock"] += tank.full_in_stock or 0
+        tank_aggregation[key]["empty_in_stock"] += tank.empty_in_stock or 0
+
+    tank_statuses = list(tank_aggregation.values())
+
+    def _extract_tank_size(item):
+        numbers = re.findall(r"\d+", item.get("size") or "")
+        return int(numbers[0]) if numbers else 0
+
+    tank_statuses.sort(key=_extract_tank_size)
+
+    active_rented_units = (
+        db.session.query(
+            Rental.product_id,
+            func.sum(Rental.quantity - Rental.quantity_returned),
+        )
+        .filter(Rental.status == "Active")
+        .group_by(Rental.product_id)
+        .all()
+    )
+    rented_map = {prod_id: cnt for prod_id, cnt in active_rented_units if cnt is not None}
+
+    asset_products = Product.query.filter(
+        Product.is_refillable == False,
+        Product.is_active == True,
+        Product.condition.in_(["Brand New", "Used"]),
+    ).all()
+
+    assets_aggregation = {}
+    for prod in asset_products:
+        bucket = assets_aggregation.setdefault(
+            prod.name,
+            {"name": prod.name, "rented_count": 0, "used_count": 0, "brand_new_count": 0},
+        )
+        bucket["rented_count"] += rented_map.get(prod.id, 0)
+        condition_str = (prod.condition or "").strip()
+        if condition_str == "Brand New":
+            bucket["brand_new_count"] += prod.stock or 0
+        elif condition_str == "Used":
+            bucket["used_count"] += prod.stock or 0
+
+    standard_assets = list(assets_aggregation.values())
+    for asset in standard_assets:
+        asset["total_units"] = asset["rented_count"] + asset["used_count"] + asset["brand_new_count"]
+
+    tank_rows = [
+        [
+            (t["name"] + f" ({t['size']})") if t["size"] else t["name"],
+            t["total_owned"], t["rented_out"], t["full_in_stock"], t["empty_in_stock"],
+        ]
+        for t in tank_statuses
+    ]
+    asset_rows = [
+        [a["name"], a["total_units"], a["rented_count"], a["used_count"], a["brand_new_count"]]
+        for a in standard_assets
+    ]
+
     # ── Build the workbook ──
     wb = openpyxl.Workbook()
 
@@ -3568,7 +3652,7 @@ def export_transactions():
     dash = wb.active
     dash.title = "Dashboard"
     dash.sheet_view.showGridLines = False
-    for col, width in {"A": 3, "B": 30, "C": 20, "D": 3, "E": 30, "F": 20}.items():
+    for col, width in {"A": 3, "B": 30, "C": 15, "D": 13, "E": 30, "F": 15, "G": 13}.items():
         dash.column_dimensions[col].width = width
 
     dash.merge_cells("B2:F2")
@@ -3610,26 +3694,27 @@ def export_transactions():
     # Summary tables on the dashboard
     summary_top = 5 + half + 2
 
-    def _mini_table(anchor_col, title, headers, rows, currency_idx):
+    def _mini_table(anchor_col, title, headers, rows, currency_idx=None, top=None):
+        top = summary_top if top is None else top
         span = len(headers)
-        dash.merge_cells(start_row=summary_top, start_column=anchor_col,
-                         end_row=summary_top, end_column=anchor_col + span - 1)
-        tc = dash.cell(row=summary_top, column=anchor_col, value=title)
+        dash.merge_cells(start_row=top, start_column=anchor_col,
+                         end_row=top, end_column=anchor_col + span - 1)
+        tc = dash.cell(row=top, column=anchor_col, value=title)
         tc.font = Font(name="Calibri", size=12, bold=True, color="FFFFFF")
         tc.fill = PatternFill("solid", fgColor=_XLSX_GREEN_DARK)
         tc.alignment = Alignment(horizontal="left", vertical="center", indent=1)
-        dash.row_dimensions[summary_top].height = 24
+        dash.row_dimensions[top].height = 24
         for c, header in enumerate(headers):
-            cell = dash.cell(row=summary_top + 1, column=anchor_col + c, value=header)
+            cell = dash.cell(row=top + 1, column=anchor_col + c, value=header)
             cell.font = Font(name="Calibri", size=10, bold=True, color="FFFFFF")
             cell.fill = PatternFill("solid", fgColor=_XLSX_GREEN)
             cell.alignment = Alignment(horizontal="center", vertical="center")
             cell.border = _XLSX_BORDER
         for r, row_values in enumerate(rows):
             for c, value in enumerate(row_values):
-                cell = dash.cell(row=summary_top + 2 + r, column=anchor_col + c)
+                cell = dash.cell(row=top + 2 + r, column=anchor_col + c)
                 cell.border = _XLSX_BORDER
-                if c == currency_idx:
+                if currency_idx is not None and c == currency_idx:
                     cell.value = _xlsx_num(value)
                     cell.number_format = _XLSX_CURRENCY_FMT
                     cell.alignment = Alignment(horizontal="right", vertical="center")
@@ -3643,8 +3728,26 @@ def export_transactions():
     status_rows = [[k, v["count"], v["total"]] for k, v in
                    sorted(status_summary.items(), key=lambda kv: kv[1]["total"], reverse=True)]
 
-    _mini_table(2, "Transactions by Type", ["Type", "Count", "Total"], type_rows, currency_idx=2)
-    _mini_table(5, "By Payment Status", ["Status", "Count", "Total"], status_rows, currency_idx=2)
+    # Layout mirrors the system dashboard: KPI cards first, then the inventory
+    # tracking section (Oxygen Tank Tracking + Standard Equipment), then the
+    # transaction breakdown tables (export-only extras) at the bottom.
+    oxygen_top = summary_top
+    _mini_table(2, "Oxygen Tank Tracking",
+                ["Product / Tank Variant", "Total Tank", "Rented", "Full Tank", "Empty Tank"],
+                tank_rows, currency_idx=None, top=oxygen_top)
+
+    oxygen_block_height = 2 + len(tank_rows)
+    asset_top = oxygen_top + oxygen_block_height + 2
+    _mini_table(2, "Standard Equipment",
+                ["Item Name", "Total Units", "Rented Out", "Used", "Brand New"],
+                asset_rows, currency_idx=None, top=asset_top)
+
+    asset_block_height = 2 + len(asset_rows)
+    txn_summary_top = asset_top + asset_block_height + 2
+    _mini_table(2, "Transactions by Type", ["Type", "Count", "Total"], type_rows,
+                currency_idx=2, top=txn_summary_top)
+    _mini_table(5, "By Payment Status", ["Status", "Count", "Total"], status_rows,
+                currency_idx=2, top=txn_summary_top)
 
     # ── Transactions sheet ──
     txn_headers = ["Reference No", "Date", "Customer Name", "Type", "Fulfillment",

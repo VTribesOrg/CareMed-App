@@ -616,8 +616,7 @@ class GoogleOAuthService:
         email = user_info["email"].lower()
         google_id = user_info["sub"]
 
-        # Specific system accounts override configuration
-        DEVELOPER_EMAILS = ["caremed.developers@gmail.com"]
+        developer_emails = current_app.config.get("DEVELOPER_EMAILS", ())
 
         user = User.query.filter_by(google_id=google_id).first()
 
@@ -652,7 +651,7 @@ class GoogleOAuthService:
             user.last_name = l_name
 
         # Ensure existing accounts matching the developer email also get promoted automatically
-        if email in DEVELOPER_EMAILS and user.role != "Developer":
+        if email in developer_emails and user.role != "Developer":
             user.role = "Developer"
 
         # Google sign-in only opens the back office, matching the email/password

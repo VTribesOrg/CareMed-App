@@ -35,6 +35,9 @@
                 <button class="btn btn-primary" id="openModalBtn">
                     <i class="fas fa-plus"></i> Add New Branch
                 </button>
+                <a href="{{ url_for('developer.account_settings') }}" class="btn btn-secondary">
+                    <i class="fas fa-user-cog"></i> Account Settings
+                </a>
                 <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-danger">
                     <i class="fas fa-sign-out-alt"></i> Logout
                 </a>

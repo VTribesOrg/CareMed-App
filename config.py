@@ -33,6 +33,18 @@ class Config:
     # Branch-specific values on Branch.messenger_url take precedence.
     MESSENGER_PAGE_URL = os.environ.get("MESSENGER_PAGE_URL")
 
+    # Accounts allowed into the Developer console (branches management) and
+    # promoted to the Developer role on Google sign-in. Set as a comma-separated
+    # list in the environment so the console login is not hardcoded; defaults to
+    # the original developer account.
+    DEVELOPER_EMAILS = tuple(
+        address.strip().lower()
+        for address in os.environ.get(
+            "DEVELOPER_EMAILS", "caremed.developers@gmail.com"
+        ).split(",")
+        if address.strip()
+    )
+
     SESSION_COOKIE_NAME = "caremed_session"
     SESSION_COOKIE_SECURE = True        
     SESSION_COOKIE_HTTPONLY = True      
@@ -94,6 +106,18 @@ class DevConfig:
     # Fallback Messenger contact for public visitors (they have no branch).
     # Branch-specific values on Branch.messenger_url take precedence.
     MESSENGER_PAGE_URL = os.environ.get("MESSENGER_PAGE_URL")
+
+    # Accounts allowed into the Developer console (branches management) and
+    # promoted to the Developer role on Google sign-in. Set as a comma-separated
+    # list in the environment so the console login is not hardcoded; defaults to
+    # the original developer account.
+    DEVELOPER_EMAILS = tuple(
+        address.strip().lower()
+        for address in os.environ.get(
+            "DEVELOPER_EMAILS", "caremed.developers@gmail.com"
+        ).split(",")
+        if address.strip()
+    )
 
     SESSION_COOKIE_NAME = "caremed_dev_session"
 
