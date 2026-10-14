@@ -178,8 +178,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderDynamicRows() {
         const qty = Math.max(1, parseInt(quantityInput.value) || 1);
-        const buyerType = document.querySelector('input[name="refill_buyer_type"]:checked').value;
-        const isRegistered = buyerType === 'registered';
+        const buyerTypeElement = document.querySelector('input[name="refill_buyer_type"]:checked');
+        const isRegistered = buyerTypeElement ? buyerTypeElement.value === 'registered' : true;
         const currentCustomerId = refillIdInput.value;
 
         const existingRows = Array.from(dynamicRowsContainer.children);
@@ -199,7 +199,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!isRegistered) {
             let productOptionsHtml = '<option value="">Select tank size...</option>';
             refillableProducts.forEach(prod => {
-                productOptionsHtml += `<option value="${prod.id}" data-cost="${prod.refill_cost || 0.00}">${prod.name} ${prod.size ? '(' + prod.size + ')' : ''} - ₱${parseFloat(prod.refill_cost || 0).toFixed(2)}</option>`;
+                productOptionsHtml += `<option value="${prod.id}" data-cost="${prod.refill_cost || 0.00}">${prod.name} ${prod.size ? '(' + prod.size + ')' : ''}₱${parseFloat(prod.refill_cost || 0).toFixed(2)}</option>`;
             });
 
             for (let i = 1; i <= qty; i++) {
@@ -247,14 +247,19 @@ document.addEventListener('DOMContentLoaded', () => {
             row.style.cssText = 'display: flex; gap: 10px; width: 100%; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0; align-items: flex-end; box-sizing: border-box;';
             
             let rentalOptionsHtml = '<option value="">Select tank to return...</option>';
-            customerRentals.forEach(rental => {
-                const isSelected = rental.serial_number === prevData.selectedValue ? 'selected' : '';
-                rentalOptionsHtml += `<option value="${rental.serial_number}" ${isSelected}>${rental.product_name} (${rental.product_size}) - SN: ${rental.serial_number}</option>`;
-            });
+            if (customerRentals.length > 0) {
+                customerRentals.forEach(rental => {
+                    const isSelected = String(rental.serial_number) === String(prevData.selectedValue) ? 'selected' : '';
+                    const displayIdentifier = rental.display_serial !== "No S/N Assigned" ? `- SN: ${rental.display_serial}` : `(${rental.display_serial})`;
+                    rentalOptionsHtml += `<option value="${rental.serial_number}" ${isSelected}>${rental.product_name || 'Oxygen Tank'} (${rental.product_size || 'Standard'}) ${displayIdentifier}</option>`;
+                });
+            } else {
+                rentalOptionsHtml = '<option value="">No active rented oxygen tanks found</option>';
+            }
 
             row.innerHTML = `
                 <div style="flex: 1.1; min-width: 0;">
-                    <label style="font-weight: 700; color: #1e293b; margin-bottom: 4px; display: block; font-size: 0.8rem;">Empty Tank #${i} (SN.)</label>
+                    <label style="font-weight: 700; color: #1e293b; margin-bottom: 4px; display: block; font-size: 0.8rem;">Empty Tank #${i} (Refill Item)</label>
                     <select name="swapped_rental_serial" class="medical-select" required
                             style="width: 100%; height: 38px; padding: 0 10px; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #1e293b; font-size: 0.85rem; outline: none; box-sizing: border-box;">
                         ${rentalOptionsHtml}
@@ -287,62 +292,64 @@ document.addEventListener('DOMContentLoaded', () => {
         radio.addEventListener('change', (e) => {
             const isRegistered = e.target.value === 'registered';
             
-            // Cleanly clear fields when switching between tabs
             if (refillAmountInput) refillAmountInput.value = '';
             if (quantityInput) quantityInput.value = '1';
             if (refillSearchInput) refillSearchInput.value = '';
             if (refillIdInput) refillIdInput.value = '';
-            if (unregNameIndex = document.querySelector('input[name="unregistered_customer_name"]')) {
-                unregNameIndex.value = '';
-            }
+            if (unregNameInput) unregNameInput.value = '';
             
-            document.getElementById('refill-registered-group').style.display = isRegistered ? 'block' : 'none';
-            document.getElementById('refill-unregistered-group').style.display = isRegistered ? 'none' : 'block';
+            const regGroup = document.getElementById('refill-registered-group');
+            const unregGroup = document.getElementById('refill-unregistered-group');
+            if (regGroup) regGroup.style.display = isRegistered ? 'block' : 'none';
+            if (unregGroup) unregGroup.style.display = isRegistered ? 'none' : 'block';
             
             renderDynamicRows();
             updateRefillCost();
         });
     });
 
-    refillSearchInput.addEventListener('input', () => {
-        const term = refillSearchInput.value.toLowerCase();
-        refillDropdown.classList.remove('hidden');
-        let hasMatch = false;
+    if (refillSearchInput) {
+        refillSearchInput.addEventListener('input', () => {
+            const term = refillSearchInput.value.toLowerCase();
+            if (refillDropdown) refillDropdown.classList.remove('hidden');
+            let hasMatch = false;
 
-        refillOptions.forEach(opt => {
-            const matches = opt.dataset.searchString.includes(term);
-            opt.style.display = matches ? 'flex' : 'none';
-            if (matches) hasMatch = true;
+            refillOptions.forEach(opt => {
+                const matches = (opt.dataset.searchString || '').includes(term);
+                opt.style.display = matches ? 'flex' : 'none';
+                if (matches) hasMatch = true;
+            });
+            if (noMatch) noMatch.style.display = hasMatch ? 'none' : 'block';
         });
-        noMatch.style.display = hasMatch ? 'none' : 'block';
-    });
+    }
 
     refillOptions.forEach(opt => {
         opt.addEventListener('click', () => {
-            refillSearchInput.value = opt.dataset.name;
-            refillIdInput.value = opt.dataset.id;
-            refillDropdown.classList.add('hidden');
+            if (refillSearchInput) refillSearchInput.value = opt.dataset.name;
+            if (refillIdInput) refillIdInput.value = opt.dataset.id;
+            if (refillDropdown) refillDropdown.classList.add('hidden');
             renderDynamicRows();
             updateRefillCost();
         });
     });
 
-    quantityInput.addEventListener('input', () => {
-        renderDynamicRows();
-        updateRefillCost();
-    });
-    quantityInput.addEventListener('change', () => {
-        renderDynamicRows();
-        updateRefillCost();
-    });
+    if (quantityInput) {
+        quantityInput.addEventListener('input', () => {
+            renderDynamicRows();
+            updateRefillCost();
+        });
+        quantityInput.addEventListener('change', () => {
+            renderDynamicRows();
+            updateRefillCost();
+        });
+    }
 
     document.addEventListener('click', (event) => {
-        if (!refillSearchInput.contains(event.target) && !refillDropdown.contains(event.target)) {
+        if (refillSearchInput && refillDropdown && !refillSearchInput.contains(event.target) && !refillDropdown.contains(event.target)) {
             refillDropdown.classList.add('hidden');
         }
     });
 
-    // Complete Reset Functionality on Modal Close/Cancel
     function resetRefillModal() {
         if (refillForm) refillForm.reset();
         if (dynamicRowsContainer) dynamicRowsContainer.innerHTML = '';
@@ -375,6 +382,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateRefillCost();
 });
 /*============= END OF REFILL PROCESS =============*/
+
 
 /*============= START OF TRANSACTION MODAL =============*/
 

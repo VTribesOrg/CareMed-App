@@ -2975,17 +2975,30 @@ def transactions():
 
     active_rentals_list = []
     for rental in raw_active_rentals:
-        for tank in rental.tanks:
-            if tank.status == "Active" and tank.serial_number:
-                clean_sn = tank.serial_number.strip()
-                if clean_sn:
+        if rental.tanks:
+            for tank in rental.tanks:
+                if tank.status == "Active":
+                    clean_sn = (tank.serial_number or "").strip()
                     active_rentals_list.append({
                         'customer_id': rental.customer_id,
-                        'serial_number': clean_sn,
+                        'rental_id': rental.id,
+                        'serial_number': clean_sn if clean_sn else f"RENTAL-{rental.id}",
+                        'display_serial': clean_sn if clean_sn else "No S/N Assigned",
                         'product_name': rental.product.name if rental.product else 'Oxygen Tank',
                         'product_size': rental.product.size if rental.product and rental.product.size else 'Standard',
                         'refill_cost': float(rental.product.refill_cost or 0.00) if rental.product else 0.00
                     })
+        else:
+            # Fallback for rentals with no tank records linked yet
+            active_rentals_list.append({
+                'customer_id': rental.customer_id,
+                'rental_id': rental.id,
+                'serial_number': f"RENTAL-{rental.id}",
+                'display_serial': "No S/N Assigned",
+                'product_name': rental.product.name if rental.product else 'Oxygen Tank',
+                'product_size': rental.product.size if rental.product and rental.product.size else 'Standard',
+                'refill_cost': float(rental.product.refill_cost or 0.00) if rental.product else 0.00
+            })
     
     return render_template(
         "admin/transactions.html",
