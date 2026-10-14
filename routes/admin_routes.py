@@ -927,36 +927,50 @@ def process_refill_transaction():
 
             if swapped_serials and serial_list:
                 for target_serial, new_serial in zip(swapped_serials, serial_list):
-                    rental_tank = RentalTank.query.join(Rental).filter(
-                        Rental.customer_id == customer_id,
-                        RentalTank.serial_number == target_serial.strip(),
-                        RentalTank.status == "Active"
-                    ).first()
-                    
-                    if rental_tank:
-                        if not product:
-                            product = rental_tank.rental.product
+                    target_serial_clean = target_serial.strip()
+                    new_serial_clean = new_serial.strip()
+
+                    # Handle fallback unassigned serials (e.g. RENTAL-12)
+                    if target_serial_clean.startswith("RENTAL-"):
+                        try:
+                            rental_id = int(target_serial_clean.split("-")[1])
+                            rental = db.session.get(Rental, rental_id)
+                            if rental and rental.customer_id == int(customer_id):
+                                if not product:
+                                    product = rental.product
+                                serial_display_parts.append(f"No S/N → {new_serial_clean}")
+                        except (ValueError, IndexError):
+                            pass
+                    else:
+                        rental_tank = RentalTank.query.join(Rental).filter(
+                            Rental.customer_id == customer_id,
+                            RentalTank.serial_number == target_serial_clean,
+                            RentalTank.status == "Active"
+                        ).first()
                         
-                        old_serial = rental_tank.serial_number
-                        new_serial_clean = new_serial.strip()
-
-                        if old_serial != new_serial_clean:
-                            tank_log = RentalTankLog(
-                                rental_id=rental_tank.rental_id,
-                                tank_id=rental_tank.id,
-                                old_serial_number=old_serial,
-                                new_serial_number=new_serial_clean,
-                                reason="Tank Refill / Asset Exchange",
-                                changed_by_id=current_user.id
-                            )
-                            db.session.add(tank_log)
-
-                            rental_tank.serial_number = new_serial_clean
-                            db.session.add(rental_tank)
+                        if rental_tank:
+                            if not product:
+                                product = rental_tank.rental.product
                             
-                            serial_display_parts.append(f"{old_serial} → {new_serial_clean}")
-                        else:
-                            serial_display_parts.append(new_serial_clean)
+                            old_serial = rental_tank.serial_number
+
+                            if old_serial != new_serial_clean:
+                                tank_log = RentalTankLog(
+                                    rental_id=rental_tank.rental_id,
+                                    tank_id=rental_tank.id,
+                                    old_serial_number=old_serial,
+                                    new_serial_number=new_serial_clean,
+                                    reason="Tank Refill / Asset Exchange",
+                                    changed_by_id=current_user.id
+                                )
+                                db.session.add(tank_log)
+
+                                rental_tank.serial_number = new_serial_clean
+                                db.session.add(rental_tank)
+                                
+                                serial_display_parts.append(f"{old_serial} → {new_serial_clean}")
+                            else:
+                                serial_display_parts.append(new_serial_clean)
 
             if not product:
                 selected_tank_val = tank_size or ''
