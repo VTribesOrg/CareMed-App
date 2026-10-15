@@ -342,16 +342,36 @@ def dashboard_data():
             expenses_query = apply_date_filter(expenses_query, Expense.date)
         total_expenses = expenses_query.scalar() or 0.0
 
+        # Regular (non tank-tracked) stock. Tank-tracked products keep their
+        # quantity in the TankStatus counters, so their product.stock is excluded
+        # here and added back from the tank metrics below — that keeps the Total
+        # Inventory card in sync with the Oxygen Tank Tracking panel and the
+        # inventory page.
         product_stats = (
             db.session.query(
                 func.coalesce(func.sum(Product.stock), 0),
                 func.coalesce(func.sum(case((Product.stock <= 5, 1), else_=0)), 0)
             )
-            .filter(Product.is_active == True, Product.is_refillable == False)
+            .outerjoin(TankStatus, TankStatus.product_id == Product.id)
+            .filter(Product.is_active == True, TankStatus.id.is_(None))
             .first()
         )
         product_inventory = int(product_stats[0]) if product_stats and product_stats[0] is not None else 0
         low_stock_count = int(product_stats[1]) if product_stats and product_stats[1] is not None else 0
+
+        # All tank-tracked units across every product with TankStatus metrics.
+        tank_units_total = int(
+            db.session.query(
+                func.coalesce(
+                    func.sum(
+                        func.coalesce(TankStatus.full_in_stock, 0)
+                        + func.coalesce(TankStatus.empty_in_stock, 0)
+                        + func.coalesce(TankStatus.rented_out, 0)
+                    ),
+                    0
+                )
+            ).join(Product).filter(Product.is_active == True).scalar() or 0
+        )
 
         raw_tank_data = (
             TankStatus.query.join(Product)
@@ -366,15 +386,17 @@ def dashboard_data():
         )
 
         tank_aggregation = {}
-        total_tank_count = 0
 
         for tank in raw_tank_data:
-            key = (tank.product.name, tank.product.size)
+            product = tank.product
+            key = (product.name, product.size)
             if key not in tank_aggregation:
                 tank_aggregation[key] = {
-                    "name": tank.product.name,
-                    "size": tank.product.size,
-                    "product_id": tank.product.id,
+                    "name": product.name,
+                    "size": product.size,
+                    "product_id": product.id,
+                    "condition": product.condition or "Brand New",
+                    "transaction_type": product.transaction_type or "Sale",
                     "total_owned": 0,
                     "rented_out": 0,
                     "full_in_stock": 0,
@@ -386,8 +408,6 @@ def dashboard_data():
             tank_aggregation[key]["full_in_stock"] += tank.full_in_stock or 0
             tank_aggregation[key]["empty_in_stock"] += tank.empty_in_stock or 0
 
-            total_tank_count += ((tank.full_in_stock or 0) + (tank.empty_in_stock or 0) + (tank.rented_out or 0))
-
         combined_tank_statuses = list(tank_aggregation.values())
         
         import re
@@ -396,9 +416,14 @@ def dashboard_data():
             numbers = re.findall(r'\d+', size_str)
             return int(numbers[0]) if numbers else 0
 
-        combined_tank_statuses.sort(key=extract_tank_size)
+        # Group by type: Sale rows first, then Rental rows; sort by size within each group
+        type_order = {"sale": 0, "rental": 1}
+        combined_tank_statuses.sort(key=lambda t: (
+            type_order.get((t.get("transaction_type") or "Sale").lower(), 99),
+            extract_tank_size(t)
+        ))
 
-        total_inventory = product_inventory + total_tank_count
+        total_inventory = product_inventory + tank_units_total
 
         all_products = Product.query.filter(
             Product.is_refillable == False,
@@ -989,6 +1014,9 @@ def process_refill_transaction():
                 
                 tank_status.full_in_stock -= quantity
                 tank_status.empty_in_stock += quantity
+                if product.tank_status is not tank_status:
+                    product.tank_status = tank_status
+                product.sync_tank_stock()
             else:
                 flash("Inventory Error: Could not match refillable product inventory item.", "danger")
                 return redirect(request.referrer or url_for('admin.dashboard'))
@@ -1021,6 +1049,9 @@ def process_refill_transaction():
                 
                 tank_status.full_in_stock -= quantity
                 tank_status.empty_in_stock += quantity
+                if product.tank_status is not tank_status:
+                    product.tank_status = tank_status
+                product.sync_tank_stock()
             else:
                 flash("Inventory Error: Could not match refillable product inventory item for walk-in.", "danger")
                 return redirect(request.referrer or url_for('admin.dashboard'))
@@ -1856,6 +1887,7 @@ def edit_product(product_id):
                 tank_status = product.tank_status
                 tank_status.full_in_stock = max(0, tank_status.full_in_stock + stock_diff)
                 tank_status.total_owned = max(0, tank_status.total_owned + stock_diff)
+                product.sync_tank_stock()
                 changes.append(f"Updated tank status metrics (Full/Total owned adjusted by {stock_diff:+d})")
 
     except (ValueError, InvalidOperation):
@@ -1944,11 +1976,7 @@ def update_stock(product_id):
         # ── Sync TankStatus for refillable products ────────────────────────
         if product.is_refillable and product.tank_status:
             product.tank_status.full_in_stock = (product.tank_status.full_in_stock or 0) + increment
-            product.tank_status.total_owned = (
-                (product.tank_status.full_in_stock or 0) +
-                (product.tank_status.empty_in_stock or 0) +
-                (product.tank_status.rented_out or 0)
-            )
+            product.sync_tank_stock()
 
         # ── Auto-update unit cost if total amount paid is provided ─────────
         if total_amount_paid and total_amount_paid > 0:
@@ -2234,6 +2262,7 @@ def process_purchase():
                 product.tank_status.total_owned = max(
                     (product.tank_status.total_owned or 0) - quantity, 0
                 )
+                product.sync_tank_stock()
 
             notes_raw = request.form.get("warranty_or_notes", "")
             if isinstance(notes_raw, list):
@@ -2566,6 +2595,7 @@ def process_rental():
 
                 product.tank_status.rented_out = (product.tank_status.rented_out or 0) + qty
                 product.tank_status.full_in_stock = max((product.tank_status.full_in_stock or 0) - qty, 0)
+                product.sync_tank_stock()
                 log_note = f"Rental created (Tank metrics updated) {ref_no}"
             else:
                 if hasattr(product, 'stock') and product.stock is not None:
@@ -3070,6 +3100,7 @@ def cancel_transaction(txn_id):
                     if product.tank_status:
                         product.tank_status.full_in_stock = (product.tank_status.full_in_stock or 0) + purchase.quantity
                         product.tank_status.total_owned = (product.tank_status.total_owned or 0) + purchase.quantity
+                        product.sync_tank_stock()
 
                     inv_log = InventoryLog(
                         product_id=product.id,
@@ -3096,12 +3127,11 @@ def cancel_transaction(txn_id):
                         tank_info = rental.product.tank_status
                         tank_info.rented_out = max(0, (tank_info.rented_out or 0) - qty_to_return)
                         
-                        # Default cancelled items back to full in stock
+                        # Default cancelled items back to full in stock. Stock
+                        # mirrors the tank metrics (full + empty + rented), so it
+                        # must NOT be incremented separately here.
                         tank_info.full_in_stock = (tank_info.full_in_stock or 0) + qty_to_return
-                        rental.product.stock = (rental.product.stock or 0) + qty_to_return
-                        
-                        if rental.product.stock > 0:
-                            rental.product.status = "Available"
+                        rental.product.sync_tank_stock()
                             
                         db.session.add(tank_info)
                         db.session.add(rental.product)
@@ -3128,11 +3158,12 @@ def cancel_transaction(txn_id):
         elif txn.transaction_type == 'Refill' and txn.product_id:
             product = Product.query.get(txn.product_id)
             if product and txn.quantity:
-                product.stock = (product.stock or 0) + txn.quantity
-
                 if product.tank_status:
                     product.tank_status.full_in_stock = (product.tank_status.full_in_stock or 0) + txn.quantity
                     product.tank_status.empty_in_stock = max(0, (product.tank_status.empty_in_stock or 0) - txn.quantity)
+                    product.sync_tank_stock()
+                else:
+                    product.stock = (product.stock or 0) + txn.quantity
                 
                 inv_log = InventoryLog(
                     product_id=product.id,
@@ -3944,13 +3975,131 @@ def transaction_details(id):
             CustomerDeposit.transaction_id == txn.id,
             CustomerDeposit.status == 'Held'
         ).scalar()
+
+    # Editing a deposit is a money correction on an encoded transaction —
+    # Administrators always can; staff need the transaction permission.
+    can_edit_deposit = getattr(current_user, 'role', '') == 'Administrator'
+    if not can_edit_deposit:
+        user_perms = Permission.query.filter_by(user_id=current_user.id).first()
+        can_edit_deposit = bool(user_perms and user_perms.can_process_transactions)
     
     return render_template(
         'admin/transaction_details.html', 
         txn=txn, 
         current_date=datetime.now().date(),
-        held_deposit_total=held_deposit_total
+        held_deposit_total=held_deposit_total,
+        can_edit_deposit=can_edit_deposit
     )
+
+@admin_bp.route('/transaction/<int:id>/update-deposit', methods=['POST'])
+@login_required
+@admin_or_staff_required
+@permission_required('can_process_transactions')
+def update_deposit(id):
+    txn = Transaction.query.get_or_404(id)
+
+    raw_amount = (request.form.get('deposit_amount') or '').strip().replace(',', '')
+    if not raw_amount:
+        flash("Please enter a deposit amount.", "warning")
+        return redirect(url_for('admin.transaction_details', id=txn.id))
+
+    try:
+        new_amount = Decimal(raw_amount).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    except (InvalidOperation, ValueError, TypeError):
+        flash("Invalid deposit amount.", "danger")
+        return redirect(url_for('admin.transaction_details', id=txn.id))
+
+    if new_amount < 0:
+        flash("Customer deposit cannot be negative.", "danger")
+        return redirect(url_for('admin.transaction_details', id=txn.id))
+
+    old_amount = Decimal(str(txn.deposit_amount or 0)).quantize(Decimal("0.01"))
+
+    if txn.transaction_type != 'Rental' and old_amount <= 0:
+        flash("No deposit is recorded on this transaction.", "warning")
+        return redirect(url_for('admin.transaction_details', id=txn.id))
+
+    if new_amount == old_amount:
+        flash("Deposit amount is unchanged.", "info")
+        return redirect(url_for('admin.transaction_details', id=txn.id))
+
+    try:
+        txn.deposit_amount = new_amount
+
+        audit_note = (
+            f"Deposit corrected from ₱{old_amount:,.2f} to ₱{new_amount:,.2f} "
+            f"by {getattr(current_user, 'full_name', None) or current_user.email}"
+        )
+
+        # Keep the held customer-deposit record in sync — this drives the
+        # "Held Balance" panel and the customer deposits table on the dashboard.
+        held_deposits = CustomerDeposit.query.filter_by(
+            transaction_id=txn.id,
+            status="Held"
+        ).order_by(CustomerDeposit.id).all()
+
+        target_deposit = next(
+            (d for d in held_deposits
+             if Decimal(str(d.amount or 0)).quantize(Decimal("0.01")) == old_amount),
+            None
+        )
+        if target_deposit is None and old_amount > 0 and held_deposits:
+            target_deposit = held_deposits[0]
+
+        if target_deposit is not None:
+            target_deposit.amount = new_amount
+            base_notes = (target_deposit.notes or "").rstrip(" |")
+            target_deposit.notes = f"{base_notes} | {audit_note}" if base_notes else audit_note
+        elif new_amount > 0 and txn.customer_id:
+            db.session.add(CustomerDeposit(
+                customer_id=txn.customer_id,
+                transaction_id=txn.id,
+                amount=new_amount,
+                status="Held",
+                notes=f"Deposit recorded via transaction {txn.reference_no} | {audit_note}"
+            ))
+
+        # Keep the deposit payment record in sync — deposit payments are held
+        # funds and are excluded from amount_paid / balance_due by update_totals().
+        deposit_payments = Payment.query.filter_by(
+            transaction_id=txn.id,
+            payment_type="Deposit",
+            status="Completed"
+        ).order_by(Payment.id).all()
+
+        target_payment = next(
+            (p for p in deposit_payments
+             if Decimal(str(p.amount or 0)).quantize(Decimal("0.01")) == old_amount),
+            None
+        )
+        if target_payment is None and old_amount > 0 and deposit_payments:
+            target_payment = deposit_payments[0]
+
+        if target_payment is not None:
+            target_payment.amount = new_amount
+        elif new_amount > 0:
+            db.session.add(Payment(
+                transaction_id=txn.id,
+                invoice_id=None,
+                payment_type="Deposit",
+                amount=new_amount,
+                payment_method=txn.payment_method or "Cash",
+                reference_number=None,
+                status="Completed",
+                verified_by_id=current_user.id,
+                verified_at=datetime.utcnow()
+            ))
+
+        txn.update_totals()
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"UPDATE_DEPOSIT_ERROR | TXN: {txn.id} | {str(e)}")
+        flash("Failed to update the deposit amount.", "danger")
+        return redirect(url_for('admin.transaction_details', id=txn.id))
+
+    flash(f"Customer deposit updated to ₱{new_amount:,.2f} for {txn.reference_no}.", "success")
+    return redirect(url_for('admin.transaction_details', id=txn.id))
     
 @admin_bp.route('/api/cron/generate-invoices', methods=['POST', 'GET'])
 def cron_generate_invoices():
@@ -4354,11 +4503,11 @@ def process_return(txn_id):
                         tank_info.empty_in_stock = (tank_info.empty_in_stock or 0) + qty_to_return
                     else:
                         tank_info.full_in_stock = (tank_info.full_in_stock or 0) + qty_to_return
-                        rental.product.stock = (rental.product.stock or 0) + qty_to_return
-                    
-                    if rental.product.stock > 0:
-                        rental.product.status = "Available"
-                        
+
+                    # Stock mirrors the tank metrics (full + empty + rented) —
+                    # never add returned units to product.stock directly.
+                    rental.product.sync_tank_stock()
+
                     db.session.add(tank_info)
                     db.session.add(rental.product)
 
@@ -4432,13 +4581,18 @@ def process_primegas():
     product_ids = request.form.getlist('product_id[]')
     quantities = request.form.getlist('quantity[]')
     amounts = request.form.getlist('amount[]')
+    capitals = request.form.getlist('capital[]')
+    # Older/cached pages may not post the capital inputs at all — treat them
+    # as absent so the transaction still processes with manual amounts.
+    if len(capitals) != len(product_ids):
+        capitals = [None] * len(product_ids)
 
     if not product_ids or len(product_ids) != len(quantities) or len(product_ids) != len(amounts):
         flash('Invalid Primegas transaction payload.', 'danger')
         return redirect(url_for('admin.transactions'))
 
     items = []
-    for pid_raw, qty_raw, amt_raw in zip(product_ids, quantities, amounts):
+    for idx, (pid_raw, qty_raw, amt_raw) in enumerate(zip(product_ids, quantities, amounts)):
         if not (pid_raw or '').strip():
             continue  # skip blank rows
         try:
@@ -4451,15 +4605,40 @@ def process_primegas():
         except (TypeError, ValueError):
             flash('Invalid quantity provided.', 'danger')
             return redirect(url_for('admin.transactions'))
-        try:
-            amount = float(amt_raw)
-        except (TypeError, ValueError):
+
+        # Optional per-unit capital / tank cost. The client auto-computes
+        # Amount = Capital x Qty; a blank capital keeps the manual amount.
+        capital = None
+        cap_raw = capitals[idx] if idx < len(capitals) else None
+        if cap_raw is not None and str(cap_raw).strip():
+            try:
+                capital = float(cap_raw)
+            except (TypeError, ValueError):
+                flash('Invalid capital amount provided.', 'danger')
+                return redirect(url_for('admin.transactions'))
+            if capital < 0:
+                flash('Capital amount cannot be negative.', 'danger')
+                return redirect(url_for('admin.transactions'))
+
+        amt_text = (amt_raw or '').strip()
+        if amt_text:
+            try:
+                amount = float(amt_text)
+            except (TypeError, ValueError):
+                flash('Invalid amount provided.', 'danger')
+                return redirect(url_for('admin.transactions'))
+        elif capital is not None:
+            # Graceful fallback: derive the amount server-side if only the
+            # capital was provided.
+            amount = round(capital * quantity, 2)
+        else:
             flash('Invalid amount provided.', 'danger')
             return redirect(url_for('admin.transactions'))
+
         if quantity <= 0 or amount < 0:
             flash('Please select a valid product, quantity, and amount.', 'warning')
             return redirect(url_for('admin.transactions'))
-        items.append((product_id, quantity, amount))
+        items.append((product_id, quantity, amount, capital))
 
     if not items:
         flash('Please add at least one refill item.', 'warning')
@@ -4467,7 +4646,7 @@ def process_primegas():
 
     # Aggregate quantities per product so duplicated rows cannot oversell stock.
     required_per_product = {}
-    for product_id, quantity, _ in items:
+    for product_id, quantity, _, _ in items:
         required_per_product[product_id] = required_per_product.get(product_id, 0) + quantity
 
     # Validate every row BEFORE touching stock so a failure cannot half-apply.
@@ -4487,26 +4666,30 @@ def process_primegas():
         tank_status = tank_status_map[product_id]
         tank_status.empty_in_stock = (tank_status.empty_in_stock or 0) - total_qty
         tank_status.full_in_stock = (tank_status.full_in_stock or 0) + total_qty
+        tank_status.product.sync_tank_stock()
 
     # One expense record per line item keeps per-product expense reporting intact.
-    for product_id, quantity, amount in items:
+    for product_id, quantity, amount, capital in items:
         product = db.session.get(Product, product_id)
         label = product.name if product else f'Product ID {product_id}'
         if product and product.size:
             label = f'{label} ({product.size})'
+        description = f"Primegas transaction processing batch refill for {label}"
+        if capital is not None:
+            description += f" | Capital: ₱{capital:,.2f}/unit (₱{capital * quantity:,.2f} total)"
         db.session.add(Expense(
             category="Primegas Refill",
             expense_title=f"Refilled {quantity} unit(s) - {label}",
             amount=amount,
-            description=f"Primegas transaction processing batch refill for {label}",
+            description=description,
             product_id=product_id,
             recorded_by_id=current_user.id
         ))
 
     db.session.commit()
 
-    total_units = sum(qty for _, qty, _ in items)
-    total_amount = sum(amt for _, _, amt in items)
+    total_units = sum(qty for _, qty, _, _ in items)
+    total_amount = sum(amt for _, _, amt, _ in items)
     flash(
         f'Successfully refilled {total_units} tank(s) across {len(items)} item(s) '
         f'- total expense of ₱{total_amount:,.2f} recorded!',

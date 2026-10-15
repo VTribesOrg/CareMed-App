@@ -37,7 +37,18 @@ class Product(db.Model, BranchScoped):
     rentals = db.relationship("Rental", back_populates="product", passive_deletes=True)
     tank_status = db.relationship("TankStatus", back_populates="product", uselist=False, cascade="all, delete-orphan")
     inventory_logs = db.relationship("InventoryLog", back_populates="product", passive_deletes=True)
-    
+
+    def sync_tank_stock(self):
+        tank = getattr(self, "tank_status", None)
+        if not tank:
+            return
+
+        owned = (tank.full_in_stock or 0) + (tank.empty_in_stock or 0) + (tank.rented_out or 0)
+        tank.total_owned = owned
+        self.stock = owned
+        if self.status in ("Available", "Out of Stock"):
+            self.status = "Available" if owned > 0 else "Out of Stock"
+
 class TankStatus(db.Model, BranchScoped):
     __tablename__ = "tank_status"
 
@@ -394,7 +405,6 @@ class Transaction(db.Model, BranchScoped):
         else:
             if self.status == "Closed":
                 self.status = "Open"  
-
 
 class Payment(db.Model, BranchScoped):
     __tablename__ = "payments"

@@ -226,6 +226,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (oxygenTanksTbody) {
                     if (data.tank_statuses && data.tank_statuses.length > 0) {
                         const sortedTanks = [...data.tank_statuses].sort((a, b) => {
+                            const typeOrder = { sale: 0, rental: 1 };
+                            const aType = typeOrder[(a.transaction_type || "Sale").toLowerCase()] ?? 99;
+                            const bType = typeOrder[(b.transaction_type || "Sale").toLowerCase()] ?? 99;
+                            if (aType !== bType) return aType - bType;
                             const getLbs = (str) => {
                                 const match = (str || "").match(/\d+/);
                                 return match ? parseInt(match[0], 10) : 0;
@@ -234,11 +238,23 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
 
                         let rowsHtml = "";
+                        const fleetTotals = { owned: 0, rented: 0, full: 0, empty: 0 };
                         sortedTanks.forEach(tank => {
                             let sizeHtml = tank.size ? `<span>(${tank.size})</span>` : "";
+                            const isRental = (tank.transaction_type || "").toLowerCase() === "rental";
+                            const typeBadge = isRental
+                                ? `<span class="pill-orange" style="font-size:0.68rem;">Rental</span>`
+                                : `<span class="pill-green" style="font-size:0.68rem;">Sale</span>`;
+                            const conditionHtml = `<span style="font-size:0.72rem; color:#475569;">${tank.condition || "Brand New"}</span>`;
+                            fleetTotals.owned += tank.total_owned || 0;
+                            fleetTotals.rented += tank.rented_out || 0;
+                            fleetTotals.full += tank.full_in_stock || 0;
+                            fleetTotals.empty += tank.empty_in_stock || 0;
                             rowsHtml += `
                                 <tr>
                                     <td style="font-weight: 600;">${tank.name} ${sizeHtml}</td>
+                                    <td style="text-align: center;">${typeBadge}</td>
+                                    <td style="text-align: center;">${conditionHtml}</td>
                                     <td style="text-align: center; font-weight: 500;">${tank.total_owned}</td>
                                     <td style="text-align: center;"><span class="pill-orange">${tank.rented_out}</span></td>
                                     <td style="text-align: center;"><span class="pill-green">${tank.full_in_stock}</span></td>
@@ -246,11 +262,21 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </tr>
                             `;
                         });
+                        rowsHtml += `
+                            <tr style="background: #f8fafc;">
+                                <td style="font-weight: 700;">Total</td>
+                                <td style="text-align: center;" colspan="2">—</td>
+                                <td style="text-align: center; font-weight: 700;">${fleetTotals.owned}</td>
+                                <td style="text-align: center; font-weight: 700;">${fleetTotals.rented}</td>
+                                <td style="text-align: center; font-weight: 700;">${fleetTotals.full}</td>
+                                <td style="text-align: center; font-weight: 700;">${fleetTotals.empty}</td>
+                            </tr>
+                        `;
                         oxygenTanksTbody.innerHTML = rowsHtml;
                     } else {
                         oxygenTanksTbody.innerHTML = `
                             <tr class="table-empty-row">
-                                <td colspan="5" style="text-align: center; padding: 20px; color: #64748b;">No oxygen tank metrics configured.</td>
+                                <td colspan="7" style="text-align: center; padding: 20px; color: #64748b;">No oxygen tank metrics configured.</td>
                             </tr>
                         `;
                     }

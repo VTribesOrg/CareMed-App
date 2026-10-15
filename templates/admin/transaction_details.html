@@ -767,6 +767,18 @@
                     <span style="font-weight: 500;">Total Paid</span>
                     <span style="font-weight: 600; color: #16a34a;">₱{{ "{:,.2f}".format(txn.amount_paid or 0) }}</span>
                 </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; color: #374151; margin-top: 4px;">
+                    <span style="font-weight: 500;">Customer Deposit <span style="font-size: 11px; font-weight: normal; color: #6b7280;">(held — not part of balance)</span></span>
+                    <span style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-weight: 600; color: #b45309;">₱{{ "{:,.2f}".format(txn.deposit_amount or 0) }}</span>
+                        {% if can_edit_deposit and (txn.transaction_type == 'Rental' or (txn.deposit_amount or 0) > 0) %}
+                        <button type="button" class="btn-edit-deposit" data-deposit="{{ '%.2f'|format(txn.deposit_amount or 0) }}" title="Edit customer deposit amount" style="border: 1px solid #fcd34d; background: #fffbeb; color: #b45309; border-radius: 5px; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0;">
+                            <span class="material-symbols-rounded" style="font-size: 14px; pointer-events: none;">edit</span>
+                        </button>
+                        {% endif %}
+                    </span>
+                </div>
             </div>
 
             {% if txn.transaction_type == 'Rental' and txn.rentals %}
@@ -1334,6 +1346,31 @@
             <div class="custom-modal-footer">
                 <button type="button" class="custom-btn custom-btn-secondary" id="cancelCancelModal">Close</button>
                 <button type="submit" class="custom-btn custom-btn-danger">Confirm Cancellation</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="editDepositModal" class="custom-modal-overlay" style="display: none;">
+    <div class="custom-modal-dialog">
+        <form id="editDepositForm" method="POST" action="{{ url_for('admin.update_deposit', id=txn.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+            <div class="custom-modal-header">
+                <h5 class="custom-modal-title">Edit Customer Deposit</h5>
+                <button type="button" class="custom-modal-close" id="closeEditDepositModal">&times;</button>
+            </div>
+            <div class="custom-modal-body">
+                <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 12px;">
+                    Correct the deposit encoded for transaction <strong>{{ txn.reference_no }}</strong>.
+                    The updated amount will be saved to this transaction's records and held balance.
+                </p>
+                <label for="edit-deposit-amount" style="display: block; margin-bottom: 5px; font-size: 0.9rem; font-weight: 500; color: #475569;">Deposit Amount (₱)</label>
+                <input type="number" name="deposit_amount" id="edit-deposit-amount" class="form-control" value="{{ '%.2f'|format(txn.deposit_amount or 0) }}" step="0.01" min="0" required style="width: 220px; padding: 8px; font-weight: 600; color: #0f172a;">
+            </div>
+            <div class="custom-modal-footer">
+                <button type="button" class="custom-btn custom-btn-secondary" id="cancelEditDepositModal">Cancel</button>
+                <button type="submit" class="custom-btn" style="background-color: #0d9488; color: #ffffff;">Save Changes</button>
             </div>
         </form>
     </div>

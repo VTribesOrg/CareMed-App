@@ -40,3 +40,6 @@ Thumbs.db
 /scripts/
 .claude/
 /_fix_balance_due.py
+
+/
+docs/

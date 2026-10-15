@@ -738,7 +738,7 @@
             </div>
 
             <template id="primegas-item-template">
-                <div class="primegas-item-row" style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; align-items: end; padding: 12px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px;">
+                <div class="primegas-item-row" style="display: grid; grid-template-columns: 1.7fr 0.8fr 1.1fr 1fr auto; gap: 10px; align-items: end; padding: 12px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px;">
                     <div class="form-field" style="margin-bottom: 0;">
                         <label style="font-weight: 700; color: #1e293b; margin-bottom: 6px; display: block; font-size: 0.85rem;">Select Product</label>
                         <div style="position: relative;">
@@ -762,6 +762,14 @@
                         <div style="position: relative;">
                             <input type="number" name="quantity[]" class="primegas-qty" placeholder="Qty" min="1" required style="width: 100%; height: 44px; padding: 0 12px 0 40px; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #1e293b; font-size: 0.9rem; outline: none; box-sizing: border-box;">
                             <span class="material-symbols-rounded" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #64748b; pointer-events: none; font-size: 20px;">pin</span>
+                        </div>
+                    </div>
+
+                    <div class="form-field" style="margin-bottom: 0;">
+                        <label style="font-weight: 700; color: #1e293b; margin-bottom: 6px; display: block; font-size: 0.85rem;">Capital / Tank Cost (₱)</label>
+                        <div style="position: relative;">
+                            <input type="number" step="0.01" name="capital[]" class="primegas-capital" placeholder="0.00" min="0" style="width: 100%; height: 44px; padding: 0 12px 0 40px; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #1e293b; font-size: 0.9rem; outline: none; box-sizing: border-box;">
+                            <span class="material-symbols-rounded" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #64748b; pointer-events: none; font-size: 20px;">sell</span>
                         </div>
                     </div>
 

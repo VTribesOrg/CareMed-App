@@ -235,6 +235,36 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 
+/*=================================== START OF EDIT DEPOSIT MODAL ===================================*/
+
+document.addEventListener('DOMContentLoaded', function () {
+    const editDepositModal = document.getElementById('editDepositModal');
+    if (!editDepositModal) return;
+
+    const editDepositInput = document.getElementById('edit-deposit-amount');
+
+    document.querySelectorAll('.btn-edit-deposit').forEach(button => {
+        button.addEventListener('click', function () {
+            if (editDepositInput) editDepositInput.value = this.dataset.deposit || '0.00';
+            editDepositModal.style.display = 'flex';
+        });
+    });
+
+    const closeEditDeposit = () => { editDepositModal.style.display = 'none'; };
+
+    document.getElementById('closeEditDepositModal')?.addEventListener('click', closeEditDeposit);
+    document.getElementById('cancelEditDepositModal')?.addEventListener('click', closeEditDeposit);
+
+    window.addEventListener('click', function (event) {
+        if (event.target === editDepositModal) {
+            closeEditDeposit();
+        }
+    });
+});
+
+/*=================================== END OF EDIT DEPOSIT MODAL ===================================*/
+
+
 const input = document.getElementById("receipt-image");
 const previewWrap = document.getElementById("receipt-preview-wrap");
 const previewImg = document.getElementById("receipt-preview");

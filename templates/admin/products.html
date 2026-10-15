@@ -26,7 +26,7 @@
                         <span class="toast-title">{{ category|capitalize or 'Notice' }}</span>
                         <span class="toast-message">{{ message|replace('\n', '<br>')|safe }}</span>
                     </div>
-                    <button class="toast-close" onclick="this.parentElement.remove()">
+                    <button class="toast-close toast-close-btn">
                         <span class="material-symbols-rounded">close</span>
                     </button>
                 </div>
@@ -43,7 +43,7 @@
             <span class="toast-title"></span>
             <span class="toast-message"></span>
         </div>
-        <button class="toast-close" onclick="this.parentElement.remove()">
+        <button class="toast-close toast-close-btn">
             <span class="material-symbols-rounded">close</span>
         </button>
     </div>
@@ -124,9 +124,9 @@
                     </td>
                     <td class="stock">
                         {% if product.is_refillable and product.tank_status %}
-                            {{ product.tank_status.full_in_stock or 0 }} Units
+                            {{ product.tank_status.total_owned or 0 }} Units
                             <small style="display:block; color:#94a3b8; font-size:0.72rem;">
-                                {{ product.tank_status.rented_out or 0 }} rented out
+                                {{ product.tank_status.full_in_stock or 0 }} full · {{ product.tank_status.empty_in_stock or 0 }} empty · {{ product.tank_status.rented_out or 0 }} rented
                             </small>
                         {% else %}
                             {{ product.stock }} Units
@@ -216,7 +216,7 @@
                                         <span class="material-symbols-rounded">history</span> View Logs
                                     </button>
                                     <hr>
-                                    <button class="dropdown-item delete" style="color:#ef4444;" onclick="confirmDelete('{{ product.id }}')">
+                                    <button class="dropdown-item delete" style="color:#ef4444;" data-product-id="{{ product.id }}">
                                         <span class="material-symbols-rounded">delete</span> Delete Asset
                                     </button>
                                 </div>
@@ -268,7 +268,7 @@
             <div class="jump-to-wrapper">
                 <span class="jump-text">Go to</span>
                 <input type="number" id="jump-page-input" class="jump-input" min="1" max="{{ pagination.pages }}" value="{{ pagination.page }}">
-                <button class="jump-btn" onclick="jumpToPage()">Go</button>
+                <button class="jump-btn">Go</button>
             </div>
         </div>
     </div>
@@ -744,5 +744,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/admin/admin_product.js') }}"></script>
+<script src="{{ url_for('static', filename='js/admin/admin_product.js') }}" nonce="{{ csp_nonce() }}"></script>
 {% endblock %}

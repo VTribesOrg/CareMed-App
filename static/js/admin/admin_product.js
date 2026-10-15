@@ -11,25 +11,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const inventoryTable = document.getElementById('inventory-table');
     const allRows = document.querySelectorAll('#inventory-table tbody tr');
 
-
+    /* Toast close buttons (CSP-compliant: replaces inline onclick) */
+    document.addEventListener('click', (e) => {
+        if (e.target.closest('.toast-close')) {
+            e.target.closest('.medical-toast')?.remove();
+        }
+    });
     /* ==========================================================
         2. ACTION DROPDOWN TOGGLE LOGIC
         ========================================================== */
-    allRows.forEach(row => {
-        row.addEventListener('click', function(e) {
-            if (e.target.closest('.asset-action-btn')) return;
-
-            const isActive = this.classList.contains('row-active');
-
-            allRows.forEach(r => r.classList.remove('row-active'));
-            document.querySelectorAll('.action-dropdown').forEach(d => d.classList.remove('active'));
-
-            if (!isActive) {
-                this.classList.add('row-active');
-            }
-        });
-    });
-
     document.querySelectorAll('.more-trigger').forEach(trigger => {
         trigger.addEventListener('click', function(e) {
             e.stopPropagation();
@@ -44,13 +34,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             parentDropdown.classList.toggle('active');
 
-            // Position the dropdown using fixed coords from the trigger button
             if (parentDropdown.classList.contains('active') && menu) {
                 const rect = this.getBoundingClientRect();
                 menu.style.top = (rect.bottom + 4) + 'px';
                 menu.style.left = (rect.right - menu.offsetWidth - 4) + 'px';
-                
-                // Adjust if menu goes off screen bottom
                 const menuBottom = rect.bottom + 4 + menu.offsetHeight;
                 if (menuBottom > window.innerHeight) {
                     menu.style.top = (rect.top - menu.offsetHeight - 4) + 'px';
@@ -63,7 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.addEventListener('click', (e) => {
-        if (!e.target.closest('#inventory-table')) {
+        if (!e.target.closest('.action-dropdown')) {
             allRows.forEach(r => r.classList.remove('row-active'));
             document.querySelectorAll('.action-dropdown').forEach(d => d.classList.remove('active'));
         }

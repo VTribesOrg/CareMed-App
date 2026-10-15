@@ -630,24 +630,7 @@
 <script id="active-oxygen-rentals-data" type="application/json">
     [
         {% for rental in active_rentals_list %}
-        {
-            "customer_id": {{ rental.customer_id|default(0, true) }},
-            "serial_number": "{{ rental.serial_number }}",
-            "product_name": "{{ rental.product_name }}",
-            "product_size": "{{ rental.product_size }}"
-        }{% if not loop.last %},{% endif %}
-        {% endfor %}
-    ]
-</script>
-
-<script id="refillable-products-data" type="application/json">
-    [
-        {% for product in refillable_products %}
-        {
-            "name": {{ product.name | tojson }},
-            "size": {{ product.size | tojson }},
-            "refill_cost": {{ product.refill_cost | float }}
-        }{% if not loop.last %},{% endif %}
+        {{ rental | tojson }}{% if not loop.last %},{% endif %}
         {% endfor %}
     ]
 </script>

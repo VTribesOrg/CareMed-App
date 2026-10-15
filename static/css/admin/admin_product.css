@@ -1451,9 +1451,7 @@ td:nth-child(2) {
     padding: 8px 0;
 }
 
-.action-dropdown:hover .dropdown-menu {
-    display: block;
-}
+/* Dropdown opened via JS click (.active class), not hover */
 
 .dropdown-item {
     width: 100%;
@@ -1483,7 +1481,9 @@ td:nth-child(2) {
 }
 
 .action-dropdown.active .dropdown-menu {
-    display: block; 
+    position: fixed;
+    right: auto;
+    display: block;
     transform: translateY(0);
     z-index: 9999;
 }

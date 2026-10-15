@@ -250,7 +250,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (customerRentals.length > 0) {
                 customerRentals.forEach(rental => {
                     const isSelected = String(rental.serial_number) === String(prevData.selectedValue) ? 'selected' : '';
-                    const displayIdentifier = rental.display_serial !== "No S/N Assigned" ? `- SN: ${rental.display_serial}` : `(${rental.display_serial})`;
+                    const displaySerial = (rental.display_serial !== undefined && rental.display_serial !== null)
+                        ? rental.display_serial
+                        : rental.serial_number;
+                    const displayIdentifier = displaySerial !== "No S/N Assigned" ? `- SN: ${displaySerial}` : `(${displaySerial})`;
                     rentalOptionsHtml += `<option value="${rental.serial_number}" ${isSelected}>${rental.product_name || 'Oxygen Tank'} (${rental.product_size || 'Standard'}) ${displayIdentifier}</option>`;
                 });
             } else {
@@ -2007,6 +2010,7 @@ const primegasBindRow = (row) => {
     const select = row.querySelector('.primegas-product-select');
     const qtyInput = row.querySelector('.primegas-qty');
     const amountInput = row.querySelector('.primegas-amount');
+    const capitalInput = row.querySelector('.primegas-capital');
     const maxStockSpan = row.querySelector('.primegas-max-stock');
     const removeBtn = row.querySelector('.primegas-remove-item');
 
@@ -2023,6 +2027,27 @@ const primegasBindRow = (row) => {
 
         primegasSyncDuplicateOptions();
     });
+
+    // Auto-derive Amount from the capital/tank cost: Amount = Capital x Qty.
+    // The amount field stays editable so the value can still be overridden.
+    const primegasRecalcAmount = () => {
+        if (!capitalInput || !amountInput) return;
+        const capitalRaw = (capitalInput.value || '').trim();
+        if (capitalRaw === '') return;
+        const capital = parseFloat(capitalRaw);
+        if (isNaN(capital) || capital < 0) return;
+        const qty = Math.max(1, parseInt(qtyInput.value) || 1);
+        amountInput.value = (capital * qty).toFixed(2);
+        primegasUpdateTotal();
+    };
+
+    if (capitalInput) {
+        capitalInput.addEventListener('input', primegasRecalcAmount);
+    }
+    if (qtyInput) {
+        qtyInput.addEventListener('input', primegasRecalcAmount);
+        qtyInput.addEventListener('change', primegasRecalcAmount);
+    }
 
     amountInput.addEventListener('input', primegasUpdateTotal);
 
