@@ -999,8 +999,11 @@ def process_refill_transaction():
 
             if not product:
                 selected_tank_val = tank_size or ''
-                product_name = selected_tank_val.split(' - ')[0] if ' - ' in selected_tank_val else selected_tank_val
-                product = Product.query.filter_by(name=product_name.strip(), is_refillable=True).first()
+                if selected_tank_val.isdigit():
+                    product = db.session.get(Product, int(selected_tank_val))
+                else:
+                    product_name = selected_tank_val.split(' - ')[0] if ' - ' in selected_tank_val else selected_tank_val
+                    product = Product.query.filter_by(name=product_name.strip(), is_refillable=True).first()
 
             if product:
                 tank_status = TankStatus.query.filter_by(product_id=product.id).first()
@@ -1028,11 +1031,14 @@ def process_refill_transaction():
             display_name = unreg_name_raw.strip() or "Walk-in Customer"
             
             unreg_products = request.form.getlist('unregistered_product_size')
-            
             selected_tank_val = (unreg_products[0] if unreg_products else None) or tank_size or ''
-            product_name = selected_tank_val.split(' - ')[0] if ' - ' in selected_tank_val else selected_tank_val
             
-            product = Product.query.filter_by(name=product_name.strip(), is_refillable=True).first()
+            # Lookup product by ID if numeric (from select dropdown), else lookup by name
+            if selected_tank_val and str(selected_tank_val).isdigit():
+                product = db.session.get(Product, int(selected_tank_val))
+            else:
+                product_name = selected_tank_val.split(' - ')[0] if ' - ' in selected_tank_val else selected_tank_val
+                product = Product.query.filter_by(name=product_name.strip(), is_refillable=True).first()
             
             if serial_list:
                 serial_display_parts = [s.strip() for s in serial_list if s.strip()]
