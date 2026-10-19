@@ -196,24 +196,6 @@ def get_date_boundaries(period, custom_start=None, custom_end=None):
 @admin_or_staff_required
 def dashboard_data():
     try:
-        today = datetime.now().date()
-        
-        # 1. Automatically check and generate upcoming/due monthly invoices first
-        active_rentals = Rental.query.filter_by(status='Active').all()
-        invoices_generated_flag = False
-        
-        for rental in active_rentals:
-            if rental.is_open_duration:
-                latest_invoice = rental.get_latest_invoice()
-                if latest_invoice:
-                    days_remaining = (latest_invoice.service_period_end - today).days
-                    if days_remaining <= 3:
-                        rental.generate_next_monthly_invoice()
-                        invoices_generated_flag = True
-                        
-        if invoices_generated_flag:
-            db.session.commit()
-
         period = request.args.get('period', 'this_month')
         custom_start = request.args.get('start_date')
         custom_end = request.args.get('end_date')
@@ -516,7 +498,7 @@ def dashboard_data():
         return jsonify({
             "error": "An internal error occurred while processing dashboard analytics. Please try again later."
         }), 500
-                
+        
 @admin_bp.route("/dashboard/sales-transactions")
 @login_required
 @admin_or_staff_required
