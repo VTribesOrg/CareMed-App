@@ -196,6 +196,24 @@ def get_date_boundaries(period, custom_start=None, custom_end=None):
 @admin_or_staff_required
 def dashboard_data():
     try:
+        today = datetime.now().date()
+        
+        # 1. Automatically check and generate upcoming/due monthly invoices first
+        active_rentals = Rental.query.filter_by(status='Active').all()
+        invoices_generated_flag = False
+        
+        for rental in active_rentals:
+            if rental.is_open_duration:
+                latest_invoice = rental.get_latest_invoice()
+                if latest_invoice:
+                    days_remaining = (latest_invoice.service_period_end - today).days
+                    if days_remaining <= 3:
+                        rental.generate_next_monthly_invoice()
+                        invoices_generated_flag = True
+                        
+        if invoices_generated_flag:
+            db.session.commit()
+
         period = request.args.get('period', 'this_month')
         custom_start = request.args.get('start_date')
         custom_end = request.args.get('end_date')
@@ -498,7 +516,7 @@ def dashboard_data():
         return jsonify({
             "error": "An internal error occurred while processing dashboard analytics. Please try again later."
         }), 500
-        
+                
 @admin_bp.route("/dashboard/sales-transactions")
 @login_required
 @admin_or_staff_required
@@ -3277,14 +3295,29 @@ def active_rentals():
 @admin_bp.route('/collection-monitoring')
 @login_required
 def collection_monitoring():
+    today = datetime.now().date()
+
+    active_rentals = Rental.query.filter_by(status='Active').all()
+    invoices_generated_flag = False
+    
+    for rental in active_rentals:
+        if rental.is_open_duration:
+            latest_invoice = rental.get_latest_invoice()
+            if latest_invoice:
+                days_remaining = (latest_invoice.service_period_end - today).days
+                if days_remaining <= 3:
+                    rental.generate_next_monthly_invoice()
+                    invoices_generated_flag = True
+                    
+    if invoices_generated_flag:
+        db.session.commit()
+
     page = request.args.get('page', 1, type=int)
     limit = request.args.get('limit', 10, type=int)
     search_query = request.args.get('q', '', type=str).strip()
 
-    today = datetime.now().date()
     three_days_later = today + timedelta(days=3)
 
-    # 1. Build the base query with all your date, status, and search filters
     base_query = RentalInvoice.query.join(
         RentalInvoice.rental
     ).join(
@@ -3314,7 +3347,6 @@ def collection_monitoring():
 
         base_query = base_query.filter(or_(*filter_conditions))
 
- 
     subquery = base_query.with_entities(
         func.min(RentalInvoice.id).label('min_id')
     ).group_by(Rental.transaction_id).subquery()
