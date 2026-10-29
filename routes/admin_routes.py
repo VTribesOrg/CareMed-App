@@ -1143,6 +1143,7 @@ def process_refill_transaction():
             quantity=quantity,
             note=f"Processed refill for {display_name}. Subtotal: {form_amount} PHP, Net Total: {net_total} PHP.",
             user_id=current_user.id,
+            customer_name=display_name,
             user_name=getattr(current_user, 'full_name', 'System Administrator')
         )
         db.session.add(log)
@@ -1432,7 +1433,8 @@ def add_customer():
             action="Admin Created Customer",
             note=f"Customer {first_name} {last_name} added manually by {current_user.email}",
             user_id=current_user.id,
-            user_name=f"{current_user.first_name} {current_user.last_name}"
+            user_name=f"{current_user.first_name} {current_user.last_name}",
+            customer_name=f"{first_name} {last_name}"
         )
         db.session.add(log)
         
@@ -1522,7 +1524,8 @@ def update_customer():
             action="Admin Updated Customer",
             note=f"Customer ID {customer.id} updated by {current_user.first_name}",
             user_id=current_user.id,
-            user_name=current_user.full_name
+            user_name=current_user.full_name,
+            customer_name=customer.full_name
         )
         db.session.add(audit_log)
         
@@ -2301,7 +2304,8 @@ def process_purchase():
                 quantity=-quantity,
                 note=f"Sold {quantity} via {ref_no}",
                 user_id=current_user.id,
-                user_name=getattr(current_user, 'full_name', 'System Administrator')
+                user_name=getattr(current_user, 'full_name', 'System Administrator'),
+                customer_name=new_transaction.customer_name
             ))
 
         if amount_paid > 0:
@@ -2649,7 +2653,8 @@ def process_rental():
                 quantity=qty if not product.is_refillable else 0,  
                 note=log_note,
                 user_id=current_user.id,
-                user_name=getattr(current_user, 'full_name', 'System Administrator')
+                user_name=getattr(current_user, 'full_name', 'System Administrator'),
+                customer_name=new_txn.customer_name
             ))
 
         db.session.flush()
@@ -2844,7 +2849,6 @@ def product_history(product_id):
             "message": "Internal server error while fetching history."
         }), 500
 
-
 @admin_bp.route('/transactions')
 @login_required
 @admin_or_staff_required
@@ -2857,7 +2861,7 @@ def transactions():
     limit = request.args.get('limit', 10, type=int)
     search_query = request.args.get('q', '').strip()
     txn_type = request.args.get('type', '')
-    fulfillment = request.args.get('fulfillment', '')
+    equipment_type = request.args.get('equipment_type', '').strip()  # <--- Added equipment filter argument
     status_filter = request.args.get('status', '')
  
     start_date = request.args.get('start_date', '').strip()
@@ -2885,8 +2889,15 @@ def transactions():
     if txn_type:
         query = query.filter(Transaction.transaction_type == txn_type)
     
-    if fulfillment:
-        query = query.filter(Transaction.fulfillment_type == fulfillment)
+    # <--- Added Equipment Type Filtering Logic --->
+    if equipment_type:
+        query = query.outerjoin(Rental, Rental.transaction_id == Transaction.id)\
+                     .outerjoin(Product, or_(
+                         Product.id == Transaction.product_id,
+                         Product.id == Rental.product_id
+                     ))\
+                     .filter(Product.equipment_type.ilike(f"%{equipment_type}%"))\
+                     .distinct()
 
     if start_date:
         try:
@@ -2989,6 +3000,10 @@ def transactions():
     customers = Customer.query.order_by(Customer.last_name).all()
     all_equipment = Product.query.filter_by(status='Available').order_by(Product.equipment_type.asc()).all()
     
+    # <--- Fetch distinct equipment types for the dropdown list --->
+    raw_equipment_types = db.session.query(Product.equipment_type).filter(Product.equipment_type.isnot(None)).distinct().all()
+    equipment_types = sorted([et[0] for et in raw_equipment_types if et[0]])
+
     for equipment in all_equipment:
         if equipment.is_refillable and equipment.tank_status:
             equipment.available_stock = equipment.tank_status.full_in_stock or 0
@@ -3039,7 +3054,6 @@ def transactions():
                         'refill_cost': float(rental.product.refill_cost or 0.00) if rental.product else 0.00
                     })
         else:
-            # Fallback for rentals with no tank records linked yet
             active_rentals_list.append({
                 'customer_id': rental.customer_id,
                 'rental_id': rental.id,
@@ -3057,7 +3071,8 @@ def transactions():
         search_query=search_query,
         current_limit=limit,
         current_type=txn_type,
-        current_fulfillment=fulfillment,
+        current_equipment=equipment_type,  
+        equipment_types=equipment_types,   
         current_status=status_filter,
         start_date=start_date,      
         end_date=end_date,          
@@ -3114,7 +3129,8 @@ def cancel_transaction(txn_id):
                         quantity=purchase.quantity,
                         note=f'Restocked from cancelled txn {txn.reference_no}. Reason: {reason}',
                         user_id=current_user.id if hasattr(current_user, 'id') else None,
-                        user_name=getattr(current_user, 'username', 'Admin')
+                        user_name=getattr(current_user, 'username', 'Admin'),
+                        customer_name=txn.customer_name
                     )
                     db.session.add(inv_log)
 
@@ -3153,7 +3169,8 @@ def cancel_transaction(txn_id):
                         quantity=qty_to_return,
                         note=f'Restocked from cancelled rental txn {txn.reference_no}. Reason: {reason}',
                         user_id=current_user.id if hasattr(current_user, 'id') else None,
-                        user_name=user_display_name
+                        user_name=user_display_name,
+                        customer_name=txn.customer_name
                     )
                     db.session.add(inv_log)
                 
@@ -3177,7 +3194,8 @@ def cancel_transaction(txn_id):
                     quantity=txn.quantity,
                     note=f'Restocked from cancelled refill txn {txn.reference_no}. Reason: {reason}',
                     user_id=current_user.id if hasattr(current_user, 'id') else None,
-                    user_name=getattr(current_user, 'username', 'Admin')
+                    user_name=getattr(current_user, 'username', 'Admin'),
+                    customer_name=txn.customer_name
                 )
                 db.session.add(inv_log)
 
@@ -4543,7 +4561,8 @@ def process_return(txn_id):
                     quantity=qty_to_return,
                     note=f"Txn {txn.reference_no} Return. Status: {return_status}. {return_notes}",
                     user_id=current_user.id,
-                    user_name=user_display_name
+                    user_name=user_display_name,
+                    customer_name=txn.customer_name
                 ))
                 items_processed += 1
 

@@ -2242,7 +2242,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // ==========================================
     const tableSearch = document.getElementById('table-search');
     const typeFilter = document.getElementById('type-filter');
-    const fulfillmentFilter = document.getElementById('fulfillment-filter');
+    const equipmentTypeFilter = document.getElementById('equipment-type-filter'); // <--- Updated element reference
     const statusFilter = document.getElementById('status-filter');
     const rowLimitSelect = document.getElementById('row-limit-select');
     const clearFiltersBtn = document.getElementById('clear-filters-btn');
@@ -2253,7 +2253,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function applyFilters() {
         const searchVal = tableSearch ? tableSearch.value.trim() : '';
         const typeVal = typeFilter ? typeFilter.value : '';
-        const fulfillmentVal = fulfillmentFilter ? fulfillmentFilter.value : '';
+        const equipmentTypeVal = equipmentTypeFilter ? equipmentTypeFilter.value : ''; // <--- Captured equipment type value
         const statusVal = statusFilter ? statusFilter.value : '';
         const limitVal = rowLimitSelect ? rowLimitSelect.value : '10';
         const startDateVal = startDateFilter ? startDateFilter.value : '';
@@ -2263,7 +2263,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const urlParams = new URLSearchParams();
         if (searchVal) urlParams.set('q', searchVal);
         if (typeVal) urlParams.set('type', typeVal);
-        if (fulfillmentVal) urlParams.set('fulfillment', fulfillmentVal);
+        if (equipmentTypeVal) urlParams.set('equipment_type', equipmentTypeVal); // <--- Set equipment type query param
         if (statusVal) urlParams.set('status', statusVal);
         if (limitVal !== '10') urlParams.set('limit', limitVal);
         if (startDateVal) urlParams.set('start_date', startDateVal);
@@ -2274,7 +2274,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Trigger state configurations on active select transitions (instant reload for dropdowns)
     if (typeFilter) typeFilter.addEventListener('change', applyFilters);
-    if (fulfillmentFilter) fulfillmentFilter.addEventListener('change', applyFilters);
+    if (equipmentTypeFilter) equipmentTypeFilter.addEventListener('change', applyFilters); // <--- Bound listener to equipment filter
     if (statusFilter) statusFilter.addEventListener('change', applyFilters);
     if (rowLimitSelect) rowLimitSelect.addEventListener('change', applyFilters);
 
@@ -2416,6 +2416,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+
 /*============= AUTO-OPEN MODAL FROM URL PARAM =============*/
 document.addEventListener('DOMContentLoaded', function() {
     const urlParams = new URLSearchParams(window.location.search);

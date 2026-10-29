@@ -629,6 +629,7 @@ class InventoryLog(db.Model, BranchScoped):
     note = db.Column(db.String(255), nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     user_name = db.Column(db.String(100), nullable=True)
+    customer_name = db.Column(db.String(100), nullable=True)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
 
     product = db.relationship("Product", back_populates="inventory_logs")

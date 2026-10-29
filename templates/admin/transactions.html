@@ -96,11 +96,11 @@
                 <option value="Refill" {{ 'selected' if current_type == 'Refill' }}>Refill</option>
             </select>
 
-            <select id="fulfillment-filter" class="medical-select">
-                <option value="">All Fulfillment</option>
-                <option value="Walk-In" {{ 'selected' if current_fulfillment == 'Walk-In' }}>Walk-In</option>
-                <option value="Pickup" {{ 'selected' if current_fulfillment == 'Pickup' }}>Pickup</option>
-                <option value="Delivery" {{ 'selected' if current_fulfillment == 'Delivery' }}>Delivery</option>
+            <select id="equipment-type-filter" class="medical-select">
+                <option value="">All Equipment Types</option>
+                {% for et in equipment_types %}
+                    <option value="{{ et }}" {{ 'selected' if current_equipment == et }}>{{ et }}</option>
+                {% endfor %}
             </select>
             
             <div class="custom-dropdown flex-shrink-0 custom-action-dropdown-container" id="customActionDropdown">
@@ -111,7 +111,7 @@
                 <ul class="custom-dropdown-menu custom-action-menu" id="customDropdownMenu">
                     <li>
                         <a class="custom-dropdown-item custom-action-item d-flex align-items-center gap-2 px-3 py-2 fw-medium" 
-                        href="{{ url_for('admin.export_transactions', q=search_query, type=current_type, fulfillment=current_fulfillment, status=current_status, start_date=start_date, end_date=end_date) }}">
+                        href="{{ url_for('admin.export_transactions', q=search_query, type=current_type, equipment_type=current_equipment, status=current_status, start_date=start_date, end_date=end_date) }}">
                             <span class="material-symbols-rounded" style="font-size: 18px; color: #16a34a;">table_view</span>
                             <span>Export Spreadsheet</span>
                         </a>
@@ -119,7 +119,7 @@
                 </ul>
             </div>
 
-            {% if search_query or current_type or current_fulfillment or current_status or start_date or end_date %}
+            {% if search_query or current_type or current_equipment or current_status or start_date or end_date %}
             <button type="button" id="clear-filters-btn" class="clear-filter-btn text-nowrap">
                 <span class="material-symbols-rounded">filter_alt_off</span>
                 Reset
@@ -197,24 +197,40 @@
                         {% endif %}
 
                         {% if list_items %}
-                            <div style="display: flex; flex-direction: column; gap: 3px; max-width: 220px;"
-                                    title="{% for item in list_items %}{{ item.product.equipment_type if item.product else 'Tank Refill' }} (x{{ item.quantity }}){% if not loop.last %} | {% endif %}{% endfor %}">
-                                {% for item in list_items[:2] %}
-                                    <div style="display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; color: #212529; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                                        <span style="overflow: hidden; text-overflow: ellipsis;">{{ item.product.equipment_type if item.product else 'Tank Refill' }}</span>
-                                        <span style="color: #6c757d; font-size: 11px; margin-left: 6px; flex-shrink: 0;">(x{{ item.quantity }})</span>
+                            <div style="display: flex; flex-direction: column; gap: 3px;"
+                                    title="{% for item in list_items %}{{ item.product.name if item.product and item.product.name else (item.product.equipment_type if item.product else 'Item') }}{% if item.product and item.product.size %} ({{ item.product.size }}){% endif %} (x{{ item.quantity }}){% if not loop.last %} | {% endif %}{% endfor %}">
+                                {% for item in list_items %}
+                                    <div style="display: flex; flex-direction: column; gap: 2px; font-size: 12.5px; color: #212529; font-weight: 500;">
+                                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                                            <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block;">
+                                                {{ item.product.name if item.product and item.product.name else (item.product.equipment_type if item.product else 'Item') }}
+                                            </span>
+                                            <span style="color: #6c757d; font-size: 11px; flex-shrink: 0; white-space: nowrap;">(x{{ item.quantity }})</span>
+                                        </div>
+                                        {% if item.product and item.product.size %}
+                                        <div style="color: #475569; font-size: 11.5px; font-weight: 600;">
+                                            ({{ item.product.size }})
+                                        </div>
+                                        {% endif %}
                                     </div>
                                 {% endfor %}
-                                {% if list_items|length > 2 %}
-                                    <span style="background-color: #f8f9fa; color: #0d6efd; border: 1px solid #dee2e6; font-size: 10px; font-weight: bold; padding: 1px 5px; border-radius: 3px; display: inline-block; width: fit-content;">
-                                        +{{ list_items|length - 2 }} more item(s)
-                                    </span>
-                                {% endif %}
                             </div>
                         {% elif txn.transaction_type == 'Refill' %}
-                            <span style="font-size: 13px; color: #212529; font-weight: 500;">
-                                {{ txn.walk_in_tank_size or 'Oxygen' }} Tank Refill <span style="color: #6c757d; font-size: 11px;">(x{{ txn.quantity }})</span>
-                            </span>
+                            {% set refill_product = txn.product %}
+                            {% set refill_size = txn.walk_in_tank_size or (refill_product.size if refill_product else None) %}
+                            <div style="display: flex; flex-direction: column; gap: 2px; font-size: 12.5px; color: #212529; font-weight: 500;">
+                                <div style="display: flex; align-items: center; justify-content: space-between;">
+                                    <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block;">
+                                        {{ refill_product.name if refill_product and refill_product.name else (txn.walk_in_tank_size or 'Tank Refill') }}
+                                    </span>
+                                    <span style="color: #6c757d; font-size: 11px; flex-shrink: 0; white-space: nowrap;">(x{{ txn.quantity }})</span>
+                                </div>
+                                {% if refill_size %}
+                                <div style="color: #475569; font-size: 11.5px; font-weight: 600;">
+                                    ({{ refill_size }})
+                                </div>
+                                {% endif %}
+                            </div>
                         {% else %}
                             <span style="color: #6c757d;">—</span>
                         {% endif %}
@@ -402,6 +418,7 @@
             </tbody>
         </table>
     </div>
+
 
     <div class="pagination-footer" style="margin-top: auto;">
         <div class="table-limit-control">

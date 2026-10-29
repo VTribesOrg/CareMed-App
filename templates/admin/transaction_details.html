@@ -322,6 +322,28 @@
                                 <span style="color: #64748b; font-weight: 500; font-size: 0.9rem;">(Qty: {{ rental.quantity }})</span>
                             </span>
 
+                            {# Return status badge #}
+                            {% set return_date_str = rental.actual_return_date.strftime('%b %d, %Y') if rental.actual_return_date else '' %}
+                            {% if rental.status == 'Returned' %}
+                                <span class="badge" style="background-color: #dcfce7; color: #166534; border: 1px solid #86efac; padding: 6px 12px; font-weight: 600; font-size: 0.85rem;">
+                                    <span class="material-symbols-rounded" style="font-size: 16px; vertical-align: middle; margin-right: 4px;">check_circle</span> Returned
+                                    {% if return_date_str %}
+                                        <span style="font-weight: normal; font-size: 0.8rem; margin-left: 4px;">({{ return_date_str }})</span>
+                                    {% endif %}
+                                </span>
+                            {% elif rental.quantity_returned and rental.quantity_returned > 0 %}
+                                <span class="badge" style="background-color: #fef3c7; color: #92400e; border: 1px solid #fcd34d; padding: 6px 12px; font-weight: 600; font-size: 0.85rem;">
+                                    <span class="material-symbols-rounded" style="font-size: 16px; vertical-align: middle; margin-right: 4px;">pending</span> Partially Returned ({{ rental.quantity_returned }}/{{ rental.quantity }})
+                                    {% if return_date_str %}
+                                        <span style="font-weight: normal; font-size: 0.8rem; margin-left: 4px;">Last returned {{ return_date_str }}</span>
+                                    {% endif %}
+                                </span>
+                            {% else %}
+                                <span class="badge" style="background-color: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; padding: 6px 12px; font-weight: 600; font-size: 0.85rem;">
+                                    <span class="material-symbols-rounded" style="font-size: 16px; vertical-align: middle; margin-right: 4px;">event_busy</span> Active
+                                </span>
+                            {% endif %}
+
                             <div class="d-flex align-items-center gap-2">
                                 {# Exclude cancelled invoices from total income calculations #}
                                 {% set active_rental_invoices = rental.invoices | rejectattr('status', 'equalto', 'Cancelled') | list %}
@@ -489,7 +511,7 @@
             </div>
         {% endif %}
 
-        {% if txn.transaction_type == 'Rental' and txn.rentals | selectattr('remaining_to_return', 'gt', 0) | list | length > 0 %}
+        {% if txn.transaction_type == 'Rental' and txn.rentals | rejectattr('status', 'equalto', 'Returned') | list | length > 0 %}
         <div class="action-card warning" style="margin-top: 20px;">
             <header class="card-header-custom">
                 <div class="header-icon-label" style="display:flex; align-items:center; gap:8px;">
@@ -512,7 +534,7 @@
                         </thead>
                         <tbody>
                             {% for item in txn.rentals %}
-                            {% if item.remaining_to_return > 0 %}
+                            {% if item.status != 'Returned' %}
                             <tr style="border-bottom: 1px solid #f9f9f9;">
                                 <td style="padding: 10px; text-align: center; vertical-align: middle;">
                                     <input type="checkbox" name="returned_items" value="{{ item.id }}">
@@ -524,6 +546,12 @@
                                             <span class="text-muted font-monospace" style="font-size: 0.85rem;">(SN: {{ item.serial_number }})</span>
                                         {% endif %}
                                     </div>
+                                    {% if item.quantity_returned and item.quantity_returned > 0 %}
+                                    <div style="color: #166534; font-size: 0.8rem; font-weight: 600; margin-top: 2px;">
+                                        <span class="material-symbols-rounded" style="font-size: 14px; vertical-align: middle; margin-right: 4px;">check_circle</span>
+                                        Returned: {{ item.quantity_returned }}/{{ item.quantity }}
+                                    </div>
+                                    {% endif %}
                                     <small class="text-muted">Remaining: {{ item.remaining_to_return }}</small>
                                 </td>
                                 <td style="padding: 10px; text-align: center; vertical-align: middle;">
@@ -587,6 +615,33 @@
                     <button type="submit" class="btn-warning-action" style="margin-top: 20px; padding: 10px 20px; cursor: pointer;">
                         <span class="material-symbols-rounded" style="vertical-align: middle;">check_circle</span>
                         Confirm Selected Return
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
+        {# ── Standalone Deposit Return Section ── #}
+        {# Shows only when all equipment is returned but deposit is still held #}
+        {% if txn.transaction_type == 'Rental' and held_deposit_total > 0 and txn.rentals | rejectattr('status', 'equalto', 'Returned') | list | length == 0 %}
+        <div class="action-card warning" style="margin-top: 20px;">
+            <header class="card-header-custom">
+                <div class="header-icon-label" style="display:flex; align-items:center; gap:8px;">
+                    <span class="material-symbols-rounded icon-warning">payments</span>
+                    <span>Return Customer Deposit</span>
+                </div>
+            </header>
+            <div class="card-body-padding">
+                <p style="margin: 0 0 15px 0; color: #475569;">
+                    A held security deposit of <strong>₱{{ "%.2f"|format(held_deposit_total) }}</strong> for this rental has not been refunded yet.
+                </p>
+                <form action="{{ url_for('admin.process_return', txn_id=txn.id) }}" method="POST" style="display: inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="refund_deposit" value="yes">
+                    <input type="hidden" name="deposit_refund_amount" value="{{ '%.2f'|format(held_deposit_total) }}">
+                    <button type="submit" class="btn-warning-action" style="padding: 10px 20px; cursor: pointer; background-color: #f59e0b; color: white; border: none; border-radius: 6px; font-weight: 600;">
+                        <span class="material-symbols-rounded" style="vertical-align: middle; margin-right: 6px;">payment</span>
+                        Refund Held Deposit
                     </button>
                 </form>
             </div>
@@ -768,10 +823,26 @@
                     <span style="font-weight: 600; color: #16a34a;">₱{{ "{:,.2f}".format(txn.amount_paid or 0) }}</span>
                 </div>
 
+                {# ── Deposit Status ── #}
+                {% set deposit_status_text = 'Held' %}
+                {% set deposit_status_color = '#f59e0b' %}
+                {% set deposit_status_icon = 'pending' %}
+                {% if txn.deposit_amount and txn.deposit_amount > 0 %}
+                    {% set held_deposits = txn.customer_deposits | selectattr('status', 'equalto', 'Held') | list %}
+                    {% set refunded_deposits = txn.customer_deposits | selectattr('status', 'equalto', 'Refunded') | list %}
+                    {% if held_deposits | length == 0 and refunded_deposits | length > 0 %}
+                        {% set deposit_status_text = 'Refunded' %}
+                        {% set deposit_status_color = '#16a34a' %}
+                        {% set deposit_status_icon = 'check_circle' %}
+                    {% endif %}
+                {% endif %}
                 <div style="display: flex; justify-content: space-between; align-items: center; color: #374151; margin-top: 4px;">
-                    <span style="font-weight: 500;">Customer Deposit <span style="font-size: 11px; font-weight: normal; color: #6b7280;">(held — not part of balance)</span></span>
-                    <span style="display: flex; align-items: center; gap: 6px;">
+                    <span style="font-weight: 500;">Customer Deposit</span>
+                    <span style="display: flex; align-items: center; gap: 10px;">
                         <span style="font-weight: 600; color: #b45309;">₱{{ "{:,.2f}".format(txn.deposit_amount or 0) }}</span>
+                        <span class="badge" style="background-color: {{ deposit_status_color }}15; color: {{ deposit_status_color }}; border: 1px solid {{ deposit_status_color }}; padding: 2px 8px; font-weight: 600; font-size: 0.75rem;">
+                            <span class="material-symbols-rounded" style="font-size: 14px; vertical-align: middle; margin-right: 4px;">{{ deposit_status_icon }}</span> {{ deposit_status_text }}
+                        </span>
                         {% if can_edit_deposit and (txn.transaction_type == 'Rental' or (txn.deposit_amount or 0) > 0) %}
                         <button type="button" class="btn-edit-deposit" data-deposit="{{ '%.2f'|format(txn.deposit_amount or 0) }}" title="Edit customer deposit amount" style="border: 1px solid #fcd34d; background: #fffbeb; color: #b45309; border-radius: 5px; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0;">
                             <span class="material-symbols-rounded" style="font-size: 14px; pointer-events: none;">edit</span>
@@ -1316,6 +1387,8 @@
 
 </div>
 {% endif %}
+</div>
+
 
 <script nonce="{{ csp_nonce() }}">
     {% if txn.transaction_type == 'Rental' %}

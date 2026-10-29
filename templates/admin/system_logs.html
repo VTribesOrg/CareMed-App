@@ -144,6 +144,7 @@
                     <tr>
                         <th class="col-time">Event Timestamp</th>
                         <th class="col-user">Authorized Personnel</th>
+                        <th class="col-customer">Customer</th>
                         <th class="col-action">Action</th>
                         <th class="col-product">Equipment Details</th>
                         <th class="col-qty">Change</th>
@@ -175,22 +176,33 @@
                             </div>
                         </td>
 
+                        {# ── Customer ── #}
+                        <td>
+                            <span class="customer-name-text">{{ log.customer_name or '—' }}</span>
+                        </td>
+
                         {# ── Action ── #}
                         <td>
-                            {% if log.action == 'Expense Deleted' or log.action == 'ARCHIVE' %}
-                                {% set action_type = 'danger' %}
-                            {% elif log.action in ['SALE', 'Expense Recorded'] %}
-                                {% set action_type = 'info' %}
-                            {% elif log.action in ['RENTAL', 'Equipment Return'] %}
-                                {% set action_type = 'info' %}
-                            {% elif log.action in ['Restock', 'Initial Stock Entry'] %}
-                                {% set action_type = 'success' %}
+                            {% if 'Refill' in log.action or 'refill' in (log.action or '').lower() %}
+                                {% set action_color = '#10b981' %}
+                            {% elif 'SALE' in (log.action or '').upper() %}
+                                {% set action_color = '#eab308' %}
+                            {% elif 'RENTAL' in (log.action or '').upper() %}
+                                {% set action_color = '#3b82f6' %}
+                            {% elif 'Expense' in log.action or 'COGS' in log.action or 'ARCHIVE' in log.action %}
+                                {% if 'Primegas' in (log.note or '') %}
+                                    {% set action_color = '#ec4899' %}
+                                {% else %}
+                                    {% set action_color = '#ef4444' %}
+                                {% endif %}
+                            {% elif 'Return' in log.action or 'return' in (log.action or '').lower() %}
+                                {% set action_color = '#000000' %}
                             {% else %}
-                                {% set action_type = 'info' %}
+                                {% set action_color = '#64748b' %}
                             {% endif %}
-                            <div class="status-indicator status-{{ action_type }}">
-                                <span class="indicator-dot"></span>
-                                <span class="status-text">{{ log.action }}</span>
+                            <div class="status-indicator" style="color: {{ action_color }}; border-color: {{ action_color }};">
+                                <span class="indicator-dot" style="background-color: {{ action_color }};"></span>
+                                <span class="status-text" style="color: {{ action_color }}; font-weight: 600;">{{ log.action }}</span>
                             </div>
                         </td>
 
@@ -216,7 +228,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="6" class="log-empty-state">
+                        <td colspan="7" class="log-empty-state">
                             <span class="material-symbols-rounded">search_off</span>
                             No log entries found for the current filters.
                         </td>

@@ -271,6 +271,7 @@ body {
 
 .col-time     { width: 140px; }
 .col-user     { width: 190px; }
+.col-customer { width: 170px; }
 .col-action   { width: 170px; }
 .col-product  { width: 200px; }
 .col-qty      { width: 80px; }
@@ -312,6 +313,8 @@ body {
 
 .user-name-text { display: block; font-weight: 600; color: #1e293b; font-size: 13px; }
 .user-id-sub { font-size: 11px; color: #94a3b8; }
+
+.customer-name-text { display: block; font-weight: 600; color: #475569; font-size: 13px; }
 
 .status-indicator {
     display: inline-flex;
