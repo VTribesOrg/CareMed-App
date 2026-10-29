@@ -4014,19 +4014,31 @@ def transaction_details(id):
             CustomerDeposit.status == 'Held'
         ).scalar()
 
+    payment_proofs_by_id = {
+        pp.id: pp for pp in
+        PaymentProof.query.filter_by(transaction_id=txn.id).all()
+    }
+
+    payments = sorted(
+        txn.payments,
+        key=lambda p: (p.created_at or p.verified_at or datetime.min)
+    )
+
     # Editing a deposit is a money correction on an encoded transaction —
     # Administrators always can; staff need the transaction permission.
     can_edit_deposit = getattr(current_user, 'role', '') == 'Administrator'
     if not can_edit_deposit:
         user_perms = Permission.query.filter_by(user_id=current_user.id).first()
         can_edit_deposit = bool(user_perms and user_perms.can_process_transactions)
-    
+
     return render_template(
         'admin/transaction_details.html', 
         txn=txn, 
         current_date=datetime.now().date(),
         held_deposit_total=held_deposit_total,
-        can_edit_deposit=can_edit_deposit
+        can_edit_deposit=can_edit_deposit,
+        payments=payments,
+        payment_proofs_by_id=payment_proofs_by_id
     )
 
 @admin_bp.route('/transaction/<int:id>/update-deposit', methods=['POST'])
