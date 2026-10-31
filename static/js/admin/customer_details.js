@@ -95,7 +95,7 @@ document.querySelectorAll('.clickable-row').forEach(row => {
     });
 });
 
-// CSP-compliant "Go Back" history handler
+// CSP-compliant "Go Back" handler — returns to previous page
 document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.go-back-btn').forEach(button => {
         button.addEventListener('click', function(e) {
