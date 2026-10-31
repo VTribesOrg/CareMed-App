@@ -25,7 +25,7 @@
                         <span class="toast-title">{{ category|capitalize or 'Notice' }}</span>
                         <span class="toast-message">{{ message|replace('\n', '<br>')|safe }}</span>
                     </div>
-                    <button class="toast-close" onclick="this.parentElement.remove()">
+                    <button class="toast-close">
                         <span class="material-symbols-rounded">close</span>
                     </button>
                 </div>
@@ -42,7 +42,7 @@
             <span class="toast-title"></span>
             <span class="toast-message"></span>
         </div>
-        <button class="toast-close" onclick="this.parentElement.remove()">
+        <button class="toast-close">
             <span class="material-symbols-rounded">close</span>
         </button>
     </div>
@@ -671,7 +671,7 @@
                             <span class="material-symbols-rounded" style="font-size: 18px;">verified_user</span>
                             Verify Order
                         </button>
-                        <button type="submit" name="tracking_status" value="CANCELLED" class="btn-outline-danger" onclick="return confirm('Cancel this order?')">
+                        <button type="submit" name="tracking_status" value="CANCELLED" class="btn-outline-danger" class="js-confirm-submit" data-confirm="Cancel this order?">
                             <span class="material-symbols-rounded" style="font-size: 16px;">cancel</span>
                             Cancel Order
                         </button>
@@ -681,7 +681,7 @@
                             <span class="material-symbols-rounded" style="font-size: 18px;">local_shipping</span>
                             Ship Items
                         </button>
-                        <button type="submit" name="tracking_status" value="CANCELLED" class="btn-outline-danger" onclick="return confirm('Cancel this order?')">
+                        <button type="submit" name="tracking_status" value="CANCELLED" class="btn-outline-danger" class="js-confirm-submit" data-confirm="Cancel this order?">
                             <span class="material-symbols-rounded" style="font-size: 16px;">cancel</span>
                             Cancel Order
                         </button>
@@ -692,7 +692,7 @@
                             Complete Delivery
                         </button>
                         <div class="more-actions-container">
-                            <select name="tracking_status" class="select-override" onchange="if(confirm('Restart status?')) this.form.submit()">
+                            <select name="tracking_status" class="select-override" class="js-confirm-change" data-confirm="Restart status?">
                                 <option value="" selected disabled>More Actions...</option>
                                 <option value="SUBMITTED">Restart Status</option>
                                 <option value="CANCELLED">Force Cancel</option>
@@ -745,7 +745,7 @@
             {% if txn.payment_proof.status != 'Verified' %}
             <form action="{{ url_for('admin.confirm_payment_proof', proof_id=txn.payment_proof.id) }}"
                   method="POST"
-                  onsubmit="return confirm('Confirm this GCash payment and mark transaction as Paid?')">
+                  class="js-confirm-form" data-confirm="Confirm this GCash payment and mark transaction as Paid?">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit"
                         style="width:100%; background:#10b981; color:white; border:none; padding:10px; border-radius:8px; cursor:pointer; font-weight:700; font-size:0.9rem; display:flex; align-items:center; justify-content:center; gap:6px;">
@@ -1498,3 +1498,6 @@
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/admin/admin_transaction_details.js') }}"></script>
 {% endblock %}
+
+
+

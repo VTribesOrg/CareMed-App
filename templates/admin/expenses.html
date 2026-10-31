@@ -25,7 +25,7 @@
                         <span class="toast-title">{{ category|capitalize or 'Notice' }}</span>
                         <span class="toast-message">{{ message|replace('\n', '<br>')|safe }}</span>
                     </div>
-                    <button class="toast-close" onclick="this.parentElement.remove()">
+                    <button class="toast-close" >
                         <span class="material-symbols-rounded">close</span>
                     </button>
                 </div>
@@ -42,7 +42,7 @@
             <span class="toast-title"></span>
             <span class="toast-message"></span>
         </div>
-        <button class="toast-close" onclick="this.parentElement.remove()">
+        <button class="toast-close" >
             <span class="material-symbols-rounded">close</span>
         </button>
     </div>
@@ -357,7 +357,7 @@
                                 </button>
                                 <form action="{{ url_for('admin.delete_expense', expense_id=exp.id) }}"
                                       method="POST"
-                                      onsubmit="return confirm('Delete this expense? This cannot be undone.')">
+                                      class="js-confirm-form" data-confirm="Delete this expense? This cannot be undone.">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button type="submit" class="btn-exp-action btn-del-exp" title="Delete">
                                         <span class="material-symbols-rounded">delete</span>
@@ -796,3 +796,4 @@ document.querySelectorAll('.btn-edit-exp').forEach(btn => {
 });
 </script>
 {% endblock %}
+

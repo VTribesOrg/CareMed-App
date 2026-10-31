@@ -25,7 +25,7 @@
                         <span class="toast-title">{{ category|capitalize or 'Notice' }}</span>
                         <span class="toast-message">{{ message|replace('\n', '<br>')|safe }}</span>
                     </div>
-                    <button class="toast-close" onclick="this.parentElement.remove()">
+                    <button class="toast-close">
                         <span class="material-symbols-rounded">close</span>
                     </button>
                 </div>
@@ -42,7 +42,7 @@
             <span class="toast-title"></span>
             <span class="toast-message"></span>
         </div>
-        <button class="toast-close" onclick="this.parentElement.remove()">
+        <button class="toast-close">
             <span class="material-symbols-rounded">close</span>
         </button>
     </div>
@@ -371,7 +371,7 @@
                     <td style="padding: 12px;">
                         <div style="display: flex; align-items: center;">
                             <input type="text" class="ref-id-input" value="{{ txn.reference_no }}" readonly title="Click to select" style="width: 100%; box-sizing: border-box;">
-                            <div onclick="navigator.clipboard.writeText('{{ txn.reference_no }}')" style="cursor: pointer; margin-left: 4px;" title="Copy Reference No.">
+                            <div class="js-copy-ref" data-ref="{{ txn.reference_no }}" style="cursor: pointer; margin-left: 4px;" title="Copy Reference No.">
                                 <i class="material-symbols-rounded" style="font-size: 18px; vertical-align: middle;">content_copy</i>
                             </div>
                         </div>
@@ -459,7 +459,7 @@
             <div class="jump-to-wrapper">
                 <span class="jump-text">Go to</span>
                 <input type="number" id="jump-page-input" class="jump-input" min="1" max="{{ pagination.pages }}" value="{{ pagination.page }}">
-                <button class="jump-btn" onclick="jumpToPage()">Go</button>
+                <button class="jump-btn js-jump-page">Go</button>
             </div>
         </div>
     </div>
@@ -664,3 +664,6 @@
 <script src="{{ url_for('static', filename='js/admin/admin_transaction.js') }}"></script>
 
 {% endblock %}
+
+
+

@@ -30,7 +30,7 @@
                         <span class="toast-title">{{ category|capitalize or 'Notice' }}</span>
                         <span class="toast-message">{{ message|replace('\n', '<br>')|safe }}</span>
                     </div>
-                    <button class="toast-close" onclick="this.parentElement.remove()">
+                    <button class="toast-close" >
                         <span class="material-symbols-rounded">close</span>
                     </button>
                 </div>
@@ -47,7 +47,7 @@
             <span class="toast-title"></span>
             <span class="toast-message"></span>
         </div>
-        <button class="toast-close" onclick="this.parentElement.remove()">
+        <button class="toast-close" >
             <span class="material-symbols-rounded">close</span>
         </button>
     </div>
@@ -240,7 +240,7 @@
             <div class="jump-to-wrapper">
                 <span class="jump-text">Go to</span>
                 <input type="number" id="jump-page-input" class="jump-input" min="1" max="{{ pagination.pages }}" value="{{ pagination.page }}">
-                <button class="jump-btn" onclick="jumpToPage()">Go</button>
+                <button class="jump-btn js-jump-page">Go</button>
             </div>
         </div>
     </div>
@@ -575,3 +575,4 @@
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/admin/admin_customer.js') }}"></script>
 {% endblock %}
+

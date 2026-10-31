@@ -604,7 +604,7 @@
                         <span class="toast-title">{{ category|capitalize or 'Notice' }}</span>
                         <span class="toast-message">{{ message|replace('\n', '<br>')|safe }}</span>
                     </div>
-                    <button class="toast-close" onclick="this.parentElement.remove()">
+                    <button class="toast-close" >
                         <span class="material-symbols-rounded">close</span>
                     </button>
                 </div>
@@ -621,7 +621,7 @@
             <span class="toast-title"></span>
             <span class="toast-message"></span>
         </div>
-        <button class="toast-close" onclick="this.parentElement.remove()">
+        <button class="toast-close" >
             <span class="material-symbols-rounded">close</span>
         </button>
     </div>
@@ -766,7 +766,7 @@
                                             data-balance="{{ invoice.remaining_balance if invoice.remaining_balance is defined else (invoice.rental.monthly_rate if invoice.rental else 0.00) }}">
                                             <span class="material-symbols-rounded" style="font-size:18px;">payments</span>
                                         </button>
-                                        <a href="{{ url_for('admin.transaction_details', id=invoice.rental.transaction_id) if invoice.rental and invoice.rental.transaction_id else 'javascript:void(0)' }}"
+                                        <a href="{{ url_for('admin.transaction_details', id=invoice.rental.transaction_id) if invoice.rental and invoice.rental.transaction_id else '#' }}"
                                             class="icon-btn-sm" title="View Transaction">
                                             <span class="material-symbols-rounded" style="font-size:18px;">visibility</span>
                                         </a>
@@ -834,3 +834,4 @@
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/admin/collection_monitoring.js') }}"></script>
 {% endblock %}
+

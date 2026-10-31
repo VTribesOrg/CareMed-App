@@ -26,7 +26,7 @@
                         <span class="toast-title">{{ category|capitalize or 'Notice' }}</span>
                         <span class="toast-message">{{ message|replace('\n', '<br>')|safe }}</span>
                     </div>
-                    <button class="toast-close" onclick="this.parentElement.remove()">
+                    <button class="toast-close" >
                         <span class="material-symbols-rounded">close</span>
                     </button>
                 </div>
@@ -43,7 +43,7 @@
             <span class="toast-title"></span>
             <span class="toast-message"></span>
         </div>
-        <button class="toast-close" onclick="this.parentElement.remove()">
+        <button class="toast-close" >
             <span class="material-symbols-rounded">close</span>
         </button>
     </div>

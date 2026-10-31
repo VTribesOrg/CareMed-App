@@ -341,4 +341,21 @@ document.addEventListener('DOMContentLoaded', function () {
 
     }
 
+    /* ----------------------------------------------
+        STAR RATING SELECTOR (moved from inline script in product_detail.html)
+    ---------------------------------------------- */
+    document.querySelectorAll('.review-star').forEach(star => {
+        star.addEventListener('click', function () {
+            const rating = parseInt(this.dataset.rating);
+            document.querySelectorAll('.review-star').forEach(s => {
+                const currentRating = parseInt(s.dataset.rating);
+                if (currentRating <= rating) {
+                    s.style.color = '#f59e0b';
+                } else {
+                    s.style.color = '#cbd5e1';
+                }
+            });
+        });
+    });
+
 });

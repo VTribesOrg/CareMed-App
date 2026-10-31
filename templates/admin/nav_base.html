@@ -210,7 +210,7 @@
                     {# ── Transactions ── #}
                     {% set can_transactions = current_user.role.strip() == 'Administrator' or (current_user.permissions and current_user.permissions.can_process_transactions) %}
                     <li class="nav-item" title="Transactions">
-                        <a href="{{ url_for('admin.transactions') if can_transactions else 'javascript:void(0)' }}"
+                        <a href="{{ url_for('admin.transactions') if can_transactions else '' }}"
                             class="nav-link {% if request.endpoint in ['admin.transactions', 'admin.transaction_details'] %}active{% endif %} {% if not can_transactions %}nav-locked{% endif %}">
                             <span class="material-symbols-rounded">receipt_long</span>
                             <span class="nav-label">Transactions</span>
@@ -221,7 +221,7 @@
                     {# ── Customer Records ── #}
                     {% set can_customers = current_user.role.strip() == 'Administrator' or (current_user.permissions and current_user.permissions.can_manage_customers) %}
                     <li class="nav-item" title="Customer Records">
-                        <a href="{{ url_for('admin.customers') if can_customers else 'javascript:void(0)' }}"
+                        <a href="{{ url_for('admin.customers') if can_customers else '' }}"
                             class="nav-link {% if request.endpoint in ['admin.customers', 'admin.customer_details'] %}active{% endif %} {% if not can_customers %}nav-locked{% endif %}">
                             <span class="material-symbols-rounded">groups</span>
                             <span class="nav-label">Customer Records</span>
@@ -232,7 +232,7 @@
                     {# ── Inventory ── #}
                     {% set can_products = current_user.role.strip() == 'Administrator' or (current_user.permissions and current_user.permissions.can_manage_products) %}
                     <li class="nav-item" title="Inventory">
-                        <a href="{{ url_for('admin.products') if can_products else 'javascript:void(0)' }}"
+                        <a href="{{ url_for('admin.products') if can_products else '' }}"
                             class="nav-link {% if request.endpoint == 'admin.products' %}active{% endif %} {% if not can_products %}nav-locked{% endif %}">
                             <span class="material-symbols-rounded">inventory_2</span>
                             <span class="nav-label">Inventory</span>
@@ -243,7 +243,7 @@
                     {# ── Active Rentals ── #}
                     {% set can_active_rentals = current_user.role.strip() == 'Administrator' or (current_user.permissions and current_user.permissions.can_view_active_rentals) %}
                     <li class="nav-item" title="Active Rentals">
-                        <a href="{{ url_for('admin.active_rentals') if can_active_rentals else 'javascript:void(0)' }}"
+                        <a href="{{ url_for('admin.active_rentals') if can_active_rentals else '' }}"
                             class="nav-link {% if request.endpoint == 'admin.active_rentals' %}active{% endif %} {% if not can_active_rentals %}nav-locked{% endif %}">
                             <span class="material-symbols-rounded">event_repeat</span>
                             <span class="nav-label">Active Rentals</span>
@@ -254,7 +254,7 @@
                     {# ── Reports & Analytics ── #}
                     <!-- {% set can_reports = current_user.role.strip() == 'Administrator' or (current_user.permissions and current_user.permissions.can_view_reports) %}
                     <li class="nav-item" title="Reports & Analytics">
-                        <a href="{{ url_for('admin.reports') if can_reports else 'javascript:void(0)' }}"
+                        <a href="{{ url_for('admin.reports') if can_reports else '' }}"
                             class="nav-link {% if request.endpoint == 'admin.reports' %}active{% endif %} {% if not can_reports %}nav-locked{% endif %}">
                             <span class="material-symbols-rounded">analytics</span>
                             <span class="nav-label">Reports & Analytics</span>
@@ -265,7 +265,7 @@
                     {# ── Collection Monitoring ── #}
                     {% set can_collection = current_user.role.strip() == 'Administrator' or (current_user.permissions and current_user.permissions.can_view_active_rentals) %}
                     <li class="nav-item" title="Collection Monitoring">
-                        <a href="{{ url_for('admin.collection_monitoring') if can_collection else 'javascript:void(0)' }}"
+                        <a href="{{ url_for('admin.collection_monitoring') if can_collection else '' }}"
                             class="nav-link {% if request.endpoint == 'admin.collection_monitoring' %}active{% endif %} {% if not can_collection %}nav-locked{% endif %}">
                             <span class="material-symbols-rounded">pending_actions</span>
                             <span class="nav-label">Collection Monitoring</span>
@@ -275,7 +275,7 @@
 
                     {# ── System Logs ── #}
                     <li class="nav-item" title="System Logs">
-                        <a href="{{ url_for('admin.system_logs') if can_reports else 'javascript:void(0)' }}"
+                        <a href="{{ url_for('admin.system_logs') if can_reports else '' }}"
                             class="nav-link {% if request.endpoint == 'admin.system_logs' %}active{% endif %} {% if not can_reports %}nav-locked{% endif %}">
                             <span class="material-symbols-rounded">list_alt</span>
                             <span class="nav-label">System Logs</span>
@@ -286,7 +286,7 @@
                     {# ── Expense Tracker ── #}
                     {% set can_expenses = current_user.role.strip() == 'Administrator' or (current_user.permissions and current_user.permissions.can_manage_expenses) %}
                     <li class="nav-item" title="Expense Tracker">
-                        <a href="{{ url_for('admin.expenses') if can_expenses else 'javascript:void(0)' }}"
+                        <a href="{{ url_for('admin.expenses') if can_expenses else '' }}"
                             class="nav-link {% if request.endpoint == 'admin.expenses' %}active{% endif %} {% if not can_expenses %}nav-locked{% endif %}">
                             <span class="material-symbols-rounded">account_balance_wallet</span>
                             <span class="nav-label">Expense Tracker</span>
@@ -298,7 +298,7 @@
                     {% set is_admin = current_user.role.strip() == 'Administrator' %}
 
                     <li class="nav-item" title="Staff Management">
-                        <a href="{{ url_for('admin.staff_management') if is_admin else 'javascript:void(0)' }}"
+                        <a href="{{ url_for('admin.staff_management') if is_admin else '' }}"
                             class="nav-link {% if request.endpoint == 'admin.staff_management' %}active{% endif %} {% if not is_admin %}nav-locked{% endif %}">
                             <span class="material-symbols-rounded">admin_panel_settings</span>
                             <span class="nav-label">Staff Management</span>
@@ -307,7 +307,7 @@
                     </li>
 
                     <li class="nav-item" title="Backup Management">
-                        <a href="{{ url_for('admin.backup_page') if is_admin else 'javascript:void(0)' }}"
+                        <a href="{{ url_for('admin.backup_page') if is_admin else '' }}"
                             class="nav-link {% if request.endpoint == 'admin.backup_page' %}active{% endif %} {% if not is_admin %}nav-locked{% endif %}">
                             <span class="material-symbols-rounded">backup</span>
                             <span class="nav-label">Backup Management</span>
@@ -316,7 +316,7 @@
                     </li>
 
                     <li class="nav-item" title="Security Center">
-                        <a href="{{ url_for('admin.security_dashboard') if is_admin else 'javascript:void(0)' }}"
+                        <a href="{{ url_for('admin.security_dashboard') if is_admin else '' }}"
                             class="nav-link {% if request.endpoint == 'admin.security_dashboard' %}active{% endif %} {% if not is_admin %}nav-locked{% endif %}">
                             <span class="material-symbols-rounded">security</span>
                             <span class="nav-label">Security Center</span>
@@ -328,7 +328,7 @@
                 
                 <!--
                 <div class="sidebar-footer" title="Settings">
-                    <a href="javascript:void(0)" class="nav-link settings-link" id="settings-toggle-btn">
+                    <a href="'#'" class="nav-link js-nav-locked settings-link" id="settings-toggle-btn">
                         <span class="material-symbols-rounded">settings</span>
                         <span class="nav-label theme-label">Settings &amp; help</span>
                     </a>
@@ -467,41 +467,7 @@
     <script src="{{ url_for('static', filename='js/admin/admin_notifications.js') }}" nonce="{{ csp_nonce() }}"></script>
     {% block extra_js %}{% endblock %}
 
-    <!-- Flash auto-dismiss (runs on every page) -->
-    <script nonce="{{ csp_nonce() }}">
-    (function () {
-        const DISMISS_AFTER = 3000; // ms before auto-dismiss starts
-
-        function dismissBar(bar) {
-            if (bar.classList.contains('dismissing')) return;
-            bar.classList.add('dismissing');
-            bar.addEventListener('animationend', function handler() {
-                bar.removeEventListener('animationend', handler);
-                bar.remove();
-                // Remove wrapper if empty
-                const wrapper = document.getElementById('flash-wrapper');
-                if (wrapper && !wrapper.querySelector('.flash-bar')) wrapper.remove();
-            });
-        }
-
-        document.querySelectorAll('.flash-bar').forEach(function (bar) {
-            // Manual close
-            const closeBtn = bar.querySelector('.flash-close');
-            if (closeBtn) {
-                closeBtn.addEventListener('click', function () { dismissBar(bar); });
-            }
-
-            // Auto-dismiss after DISMISS_AFTER ms
-            const timer = setTimeout(function () { dismissBar(bar); }, DISMISS_AFTER);
-
-            // Pause on hover — restart timer on leave
-            bar.addEventListener('mouseenter', function () { clearTimeout(timer); });
-            bar.addEventListener('mouseleave', function () {
-                setTimeout(function () { dismissBar(bar); }, 800);
-            });
-        });
-    })();
-    </script>
 
 </body>
 </html>
+

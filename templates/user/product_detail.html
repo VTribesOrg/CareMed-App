@@ -986,30 +986,6 @@
                 </div>
             </div>
 
-            <script>
-            document.addEventListener("DOMContentLoaded", function () {
-
-                const stars = document.querySelectorAll(".review-star");
-
-                stars.forEach(star => {
-
-                    star.addEventListener("click", function () {
-
-                        const rating = parseInt(this.dataset.rating);
-
-                        stars.forEach(s => {
-                            const currentRating = parseInt(s.dataset.rating);
-
-                            if (currentRating <= rating) {
-                                s.style.color = "#f59e0b";
-                            } else {
-                                s.style.color = "#cbd5e1";
-                            }
-                        });
-                    });
-                });
-            });
-            </script>
 
             <style>
                 .rating-star-selector input:checked ~ label { color: #f59e0b !important; }
