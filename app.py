@@ -71,7 +71,27 @@ Talisman(
     session_cookie_secure=app.config.get('SESSION_COOKIE_SECURE', True),
     session_cookie_http_only=True,
     frame_options="SAMEORIGIN",
+    # Override default permissions_policy which includes 'browsing-topics'
+    # that Chrome flags as 'Unrecognized feature'
+    permissions_policy={},
 )
+
+# -- Fix: Remove unrecognized 'browsing-topics' from Permissions-Policy header --
+# Some browsers/proxies send Permissions-Policy with browsing-topics which
+# Chrome flags as 'Unrecognized feature'. Strip it to keep the console clean.
+@app.after_request
+def strip_browsing_topics(response):
+    pp = response.headers.get('Permissions-Policy')
+    if pp:
+        import re
+        cleaned = re.sub(r'\bbrowsing-topics\s*=\s*\([^)]*\)\s*,?\s*', '', pp)
+        cleaned = re.sub(r'\bbrowsing-topics\s*=\s*[^,\s]+\s*,?\s*', '', cleaned)
+        cleaned = cleaned.strip().rstrip(',')
+        if cleaned:
+            response.headers['Permissions-Policy'] = cleaned
+        else:
+            response.headers.pop('Permissions-Policy', None)
+    return response
 
 @app.template_filter('pst')
 def utc_to_pst(dt, fmt='%m/%d %H:%M:%S'):
@@ -411,3 +431,5 @@ if not app.debug or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
 if __name__ == "__main__":
     debug = os.environ.get("DEBUG", "False") == "True"
     app.run(debug=debug)
+
+

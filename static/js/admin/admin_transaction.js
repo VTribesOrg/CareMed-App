@@ -2017,9 +2017,16 @@ const primegasBindRow = (row) => {
     select.addEventListener('change', function () {
         const selectedOption = this.options[this.selectedIndex];
         const maxStock = parseInt(selectedOption.getAttribute('data-max')) || 0;
+        const refillCost = parseFloat(selectedOption.getAttribute('data-cost')) || 0;
 
         maxStockSpan.textContent = maxStock;
         qtyInput.max = maxStock;
+
+        // Auto-fill the Capital / Tank Cost from the selected product's refill_cost
+        if (capitalInput) {
+            capitalInput.value = refillCost.toFixed(2);
+            primegasRecalcAmount();
+        }
 
         if (qtyInput.value && parseInt(qtyInput.value) > maxStock) {
             qtyInput.value = maxStock > 0 ? maxStock : '';

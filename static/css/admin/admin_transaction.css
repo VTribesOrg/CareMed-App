@@ -1801,6 +1801,19 @@ body.ready .viewport-container {
     color: #ffffff;
 }
 
+.type-choice-btn.primegas .material-symbols-rounded {
+    color: #ec4899;
+}
+
+.type-choice-btn.primegas:hover {
+    border-color: #ec4899;
+    background-color: #fce7f3;
+}
+.type-choice-btn.primegas:hover .material-symbols-rounded {
+    background-color: #ec4899;
+    color: #ffffff;
+}
+
 
 #global-equipment-select {
     font-family: 'Inter', sans-serif;
