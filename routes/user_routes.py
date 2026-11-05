@@ -22,6 +22,24 @@ def admin_redirect(f):
     return decorated_function
 
 
+# ---------------------------------------------------------------------------
+# Customer pages (/customer/*) are currently DISABLED for unauthenticated users.
+# All customer routes are kept in the codebase (not deleted) so they can be
+# re-enabled later.
+#
+# TO RE-ENABLE CUSTOMER PAGES:
+#   1. Delete or comment out the @user_bp.before_request block below, OR
+#   2. Replace the redirect with your own access logic (e.g. allow guests).
+#
+# After making the change, restart the Flask server.
+# Admin (/admin/*) and branch (/developer/*).blueprints are unaffected by this.
+# ---------------------------------------------------------------------------
+@user_bp.before_request
+def _customer_pages_require_login():
+    if not current_user.is_authenticated:
+        return redirect(url_for('auth.login'))
+
+
 def _catalogue_query(category, search_query, sort_option, active_only=True):
     """Build the shared catalogue query used by the home and product pages."""
     query = Product.query
