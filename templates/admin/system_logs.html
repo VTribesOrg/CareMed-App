@@ -95,6 +95,14 @@
                             <option value="Expense Deleted"  {{ 'selected' if current_type == 'Expense Deleted' }}>Expense Deleted</option>
                             <option value="COGS Warning"     {{ 'selected' if current_type == 'COGS Warning' }}>COGS Warning (Missing Cost Price)</option>
                         </optgroup>
+                        <optgroup label="Payments">
+                            <option value="Rental Payment" {{ 'selected' if current_type == 'Rental Payment' }}>Rental Payments</option>
+                            <option value="Purchase Payment" {{ 'selected' if current_type == 'Purchase Payment' }}>Purchase Payments</option>
+                            <option value="Deposit Payment" {{ 'selected' if current_type == 'Deposit Payment' }}>Deposit</option>
+                            <option value="Initial Fill Payment" {{ 'selected' if current_type == 'Initial Fill Payment' }}>Initial Fill</option>
+                            <option value="Late Fee Payment" {{ 'selected' if current_type == 'Late Fee Payment' }}>Late Fee</option>
+                            <option value="Deposit Refund" {{ 'selected' if current_type == 'Deposit Refund' }}>Deposit Refund</option>
+                        </optgroup>
                     </select>
                 </div>
 
@@ -189,6 +197,8 @@
                                 {% set action_color = '#eab308' %}
                             {% elif 'RENTAL' in (log.action or '').upper() %}
                                 {% set action_color = '#3b82f6' %}
+                            {% elif 'Payment' in log.action or 'payment' in (log.action or '').lower() %}
+                                {% set action_color = '#8b5cf6' %}
                             {% elif 'Expense' in log.action or 'COGS' in log.action or 'ARCHIVE' in log.action %}
                                 {% if 'Primegas' in (log.note or '') %}
                                     {% set action_color = '#ec4899' %}
@@ -209,7 +219,7 @@
                         {# ── Equipment ── #}
                         <td>
                             <div class="product-cell">
-                                <span class="product-name">{{ log.product.name if log.product else "N/A" }}</span>
+                                <span class="product-name" style="color: #7c3aed; font-weight: 700;">{{ log.product.name if log.product else "N/A" }}</span>
                                 <code class="asset-tag">{{ log.product.asset_tag if log.product else '---' }}</code>
                             </div>
                         </td>
@@ -223,7 +233,64 @@
 
                         {# ── Notes ── #}
                         <td class="col-notes-cell">
-                            <p class="log-note-text" title="{{ log.note or '—' }}">{{ log.note or '—' }}</p>
+                            {% set _action = log.action or '' %}
+                            {% set _note = log.note or '—' %}
+
+                            {# ── Payment notes (all payment types) ── #}
+                            {% if 'Payment' in _action or 'payment' in _note.lower() or 'refund' in _note.lower() %}
+                                {% set _note = _note|replace('₱', '<span class="pay-amount">₱') %}
+                                {% set _note = _note|replace(' via ', ' via </span><span class="pay-method">') %}
+                                {% set _note = _note|replace(' for ', ' </span> for <span class="pay-item">') %}
+                                {% set _note = _note ~ '</span>' %}
+                                {% if 'Refund' in _action %}
+                                    <span class="log-badge log-badge-payment">REFUND</span>
+                                {% else %}
+                                    <span class="log-badge log-badge-payment">PAID</span>
+                                {% endif %}
+                                <p class="log-note-text log-note-payment" title="{{ log.note or '—' }}">{{ _note|safe }}</p>
+
+                            {# ── Refill notes ── #}
+                            {% elif 'Refill' in _action or 'refill' in _note.lower() %}
+                                {% set _note = _note|replace('₱', '<span class="refill-amount">₱') %}
+                                {% set _note = _note ~ '</span>' %}
+                                <span class="log-badge log-badge-refill">REFILL</span>
+                                <p class="log-note-text log-note-refill" title="{{ log.note or '—' }}">{{ _note|safe }}</p>
+
+                            {# ── Sale notes ── #}
+                            {% elif 'SALE' in _action.upper() or 'sold' in _note.lower() or 'purchase' in _note.lower() %}
+                                {% set _note = _note|replace('₱', '<span class="sale-amount">₱') %}
+                                {% set _note = _note ~ '</span>' %}
+                                <span class="log-badge log-badge-sale">SALE</span>
+                                <p class="log-note-text log-note-sale" title="{{ log.note or '—' }}">{{ _note|safe }}</p>
+
+                            {# ── Rental notes ── #}
+                            {% elif 'RENTAL' in _action.upper() or 'rent' in _note.lower() %}
+                                {% set _note = _note|replace('₱', '<span class="rental-amount">₱') %}
+                                {% set _note = _note ~ '</span>' %}
+                                <span class="log-badge log-badge-rental">RENTAL</span>
+                                <p class="log-note-text log-note-rental" title="{{ log.note or '—' }}">{{ _note|safe }}</p>
+
+                            {# ── Expense notes ── #}
+                            {% elif 'Expense' in _action or 'COGS' in _action or 'ARCHIVE' in _action or 'expense' in _note.lower() %}
+                                {% set _note = _note|replace('₱', '<span class="expense-amount">₱') %}
+                                {% set _note = _note ~ '</span>' %}
+                                <span class="log-badge log-badge-expense">EXPENSE</span>
+                                <p class="log-note-text log-note-expense" title="{{ log.note or '—' }}">{{ _note|safe }}</p>
+
+                            {# ── Return notes ── #}
+                            {% elif 'Return' in _action or 'return' in _note.lower() %}
+                                <span class="log-badge log-badge-return">RETURN</span>
+                                <p class="log-note-text log-note-return" title="{{ log.note or '—' }}">{{ _note }}</p>
+
+                            {# ── Customer notes ── #}
+                            {% elif 'Customer' in _action or 'customer' in _note.lower() %}
+                                <span class="log-badge log-badge-customer">CUSTOMER</span>
+                                <p class="log-note-text log-note-customer" title="{{ log.note or '—' }}">{{ _note }}</p>
+
+                            {# ── Default notes ── #}
+                            {% else %}
+                                <p class="log-note-text" title="{{ log.note or '—' }}">{{ _note }}</p>
+                            {% endif %}
                         </td>
                     </tr>
                     {% else %}
@@ -243,9 +310,9 @@
             <div class="table-limit-control">
                 <span class="limit-label">Show</span>
                 <select class="medical-select-page" id="row-limit-select">
+                    <option value="50">50</option>
                     <option value="10" {{ 'selected' if current_limit == 10 }}>10</option>
                     <option value="25" {{ 'selected' if current_limit == 25 }}>25</option>
-                    <option value="50" {{ 'selected' if current_limit == 50 }}>50</option>
                 </select>
                 <span class="limit-label">entries</span>
             </div>

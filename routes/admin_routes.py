@@ -30,6 +30,59 @@ import time
 from sqlalchemy import case, func
 
 
+def _payment_items_description(txn):
+    """Build a description of what was paid for from a transaction."""
+    items = []
+
+    # Direct product (sale / refill / purchase)
+    if getattr(txn, 'product', None):
+        prod_name = txn.product.name
+        if txn.product.size:
+            prod_name += f" ({txn.product.size})"
+        qty = txn.quantity or 1
+        items.append(f"{prod_name} x{qty}")
+
+    # Rental items
+    if getattr(txn, 'rentals', None):
+        for rental in txn.rentals:
+            prod = getattr(rental, 'product', None)
+            if prod:
+                prod_name = prod.name
+                if prod.size:
+                    prod_name += f" ({prod.size})"
+                items.append(f"Rent: {prod_name}")
+
+    # Purchase items
+    if getattr(txn, 'purchases', None):
+        for purchase in txn.purchases:
+            prod = getattr(purchase, 'product', None)
+            if prod:
+                prod_name = prod.name
+                if prod.size:
+                    prod_name += f" ({prod.size})"
+                items.append(f"Buy: {prod_name}")
+
+    if not items:
+        return "items not specified"
+
+    return "; ".join(items)
+
+
+def _get_primary_product_id(txn):
+    """Get the primary product_id from a transaction for equipment column."""
+    if getattr(txn, 'product_id', None):
+        return txn.product_id
+    if getattr(txn, 'rentals', None):
+        for rental in txn.rentals:
+            if getattr(rental, 'product_id', None):
+                return rental.product_id
+    if getattr(txn, 'purchases', None):
+        for purchase in txn.purchases:
+            if getattr(purchase, 'product_id', None):
+                return purchase.product_id
+    return None
+
+
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
 def admin_or_staff_required(f):
@@ -1137,11 +1190,19 @@ def process_refill_transaction():
 
         new_transaction.update_totals()
 
+        # Build refill log note, appending payment details when a payment was made
+        _refill_note = f"Processed refill for {display_name}. Subtotal: {form_amount} PHP, Net Total: {net_total} PHP."
+        if amount_paid > 0:
+            _refill_note += f" Payment: ₱{amount_paid} via {payment_method} for {_payment_items_description(new_transaction)}"
+            if reference_number:
+                _refill_note += f" (Ref: {reference_number})"
+            _refill_note += "."
+
         log = InventoryLog(
             product_id=product.id if product else None,
             action="Refill Service Completed & Swapped" if buyer_type == 'registered' else "Walk-in Refill Service Completed",
             quantity=quantity,
-            note=f"Processed refill for {display_name}. Subtotal: {form_amount} PHP, Net Total: {net_total} PHP.",
+            note=_refill_note,
             user_id=current_user.id,
             customer_name=display_name,
             user_name=getattr(current_user, 'full_name', 'System Administrator')
@@ -1164,7 +1225,7 @@ def process_refill_transaction():
 @permission_required('can_manage_customers')
 def customers():
     page         = request.args.get('page', 1, type=int)
-    limit        = request.args.get('limit', 10, type=int)
+    limit        = request.args.get('limit', 50, type=int)
     search_query = request.args.get('q', '').strip()
     filter_type  = request.args.get('filter', '')         
  
@@ -1545,7 +1606,7 @@ def update_customer():
 @permission_required('can_manage_products')
 def products():
     page           = request.args.get('page', 1, type=int)
-    limit          = request.args.get('limit', 10, type=int)
+    limit          = request.args.get('limit', 50, type=int)
     search_query   = request.args.get('q', '').strip()
     equipment_type = request.args.get('type', 'all')
     txn_type       = request.args.get('txn_type', 'all')
@@ -2350,6 +2411,17 @@ def process_purchase():
                 verified_at=datetime.utcnow()
             ))
 
+            # Log payment in system logs
+            db.session.add(InventoryLog(
+                action="Purchase Payment",
+                quantity=None,
+                note=f"Purchase payment of ₱{amount_paid} recorded for transaction {ref_no} via {payment_method} for {_payment_items_description(new_transaction)}" + (f" (Ref: {reference_number})" if reference_number else "") + ".",
+                user_id=current_user.id,
+                customer_name=new_transaction.customer_name,
+                user_name=getattr(current_user, 'full_name', 'System Administrator'),
+                product_id=_get_primary_product_id(new_transaction)
+            ))
+
         new_transaction.update_totals()
             
         db.session.commit()
@@ -2716,6 +2788,17 @@ def process_rental():
                 verified_at=datetime.utcnow()
             ))
 
+            # Log deposit payment in system logs
+            db.session.add(InventoryLog(
+                action="Deposit Payment",
+                quantity=None,
+                note=f"Deposit payment of ₱{customer_deposit} recorded for transaction {ref_no} via {payment_method} for {_payment_items_description(new_txn)}" + (f" (Ref: {reference_number})" if reference_number else "") + ".",
+                user_id=current_user.id,
+                customer_name=new_txn.customer_name,
+                user_name=getattr(current_user, 'full_name', 'System Administrator'),
+                product_id=_get_primary_product_id(new_txn)
+            ))
+
             if new_txn.customer_id:
                 db.session.add(CustomerDeposit(
                     customer_id=new_txn.customer_id,
@@ -2742,6 +2825,18 @@ def process_rental():
                         verified_by_id=current_user.id,
                         verified_at=datetime.utcnow()
                     ))
+
+                    # Log initial fill payment in system logs
+                    db.session.add(InventoryLog(
+                        action="Initial Fill Payment",
+                        quantity=None,
+                        note=f"Initial Fill payment of ₱{fill_pay_amount} recorded for transaction {ref_no} via {payment_method} for {_payment_items_description(new_txn)}" + (f" (Ref: {reference_number})" if reference_number else "") + ".",
+                        user_id=current_user.id,
+                        customer_name=new_txn.customer_name,
+                        user_name=getattr(current_user, 'full_name', 'System Administrator'),
+                        product_id=_get_primary_product_id(new_txn)
+                    ))
+
                     remaining_payment -= fill_pay_amount
 
             for inv in all_invoices:
@@ -2760,6 +2855,18 @@ def process_rental():
                         verified_by_id=current_user.id,
                         verified_at=datetime.utcnow()
                     ))
+
+                    # Log rental invoice payment in system logs
+                    db.session.add(InventoryLog(
+                        action="Rental Payment",
+                        quantity=None,
+                        note=f"Rental payment of ₱{pay_amount} recorded for transaction {ref_no} via {payment_method} for {_payment_items_description(new_txn)}" + (f" (Ref: {reference_number})" if reference_number else "") + ".",
+                        user_id=current_user.id,
+                        customer_name=new_txn.customer_name,
+                        user_name=getattr(current_user, 'full_name', 'System Administrator'),
+                        product_id=_get_primary_product_id(new_txn)
+                    ))
+
                     if pay_amount >= Decimal(str(inv.amount_due or 0)):
                         inv.status = "Paid"
                     else:
@@ -2779,6 +2886,17 @@ def process_rental():
                     verified_by_id=current_user.id,
                     verified_at=datetime.utcnow()
                 ))
+                # Log overpayment deposit in system logs
+                db.session.add(InventoryLog(
+                    action="Overpayment Deposit",
+                    quantity=None,
+                    note=f"Overpayment deposit of {chr(8369)}{overpay_deposit} recorded for transaction {ref_no} via {payment_method} for {_payment_items_description(new_txn)}" + (f" (Ref: {reference_number})" if reference_number else "") + ".",
+                    user_id=current_user.id,
+                    customer_name=new_txn.customer_name,
+                    user_name=getattr(current_user, 'full_name', 'System Administrator'),
+                    product_id=_get_primary_product_id(new_txn)
+                ))
+
                 
                 if new_txn.customer_id:
                     db.session.add(CustomerDeposit(
@@ -2858,7 +2976,7 @@ def transactions():
     current_date = datetime.now().date()
 
     page = request.args.get('page', 1, type=int)
-    limit = request.args.get('limit', 10, type=int)
+    limit = request.args.get('limit', 50, type=int)
     search_query = request.args.get('q', '').strip()
     txn_type = request.args.get('type', '')
     equipment_type = request.args.get('equipment_type', '').strip()  # <--- Added equipment filter argument
@@ -3223,7 +3341,7 @@ from sqlalchemy.orm import contains_eager
 @permission_required('can_view_active_rentals')
 def active_rentals():
     page = request.args.get('page', 1, type=int)
-    limit = request.args.get('limit', 10, type=int)
+    limit = request.args.get('limit', 50, type=int)
     search_query = request.args.get('q', '').strip()
     equipment_filter = request.args.get('equipment_type', '').strip()  
     product_name_filter = request.args.get('product_name', '').strip()
@@ -3313,7 +3431,7 @@ def collection_monitoring():
         db.session.commit()
 
     page = request.args.get('page', 1, type=int)
-    limit = request.args.get('limit', 10, type=int)
+    limit = request.args.get('limit', 50, type=int)
     search_query = request.args.get('q', '', type=str).strip()
 
     three_days_later = today + timedelta(days=3)
@@ -3496,9 +3614,15 @@ def export_transactions():
     txn_type = request.args.get('type', '')
     fulfillment = request.args.get('fulfillment', '')
     status_filter = request.args.get('status', '')
-    start_date = request.args.get('start_date', '').strip()
-    end_date = request.args.get('end_date', '').strip()
     current_date = datetime.now().date()
+
+    # ── Export scope: this month only (ignore start_date / end_date URL params) ──
+    start_of_month = current_date.replace(day=1)
+    if current_date.month == 12:
+        end_of_month = datetime(current_date.year + 1, 1, 1) - timedelta(days=1)
+    else:
+        end_of_month = datetime(current_date.year, current_date.month + 1, 1) - timedelta(days=1)
+    end_of_month = end_of_month.replace(hour=23, minute=59, second=59)
 
     query = Transaction.query.options(
         joinedload(Transaction.customer),
@@ -3525,19 +3649,11 @@ def export_transactions():
     if fulfillment:
         query = query.filter(Transaction.fulfillment_type == fulfillment)
 
-    if start_date:
-        try:
-            parsed_start = datetime.strptime(start_date, '%Y-%m-%d')
-            query = query.filter(Transaction.created_at >= parsed_start)
-        except ValueError:
-            pass
+    if start_of_month:
+        query = query.filter(Transaction.created_at >= start_of_month)
 
-    if end_date:
-        try:
-            parsed_end = datetime.strptime(end_date, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
-            query = query.filter(Transaction.created_at <= parsed_end)
-        except ValueError:
-            pass
+    if end_of_month:
+        query = query.filter(Transaction.created_at <= end_of_month)
 
     # Status filtering (mirrors the transactions list view)
     if status_filter == 'expiring':
@@ -3628,18 +3744,48 @@ def export_transactions():
         (float(d.amount or 0) for d in CustomerDeposit.query.filter_by(status="Held").all())
     )
 
+    # ── Additional dashboard calculations for export ──
+    # COGS: sum of cost_price × quantity across all products tied to Sale transactions
+    total_cogs = 0.0
+    for t in transactions_list:
+        if t.transaction_type == "Sale":
+            if t.product:
+                try:
+                    total_cogs += (float(t.product.cost_price or 0) * float(t.quantity or 0))
+                except (TypeError, ValueError):
+                    pass
+
+    total_freight_amt = sum((float(e.amount or 0) for e in expenses if e.category and e.category.upper() == "FREIGHT"))
+    overall_income = total_sales - total_cogs - total_freight_amt
+    sales_profit = total_sales - total_cogs
+    # Commission = 30% rental income + (refills × 100) + 50% net profit income
+    try:
+        total_refills_count = sum(1 for t in transactions_list if t.transaction_type == "Refill")
+    except NameError:
+        total_refills_count = 0
+
+    # Dashboard JS formula: commission = (rentalIncomeValue + refillBonus + salesCommission)
+    # where rentalIncomeValue = rental income * 30%, refillBonus = refills * 100,
+    # salesCommission = salesNet * 50%
+    rentalIncomeValue = total_rental_rev * 0.30
+    salesNet = total_sales - total_cogs - total_freight_amt
+    commission = rentalIncomeValue + (total_refills_count * 100) + (salesNet * 0.50)
+
     kpis = [
-        ("Total Transactions", len(transactions_list), False),
+        # Dashboard cards
+        ("Overall Income (Net Profit)", overall_income, True),
         ("Total Sales", total_sales, True),
+        ("Sales Profit (Net Profit Income)", sales_profit, True),
         ("Rental Revenue", total_rental_rev, True),
         ("Refill Income", total_refill_income, True),
-        ("Total Collected", total_collected, True),
-        ("Outstanding Balance", outstanding, True),
+        ("Refills Count", total_refills_count, False),
         ("Total Expenses", total_expenses_amt, True),
-        ("Customer Deposits (Held)", deposits_held, True),
+        ("Freight Expense", total_freight_amt, True),
+        ("Commission", commission, True),
         ("Active Rentals", active_rentals_count, False),
         ("Inventory Units", total_inventory_units, False),
-        ("Total Customers", customer_count, False),
+        ("Customer Deposits (Held)", deposits_held, True),
+        ("Total Transactions", len(transactions_list), False),
     ]
 
     # Group summaries for the dashboard
@@ -4140,6 +4286,17 @@ def update_deposit(id):
                 verified_at=datetime.utcnow()
             ))
 
+            # Log deposit update in system logs
+            db.session.add(InventoryLog(
+                action="Deposit Payment",
+                quantity=None,
+                note=f"Deposit updated to ₱{new_amount} for transaction {txn.reference_no or txn.id} via {txn.payment_method or 'Cash'} for {_payment_items_description(txn)}.",
+                user_id=current_user.id,
+                customer_name=txn.customer_name,
+                user_name=getattr(current_user, 'full_name', 'System Administrator'),
+                product_id=_get_primary_product_id(txn)
+            ))
+
         txn.update_totals()
         db.session.commit()
     except Exception as e:
@@ -4280,6 +4437,17 @@ def post_payment():
             )
             db.session.add(payment)
 
+            # Log payment in system logs
+            db.session.add(InventoryLog(
+                action="Sale Payment" if txn.transaction_type == "Sale" else "Purchase Payment",
+                quantity=None,
+                note=f"Sale/Purchase payment of ₱{amount} recorded for transaction {txn.reference_no or txn.id} via {method} for {_payment_items_description(txn)}" + (f" (Ref: {ref_number})" if ref_number else "") + ".",
+                user_id=current_user.id,
+                customer_name=txn.customer_name,
+                user_name=getattr(current_user, 'full_name', 'System Administrator'),
+                product_id=_get_primary_product_id(txn)
+            ))
+
         elif payment_type == 'InitialFill':
             initial_fill_balance = txn.initial_fill_balance
 
@@ -4304,6 +4472,17 @@ def post_payment():
                 verified_at=datetime.utcnow()
             )
             db.session.add(payment)
+
+            # Log payment in system logs
+            db.session.add(InventoryLog(
+                action="Initial Fill Payment",
+                quantity=None,
+                note=f"Initial Fill payment of ₱{amount} recorded for transaction {txn.reference_no or txn.id} via {method} for {_payment_items_description(txn)}" + (f" (Ref: {ref_number})" if ref_number else "") + ".",
+                user_id=current_user.id,
+                customer_name=txn.customer_name,
+                user_name=getattr(current_user, 'full_name', 'System Administrator'),
+                product_id=_get_primary_product_id(txn)
+            ))
 
         else:
             if not invoice_id:
@@ -4337,6 +4516,17 @@ def post_payment():
                 verified_at=datetime.utcnow()
             )
             db.session.add(payment)
+
+            # Log payment in system logs
+            db.session.add(InventoryLog(
+                action="Rental Payment",
+                quantity=None,
+                note=f"Rental payment of ₱{amount} recorded for transaction {txn.reference_no or txn.id} via {method} for {_payment_items_description(txn)}" + (f" (Ref: {ref_number})" if ref_number else "") + ".",
+                user_id=current_user.id,
+                customer_name=txn.customer_name,
+                user_name=getattr(current_user, 'full_name', 'System Administrator'),
+                product_id=_get_primary_product_id(txn)
+            ))
 
             if amount >= target_invoice.remaining_balance:
                 target_invoice.status = "Paid"
@@ -4474,6 +4664,17 @@ def confirm_payment_proof(proof_id):
         db.session.add(new_payment)
         db.session.flush()
 
+        # Log the payment in system logs (InventoryLog)
+        db.session.add(InventoryLog(
+            action="Rental Payment",
+            quantity=None,
+            note=f"Payment of ₱{pay_amount} confirmed for transaction {txn.reference_no or txn.id} via {new_payment.payment_method} for {_payment_items_description(txn)}" + (f" (Ref: {new_payment.reference_number})" if new_payment.reference_number else "") + ".",
+            user_id=current_user.id,
+            customer_name=txn.customer_name,
+            user_name=getattr(current_user, 'full_name', 'System Administrator'),
+            product_id=_get_primary_product_id(txn)
+        ))
+
         proof.status = 'Verified'
         proof.payment_id = new_payment.id
 
@@ -4588,6 +4789,17 @@ def process_return(txn_id):
             )
             db.session.add(payment)
 
+            # Log late fee payment in system logs
+            db.session.add(InventoryLog(
+                action="Late Fee Payment",
+                quantity=None,
+                note=f"Late fee payment of ₱{late_fees} recorded for transaction {txn.reference_no or txn.id} via {payment_method} for {_payment_items_description(txn)}.",
+                user_id=current_user.id,
+                customer_name=txn.customer_name,
+                user_name=getattr(current_user, 'full_name', 'System Administrator'),
+                product_id=_get_primary_product_id(txn)
+            ))
+
         if refund_deposit and deposit_refund_amount > 0:
             held_deposits = CustomerDeposit.query.filter_by(transaction_id=txn.id, status='Held').all()
             for deposit in held_deposits:
@@ -4602,6 +4814,17 @@ def process_return(txn_id):
                 status="Completed",
             )
             db.session.add(deposit_payout)
+
+            # Log deposit refund in system logs
+            db.session.add(InventoryLog(
+                action="Deposit Refund",
+                quantity=None,
+                note=f"Deposit refund of ₱{deposit_refund_amount} recorded for transaction {txn.reference_no or txn.id} via {payment_method} for {_payment_items_description(txn)}.",
+                user_id=current_user.id,
+                customer_name=txn.customer_name,
+                user_name=getattr(current_user, 'full_name', 'System Administrator'),
+                product_id=_get_primary_product_id(txn)
+            ))
 
         if txn.rentals and all(r.status == 'Returned' for r in txn.rentals):
             txn.status = 'Closed'
@@ -4755,7 +4978,7 @@ def process_primegas():
 @permission_required('can_view_reports')
 def system_logs():
     page = request.args.get('page', 1, type=int)
-    limit = request.args.get('limit', 10, type=int)
+    limit = request.args.get('limit', 50, type=int)
     search_query = request.args.get('q', '')
     current_type = request.args.get('type', '')
     date_from = request.args.get('date_from', '')
@@ -4775,7 +4998,9 @@ def system_logs():
         ))
 
     if current_type:
-        query = query.filter(InventoryLog.action == current_type)
+        query = query.filter(
+    or_(InventoryLog.action == current_type, InventoryLog.action == 'Payment Recorded')
+)
 
     if date_from:
         try:

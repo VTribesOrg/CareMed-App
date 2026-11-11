@@ -310,7 +310,9 @@ document.addEventListener('DOMContentLoaded', () => {
             .catch(error => console.error("Error loading dashboard data:", error));
     };
 
-    loadDashboardData('this_month');
+    // On first load / refresh, start with the currently selected filter
+    // (defaults to "Today" per the <select> in dashboard.html).
+    loadDashboardData(filterPeriodSelect ? filterPeriodSelect.value : 'this_month');
 
 
     /* ── 4. Sales Summary Modal & Product Breakdown Loader ───────── */

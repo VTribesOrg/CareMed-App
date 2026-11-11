@@ -793,9 +793,9 @@
         <div class="table-limit-control" style="display: flex; align-items: center; gap: 8px;">
             <span class="limit-label" style="font-size: 13px; color: #64748b;">Show</span>
             <select class="medical-select" id="row-limit-select" style="height: 34px; padding: 0 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 13px;">
+                <option value="50">50</option>
                 <option value="10" {{ 'selected' if current_limit == 10 }}>10</option>
                 <option value="25" {{ 'selected' if current_limit == 25 }}>25</option>
-                <option value="50" {{ 'selected' if current_limit == 50 }}>50</option>
             </select>
             <span class="limit-label" style="font-size: 13px; color: #64748b;">entries</span>
         </div>
