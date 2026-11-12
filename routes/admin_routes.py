@@ -3558,15 +3558,18 @@ def _xlsx_date(value, fmt="%Y-%m-%d"):
         return str(value)
 
 
-def _xlsx_write_table(ws, title, headers, rows, currency_cols=None, center_cols=None, widths=None):
-    """Write a styled, filterable data table.
+def _xlsx_write_table(ws, title, headers, rows, currency_cols=None, center_cols=None, widths=None, wrap_cols=None):
+    """Write a styled, filterable data table with clean visual spacing.
 
     Row 1 = banner title, Row 2 = header (frozen + AutoFilter), Row 3+ = data.
-    ``currency_cols`` / ``center_cols`` are 1-based column indexes.
+    ``currency_cols`` / ``center_cols`` / ``wrap_cols`` are 1-based column indexes.
     """
     currency_cols = set(currency_cols or [])
     center_cols = set(center_cols or [])
+    wrap_cols = set(wrap_cols or [])
     ncols = len(headers)
+
+    ws.sheet_view.showGridLines = True
 
     # Banner title row
     ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=ncols)
@@ -3574,7 +3577,7 @@ def _xlsx_write_table(ws, title, headers, rows, currency_cols=None, center_cols=
     title_cell.font = Font(name="Calibri", size=13, bold=True, color="FFFFFF")
     title_cell.fill = PatternFill("solid", fgColor=_XLSX_GREEN)
     title_cell.alignment = Alignment(horizontal="left", vertical="center", indent=1)
-    ws.row_dimensions[1].height = 26
+    ws.row_dimensions[1].height = 28
 
     # Header row
     header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
@@ -3591,11 +3594,12 @@ def _xlsx_write_table(ws, title, headers, rows, currency_cols=None, center_cols=
     band_fill = PatternFill("solid", fgColor=_XLSX_BAND)
     right_align = Alignment(horizontal="right", vertical="center")
     center_align = Alignment(horizontal="center", vertical="center")
-    left_align = Alignment(horizontal="left", vertical="center", indent=1)
 
     for offset, row_values in enumerate(rows):
         excel_row = 3 + offset
+        ws.row_dimensions[excel_row].height = 24  # Give rows breathable padding
         is_band = offset % 2 == 1
+        
         for col_idx, value in enumerate(row_values, 1):
             if col_idx in currency_cols:
                 value = _xlsx_num(value)
@@ -3603,20 +3607,24 @@ def _xlsx_write_table(ws, title, headers, rows, currency_cols=None, center_cols=
             cell.border = _XLSX_BORDER
             if is_band:
                 cell.fill = band_fill
+
+            # Alignment and text wrapping rules
+            is_wrap = col_idx in wrap_cols
             if col_idx in currency_cols:
                 cell.number_format = _XLSX_CURRENCY_FMT
                 cell.alignment = right_align
             elif col_idx in center_cols:
                 cell.alignment = center_align
             else:
-                cell.alignment = left_align
+                cell.alignment = Alignment(horizontal="left", vertical="center", indent=1, wrap_text=is_wrap)
 
-    # Column widths (auto-fit with sensible bounds)
+    # Column widths (auto-fit with intelligent bounds to avoid overcrowding)
     for col_idx, header in enumerate(headers, 1):
         letter = get_column_letter(col_idx)
         if widths and col_idx in widths:
             ws.column_dimensions[letter].width = widths[col_idx]
             continue
+            
         longest = len(str(header))
         for row_values in rows:
             raw = row_values[col_idx - 1] if col_idx - 1 < len(row_values) else ""
@@ -3626,7 +3634,12 @@ def _xlsx_write_table(ws, title, headers, rows, currency_cols=None, center_cols=
                 except (TypeError, ValueError):
                     pass
             longest = max(longest, len(str(raw if raw is not None else "")))
-        ws.column_dimensions[letter].width = min(max(longest + 3, 12), 40)
+            
+        # Cap width for wrapped text columns (like addresses) so they don't stretch too wide
+        if col_idx in wrap_cols:
+            ws.column_dimensions[letter].width = min(max(longest + 3, 15), 36)
+        else:
+            ws.column_dimensions[letter].width = min(max(longest + 3, 12), 35)
 
     last_row = 2 + len(rows)
     ws.auto_filter.ref = f"A2:{get_column_letter(ncols)}{last_row}"
