@@ -4128,6 +4128,8 @@ def export_transactions():
     }
 
     kpi_lookup = {label: (value, is_currency) for label, value, is_currency in kpis}
+    if "Refill Income" in kpi_lookup and "Total Refill Income" not in kpi_lookup:
+        kpi_lookup["Total Refill Income"] = kpi_lookup["Refill Income"]
     if "Freight Expense" in kpi_lookup and "Total Freight Expense" not in kpi_lookup:
         kpi_lookup["Total Freight Expense"] = kpi_lookup["Freight Expense"]
     if "Commission" in kpi_lookup and "Total Commission" not in kpi_lookup:
@@ -4175,7 +4177,7 @@ def export_transactions():
 
     dash.merge_cells("B6:C6")
     c_oi_title = dash["B6"]
-    c_oi_title.value = "💳  Overall Income"
+    c_oi_title.value = "Overall Income"
     c_oi_title.font = Font(name="Calibri", size=11, bold=False, color="4B5563")
     c_oi_title.alignment = Alignment(horizontal="left", vertical="bottom", indent=1)
 
@@ -4287,6 +4289,7 @@ def export_transactions():
                 elif card_key == "Total Refill Income":
                     r_top_cell.value = "Total Tanks Refilled"
                     r_mid_cell.value = total_refills_count
+                    r_bot_cell.value = ""
                 elif card_key == "Total Rentals Income":
                     r_top_cell.value = "30% of Rental Income"
                     r_mid_cell.value = _xlsx_num(rentalIncomeValue)
