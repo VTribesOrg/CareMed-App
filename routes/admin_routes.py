@@ -262,37 +262,29 @@ def dashboard_data():
                 query = query.filter(date_column < end_date)
             return query
 
-        sales_rentals_query = db.session.query(
-            func.coalesce(
-                func.sum(case((Transaction.transaction_type == "Sale", Transaction.amount_paid), else_=0)),
-                Decimal("0.00")
-            ),
-            func.coalesce(
-                func.sum(
-                    case(
-                        (Transaction.transaction_type == "Rental", 
-                         Transaction.amount_paid - func.coalesce(
-                             db.select(func.sum(Payment.amount))
-                             .where(
-                                 Payment.transaction_id == Transaction.id, 
-                                 Payment.payment_type == "InitialFill", 
-                                 Payment.status == "Completed"
-                             )
-                             .scalar_subquery(), 
-                             0
-                         )), 
-                        else_=0)
-                ),
-                Decimal("0.00")
-            )
-        ).filter(Transaction.transaction_type.in_(["Sale", "Rental"]))
+        # ── Updated to aggregate from Payment records so payments made today 
+        # for past-month transactions correctly reflect in the active date filter. ──
         
-        sales_rentals_query = apply_date_filter(sales_rentals_query)
-        sales_and_rentals = sales_rentals_query.first()
-        
-        # 1. Sold Profit (Gross) stays pure and un-deducted
-        total_sales = float(sales_and_rentals[0]) if sales_and_rentals and sales_and_rentals[0] is not None else 0.0
-        total_rentals = float(sales_and_rentals[1]) if sales_and_rentals and sales_and_rentals[1] is not None else 0.0
+        # 1. Total Sales collections from completed payments tied to Sale transactions
+        sales_payments_query = db.session.query(
+            func.coalesce(func.sum(Payment.amount), Decimal("0.00"))
+        ).join(Transaction, Payment.transaction_id == Transaction.id).filter(
+            Transaction.transaction_type == "Sale",
+            Payment.status == "Completed"
+        )
+        sales_payments_query = apply_date_filter(sales_payments_query, Payment.created_at)
+        total_sales = float(sales_payments_query.scalar() or 0.0)
+
+        # 2. Total Rentals collections from completed payments tied to Rental transactions (excluding InitialFill)
+        rental_payments_query = db.session.query(
+            func.coalesce(func.sum(Payment.amount), Decimal("0.00"))
+        ).join(Transaction, Payment.transaction_id == Transaction.id).filter(
+            Transaction.transaction_type == "Rental",
+            Payment.payment_type != "InitialFill",
+            Payment.status == "Completed"
+        )
+        rental_payments_query = apply_date_filter(rental_payments_query, Payment.created_at)
+        total_rentals = float(rental_payments_query.scalar() or 0.0)
 
         cogs_query = db.session.query(
             func.coalesce(
@@ -331,7 +323,7 @@ def dashboard_data():
             Payment.status == "Completed",
             ~Payment.payment_type.in_(["Deposit", "Deposit Refund"])
         )
-        initial_fill_payments_query = apply_date_filter(initial_fill_payments_query)
+        initial_fill_payments_query = apply_date_filter(initial_fill_payments_query, Payment.created_at)
         initial_fill_payments_total = initial_fill_payments_query.scalar() or 0.0
 
         initial_fill_tanks_query = db.session.query(
@@ -343,7 +335,7 @@ def dashboard_data():
             Payment.status == "Completed",
             ~Payment.payment_type.in_(["Deposit", "Deposit Refund"])
         )
-        initial_fill_tanks_query = apply_date_filter(initial_fill_tanks_query)
+        initial_fill_tanks_query = apply_date_filter(initial_fill_tanks_query, Payment.created_at)
         initial_fill_tanks_count = initial_fill_tanks_query.scalar() or 0
 
         if int(initial_fill_tanks_count) == 0:
@@ -354,7 +346,7 @@ def dashboard_data():
                 Payment.status == "Completed",
                 ~Payment.payment_type.in_(["Deposit", "Deposit Refund"])
             )
-            fallback_tanks_query = apply_date_filter(fallback_tanks_query)
+            fallback_tanks_query = apply_date_filter(fallback_tanks_query, Payment.created_at)
             initial_fill_tanks_count = fallback_tanks_query.scalar() or 0
 
         refill_stats_query = db.session.query(
@@ -571,10 +563,24 @@ def dashboard_sales_transactions():
             return query
 
         query = Transaction.query.filter(Transaction.transaction_type == "Sale")
-        query = apply_date_filter(query)
+        
+        if start_date or end_date:
+            subq = db.session.query(Payment.transaction_id).filter(Payment.status == "Completed")
+            if start_date:
+                subq = subq.filter(Payment.created_at >= start_date)
+            if end_date:
+                subq = subq.filter(Payment.created_at < end_date)
+            subq = subq.subquery()
+
+            query = query.filter(
+                db.or_(
+                    Transaction.id.in_(db.select(subq.c.transaction_id)),
+                    apply_date_filter(Transaction.query, Transaction.created_at).statement.whereclause
+                )
+            )
+
         transactions = query.all()
 
-        # Aggregate product sales data dictionary: { product_name: {"quantity_sold": int, "total_income": float} }
         product_summary = {}
 
         for tx in transactions:
@@ -583,11 +589,9 @@ def dashboard_sales_transactions():
                     p_name = p.product_name or "Unknown Product"
                     p_qty = int(p.quantity or 0)
                     
-                    # Compute income for this purchase item (fallback to proportional or unit price calculation if needed)
                     p_price = float(getattr(p, 'price', 0) or getattr(p, 'unit_price', 0) or 0)
                     p_total = p_qty * p_price
                     if p_total == 0:
-                        # Fallback to total amount distributed if item price isn't explicitly set
                         p_total = float(getattr(tx, 'total_amount', 0) or getattr(tx, 'amount_paid', 0) or 0) / max(len(tx.purchases), 1)
 
                     if p_name not in product_summary:
@@ -596,7 +600,6 @@ def dashboard_sales_transactions():
                     product_summary[p_name]["quantity_sold"] += p_qty
                     product_summary[p_name]["total_income"] += p_total
             else:
-                # Handle sales without a explicit purchase items relationship using description or fallback name
                 p_name = tx.description or "General Sale Item"
                 p_qty = int(getattr(tx, 'quantity', 1) or 1)
                 p_total = float(getattr(tx, 'total_amount', 0) or getattr(tx, 'amount_paid', 0) or 0)
@@ -607,7 +610,6 @@ def dashboard_sales_transactions():
                 product_summary[p_name]["quantity_sold"] += p_qty
                 product_summary[p_name]["total_income"] += p_total
 
-        # Convert dictionary to sorted list (highest quantity sold first)
         summary_list = []
         for name, data in sorted(product_summary.items(), key=lambda x: x[1]['quantity_sold'], reverse=True):
             summary_list.append({
@@ -633,54 +635,93 @@ def get_refill_transactions():
 
         start_date, end_date = get_date_boundaries(period, custom_start, custom_end)
 
-        def apply_date_filter(query, date_column=Transaction.created_at):
-            if start_date:
-                query = query.filter(date_column >= start_date)
-            if end_date:
-                query = query.filter(date_column < end_date)
-            return query
-
-        query = Transaction.query.filter(
+        # Query completed refill/initial-fill payments strictly within the selected date window
+        payments_query = Payment.query.options(
+            joinedload(Payment.transaction).joinedload(Transaction.customer),
+            joinedload(Payment.transaction).joinedload(Transaction.product),
+            joinedload(Payment.transaction).joinedload(Transaction.rentals).joinedload(Rental.product)
+        ).join(Transaction, Payment.transaction_id == Transaction.id).filter(
+            Payment.status == "Completed",
+            ~Payment.payment_type.in_(["Deposit", "Deposit Refund"]),
             db.or_(
-                Transaction.transaction_type.ilike('%refill%'),
-                Transaction.walk_in_tank_size.isnot(None),
-                Transaction.refill_cost_per_unit > 0
+                Transaction.transaction_type == "Refill",
+                Payment.payment_type.in_(["Refill", "InitialFill"])
             )
         )
-        
-        query = apply_date_filter(query)
-        transactions = query.order_by(Transaction.created_at.desc()).all()
 
-        refills_list = []
-        for tx in transactions:
-            qty = int(tx.quantity or 1)
+        if start_date:
+            payments_query = payments_query.filter(Payment.created_at >= start_date)
+        if end_date:
+            payments_query = payments_query.filter(Payment.created_at < end_date)
 
-            if tx.product:
-                prod_name = tx.product.name
-                tank_desc = f" ({tx.walk_in_tank_size})" if tx.walk_in_tank_size and tx.walk_in_tank_size not in tx.product.name else ""
-            else:
-                prod_name = tx.walk_in_tank_size or "Tank Refill"
-                tank_desc = ""
+        payments = payments_query.order_by(Payment.created_at.desc()).all()
 
-            refills_list.append({
-                'reference_no': tx.reference_no,
-                'product_name': f"{prod_name}{tank_desc}",
-                'quantity': qty,
-                'unit_price': float(tx.refill_cost_per_unit or 0),
-                'total_income': float(tx.total_amount or 0),
-                'customer_name': tx.customer_name or (tx.customer.full_name if tx.customer else "Walk-in Customer"),
-                'created_at': getattr(tx, 'display_date', None) or (tx.created_at.strftime('%b %d, %Y %I:%M %p') if tx.created_at else "N/A")
-            })
+        # Group by transaction_id so multiple rows don't duplicate, summing ONLY payments made in this period
+        tx_grouped = {}
+        for payment in payments:
+            tx = payment.transaction
+            if not tx:
+                continue
+
+            if tx.id not in tx_grouped:
+                qty = int(tx.quantity or 1)
+                if tx.product:
+                    prod_name = tx.product.name
+                    tank_desc = f" ({tx.walk_in_tank_size})" if tx.walk_in_tank_size and tx.walk_in_tank_size not in tx.product.name else ""
+                elif tx.rentals and tx.rentals[0].product:
+                    prod_name = tx.rentals[0].product.name
+                    tank_desc = " (Initial Fill)" if payment.payment_type == "InitialFill" else ""
+                else:
+                    prod_name = tx.walk_in_tank_size or ("Initial Tank Fill" if payment.payment_type == "InitialFill" else "Tank Refill")
+                    tank_desc = ""
+
+                tx_grouped[tx.id] = {
+                    'reference_no': tx.reference_no,
+                    'product_name': f"{prod_name}{tank_desc}",
+                    'quantity': qty,
+                    'unit_price': float(tx.refill_cost_per_unit or 0),
+                    'total_income': 0.0,
+                    'customer_name': tx.customer_name or (tx.customer.full_name if tx.customer else "Walk-in Customer"),
+                    'created_at': payment.created_at.strftime('%b %d, %Y %I:%M %p') if payment.created_at else "N/A"
+                }
+
+            # Add ONLY the payment amount collected during this filtered period
+            tx_grouped[tx.id]['total_income'] += float(payment.amount or 0)
+
+        # Fallback: include unpaid/direct Refill transactions created in the period that have no Payment rows yet
+        if not tx_grouped:
+            direct_refills = Transaction.query.filter(Transaction.transaction_type == "Refill")
+            if start_date:
+                direct_refills = direct_refills.filter(Transaction.created_at >= start_date)
+            if end_date:
+                direct_refills = direct_refills.filter(Transaction.created_at < end_date)
+
+            for tx in direct_refills.order_by(Transaction.created_at.desc()).all():
+                qty = int(tx.quantity or 1)
+                prod_name = tx.product.name if tx.product else (tx.walk_in_tank_size or "Tank Refill")
+                tx_grouped[tx.id] = {
+                    'reference_no': tx.reference_no,
+                    'product_name': prod_name,
+                    'quantity': qty,
+                    'unit_price': float(tx.refill_cost_per_unit or 0),
+                    'total_income': float(tx.amount_paid or tx.total_amount or 0),
+                    'customer_name': tx.customer_name or (tx.customer.full_name if tx.customer else "Walk-in Customer"),
+                    'created_at': tx.created_at.strftime('%b %d, %Y %I:%M %p') if tx.created_at else "N/A"
+                }
+
+        for item in tx_grouped.values():
+            if item['unit_price'] == 0 and item['quantity'] > 0:
+                item['unit_price'] = item['total_income'] / item['quantity']
 
         return jsonify({
             'success': True,
-            'refills': refills_list
+            'refills': list(tx_grouped.values())
         })
 
     except Exception:
         current_app.logger.exception("Critical error encountered while fetching refill transactions summary.")
         return jsonify({'success': False, 'error': 'Failed to load refill transactions.'}), 500
-    
+      
 @admin_bp.route("/dashboard/active-rentals-summary")
 @login_required
 @admin_or_staff_required
@@ -692,47 +733,79 @@ def dashboard_active_rentals_summary():
 
         start_date, end_date = get_date_boundaries(period, custom_start, custom_end)
 
-        def apply_date_filter(query, date_column=Transaction.created_at):
-            if start_date:
-                query = query.filter(date_column >= start_date)
-            if end_date:
-                query = query.filter(date_column < end_date)
-            return query
+        # Sum ONLY completed rental payments (excluding InitialFill & Deposits) within the selected period
+        payments_query = Payment.query.options(
+            joinedload(Payment.transaction).joinedload(Transaction.rentals).joinedload(Rental.product),
+            joinedload(Payment.transaction).joinedload(Transaction.purchases),
+            joinedload(Payment.rental_invoice).joinedload(RentalInvoice.rental).joinedload(Rental.product)
+        ).join(Transaction, Payment.transaction_id == Transaction.id).filter(
+            Transaction.transaction_type == "Rental",
+            Payment.status == "Completed",
+            ~Payment.payment_type.in_(["InitialFill", "Deposit", "Deposit Refund"])
+        )
 
-        query = Transaction.query.filter(Transaction.transaction_type == "Rental")
-        query = apply_date_filter(query)
-        transactions = query.all()
+        if start_date:
+            payments_query = payments_query.filter(Payment.created_at >= start_date)
+        if end_date:
+            payments_query = payments_query.filter(Payment.created_at < end_date)
 
-        # Aggregate product rental data dictionary: { product_name: {"quantity_rented": int, "rental_income": float} }
+        # Map each transaction_id to the exact amount paid inside this date filter
+        paid_in_period_by_tx = {}
+        tx_map = {}
+        for payment in payments_query.all():
+            tx = payment.transaction
+            if not tx:
+                continue
+            tx_map[tx.id] = tx
+            paid_in_period_by_tx[tx.id] = paid_in_period_by_tx.get(tx.id, 0.0) + float(payment.amount or 0)
+
         product_summary = {}
 
-        for tx in transactions:
-            items = getattr(tx, 'rentals', None) or getattr(tx, 'purchases', None) or []
-            if items:
-                for item in items:
-                    p_name = getattr(item, 'product_name', None) or (item.product.name if getattr(item, 'product', None) else "Unknown Rental Product")
-                    p_qty = int(getattr(item, 'quantity', 0) or getattr(item, 'quantity_rented', 0) or 1)
-                    
-                    p_price = float(getattr(item, 'price', 0) or getattr(item, 'unit_price', 0) or getattr(item, 'rental_price', 0) or 0)
-                    p_total = p_qty * p_price
-                    if p_total == 0:
-                        p_total = float(getattr(tx, 'total_amount', 0) or getattr(tx, 'amount_paid', 0) or 0) / max(len(items), 1)
+        def _add_product_income(name, qty, amount):
+            if name not in product_summary:
+                product_summary[name] = {"quantity_rented": 0, "rental_income": 0.0}
+            product_summary[name]["quantity_rented"] += qty
+            product_summary[name]["rental_income"] += amount
 
-                    if p_name not in product_summary:
-                        product_summary[p_name] = {"quantity_rented": 0, "rental_income": 0.0}
-                    
-                    product_summary[p_name]["quantity_rented"] += p_qty
-                    product_summary[p_name]["rental_income"] += p_total
+        for payment in payments_query.all():
+            tx = payment.transaction
+            if not tx:
+                continue
+            tx_map[tx.id] = tx
+            amount = float(payment.amount or 0)
+
+            # Attribute the FULL payment to the exact product it was applied to
+            # via Payment.invoice_id -> RentalInvoice -> Rental -> Product.
+            p_name = None
+            p_qty = 1
+            inv = getattr(payment, 'rental_invoice', None)
+            if inv is not None:
+                rental = getattr(inv, 'rental', None)
+                if rental is not None:
+                    prod = getattr(rental, 'product', None)
+                    if prod:
+                        p_name = prod.name or None
+                        if getattr(prod, 'size', None):
+                            p_name = f"{p_name} ({prod.size})"
+                    p_qty = int(getattr(rental, 'quantity', 0) or 1)
+
+            if p_name:
+                _add_product_income(p_name, p_qty, amount)
             else:
-                p_name = tx.description or "General Rental Item"
-                p_qty = int(getattr(tx, 'quantity', 1) or 1)
-                p_total = float(getattr(tx, 'total_amount', 0) or getattr(tx, 'amount_paid', 0) or 0)
-
-                if p_name not in product_summary:
-                    product_summary[p_name] = {"quantity_rented": 0, "rental_income": 0.0}
-                
-                product_summary[p_name]["quantity_rented"] += p_qty
-                product_summary[p_name]["rental_income"] += p_total
+                # Fallback: no specific invoice on this payment — split across items.
+                items = getattr(tx, 'rentals', None) or getattr(tx, 'purchases', None) or []
+                if items:
+                    share_per_item = amount / max(len(items), 1)
+                    for item in items:
+                        iname = getattr(item, 'product_name', None) or (item.product.name if getattr(item, 'product', None) else "Unknown Rental Product")
+                        if getattr(item, 'product', None) and getattr(item.product, 'size', None):
+                            iname = f"{iname} ({item.product.size})"
+                        iqty = int(getattr(item, 'quantity', 0) or getattr(item, 'quantity_rented', 0) or 1)
+                        _add_product_income(iname, iqty, share_per_item)
+                else:
+                    p_name = tx.description or "General Rental Item"
+                    p_qty = int(getattr(tx, 'quantity', 1) or 1)
+                    _add_product_income(p_name, p_qty, amount)
 
         summary_list = []
         for name, data in sorted(product_summary.items(), key=lambda x: x[1]['quantity_rented'], reverse=True):
@@ -747,7 +820,7 @@ def dashboard_active_rentals_summary():
     except Exception:
         current_app.logger.exception("Critical error encountered while fetching active rentals summary.")
         return jsonify({"success": False, "error": "Failed to load active rentals summary."}), 500
-        
+          
 @admin_bp.route("/dashboard/rental-transactions")
 @login_required
 @admin_or_staff_required
@@ -834,63 +907,6 @@ def dashboard_rental_transactions():
     except Exception:
         current_app.logger.exception("Critical error encountered while fetching rental and deposit transactions summary.")
         return jsonify({"error": "Failed to load rental transactions summary."}), 500
-    
-@admin_bp.route('/dashboard/expense-transactions', methods=['GET'])
-@login_required 
-@admin_or_staff_required
-def get_expense_transactions():
-    period = request.args.get('period', 'this_month')
-    start_date_str = request.args.get('start_date')
-    end_date_str = request.args.get('end_date')
-
-    query = Expense.query
-
-    now = datetime.now()
-    if period == 'this_month':
-        start_date = datetime(now.year, now.month, 1).date()
-        if now.month == 12:
-            end_date = datetime(now.year + 1, 1, 1).date()
-        else:
-            end_date = datetime(now.year, now.month + 1, 1).date()
-        query = query.filter(Expense.date_incurred >= start_date, Expense.date_incurred < end_date)
-
-    elif period == 'last_month':
-        if now.month == 1:
-            start_date = datetime(now.year - 1, 12, 1).date()
-            end_date = datetime(now.year, 1, 1).date()
-        else:
-            start_date = datetime(now.year, now.month - 1, 1).date()
-            end_date = datetime(now.year, now.month, 1).date()
-        query = query.filter(Expense.date_incurred >= start_date, Expense.date_incurred < end_date)
-
-    elif period == 'custom' and start_date_str and end_date_str:
-        try:
-            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
-            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
-            query = query.filter(Expense.date_incurred >= start_date, Expense.date_incurred <= end_date)
-        except ValueError:
-            pass
-
-    expenses = query.order_by(Expense.date_incurred.desc(), Expense.created_at.desc()).all()
-
-    expenses_list = []
-    for exp in expenses:
-        title_or_cat = exp.expense_title or exp.category or 'General Expense'
-        if exp.expense_title and exp.category:
-            display_desc = f"{exp.expense_title} ({exp.category})"
-        else:
-            display_desc = title_or_cat
-
-        expenses_list.append({
-            'description': display_desc,
-            'date': exp.date_incurred.strftime('%Y-%m-%d') if exp.date_incurred else '',
-            'amount': float(exp.amount or 0.0)
-        })
-
-    return jsonify({
-        'success': True,
-        'expenses': expenses_list
-    })
       
 @admin_bp.route("/dashboard/freight-transactions")
 @login_required
@@ -2856,15 +2872,26 @@ def process_rental():
                         verified_at=datetime.utcnow()
                     ))
 
+                    # Determine the specific product this payment is applied to
+                    inv_rental = getattr(inv, 'rental', None)
+                    inv_product = getattr(inv_rental, 'product', None) if inv_rental else None
+                    inv_product_name = ""
+                    inv_product_id = None
+                    if inv_product:
+                        inv_product_name = inv_product.name or ""
+                        if getattr(inv_product, 'size', None):
+                            inv_product_name += f" ({inv_product.size})"
+                        inv_product_id = inv_product.id
+
                     # Log rental invoice payment in system logs
                     db.session.add(InventoryLog(
                         action="Rental Payment",
                         quantity=None,
-                        note=f"Rental payment of ₱{pay_amount} recorded for transaction {ref_no} via {payment_method} for {_payment_items_description(new_txn)}" + (f" (Ref: {reference_number})" if reference_number else "") + ".",
+                        note=f"Rental payment of ₱{pay_amount} recorded for transaction {ref_no} via {payment_method} for Rent: {inv_product_name or 'items not specified'} (Invoice #{inv.id})" + (f" (Ref: {reference_number})" if reference_number else "") + ".",
                         user_id=current_user.id,
                         customer_name=new_txn.customer_name,
                         user_name=getattr(current_user, 'full_name', 'System Administrator'),
-                        product_id=_get_primary_product_id(new_txn)
+                        product_id=inv_product_id
                     ))
 
                     if pay_amount >= Decimal(str(inv.amount_due or 0)):
@@ -3614,15 +3641,20 @@ def export_transactions():
     txn_type = request.args.get('type', '')
     fulfillment = request.args.get('fulfillment', '')
     status_filter = request.args.get('status', '')
+    period = request.args.get('period', 'this_month')
+    custom_start = request.args.get('start_date')
+    custom_end = request.args.get('end_date')
     current_date = datetime.now().date()
 
-    # ── Export scope: this month only (ignore start_date / end_date URL params) ──
-    start_of_month = current_date.replace(day=1)
-    if current_date.month == 12:
-        end_of_month = datetime(current_date.year + 1, 1, 1) - timedelta(days=1)
-    else:
-        end_of_month = datetime(current_date.year, current_date.month + 1, 1) - timedelta(days=1)
-    end_of_month = end_of_month.replace(hour=23, minute=59, second=59)
+    # ── Export scope: respect the dashboard date range ──
+    start_date, end_date = get_date_boundaries(period, custom_start, custom_end)
+
+    def _apply_export_date_filter(q, date_column=Transaction.created_at):
+        if start_date:
+            q = q.filter(date_column >= start_date)
+        if end_date:
+            q = q.filter(date_column < end_date)
+        return q
 
     query = Transaction.query.options(
         joinedload(Transaction.customer),
@@ -3649,11 +3681,7 @@ def export_transactions():
     if fulfillment:
         query = query.filter(Transaction.fulfillment_type == fulfillment)
 
-    if start_of_month:
-        query = query.filter(Transaction.created_at >= start_of_month)
-
-    if end_of_month:
-        query = query.filter(Transaction.created_at <= end_of_month)
+    query = _apply_export_date_filter(query)
 
     # Status filtering (mirrors the transactions list view)
     if status_filter == 'expiring':
@@ -3713,7 +3741,6 @@ def export_transactions():
     # ── Reference datasets (full data; branch scope applied automatically) ──
     products = Product.query.order_by(Product.equipment_type, Product.name).all()
     customers = Customer.query.order_by(Customer.last_name, Customer.first_name).all()
-    expenses = Expense.query.order_by(Expense.date_incurred.desc()).all()
     payments = Payment.query.options(joinedload(Payment.transaction)).order_by(Payment.created_at.desc()).all()
     rentals = Rental.query.options(
         joinedload(Rental.transaction),
@@ -3727,63 +3754,210 @@ def export_transactions():
 
     generated_at = datetime.now().strftime("%B %d, %Y %I:%M %p")
 
-    # ── KPI calculations from the (filtered) transaction set ──
+    # ── KPI calculations — exactly mirror dashboard_data() ──
     def _money(items, attr):
         return sum((float(getattr(i, attr) or 0) for i in items), 0.0)
 
-    total_sales = sum((float(t.total_amount or 0) for t in transactions_list if t.transaction_type == "Sale"))
-    total_rental_rev = sum((float(t.total_amount or 0) for t in transactions_list if t.transaction_type == "Rental"))
-    total_refill_income = sum((float(t.total_amount or 0) for t in transactions_list if t.transaction_type == "Refill"))
+    # 1. Total Sales — completed Sale payments within the date range
+    sales_payments_query = db.session.query(
+        func.coalesce(func.sum(Payment.amount), Decimal("0.00"))
+    ).join(Transaction, Payment.transaction_id == Transaction.id).filter(
+        Transaction.transaction_type == "Sale",
+        Payment.status == "Completed",
+    )
+    if start_date:
+        sales_payments_query = sales_payments_query.filter(Payment.created_at >= start_date)
+    if end_date:
+        sales_payments_query = sales_payments_query.filter(Payment.created_at < end_date)
+    total_sales = float(sales_payments_query.scalar() or 0.0)
+
+    # 2. Total Rentals — completed Rental payments (excl. InitialFill) within the date range
+    rental_payments_query = db.session.query(
+        func.coalesce(func.sum(Payment.amount), Decimal("0.00"))
+    ).join(Transaction, Payment.transaction_id == Transaction.id).filter(
+        Transaction.transaction_type == "Rental",
+        Payment.payment_type != "InitialFill",
+        Payment.status == "Completed",
+    )
+    if start_date:
+        rental_payments_query = rental_payments_query.filter(Payment.created_at >= start_date)
+    if end_date:
+        rental_payments_query = rental_payments_query.filter(Payment.created_at < end_date)
+    total_rental_rev = float(rental_payments_query.scalar() or 0.0)
+
+    # 3. Total Refill Income — Transaction.total_amount for Refill transactions
+    # (matches dashboard_data() which uses Transaction.total_amount, not Payment.amount)
+    refill_income_query = db.session.query(
+        func.coalesce(func.sum(case((Transaction.transaction_type == "Refill", Transaction.total_amount), else_=0)), 0)
+    )
+    if start_date:
+        refill_income_query = refill_income_query.filter(Transaction.created_at >= start_date)
+    if end_date:
+        refill_income_query = refill_income_query.filter(Transaction.created_at < end_date)
+    base_refill_income = float(refill_income_query.scalar() or 0.0)
+
+    # Initial fill payments — added to refill income (matches dashboard_data())
+    initial_fill_payments_query = db.session.query(
+        func.coalesce(func.sum(Payment.amount), 0)
+    ).join(Transaction, Payment.transaction_id == Transaction.id).filter(
+        Payment.payment_type == "InitialFill",
+        Payment.status == "Completed",
+        ~Payment.payment_type.in_(["Deposit", "Deposit Refund"]),
+    )
+    if start_date:
+        initial_fill_payments_query = initial_fill_payments_query.filter(Payment.created_at >= start_date)
+    if end_date:
+        initial_fill_payments_query = initial_fill_payments_query.filter(Payment.created_at < end_date)
+    initial_fill_payments_total = float(initial_fill_payments_query.scalar() or 0.0)
+
+    total_refill_income = base_refill_income + initial_fill_payments_total
+
+    # Refills count — sum of Transaction.quantity for Refill transactions + InitialFill tanks
+    refills_qty_query = db.session.query(
+        func.coalesce(func.sum(Transaction.quantity), 0)
+    ).filter(
+        Transaction.transaction_type == "Refill",
+    )
+    if start_date:
+        refills_qty_query = refills_qty_query.filter(Transaction.created_at >= start_date)
+    if end_date:
+        refills_qty_query = refills_qty_query.filter(Transaction.created_at < end_date)
+    refills_qty_count = int(refills_qty_query.scalar() or 0)
+
+    initial_fill_tanks_query = db.session.query(
+        func.coalesce(func.sum(Rental.quantity), 0)
+    ).join(Transaction, Rental.transaction_id == Transaction.id).join(
+        Payment, Payment.transaction_id == Transaction.id
+    ).filter(
+        Payment.payment_type == "InitialFill",
+        Payment.status == "Completed",
+        ~Payment.payment_type.in_(["Deposit", "Deposit Refund"]),
+    )
+    if start_date:
+        initial_fill_tanks_query = initial_fill_tanks_query.filter(Payment.created_at >= start_date)
+    if end_date:
+        initial_fill_tanks_query = initial_fill_tanks_query.filter(Payment.created_at < end_date)
+    initial_fill_tanks_count = int(initial_fill_tanks_query.scalar() or 0)
+
+    total_refills_count = refills_qty_count + initial_fill_tanks_count
+
     total_collected = _money(transactions_list, "amount_paid")
     outstanding = _money(transactions_list, "balance_due")
-    total_expenses_amt = sum((float(e.amount or 0) for e in expenses))
+
+    # 4. Total Expenses — filtered by date range using created_at (matches dashboard_data())
+    expenses_query = db.session.query(
+        func.coalesce(func.sum(Expense.amount), 0)
+    )
+    if hasattr(Expense, 'created_at'):
+        if start_date:
+            expenses_query = expenses_query.filter(Expense.created_at >= start_date)
+        if end_date:
+            expenses_query = expenses_query.filter(Expense.created_at < end_date)
+    elif hasattr(Expense, 'date_incurred'):
+        if start_date:
+            expenses_query = expenses_query.filter(Expense.date_incurred >= start_date)
+        if end_date:
+            expenses_query = expenses_query.filter(Expense.date_incurred < end_date)
+    total_expenses_amt = float(expenses_query.scalar() or 0.0)
+
+    # Individual expenses list (for Excel export rows) — filtered by same date range
+    expenses_list_query = Expense.query
+    if hasattr(Expense, 'created_at'):
+        if start_date:
+            expenses_list_query = expenses_list_query.filter(Expense.created_at >= start_date)
+        if end_date:
+            expenses_list_query = expenses_list_query.filter(Expense.created_at < end_date)
+    elif hasattr(Expense, 'date_incurred'):
+        if start_date:
+            expenses_list_query = expenses_list_query.filter(Expense.date_incurred >= start_date)
+        if end_date:
+            expenses_list_query = expenses_list_query.filter(Expense.date_incurred < end_date)
+    expenses = expenses_list_query.order_by(Expense.created_at.desc()).all()
+
+    # Freight expenses — filtered by date range using created_at (matches dashboard_data())
+    freight_expenses_query = db.session.query(
+        func.coalesce(func.sum(Expense.amount), 0)
+    ).filter(db.func.upper(Expense.category) == 'FREIGHT')
+    if hasattr(Expense, 'created_at'):
+        if start_date:
+            freight_expenses_query = freight_expenses_query.filter(Expense.created_at >= start_date)
+        if end_date:
+            freight_expenses_query = freight_expenses_query.filter(Expense.created_at < end_date)
+    elif hasattr(Expense, 'date_incurred'):
+        if start_date:
+            freight_expenses_query = freight_expenses_query.filter(Expense.date_incurred >= start_date)
+        if end_date:
+            freight_expenses_query = freight_expenses_query.filter(Expense.date_incurred < end_date)
+    total_freight_amt = float(freight_expenses_query.scalar() or 0.0)
+
     active_rentals_count = Rental.query.filter_by(status="Active").count()
     total_inventory_units = sum((int(p.stock or 0) for p in products))
     customer_count = len(customers)
-    deposits_held = sum(
-        (float(d.amount or 0) for d in CustomerDeposit.query.filter_by(status="Held").all())
+
+    # 5. Customer Deposits (Held) — filtered by date range using created_at
+    deposits_query = db.session.query(
+        func.coalesce(func.sum(CustomerDeposit.amount), Decimal("0.00"))
+    ).filter(CustomerDeposit.status == "Held")
+    if hasattr(CustomerDeposit, 'created_at'):
+        if start_date:
+            deposits_query = deposits_query.filter(CustomerDeposit.created_at >= start_date)
+        if end_date:
+            deposits_query = deposits_query.filter(CustomerDeposit.created_at < end_date)
+    elif hasattr(CustomerDeposit, 'date'):
+        if start_date:
+            deposits_query = deposits_query.filter(CustomerDeposit.date >= start_date)
+        if end_date:
+            deposits_query = deposits_query.filter(CustomerDeposit.date < end_date)
+    deposits_held = float(deposits_query.scalar() or 0.0)
+
+    # ── COGS — matches dashboard_data() using Purchase model ──
+    total_cogs = float(
+        db.session.query(
+            func.coalesce(
+                func.sum(
+                    func.coalesce(Purchase.product_cost_price, 0)
+                    * func.coalesce(Purchase.quantity, 0)
+                ),
+                0
+            )
+        ).join(Transaction).filter(
+            Transaction.transaction_type == "Sale",
+        )
+        .filter(
+            Transaction.created_at >= start_date if start_date else True,
+            Transaction.created_at < end_date if end_date else True,
+        )
+        .scalar() or 0.0
     )
 
-    # ── Additional dashboard calculations for export ──
-    # COGS: sum of cost_price × quantity across all products tied to Sale transactions
-    total_cogs = 0.0
-    for t in transactions_list:
-        if t.transaction_type == "Sale":
-            if t.product:
-                try:
-                    total_cogs += (float(t.product.cost_price or 0) * float(t.quantity or 0))
-                except (TypeError, ValueError):
-                    pass
+    # ── Net Profit Income = (Total Sales - COGS) - Total Freight ──
+    base_sales_net = total_sales - total_cogs
+    sales_profit = base_sales_net
+    sales_net = base_sales_net - total_freight_amt
 
-    total_freight_amt = sum((float(e.amount or 0) for e in expenses if e.category and e.category.upper() == "FREIGHT"))
-    overall_income = total_sales - total_cogs - total_freight_amt
-    sales_profit = total_sales - total_cogs
-    # Commission = 30% rental income + (refills × 100) + 50% net profit income
-    try:
-        total_refills_count = sum(1 for t in transactions_list if t.transaction_type == "Refill")
-    except NameError:
-        total_refills_count = 0
+    # ── Overall Income = Sales + Rentals + Refills (matches dashboard JS) ──
+    overall_income = total_sales + total_rental_rev + total_refill_income
 
-    # Dashboard JS formula: commission = (rentalIncomeValue + refillBonus + salesCommission)
-    # where rentalIncomeValue = rental income * 30%, refillBonus = refills * 100,
-    # salesCommission = salesNet * 50%
+    # ── Net Profit = Overall Income - Total Expenses (matches dashboard JS) ──
+    net_profit = overall_income - total_expenses_amt
+
+    # ── Commission = 30% rental + refills×100 + 50% net profit income ──
     rentalIncomeValue = total_rental_rev * 0.30
-    salesNet = total_sales - total_cogs - total_freight_amt
-    commission = rentalIncomeValue + (total_refills_count * 100) + (salesNet * 0.50)
+    commission = rentalIncomeValue + (total_refills_count * 100) + (sales_net * 0.50)
 
     kpis = [
         # Dashboard cards
         ("Overall Income (Net Profit)", overall_income, True),
-        ("Total Sales", total_sales, True),
-        ("Sales Profit (Net Profit Income)", sales_profit, True),
-        ("Rental Revenue", total_rental_rev, True),
+        ("Sold Profit", total_sales, True),
+        ("Net Profit Income", sales_profit, True),
+        ("Total Rentals Income", total_rental_rev, True),
         ("Refill Income", total_refill_income, True),
         ("Refills Count", total_refills_count, False),
         ("Total Expenses", total_expenses_amt, True),
         ("Freight Expense", total_freight_amt, True),
         ("Commission", commission, True),
-        ("Active Rentals", active_rentals_count, False),
-        ("Inventory Units", total_inventory_units, False),
+        ("Active Rentals Units", active_rentals_count, False),
+        ("Total Inventory", total_inventory_units, False),
         ("Customer Deposits (Held)", deposits_held, True),
         ("Total Transactions", len(transactions_list), False),
     ]
@@ -3911,30 +4085,243 @@ def export_transactions():
     subtitle.font = Font(name="Calibri", size=10, italic=True, color="6B7280")
     subtitle.alignment = Alignment(horizontal="left", vertical="center", indent=1)
 
-    label_font = Font(name="Calibri", size=11, bold=True, color="374151")
-    value_font = Font(name="Calibri", size=12, bold=True, color=_XLSX_GREEN_DARK)
-    kpi_fill = PatternFill("solid", fgColor=_XLSX_KPI_FILL)
+    # ── Card styles matching the dashboard (icon emoji + fill color) ──
+    for col, width in {
+        "A": 3,
+        "B": 28, "C": 22,
+        "D": 3,
+        "E": 24, "F": 26,
+        "G": 3,
+        "H": 24, "I": 24,
+        "J": 3,
+        "K": 24, "L": 26,
+    }.items():
+        dash.column_dimensions[col].width = width
 
-    half = (len(kpis) + 1) // 2
-    for idx, (label, value, is_currency) in enumerate(kpis):
-        col_pair = (2, 3) if idx < half else (5, 6)
-        row = 5 + (idx if idx < half else idx - half)
-        lc = dash.cell(row=row, column=col_pair[0], value=label)
-        lc.font = label_font
-        lc.fill = kpi_fill
-        lc.border = _XLSX_BORDER
-        lc.alignment = Alignment(horizontal="left", vertical="center", indent=1)
-        vc = dash.cell(row=row, column=col_pair[1], value=(_xlsx_num(value) if is_currency else value))
-        vc.font = value_font
-        vc.fill = kpi_fill
-        vc.border = _XLSX_BORDER
-        vc.alignment = Alignment(horizontal="right", vertical="center")
-        if is_currency:
-            vc.number_format = _XLSX_CURRENCY_FMT
-        dash.row_dimensions[row].height = 22
+    dash.unmerge_cells("B2:F2")
+    dash.merge_cells("B2:L2")
+    dash.unmerge_cells("B3:F3")
+    dash.merge_cells("B3:L3")
+
+    _CARD_THEME = {
+        "Sold Profit":              ("FEF3C7", "FACC15", "16A34A"),
+        "Total Refill Income":      ("DCFCE7", "4ADE80", "9333EA"),
+        "Total Rentals Income":     ("EFF6FF", "60A5FA", "16A34A"),
+        "Total Expenses":           ("FEF2F2", "FCA5A5", "EA580C"),
+        "Active Rentals Units":     ("ECFDF5", "86EFAC", "EA580C"),
+        "Total Inventory":          ("EFF6FF", "93C5FD", "EF4444"),
+        "Customer Deposits (Held)": ("ECFEFF", "22D3EE", "0284C7"),
+        "Total Freight Expense":    ("F5F3FF", "C4B5FD", "7C3AED"),
+        "Total Commission":         ("FFF7ED", "FDBA74", "EA580C"),
+    }
+
+    _CARD_DISPLAY_TITLE = {
+        "Sold Profit": "Sold Profit",
+        "Total Refill Income": "Total Refill Income",
+        "Total Rentals Income": "Total Rentals Income",
+        "Total Expenses": "Total Expenses",
+        "Active Rentals Units": "Active Rentals Units",
+        "Total Inventory": "Total Inventory",
+        "Customer Deposits (Held)": "Customer Deposits",
+        "Total Freight Expense": "Total Freight Expense",
+        "Total Commission": "Total Commission",
+    }
+
+    kpi_lookup = {label: (value, is_currency) for label, value, is_currency in kpis}
+    if "Freight Expense" in kpi_lookup and "Total Freight Expense" not in kpi_lookup:
+        kpi_lookup["Total Freight Expense"] = kpi_lookup["Freight Expense"]
+    if "Commission" in kpi_lookup and "Total Commission" not in kpi_lookup:
+        kpi_lookup["Total Commission"] = kpi_lookup["Commission"]
+
+    _CARD_GRID = [
+        ["Sold Profit", "Total Refill Income", "Total Rentals Income"],
+        ["Total Expenses", "Active Rentals Units", "Total Inventory"],
+        ["Customer Deposits (Held)", "Total Freight Expense", "Total Commission"],
+    ]
+
+    _GRID_COLS = [(5, 6), (8, 9), (11, 12)]
+
+    def _style_card_block(dash, start_row, end_row, start_col, end_col, fill, border_hex, has_divider=False):
+        outer = Side(style="medium", color=border_hex)
+        divider = Side(style="thin", color="CBD5E1") if has_divider else Side(style=None)
+        none = Side(style=None)
+        for r in range(start_row, end_row + 1):
+            for c in range(start_col, end_col + 1):
+                cell = dash.cell(row=r, column=c)
+                cell.fill = fill
+                t = outer if r == start_row else none
+                b = outer if r == end_row else none
+                l = outer if c == start_col else (divider if (has_divider and c == start_col + 1) else none)
+                r_side = outer if c == end_col else (divider if (has_divider and c == start_col) else none)
+                cell.border = Border(top=t, bottom=b, left=l, right=r_side)
+
+    # ── 1. Overall Income Card (Tall white card on left: B5:C15) ──
+    overall_value = kpi_lookup.get("Overall Income (Net Profit)", (0, True))[0]
+    white_fill = PatternFill("solid", fgColor="FFFFFF")
+    gray_outer = Side(style="medium", color="E5E7EB")
+    thin_sep = Side(style="thin", color="E5E7EB")
+
+    dash.row_dimensions[5].height = 18
+    dash.row_dimensions[6].height = 20
+    dash.row_dimensions[7].height = 50 
+    dash.row_dimensions[8].height = 20
+    dash.row_dimensions[9].height = 20
+    dash.row_dimensions[10].height = 18
+    dash.row_dimensions[11].height = 20
+    dash.row_dimensions[12].height = 25
+    dash.row_dimensions[13].height = 18
+    dash.row_dimensions[14].height = 18
+    dash.row_dimensions[15].height = 18
+
+    dash.merge_cells("B6:C6")
+    c_oi_title = dash["B6"]
+    c_oi_title.value = "💳  Overall Income"
+    c_oi_title.font = Font(name="Calibri", size=11, bold=False, color="4B5563")
+    c_oi_title.alignment = Alignment(horizontal="left", vertical="bottom", indent=1)
+
+    dash.merge_cells("B7:C7")
+    c_oi_val = dash["B7"]
+    c_oi_val.value = _xlsx_num(overall_value)
+    c_oi_val.font = Font(name="Calibri", size=18, bold=True, color="0F172A")
+    c_oi_val.number_format = _XLSX_CURRENCY_FMT
+    c_oi_val.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+
+    dash.merge_cells("B8:C8")
+    c_oi_sub = dash["B8"]
+    c_oi_sub.value = "Combined Sales, Rentals & Refills"
+    c_oi_sub.font = Font(name="Calibri", size=9, color="6B7280")
+    c_oi_sub.alignment = Alignment(horizontal="left", vertical="top", indent=1)
+
+    dash.merge_cells("B11:C11")
+    c_np_lbl = dash["B11"]
+    c_np_lbl.value = "Net Profit (Less Expenses)"
+    c_np_lbl.font = Font(name="Calibri", size=9, color="6B7280")
+    c_np_lbl.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+
+    dash.merge_cells("B12:C12")
+    c_np_val = dash["B12"]
+    c_np_val.value = _xlsx_num(net_profit)
+    c_np_val.font = Font(name="Calibri", size=13, bold=True, color="16A34A")
+    c_np_val.number_format = _XLSX_CURRENCY_FMT
+    c_np_val.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+
+    for r in range(5, 16):
+        top_s = gray_outer if r == 5 else (thin_sep if r == 11 else Side(style=None))
+        bot_s = gray_outer if r == 15 else Side(style=None)
+        for c in (2, 3):
+            cell = dash.cell(row=r, column=c)
+            cell.fill = white_fill
+            cell.border = Border(
+                top=top_s,
+                bottom=bot_s,
+                left=gray_outer if c == 2 else Side(style=None),
+                right=gray_outer if c == 3 else Side(style=None),
+            )
+
+    # ── 2. Right-Hand 3x3 KPI Cards ──
+    for grid_row, card_labels in enumerate(_CARD_GRID):
+        r_top = 5 + grid_row * 4
+        r_mid = r_top + 1
+        r_bot = r_top + 2
+        r_gap = r_top + 3
+
+        dash.row_dimensions[r_top].height = 22
+        dash.row_dimensions[r_mid].height = 32 
+        dash.row_dimensions[r_bot].height = 20
+        dash.row_dimensions[r_gap].height = 10
+
+        for col_idx, card_key in enumerate(card_labels):
+            c_left, c_right = _GRID_COLS[col_idx]
+            fill_hex, border_hex, accent_hex = _CARD_THEME[card_key]
+            card_fill = PatternFill("solid", fgColor=fill_hex)
+            value, is_currency = kpi_lookup.get(card_key, (0, False))
+            display_title = _CARD_DISPLAY_TITLE[card_key]
+
+            has_split = card_key in {
+                "Sold Profit",
+                "Total Refill Income",
+                "Total Rentals Income",
+                "Total Commission",
+            }
+
+            # Apply full background fill and solid block borders across the card's entire area
+            _style_card_block(dash, r_top, r_bot, c_left, c_right, card_fill, border_hex, has_divider=has_split)
+
+            if has_split:
+                dash.merge_cells(start_row=r_top, start_column=c_left, end_row=r_top, end_column=c_left)
+                dash.merge_cells(start_row=r_mid, start_column=c_left, end_row=r_mid, end_column=c_left)
+                dash.merge_cells(start_row=r_bot, start_column=c_left, end_row=r_bot, end_column=c_left)
+
+                lbl_cell = dash.cell(row=r_top, column=c_left, value=f"{display_title}")
+                lbl_cell.font = Font(name="Calibri", size=10, bold=False, color="4B5563")
+                lbl_cell.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+
+                val_cell = dash.cell(row=r_mid, column=c_left, value=(_xlsx_num(value) if is_currency else value))
+                val_cell.font = Font(name="Calibri", size=14, bold=True, color="0F172A")
+                val_cell.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+                if is_currency:
+                    val_cell.number_format = _XLSX_CURRENCY_FMT
+
+                sub_cell = dash.cell(row=r_bot, column=c_left)
+                sub_cell.font = Font(name="Calibri", size=8.5, color="6B7280")
+                sub_cell.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+
+                r_top_cell = dash.cell(row=r_top, column=c_right)
+                r_mid_cell = dash.cell(row=r_mid, column=c_right)
+                r_bot_cell = dash.cell(row=r_bot, column=c_right)
+
+                r_top_cell.font = Font(name="Calibri", size=9, color="4B5563")
+                r_top_cell.alignment = Alignment(horizontal="right", vertical="center")
+
+                r_mid_cell.font = Font(name="Calibri", size=12, bold=True, color=accent_hex)
+                r_mid_cell.alignment = Alignment(horizontal="right", vertical="center")
+
+                r_bot_cell.font = Font(name="Calibri", size=8, color="6B7280")
+                r_bot_cell.alignment = Alignment(horizontal="right", vertical="center")
+
+                if card_key == "Sold Profit":
+                    r_top_cell.value = "Net Profit Income"
+                    r_mid_cell.value = _xlsx_num(sales_net)
+                    r_mid_cell.number_format = _XLSX_CURRENCY_FMT
+                    r_bot_cell.value = f"NPI: ₱{sales_profit:,.0f} | Frt: -₱{total_freight_amt:,.0f}"
+                elif card_key == "Total Refill Income":
+                    r_top_cell.value = "Total Tanks Refilled"
+                    r_mid_cell.value = total_refills_count
+                elif card_key == "Total Rentals Income":
+                    r_top_cell.value = "30% of Rental Income"
+                    r_mid_cell.value = _xlsx_num(rentalIncomeValue)
+                    r_mid_cell.number_format = _XLSX_CURRENCY_FMT
+                elif card_key == "Total Commission":
+                    r_mid_cell.value = "Formula Breakdown"
+                    r_mid_cell.font = Font(name="Calibri", size=9, bold=True, color="374151")
+                    r_bot_cell.value = "30% Rental + Refills×100 + 50% Net Profit Income"
+            else:
+                dash.merge_cells(start_row=r_top, start_column=c_left, end_row=r_top, end_column=c_right)
+                dash.merge_cells(start_row=r_mid, start_column=c_left, end_row=r_mid, end_column=c_right)
+                dash.merge_cells(start_row=r_bot, start_column=c_left, end_row=r_bot, end_column=c_right)
+
+                lbl_cell = dash.cell(row=r_top, column=c_left, value=f"{display_title}")
+                lbl_cell.font = Font(name="Calibri", size=10, bold=False, color="4B5563")
+                lbl_cell.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+
+                val_cell = dash.cell(row=r_mid, column=c_left, value=(_xlsx_num(value) if is_currency else value))
+                val_cell.font = Font(name="Calibri", size=14, bold=True, color="0F172A")
+                val_cell.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+                if is_currency:
+                    val_cell.number_format = _XLSX_CURRENCY_FMT
+
+                sub_cell = dash.cell(row=r_bot, column=c_left)
+                sub_cell.font = Font(name="Calibri", size=8.5, color="6B7280")
+                sub_cell.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+
+                if card_key == "Customer Deposits (Held)":
+                    sub_cell.value = "Active refundable deposits"
+                elif card_key == "Total Freight Expense":
+                    sub_cell.value = "Cost of freight incurred"
+
+    summary_top = 17
 
     # Summary tables on the dashboard
-    summary_top = 5 + half + 2
 
     def _mini_table(anchor_col, title, headers, rows, currency_idx=None, top=None):
         top = summary_top if top is None else top
@@ -4125,6 +4512,7 @@ def export_transactions():
     response.headers["Content-Disposition"] = f"attachment; filename={filename}"
     response.headers["Content-type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     return response
+
 
 @admin_bp.route('/transaction_details/<int:id>') 
 @login_required
@@ -4517,15 +4905,26 @@ def post_payment():
             )
             db.session.add(payment)
 
+            # Determine the specific product this payment is applied to
+            paid_rental = getattr(target_invoice, 'rental', None)
+            paid_product = getattr(paid_rental, 'product', None) if paid_rental else None
+            paid_product_name = ""
+            paid_product_id = None
+            if paid_product:
+                paid_product_name = paid_product.name or ""
+                if getattr(paid_product, 'size', None):
+                    paid_product_name += f" ({paid_product.size})"
+                paid_product_id = paid_product.id
+
             # Log payment in system logs
             db.session.add(InventoryLog(
                 action="Rental Payment",
                 quantity=None,
-                note=f"Rental payment of ₱{amount} recorded for transaction {txn.reference_no or txn.id} via {method} for {_payment_items_description(txn)}" + (f" (Ref: {ref_number})" if ref_number else "") + ".",
+                note=f"Rental payment of ₱{amount} recorded for transaction {txn.reference_no or txn.id} via {method} for Rent: {paid_product_name or 'items not specified'} (Invoice #{target_invoice.id})" + (f" (Ref: {ref_number})" if ref_number else "") + ".",
                 user_id=current_user.id,
                 customer_name=txn.customer_name,
                 user_name=getattr(current_user, 'full_name', 'System Administrator'),
-                product_id=_get_primary_product_id(txn)
+                product_id=paid_product_id
             ))
 
             if amount >= target_invoice.remaining_balance:
@@ -4664,15 +5063,28 @@ def confirm_payment_proof(proof_id):
         db.session.add(new_payment)
         db.session.flush()
 
+        # Determine the specific product this payment is applied to
+        proof_paid_product_name = ""
+        proof_paid_product_id = None
+        if invoice_id_to_use:
+            _inv = RentalInvoice.query.get(invoice_id_to_use)
+            _rental = getattr(_inv, 'rental', None) if _inv else None
+            _prod = getattr(_rental, 'product', None) if _rental else None
+            if _prod:
+                proof_paid_product_name = _prod.name or ""
+                if getattr(_prod, 'size', None):
+                    proof_paid_product_name += f" ({_prod.size})"
+                proof_paid_product_id = _prod.id
+
         # Log the payment in system logs (InventoryLog)
         db.session.add(InventoryLog(
             action="Rental Payment",
             quantity=None,
-            note=f"Payment of ₱{pay_amount} confirmed for transaction {txn.reference_no or txn.id} via {new_payment.payment_method} for {_payment_items_description(txn)}" + (f" (Ref: {new_payment.reference_number})" if new_payment.reference_number else "") + ".",
+            note=f"Payment of ₱{pay_amount} confirmed for transaction {txn.reference_no or txn.id} via {new_payment.payment_method} for Rent: {proof_paid_product_name or 'items not specified'} (Invoice #{invoice_id_to_use or 'N/A'})" + (f" (Ref: {new_payment.reference_number})" if new_payment.reference_number else "") + ".",
             user_id=current_user.id,
             customer_name=txn.customer_name,
             user_name=getattr(current_user, 'full_name', 'System Administrator'),
-            product_id=_get_primary_product_id(txn)
+            product_id=proof_paid_product_id
         ))
 
         proof.status = 'Verified'

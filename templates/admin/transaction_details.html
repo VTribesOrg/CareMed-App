@@ -473,7 +473,7 @@
                                                                     data-type="Rental"
                                                                     data-monthly-rate="{{ rental.monthly_rate }}"
                                                                     data-unpaid-count="{{ rental.invoices|selectattr('status', 'ne', 'Paid')|list|length }}"
-                                                                    data-invoice-id="{{ invoice.id }}">
+                                                                    data-invoice-id="{{ invoice.id }}" data-product-id="{{ rental.product.id if rental.product else '' }}" data-product-name="{{ rental.product.name if rental.product else '' }}">
                                                                 <i class="material-symbols-rounded">payments</i>
                                                                 <span>Pay Now</span>
                                                             </button>

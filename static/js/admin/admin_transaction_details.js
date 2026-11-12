@@ -58,6 +58,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Extract Data (Including specific Invoice ID and payment type)
         const txnId = btn.getAttribute('data-txn-id');
         const invoiceId = btn.getAttribute('data-invoice-id') || '';
+        const productName = btn.getAttribute('data-product-name') || '';
         const refNo = btn.getAttribute('data-ref');
         currentType = btn.getAttribute('data-type') || 'Rental';
         currentBalance = parseFloat(btn.getAttribute('data-balance') || 0);
@@ -70,7 +71,10 @@ document.addEventListener('DOMContentLoaded', function() {
         if (paymentTypeInput) paymentTypeInput.value = currentType; // Populates InitialFill or Rental
 
         if (summaryRef) summaryRef.innerText = refNo || 'N/A';
-        if (summaryType) summaryType.innerText = currentType === 'InitialFill' ? 'Initial Fill Fee' : currentType;
+        if (summaryType) {
+            const typeLabel = currentType === 'InitialFill' ? 'Initial Fill Fee' : currentType;
+            summaryType.innerText = productName ? `${typeLabel} - ${productName}` : typeLabel;
+        }
         if (summaryBalance) {
             summaryBalance.innerText = `₱${currentBalance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
             summaryBalance.setAttribute('data-raw-balance', currentBalance);

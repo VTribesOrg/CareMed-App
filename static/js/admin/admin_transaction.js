@@ -2129,6 +2129,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // UI Elements inside Modal
     const txnIdInput = document.getElementById('payment-txn-id');
+    const invoiceIdInput = document.getElementById('payment-invoice-id');
     const summaryRef = document.getElementById('summary-ref');
     const summaryType = document.getElementById('summary-type');
     const summaryBalance = document.getElementById('summary-balance');
@@ -2156,6 +2157,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Extract Data
         const txnId = btn.getAttribute('data-txn-id');
+        const invoiceId = btn.getAttribute('data-invoice-id') || '';
         const refNo = btn.getAttribute('data-ref');
         currentType = btn.getAttribute('data-type') || 'Rental';
         currentBalance = parseFloat(btn.getAttribute('data-balance') || 0);
@@ -2164,6 +2166,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Populate Fields
         txnIdInput.value = txnId;
+        if (invoiceIdInput) invoiceIdInput.value = invoiceId;
         summaryRef.innerText = refNo || 'N/A';
         summaryType.innerText = currentType;
         summaryBalance.innerText = `₱${currentBalance.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
