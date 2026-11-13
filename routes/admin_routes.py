@@ -6763,19 +6763,22 @@ def backup_data():
     if current_user.role.strip() != 'Administrator':
         return jsonify({'error': 'Unauthorized'}), 403
     
-    backup_dir = 'backups'
+    backup_dir = os.environ.get('BACKUP_DIR', os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'backups'))
     os.makedirs(backup_dir, exist_ok=True)
     
     backups = []
-    with os.scandir(backup_dir) as entries:
-        for entry in entries:
-            if entry.is_file() and entry.name.endswith('.sql'):
-                stats = entry.stat()
-                backups.append({
-                    'filename': entry.name,
-                    'size': round(stats.st_size / (1024 * 1024), 2),
-                    'created_at': datetime.fromtimestamp(stats.st_mtime).strftime('%Y-%m-%d %H:%M:%S')
-                })
+    if os.path.exists(backup_dir):
+        with os.scandir(backup_dir) as entries:
+            for entry in entries:
+                if entry.is_file() and entry.name.endswith('.sql'):
+                    stats = entry.stat()
+                    triggered_by = 'admin' if '_admin_' in entry.name else 'system'
+                    backups.append({
+                        'filename': entry.name,
+                        'size_kb': round(stats.st_size / 1024, 2),
+                        'created_at': datetime.fromtimestamp(stats.st_mtime).strftime('%Y-%m-%d %H:%M:%S'),
+                        'triggered_by': triggered_by
+                    })
 
     backups = sorted(backups, key=lambda x: x['created_at'], reverse=True)
     return jsonify(backups)

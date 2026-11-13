@@ -15,6 +15,7 @@ services:
     volumes:
       # REMOVED "- .:/app" so code is baked into the image safely
       - ./static/uploads:/app/caremed/static/uploads
+      - ./backups:/app/backups
     deploy:
       resources:
         limits:
