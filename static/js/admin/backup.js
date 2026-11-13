@@ -37,7 +37,7 @@ document.addEventListener("DOMContentLoaded", function() {
                         </td>
                         <td>
                             <div style="display:flex; gap:6px; align-items:center;">
-                                <a href="/admin/backup/download/${backup.filename}" class="btn-dl">
+                                <a href="/admin/backup/download/${encodeURIComponent(backup.filename)}" class="btn-dl">
                                     <span class="material-symbols-rounded" style="font-size:14px;">download</span>Download
                                 </a>
                                 <button type="button" class="btn-del delete-backup-btn" data-filename="${backup.filename}">Delete</button>
@@ -63,7 +63,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
         const filename = btn.getAttribute('data-filename');
 
-        fetch(`/admin/backup/delete/${filename}`, {
+        fetch(`/admin/backup/delete/${encodeURIComponent(filename)}`, {
             method: 'POST',
             headers: {
                 'X-CSRFToken': csrfToken
