@@ -310,12 +310,21 @@
     <div class="table-responsive">
         <table class="medical-table" id="rentals-table">
             <thead>
+            {% set namespace = namespace(total_qty=0) %}
+            {% for rental in rentals %}
+                {% set namespace.total_qty = namespace.total_qty + (rental.quantity | int(0)) %}
+            {% endfor %}
                 <tr>
                     <th>Customer</th>
                     <th>Equipment</th>
                     <th>Product</th>
                     <th>Serial Number</th>
-                    <th>Qty</th>
+                    <th>
+                        Qty 
+                        {% if rentals %}
+                        <span style="font-weight: 400; color: #64748b; font-size: 0.8rem; margin-left: 4px;">({{ namespace.total_qty }})</span>
+                        {% endif %}
+                    </th>
                     <th>Date Rented</th>
                     <th>Expected Return</th>
                     <th>Duration</th>
