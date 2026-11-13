@@ -6763,10 +6763,10 @@ def backup_data():
     if current_user.role.strip() != 'Administrator':
         return jsonify({'error': 'Unauthorized'}), 403
     
-    backup_dir = os.environ.get('BACKUP_DIR') or os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'caremed', 'backups'))
-    
+    backup_dir = '/app/caremed/backups'
+
     if not os.path.exists(backup_dir):
-        backup_dir = '/app/caremed/backups'
+        backup_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'backups')
 
     os.makedirs(backup_dir, exist_ok=True)
     
