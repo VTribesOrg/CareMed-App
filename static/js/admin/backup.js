@@ -15,12 +15,34 @@ document.addEventListener("DOMContentLoaded", function() {
                 tableElement.style.display = 'none';
                 emptyState.style.display = 'block';
                 countLabel.innerText = '0 backups — max 7 kept';
+                
+                // Reset top stats to 0 if empty
+                const totalBackupsEl = document.querySelector('.stat-card.blue .stat-num');
+                const totalStorageEl = document.querySelector('.stat-card.amber .stat-num');
+                if (totalBackupsEl) totalBackupsEl.textContent = '0';
+                if (totalStorageEl) totalStorageEl.textContent = '0 KB';
                 return;
             }
 
             tableElement.style.display = 'table';
             emptyState.style.display = 'none';
             countLabel.innerText = `Last ${data.length} backups — max 7 kept`;
+
+            // ── Dynamically update the top stat summary cards ──
+            const totalBackupsEl = document.querySelector('.stat-card.blue .stat-num');
+            const totalStorageEl = document.querySelector('.stat-card.amber .stat-num');
+            
+            if (totalBackupsEl) {
+                totalBackupsEl.textContent = data.length;
+            }
+
+            const totalSizeKb = data.reduce((sum, item) => sum + (parseFloat(item.size_kb) || 0), 0);
+            if (totalStorageEl) {
+                totalStorageEl.textContent = totalSizeKb > 1024 
+                    ? `${(totalSizeKb / 1024).toFixed(2)} MB` 
+                    : `${totalSizeKb.toFixed(2)} KB`;
+            }
+            // ───────────────────────────────────────────────────
 
             data.forEach(backup => {
                 const isManual = backup.triggered_by === 'admin';
