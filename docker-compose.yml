@@ -66,6 +66,22 @@ services:
         limits:
           memory: 256M
 
+  backup-agent:
+    build: .
+    restart: always
+    command: ["python", "backup_runner.py"]
+    env_file:
+      - .env
+    volumes:
+      - ./backups:/app/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
 volumes:
   mysql_data:
   redis_data:

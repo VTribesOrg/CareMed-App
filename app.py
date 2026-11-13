@@ -412,20 +412,20 @@ app.register_blueprint(developer_bp)
 limiter.limit("1000 per hour")(admin_bp)
 
 # ── Auto Backup Scheduler ──────────────────────
-from utils.backup import auto_backup
-if not app.debug or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
-    scheduler = BackgroundScheduler()
-    scheduler.add_job(
-        func=auto_backup,
-        trigger='cron',
-        hour=0,
-        minute=0,
-        id='daily_backup',
-        replace_existing=True
-    )
-    scheduler.start()
-    atexit.register(lambda: scheduler.shutdown())
-    print("[Backup] Scheduler started — auto backup runs every midnight")
+# from utils.backup import auto_backup
+# if not app.debug or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+#     scheduler = BackgroundScheduler()
+#     scheduler.add_job(
+#         func=auto_backup,
+#         trigger='cron',
+#         hour=0,
+#         minute=0,
+#         id='daily_backup',
+#         replace_existing=True
+#     )
+#     scheduler.start()
+#     atexit.register(lambda: scheduler.shutdown())
+#     print("[Backup] Scheduler started — auto backup runs every midnight")
 
 
 if __name__ == "__main__":
