@@ -6827,12 +6827,16 @@ def download_backup(filename):
         flash("Access restricted to Administrators only.", "danger")
         return redirect(url_for('admin.dashboard'))
     
-    # Prevent path traversal attack
     if '..' in filename or '/' in filename or '\\' in filename:
         flash("Invalid filename.", "error")
         return redirect(url_for('admin.backup_page'))
 
-    filepath = os.path.join('backups', filename)
+    backup_dir = '/app/caremed/backups'
+    if not os.path.exists(backup_dir):
+        backup_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'backups')
+
+    filepath = os.path.join(backup_dir, filename)
+    
     if not os.path.exists(filepath):
         flash("Backup file not found.", "error")
         return redirect(url_for('admin.backup_page'))
