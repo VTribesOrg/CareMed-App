@@ -681,6 +681,7 @@
                     <div class="pd-main-image-wrapper">
                         {% if product.image %}
                             <img src="{{ url_for('static', filename=product.image) }}" alt="{{ product.name }}" class="pd-product-img-element">
+                                onerror="this.src='{{ url_for('static', filename='image/placeholder.png') }}'; this.onerror=null;">
                         {% else %}
                             <div class="pd-placeholder-icon">
                                 <i class="fa-solid fa-microscope"></i>
@@ -1080,6 +1081,7 @@
                         <a href="{{ url_for('user.product_detail', product_id=product.id) }}" style="text-decoration: none; color: inherit; display: block; height: 100%; width: 100%;">
                             {% if product.image and product.image != 'None' %}
                                 <img src="{{ url_for('static', filename=product.image) }}" alt="{{ product.name }}" class="product-img-element">
+                                onerror="this.src='{{ url_for('static', filename='image/placeholder.png') }}'; this.onerror=null;">
                             {% else %}
                                 <div class="placeholder-icon">
                                     <i class="fa-solid fa-microscope"></i>

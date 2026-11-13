@@ -28,6 +28,7 @@ class Product(db.Model, BranchScoped):
     
     is_refillable = db.Column(db.Boolean, default=False, index=True) 
     refill_cost = db.Column(db.Numeric(10, 2), nullable=True, default=0.00)
+    primegas_cost = db.Column(db.Numeric(10, 2), nullable=True, default=0.00)
     category = db.Column(db.String(50), nullable=True)
 
     is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)

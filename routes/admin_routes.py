@@ -1737,7 +1737,8 @@ def add_product():
         rent_price_raw = request.form.get("rent_price", "").strip()
         sale_price_raw = request.form.get("sale_price", "").strip()
         cost_price_raw = request.form.get("cost_price", "").strip()
-        refill_cost_raw = request.form.get("refill_cost", "").strip() 
+        refill_cost_raw = request.form.get("refill_cost", "").strip()
+        primegas_raw = request.form.get("primegas", "").strip()
 
         if transaction_type == 'Rental':
             rent_price = Decimal(rent_price_raw) if rent_price_raw else Decimal("0.00")
@@ -1751,6 +1752,7 @@ def add_product():
 
         cost_price = Decimal(cost_price_raw) if cost_price_raw else Decimal("0.00")
         refill_cost = Decimal(refill_cost_raw) if refill_cost_raw else Decimal("0.00")
+        primegas_cost = Decimal(primegas_raw) if primegas_raw else Decimal("0.00")
         
         if transaction_type == 'Rental' and rent_price <= 0:
             flash("Please provide a valid rent price for 'Rent Only' items.", "warning")
@@ -1806,6 +1808,7 @@ def add_product():
             sale_price=sale_price,
             cost_price=cost_price, 
             refill_cost=refill_cost, 
+            primegas_cost=primegas_cost,
             condition=condition,   
             image=image_path,
             status="Available" if stock > 0 else "Out of Stock"
@@ -1899,6 +1902,7 @@ def edit_product(product_id):
         raw_rent = Decimal(request.form.get("rent_price") or "0.00")
         raw_sale = Decimal(request.form.get("sale_price") or "0.00")
         raw_refill = Decimal(request.form.get("refill_cost") or "0.00")
+        raw_primegas = Decimal(request.form.get("primegas") or "0.00")
         new_stock = int(request.form.get("stock") or 0)
 
         new_rent = raw_rent if new_offer_type in ['Both', 'Rental'] else Decimal("0.00")
@@ -1906,6 +1910,7 @@ def edit_product(product_id):
         
         is_oxygen_tank = "oxygen tank" in new_type.lower()
         new_refill_cost = raw_refill if (is_oxygen_tank and new_offer_type == 'Rental') else Decimal("0.00")
+        new_primegas_cost = raw_primegas if (is_oxygen_tank and new_offer_type == 'Rental') else Decimal("0.00")
 
         if current_user.role == 'Administrator':
             raw_cost = Decimal(request.form.get("unit_cost") or "0.00")
@@ -1954,6 +1959,11 @@ def edit_product(product_id):
             changes.append(f"Changed refill cost to ₱{new_refill_cost:,.2f}")
             product.refill_cost = new_refill_cost
 
+        # Primegas cost update tracking
+        if getattr(product, 'primegas_cost', Decimal("0.00")) != new_primegas_cost:
+            changes.append(f"Changed Primegas cost to ₱{new_primegas_cost:,.2f}")
+            product.primegas_cost = new_primegas_cost
+
         if product.stock != new_stock:
             stock_diff = new_stock - product.stock
 
@@ -1982,7 +1992,9 @@ def edit_product(product_id):
 
     # Image Handling
     image_file = request.files.get("image")
+    remove_image = request.form.get("remove_image") == "1"
     if image_file and image_file.filename != '':
+
         ext = os.path.splitext(secure_filename(image_file.filename))[1].lower()
         if ext not in ['.jpg', '.jpeg', '.png', '.webp']:
             flash("Invalid image format. Please use JPG, PNG, or WebP.", "error")

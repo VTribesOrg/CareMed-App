@@ -387,7 +387,8 @@
                         <div class="product-image-box">
                             <a href="{{ url_for('user.product_detail', product_id=product.id) }}" style="text-decoration: none; color: inherit; display: block; height: 100%; width: 100%;">
                                 {% if product.image and product.image != 'None' %}
-                                    <img src="{{ url_for('static', filename=product.image) }}" alt="{{ product.name }}" class="product-img-element">
+                                    <img src="{{ url_for('static', filename=product.image) }}" alt="{{ product.name }}" class="product-img-element"
+                                
                                 {% else %}
                                     <div class="placeholder-icon">
                                         <i class="fa-solid fa-microscope"></i>

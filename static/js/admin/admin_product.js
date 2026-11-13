@@ -205,7 +205,9 @@ document.addEventListener('DOMContentLoaded', () => {
             'edit-rent': productData.rent_price ? parseFloat(productData.rent_price) : '',    
             'edit-rent-period': productData.rent_period,
             'edit-price': productData.sale_price ? parseFloat(productData.sale_price) : '',
-            'edit-refill-cost': productData.refill_cost ? parseFloat(productData.refill_cost) : ''
+            'edit-refill-cost': productData.refill_cost && productData.refill_cost != 0 ? parseFloat(productData.refill_cost) : '',
+            'edit-primegas': productData.primegas_cost && productData.primegas_cost != 0 ? parseFloat(productData.primegas_cost) : '',
+            'edit-image-has-file': productData.image && productData.image !== 'None' && productData.image !== '' ? '1' : '0'
         };
 
         const costDisplay = document.getElementById('edit-cost-display');
@@ -266,7 +268,11 @@ document.addEventListener('DOMContentLoaded', () => {
             'edit-rent': document.getElementById('edit-rent').value,
             'edit-rent-period': document.getElementById('edit-rent-period').value,
             'edit-price': document.getElementById('edit-price').value,
-            'edit-refill-cost': document.getElementById('edit-refill-cost').value
+            'edit-refill-cost': document.getElementById('edit-refill-cost').value,
+            'edit-primegas': document.getElementById('edit-primegas').value,
+            'edit-image-has-file': fileInput ? (fileInput.files.length > 0 ? '1' : '0') : '0',
+        'edit-remove-image': document.getElementById('edit-remove-image').value || '0',
+            'edit-remove-image': document.getElementById('edit-remove-image').value
         };
 
         const hasChanged = Object.keys(currentData).some(key => 
@@ -378,12 +384,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert("Please upload a valid image file.");
                 this.value = "";
             }
+            // Notify the form that an image changed so the update button enables
+            const form = fileInput.closest('form');
+            if (form) form.dispatchEvent(new Event('input'));
         });
 
         if (resetBtn) {
             resetBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 resetPreview();
+                const form = fileInput.closest('form');
+                if (form) {
+                    form.dispatchEvent(new Event('input'));
+                    // Ensure update button is enabled when image is removed
+                    const updateBtn = document.getElementById('update-asset-btn');
+                    if (updateBtn) {
+                        updateBtn.disabled = false;
+                    }
+                }
             });
         }
 
@@ -450,6 +468,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     rent_price: editBtn.dataset.rent || 0,
                     sale_price: editBtn.dataset.price || 0,
                     refill_cost: editBtn.dataset.refillCost || 0,
+                    primegas_cost: editBtn.dataset.primegasCost || 0,
                     description: (editBtn.dataset.description === "None" || !editBtn.dataset.description) ? "" : editBtn.dataset.description.trim(),
                     image: editBtn.dataset.image || ''
                 };
@@ -548,10 +567,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const equipTypeEl = document.getElementById('reg-equipment-type');
         const offerTypeEl = document.getElementById('reg-offer-type');
         const refillField = document.getElementById('refill-cost-field');
+        const primegasField = document.getElementById('primegas-field');
+        const refillWrapper = document.getElementById('refill-primegas-wrapper');
         const refillFlag = document.getElementById('is_refillable_flag');
         const container = document.getElementById('pricing-row-container');
 
-        if (!equipTypeEl || !offerTypeEl || !refillField || !refillFlag || !container) return;
+        if (!equipTypeEl || !offerTypeEl || !refillField || !primegasField || !refillWrapper || !refillFlag || !container) return;
 
         const equipTypeVal = equipTypeEl.value.toLowerCase().trim();
         const offerTypeVal = offerTypeEl.value;
@@ -561,10 +582,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (isOxygenTank && isRental) {
             refillField.style.display = 'block';
+            primegasField.style.display = 'block';
+            refillWrapper.style.display = 'flex';
             refillFlag.value = 'true';
-            container.style.gridTemplateColumns = '180px 260px 0px 180px'; 
+            container.style.gridTemplateColumns = '180px 260px 0px 260px';
         } else {
             refillField.style.display = 'none';
+            primegasField.style.display = 'none';
+            refillWrapper.style.display = 'none';
             refillFlag.value = 'false';
             
             if (offerTypeVal === 'Rental') {
@@ -598,10 +623,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const editRentField = document.getElementById('edit-rent-field');
         const editSaleField = document.getElementById('edit-sale-field');
         const refillField = document.getElementById('edit-refill-cost-field');
+        const primegasField = document.getElementById('edit-primegas-field');
+        const refillWrapper = document.getElementById('edit-refill-primegas-wrapper');
         const refillFlag = document.getElementById('edit-is-refillable-flag');
         const container = document.getElementById('edit-pricing-row-container');
 
-        if (!equipTypeEl || !offerTypeEl || !refillField || !refillFlag || !container) return;
+        if (!equipTypeEl || !offerTypeEl || !refillField || !primegasField || !refillWrapper || !refillFlag || !container) return;
 
         const equipTypeVal = equipTypeEl.value.toLowerCase().trim();
         const offerTypeVal = offerTypeEl.value;
@@ -622,13 +649,17 @@ document.addEventListener('DOMContentLoaded', () => {
             if (editSaleField) editSaleField.style.display = 'none';
         }
 
-        // Handle oxygen tank refill grid layout & flag
+        // Handle oxygen tank refill & primegas grid layout & flag
         if (isOxygenTank && isRental) {
             refillField.style.display = 'block';
+            primegasField.style.display = 'block';
+            refillWrapper.style.display = 'flex';
             refillFlag.value = 'true';
-            container.style.gridTemplateColumns = '180px 260px 0px 180px'; 
+            container.style.gridTemplateColumns = '180px 260px 0px 260px'; 
         } else {
             refillField.style.display = 'none';
+            primegasField.style.display = 'none';
+            refillWrapper.style.display = 'none';
             refillFlag.value = 'false';
             
             if (offerTypeVal === 'Rental') {

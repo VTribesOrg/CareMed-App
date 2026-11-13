@@ -747,7 +747,7 @@
                                 {% for product in primegas_products %}
                                     <option value="{{ product.id }}"
                                             data-max="{{ product.tank_status.empty_in_stock if product.tank_status else 0 }}"
-                                            data-cost="{{ product.refill_cost or 0.00 }}">
+                                            data-cost="{{ product.primegas_cost or 0.00 }}">
                                         {{ product.name }}{% if product.size %} (Size: {{ product.size }}){% endif %}
                                     </option>
                                 {% endfor %}
