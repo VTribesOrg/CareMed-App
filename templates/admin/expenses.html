@@ -238,49 +238,66 @@
     </button>
 </div>
 
-{# ── Charts panel ── #}
+{# ── Simple Summary & Breakdown Panel ── #}
 <div class="exp-tab-panel" id="tab-charts">
 
-    <div class="exp-charts-row" style="grid-template-columns: 1fr 1fr 1fr;">
+    <!-- Top Summary Highlight Cards -->
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;">
+        <div class="stat-card" style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px;">
+            <div style="font-size: 0.75rem; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: .05em;">Total Expenses</div>
+            <div style="font-size: 1.8rem; font-weight: 800; color: #002347; margin: 6px 0 2px;">₱{{ "{:,.2f}".format(total_this_month) }}</div>
+            <div style="font-size: 0.78rem; color: #64748b;">{{ 'Selected Period' if use_range else 'This Month' }}</div>
+        </div>
+        <div class="stat-card blue" style="background: #eff6ff; border: 1px solid #93c5fd; border-radius: 12px; padding: 20px;">
+            <div style="font-size: 0.75rem; color: #1d4ed8; font-weight: 600; text-transform: uppercase; letter-spacing: .05em;">Cost of Sales (COS)</div>
+            <div style="font-size: 1.8rem; font-weight: 800; color: #2563eb; margin: 6px 0 2px;">₱{{ "{:,.2f}".format(cost_of_sales) }}</div>
+            <div style="font-size: 0.78rem; color: #1d4ed8;">Direct production/inventory costs</div>
+        </div>
+        <div class="stat-card green" style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 12px; padding: 20px;">
+            <div style="font-size: 0.75rem; color: #16a34a; font-weight: 600; text-transform: uppercase; letter-spacing: .05em;">Operating Expenses (OPEX)</div>
+            <div style="font-size: 1.8rem; font-weight: 800; color: #16a34a; margin: 6px 0 2px;">₱{{ "{:,.2f}".format(operating_expenses) }}</div>
+            <div style="font-size: 0.78rem; color: #16a34a;">General operational overhead</div>
+        </div>
+    </div>
 
-        <div class="exp-chart-card">
-            <div class="exp-chart-header">
-                <span class="material-symbols-rounded">bar_chart</span>
-                Revenue vs Expenses — Last 6 Months
-            </div>
-            <div class="chart-canvas-wrap" style="height:260px;">
-                <canvas id="trendChart"></canvas>
-            </div>
+    <!-- Category Breakdown List Cards -->
+    <div class="backup-card" style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin-bottom: 24px;">
+        <div class="backup-card-header" style="padding: 14px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="font-size: 0.9rem; font-weight: 700; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 6px;">
+                <span class="material-symbols-rounded" style="font-size:18px;">category</span>
+                Expense Breakdown by Category
+            </h3>
+            <span style="font-size: 0.8rem; color: #64748b;">{{ 'Selected Period' if use_range else 'This Month' }}</span>
         </div>
 
-        <div class="exp-chart-card">
-            <div class="exp-chart-header">
-                <span class="material-symbols-rounded">show_chart</span>
-                Monthly Net Profit Trend
-            </div>
-            <div class="chart-canvas-wrap" style="height:260px;">
-                <canvas id="netProfitChart"></canvas>
-            </div>
-        </div>
-
-        <div class="exp-chart-card">
-            <div class="exp-chart-header">
-                <span class="material-symbols-rounded">donut_large</span>
-                {{ 'Selected Period' if use_range else 'This Month' }} — Expense Split
-            </div>
+        <div style="padding: 20px;">
             {% if category_totals %}
-            <div class="chart-canvas-wrap" style="height:200px;">
-                <canvas id="categoryChart"></canvas>
-            </div>
-            <div class="exp-legend" id="categoryLegend"></div>
+                <div style="display: flex; flex-direction: column; gap: 14px;">
+                    {% set total_amt = total_this_month if total_this_month > 0 else 1 %}
+                    {% for cat, amt in category_totals %}
+                        {% set pct = (amt | float / total_amt | float) * 100 %}
+                        {% set isCos = cat in cos_categories %}
+                        <div>
+                            <div style="display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 600; color: #334155; margin-bottom: 4px;">
+                                <span style="display: flex; align-items: center; gap: 8px;">
+                                    {{ cat }} 
+                                    <span class="exp-type-pill {{ 'exp-type-cos' if isCos else 'exp-type-opex' }}" style="font-size:0.65rem; padding:1px 6px;">{{ 'COS' if isCos else 'OPEX' }}</span>
+                                </span>
+                                <span>₱{{ "{:,.2f}".format(amt) }} <span style="color: #94a3b8; font-weight: normal; font-size: 0.75rem; margin-left: 4px;">({{ "%.1f"|format(pct) }}%)</span></span>
+                            </div>
+                            <div style="width: 100%; background: #f1f5f9; border-radius: 4px; height: 8px; overflow: hidden;">
+                                <div style="background: {{ '#2563eb' if isCos else '#16a34a' }}; width: {{ pct }}%; height: 100%; border-radius: 4px;"></div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
             {% else %}
-            <div class="exp-empty-mini">
-                <span class="material-symbols-rounded">receipt_long</span>
-                No expenses recorded for this period.
-            </div>
+                <div class="exp-empty-mini" style="text-align: center; color: #94a3b8; padding: 20px;">
+                    <span class="material-symbols-rounded" style="font-size: 36px; display: block; margin-bottom: 6px;">receipt_long</span>
+                    No expenses recorded for this period.
+                </div>
             {% endif %}
         </div>
-
     </div>
 
 </div>
@@ -404,7 +421,6 @@
         {% endif %}
     </div>
 </div>
-
 {# ══════════════════════════════════════════════════════════
     ADD EXPENSE MODAL
    ══════════════════════════════════════════════════════════ #}
@@ -575,112 +591,9 @@
 {% block extra_js %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script nonce="{{ csp_nonce() }}">
-// ── Data from Flask ──────────────────────────────────────────────────────────
-const TREND_LABELS   = {{ trend_labels   | tojson }};
-const TREND_EXP      = {{ trend_expense  | tojson }};
-const TREND_REV      = {{ trend_revenue  | tojson }};
-const TREND_COS      = {{ trend_cos      | tojson }};
-const TREND_OPEX     = {{ trend_opex     | tojson }};
-const TREND_NET      = {{ trend_net      | tojson }};
-const CAT_LABELS     = {{ category_totals | map(attribute=0) | list | tojson }};
-const CAT_DATA       = {{ category_totals | map(attribute=1) | list | map('float') | list | tojson }};
-const COS_TOTAL      = {{ cost_of_sales      | float }};
-const OPEX_TOTAL     = {{ operating_expenses | float }};
-
-const COS_CATS = {{ cos_categories | list | tojson }};
-
-const PALETTE = [
-    '#002347','#1a7a2e','#e53935','#f59e0b',
-    '#3b82f6','#8b5cf6','#06b6d4','#10b981',
-    '#f97316','#ec4899'
-];
-
-// Helper: format peso
-function peso(v) { return '₱' + Number(v).toLocaleString('en-PH', {minimumFractionDigits:0, maximumFractionDigits:0}); }
-
-// ── 1. Revenue vs Total Expenses trend ──────────────────────────────────────
-const tCtx = document.getElementById('trendChart');
-if (tCtx) {
-    new Chart(tCtx, {
-        type: 'bar',
-        data: {
-            labels: TREND_LABELS,
-            datasets: [
-                { label: 'Revenue',    data: TREND_REV,  backgroundColor: 'rgba(26,122,46,0.75)',  borderRadius: 4 },
-                { label: 'Expenses',   data: TREND_EXP,  backgroundColor: 'rgba(229,57,53,0.70)',  borderRadius: 4 },
-            ]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { position: 'top' } },
-            scales: { y: { beginAtZero: true, ticks: { callback: v => peso(v) } } }
-        }
-    });
-}
-
-// ── 2. Monthly Net Profit Trend line ────────────────────────────────────────
-const npCtx = document.getElementById('netProfitChart');
-if (npCtx) {
-    const netColors = TREND_NET.map(v => v >= 0 ? 'rgba(26,122,46,0.85)' : 'rgba(229,57,53,0.85)');
-    new Chart(npCtx, {
-        type: 'bar',
-        data: {
-            labels: TREND_LABELS,
-            datasets: [{
-                label: 'Net Profit',
-                data: TREND_NET,
-                backgroundColor: netColors,
-                borderRadius: 4,
-            }]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-                y: {
-                    ticks: { callback: v => peso(v) },
-                    grid: { color: ctx => ctx.tick.value === 0 ? '#94a3b8' : '#f1f5f9', lineWidth: ctx => ctx.tick.value === 0 ? 2 : 1 }
-                }
-            }
-        }
-    });
-}
-
-
-// ── 3. Category donut ────────────────────────────────────────────────────────
-const cCtx = document.getElementById('categoryChart');
-if (cCtx && CAT_DATA.length) {
-    new Chart(cCtx, {
-        type: 'doughnut',
-        data: {
-            labels: CAT_LABELS,
-            datasets: [{
-                data: CAT_DATA,
-                backgroundColor: PALETTE,
-                hoverOffset: 6, borderWidth: 2, borderColor: '#fff',
-            }]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false, cutout: '60%',
-            plugins: { legend: { display: false } }
-        }
-    });
-
-    const legend = document.getElementById('categoryLegend');
-    if (legend) {
-        const total = CAT_DATA.reduce((a, b) => a + b, 0);
-        legend.innerHTML = CAT_LABELS.map((label, i) => {
-            const pct = total > 0 ? ((CAT_DATA[i] / total) * 100).toFixed(1) : 0;
-            const isCos = COS_CATS.includes(label);
-            return `<div class="legend-item">
-                <span class="legend-dot" style="background:${PALETTE[i % PALETTE.length]}"></span>
-                <span class="legend-name">${label}</span>
-                <span class="legend-pct">${pct}%</span>
-                <span class="exp-type-pill ${isCos ? 'exp-type-cos' : 'exp-type-opex'}" style="font-size:0.65rem;padding:1px 7px;">${isCos ? 'COS' : 'OPEX'}</span>
-            </div>`;
-        }).join('');
-    }
-}
+// ── Category data setup for modals ───────────────────────────────────────────
+const COS_SET  = new Set({{ cos_categories | list | tojson }});
+const OPEX_SET = new Set({{ opex_categories | list | tojson }});
 
 // ── Tab switching ────────────────────────────────────────────────────────────
 const urlParams = new URLSearchParams(window.location.search);
@@ -740,8 +653,6 @@ document.querySelectorAll('.preset-btn').forEach(btn => {
 });
 
 // ── Category hint in Add modal ────────────────────────────────────────────────
-const COS_SET  = new Set({{ cos_categories | list | tojson }});
-const OPEX_SET = new Set({{ opex_categories | list | tojson }});
 const catSelect = document.getElementById('categorySelect');
 const catHint   = document.getElementById('categoryHint');
 if (catSelect && catHint) {
@@ -796,4 +707,3 @@ document.querySelectorAll('.btn-edit-exp').forEach(btn => {
 });
 </script>
 {% endblock %}
-
