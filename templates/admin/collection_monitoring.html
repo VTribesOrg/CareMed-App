@@ -325,6 +325,331 @@
         border-color: #86efac;
     }
 
+    /*=============== START OF COLLECTION NOTE BUTTONS & MODAL STYLES ========================*/
+    .action-menu {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    /* Base small action button style */
+    .icon-btn-sm {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        border: 1px solid #cbd5e1;
+        background-color: #ffffff;
+        color: #475569;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.15s ease;
+        padding: 0;
+        flex-shrink: 0;
+    }
+
+    .icon-btn-sm:hover {
+        background-color: #f8fafc;
+        border-color: #94a3b8;
+        color: #0f172a;
+        transform: translateY(-1px);
+    }
+
+    /* Unique Note Button: Has Data (Warm Amber Highlight) */
+    .icon-btn-sm.col-note-btn.has-note {
+        background-color: #fef3c7 !important;
+        color: #d97706 !important;
+        border: 1px solid #fde68a !important;
+    }
+    .icon-btn-sm.col-note-btn.has-note:hover {
+        background-color: #fde68a !important;
+        color: #b45309 !important;
+        border-color: #f59e0b !important;
+        transform: translateY(-1px);
+    }
+
+    /* Unique Note Button: Empty State (Clean Neutral) */
+    .icon-btn-sm.col-note-btn.empty-note {
+        background-color: #f8fafc;
+        color: #64748b;
+        border: 1px solid #e2e8f0;
+    }
+    .icon-btn-sm.col-note-btn.empty-note:hover {
+        background-color: #f1f5f9;
+        color: #0284c7;
+        border-color: #cbd5e1;
+        transform: translateY(-1px);
+    }
+
+    /* Modal Container Styling */
+    .note-modal-container {
+        max-width: 520px;
+        width: 100%;
+        padding: 24px;
+        border-radius: 16px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        background: #ffffff;
+        box-sizing: border-box;
+    }
+
+    .note-modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        padding-bottom: 16px;
+        margin-bottom: 16px;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .note-modal-title-wrap {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .note-modal-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .note-modal-icon.edit-mode {
+        background: #fef3c7;
+        color: #d97706;
+    }
+
+    .note-modal-icon.create-mode {
+        background: #e0f2fe;
+        color: #0284c7;
+    }
+
+    .note-modal-main-title {
+        margin: 0;
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #0f172a;
+        line-height: 1.2;
+    }
+
+    .note-modal-subtitle {
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: #64748b;
+        margin-top: 4px;
+    }
+
+    /* Unique Close 'X' Button Style */
+    .note-close-btn {
+        background: #f1f5f9;
+        border: none;
+        color: #64748b;
+        cursor: pointer;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s ease;
+        padding: 0;
+        flex-shrink: 0;
+    }
+
+    .note-close-btn:hover {
+        background: #fee2e2;
+        color: #dc2626;
+        transform: scale(1.05);
+    }
+
+    /* Quick Template Chips */
+    .quick-template-box {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 12px;
+        margin-bottom: 16px;
+    }
+
+    .quick-template-label {
+        display: block;
+        font-size: 0.73rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #64748b;
+        margin-bottom: 8px;
+    }
+
+    .quick-chips-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .q-chip {
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+        color: #334155;
+        font-size: 0.76rem;
+        font-weight: 500;
+        padding: 5px 12px;
+        border-radius: 999px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .q-chip:hover {
+        background: #fffbeb;
+        border-color: #f59e0b;
+        color: #92400e;
+        transform: translateY(-1px);
+    }
+
+    .note-field-wrapper {
+        margin-top: 0;
+        margin-bottom: 8px;
+    }
+
+    .note-textarea-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 6px;
+    }
+
+    .note-label-fix {
+        margin: 0 !important;
+        font-weight: 600;
+        color: #334155;
+        font-size: 0.85rem;
+    }
+
+    .note-char-counter {
+        font-size: 0.75rem;
+        color: #94a3b8;
+        font-weight: 500;
+    }
+
+    .note-textarea-field {
+        width: 100%;
+        resize: vertical;
+        line-height: 1.5;
+        font-size: 0.9rem;
+        padding: 12px;
+        border-radius: 10px;
+        border: 1px solid #cbd5e1;
+        background-color: #ffffff;
+        box-sizing: border-box;
+        transition: all 0.15s ease;
+    }
+
+    .note-textarea-field:focus {
+        outline: none;
+        border-color: #f59e0b;
+        box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+    }
+
+    .note-feedback-msg {
+        margin-top: 4px;
+        min-height: 18px;
+        font-size: 0.82rem;
+        font-weight: 500;
+    }
+
+    .note-modal-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 18px;
+        padding-top: 16px;
+        border-top: 1px solid #f1f5f9;
+    }
+
+    .note-footer-right-actions {
+        display: flex;
+        gap: 8px;
+        margin-left: auto;
+    }
+
+    /* Unique Cancel Button Style */
+    .note-btn-cancel {
+        background-color: #ffffff;
+        border: 1px solid #cbd5e1;
+        color: #334155;
+        font-size: 0.875rem;
+        font-weight: 600;
+        padding: 8px 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .note-btn-cancel:hover {
+        background-color: #f8fafc;
+        border-color: #94a3b8;
+        color: #0f172a;
+    }
+
+    /* Unique Save / Update Button Style */
+    .note-btn-save {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background-color: #0284c7;
+        border: 1px solid #0284c7;
+        color: #ffffff;
+        font-size: 0.875rem;
+        font-weight: 600;
+        padding: 8px 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .note-btn-save:hover {
+        background-color: #0369a1;
+        border-color: #0369a1;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px -1px rgba(2, 132, 199, 0.2);
+    }
+
+    .note-btn-save:active {
+        transform: translateY(0);
+    }
+
+    .note-btn-save:disabled {
+        opacity: 0.65;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+
+    .note-action-btn-danger {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: transparent;
+        border: none;
+        color: #dc2626;
+        font-size: 0.82rem;
+        font-weight: 600;
+        cursor: pointer;
+        padding: 6px 10px;
+        border-radius: 6px;
+        transition: background 0.15s ease;
+    }
+
+    .note-action-btn-danger:hover {
+        background: #fef2f2;
+    }
+    /*=============== END OF COLLECTION NOTE STYLES =========================*/
+
     /*=============== START OF ADD PAYMENT MODAL  ========================*/
 
     #addPaymentModal.medical-modal-overlay {
@@ -666,10 +991,12 @@
                         {% set target_date = invoice.service_period_start if invoice.service_period_start else (invoice.due_date if invoice.due_date else (invoice.rental.expected_return_date if invoice.rental else none)) %}
                         {% if target_date %}
                             {% set days_left = (target_date - now.date()).days %}
+                            {% set inv_ref = invoice.invoice_number if invoice.invoice_number else 'INV-' ~ invoice.id %}
+                            {% set cust_name = (invoice.rental.customer.first_name ~ ' ' ~ invoice.rental.customer.last_name) if (invoice.rental and invoice.rental.customer) else 'N/A' %}
                             <tr>
                                 <td>
                                     {% if invoice.rental and invoice.rental.customer %}
-                                        <strong>{{ invoice.rental.customer.first_name }} {{ invoice.rental.customer.last_name }}</strong>
+                                        <strong>{{ cust_name }}</strong>
                                     {% else %}
                                         <span class="text-muted" style="font-style:italic;">N/A</span>
                                     {% endif %}
@@ -755,21 +1082,49 @@
                                     {% endif %}
                                 </td>
 
+                                <!-- ACTIONS COLUMN (Pay Now, View, and Integrated Note Button) -->
                                 <td>
-                                    <div class="action-menu">
+                                    <div class="action-menu" style="display: flex; align-items: center; gap: 4px;">
+                                        <!-- Pay Now Button -->
                                         <button type="button"
                                             class="icon-btn-sm text-success open-payment-modal" title="Pay Now"
                                             data-txn-id="{{ invoice.rental.transaction_id if invoice.rental else '' }}"
                                             data-invoice-id="{{ invoice.id }}"
                                             data-type="Rental"
-                                            data-ref="{{ invoice.invoice_number if invoice.invoice_number else 'INV-' ~ invoice.id }}"
+                                            data-ref="{{ inv_ref }}"
                                             data-balance="{{ invoice.remaining_balance if invoice.remaining_balance is defined else (invoice.rental.monthly_rate if invoice.rental else 0.00) }}">
                                             <span class="material-symbols-rounded" style="font-size:18px;">payments</span>
                                         </button>
+
+                                        <!-- View Transaction -->
                                         <a href="{{ url_for('admin.transaction_details', id=invoice.rental.transaction_id) if invoice.rental and invoice.rental.transaction_id else '#' }}"
                                             class="icon-btn-sm" title="View Transaction">
                                             <span class="material-symbols-rounded" style="font-size:18px;">visibility</span>
                                         </a>
+
+                                        <!-- Unique Collection Note Button -->
+                                        {% set inv_note = (invoice.collection_notes or '') | trim %}
+                                        {% if inv_note %}
+                                            <button type="button"
+                                                    class="icon-btn-sm col-note-btn has-note"
+                                                    data-mode="edit"
+                                                    data-invoice-id="{{ invoice.id }}"
+                                                    data-invoice-ref="{{ inv_ref }} • {{ cust_name }}"
+                                                    data-notes="{{ inv_note | e }}"
+                                                    title="View/Edit Note: {{ inv_note | e }}">
+                                                <span class="material-symbols-rounded" style="font-size:18px;">sticky_note_2</span>
+                                            </button>
+                                        {% else %}
+                                            <button type="button"
+                                                    class="icon-btn-sm col-note-btn empty-note"
+                                                    data-mode="create"
+                                                    data-invoice-id="{{ invoice.id }}"
+                                                    data-invoice-ref="{{ inv_ref }} • {{ cust_name }}"
+                                                    data-notes=""
+                                                    title="Add Collection Note">
+                                                <span class="material-symbols-rounded" style="font-size:18px;">note_add</span>
+                                            </button>
+                                        {% endif %}
                                     </div>
                                 </td>
                             </tr>
@@ -793,7 +1148,7 @@
         <div class="table-limit-control" style="display: flex; align-items: center; gap: 8px;">
             <span class="limit-label" style="font-size: 13px; color: #64748b;">Show</span>
             <select class="medical-select" id="row-limit-select" style="height: 34px; padding: 0 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 13px;">
-                <option value="50">50</option>
+                <option value="50" {{ 'selected' if current_limit == 50 }}>50</option>
                 <option value="10" {{ 'selected' if current_limit == 10 }}>10</option>
                 <option value="25" {{ 'selected' if current_limit == 25 }}>25</option>
             </select>
@@ -824,6 +1179,71 @@
             {% else %}
             <div class="pag-btn disabled" style="opacity: 0.4;"><span class="material-symbols-rounded">chevron_right</span></div>
             {% endif %}
+        </div>
+    </div>
+</div>
+
+{# Collection Note Modal #}
+<div id="noteModal" class="medical-modal-overlay hidden">
+    <div class="medical-modal-content note-modal-container">
+        <!-- Modal Header -->
+        <div class="note-modal-header">
+            <div class="note-modal-title-wrap">
+                <div id="modal-icon-wrapper" class="note-modal-icon edit-mode">
+                    <span class="material-symbols-rounded" id="modal-header-symbol">sticky_note_2</span>
+                </div>
+                <div>
+                    <h2 id="note-modal-title" class="note-modal-main-title">Collection Note</h2>
+                    <div id="note-invoice-ref" class="note-modal-subtitle"></div>
+                </div>
+            </div>
+            <!-- Unique Close Button Class -->
+            <button type="button" class="note-close-btn" id="close-note-modal" aria-label="Close modal">
+                <span class="material-symbols-rounded" style="font-size: 20px; pointer-events: none;">close</span>
+            </button>
+        </div>
+
+        <input type="hidden" id="note-invoice-id">
+
+        <!-- Quick Template Chips Section -->
+        <div class="quick-template-box" id="quick-templates-wrapper">
+            <span class="quick-template-label">Quick templates:</span>
+            <div class="quick-chips-row">
+                <button type="button" class="q-chip" data-template="Promised to pay on ">Promised to pay...</button>
+                <button type="button" class="q-chip" data-template="Called customer — no answer / left voicemail.">No answer</button>
+                <button type="button" class="q-chip" data-template="Requested 3-day payment extension.">Extension requested</button>
+                <button type="button" class="q-chip" data-template="Schedule for tank pickup / pull-out.">Tank pull-out</button>
+            </div>
+        </div>
+
+        <!-- Textarea Group -->
+        <div class="pm-field-group note-field-wrapper">
+            <div class="note-textarea-header">
+                <label for="note-text" class="pm-input-label note-label-fix">Note Content</label>
+                <span id="note-char-count" class="note-char-counter">0 / 300</span>
+            </div>
+            <textarea id="note-text"
+                      class="pm-custom-input note-textarea-field"
+                      rows="5"
+                      maxlength="300"
+                      placeholder="Type your collection update, customer promise, or follow-up details here..."></textarea>
+        </div>
+
+        <!-- Status Message feedback -->
+        <div id="note-msg" class="note-feedback-msg"></div>
+
+        <!-- Modal Footer Actions -->
+        <div class="note-modal-footer">
+            <button type="button" id="clear-note-btn" class="note-action-btn-danger" style="display: none;">
+                <span class="material-symbols-rounded" style="font-size: 16px;">delete</span> Clear Note
+            </button>
+            <div class="note-footer-right-actions">
+                <!-- Unique Cancel & Save Button Classes -->
+                <button type="button" class="note-btn-cancel" id="cancel-note">Cancel</button>
+                <button type="button" id="save-note" class="note-btn-save">
+                    <span class="material-symbols-rounded" style="font-size: 18px;">save</span> <span id="save-btn-text">Save Note</span>
+                </button>
+            </div>
         </div>
     </div>
 </div>

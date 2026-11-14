@@ -3525,6 +3525,36 @@ def collection_monitoring():
     )
     
     
+@admin_bp.route('/collection-monitoring/invoice/<int:invoice_id>/notes', methods=['POST'])
+@login_required
+@csrf.exempt
+def update_collection_note(invoice_id):
+    """Save/update the collection note for a rental invoice.
+
+    Used when the admin calls/messages a customer about payment and wants
+    to record what the customer said (e.g. "asking for 3 more days").
+    """
+    try:
+        invoice = RentalInvoice.query.get_or_404(invoice_id)
+        data = request.get_json(silent=True) or {}
+        notes = data.get('notes', '')
+        if notes is None:
+            notes = ''
+        invoice.collection_notes = str(notes).strip()
+        db.session.commit()
+        return jsonify({
+            "success": True,
+            "message": "Collection note saved.",
+            "notes": invoice.collection_notes
+        })
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("Failed to save collection note for invoice %s", invoice_id)
+        return jsonify({
+            "success": False,
+            "message": "Failed to save collection note."
+        }), 500
+
 @admin_bp.route('/invoice/<int:id>/pay', methods=['GET', 'POST'])
 @login_required
 def process_payment(id):

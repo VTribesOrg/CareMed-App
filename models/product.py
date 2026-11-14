@@ -600,7 +600,8 @@ class RentalInvoice(db.Model, BranchScoped):
     
     amount_due = db.Column(db.Numeric(10, 2), nullable=False)
     late_fee = db.Column(db.Numeric(10, 2), default=0.00)
-    status = db.Column(db.String(20), default="Unpaid") 
+    status = db.Column(db.String(20), default="Unpaid")
+    collection_notes = db.Column(db.Text, nullable=True)
     
     payments = db.relationship("Payment", back_populates="rental_invoice", lazy=True)
 
