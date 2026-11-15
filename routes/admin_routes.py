@@ -3562,6 +3562,7 @@ def process_payment(id):
     return render_template('admin/process_payment.html')
 
 import openpyxl
+from openpyxl import load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 from io import BytesIO
@@ -4439,11 +4440,14 @@ def export_transactions():
     # ── Transactions sheet ──
     txn_headers = ["Reference No", "Date", "Customer Name", "Type", "Fulfillment",
                    "Payment Method", "Total Amount", "Amount Paid", "Balance Due",
-                   "Payment Status", "Status", "Tracking", "Processed By", "Landmark / Address"]
+                   "Payment Status", "Status", "Tracking", "Processed By", "Landmark / Address",
+                   "Voucher Amount", "Delivery Fee", "Deposit Amount", "Product", "Quantity",
+                   "Cancellation Reason", "Delivery Status", "Walk-in Tank Size", "Serial Numbers"]
     txn_rows = []
     for t in transactions_list:
         cust_name = t.customer_name or (f"{t.customer.first_name} {t.customer.last_name}" if t.customer else "—")
         processed_by = t.admin.full_name if t.admin else "—"
+        product_name = t.product.name if t.product else "—"
         txn_rows.append([
             t.reference_no,
             _xlsx_date(t.created_at),
@@ -4459,13 +4463,23 @@ def export_transactions():
             _xlsx_dash(t.tracking_status),
             processed_by,
             _xlsx_dash(t.landmark or t.delivery_address),
+            t.voucher_amount,
+            t.delivery_fee,
+            t.deposit_amount,
+            product_name,
+            t.quantity,
+            _xlsx_dash(t.cancellation_reason),
+            _xlsx_dash(t.delivery_status),
+            _xlsx_dash(t.walk_in_tank_size),
+            _xlsx_dash(t.serial_numbers),
         ])
     _xlsx_write_table(wb.create_sheet("Transactions"), "Transactions", txn_headers, txn_rows,
-                      currency_cols={7, 8, 9}, center_cols={2, 4, 5, 10, 11, 12})
+                      currency_cols={7, 8, 9, 15, 16, 17}, center_cols={2, 4, 5, 10, 11, 12, 19, 20, 21, 22, 23})
 
     # ── Products / Inventory ──
     prod_headers = ["Asset Tag", "Name", "Equipment Type", "Size", "Category", "Condition",
-                    "Stock", "Status", "Cost Price", "Sale Price", "Rent Price", "Rent Period", "Refillable"]
+                    "Stock", "Status", "Cost Price", "Sale Price", "Rent Price", "Rent Period", "Refillable",
+                    "Description", "Transaction Type", "Refill Cost", "Primegas Cost", "Is Active", "Image"]
     prod_rows = []
     for p in products:
         prod_rows.append([
@@ -4473,13 +4487,15 @@ def export_transactions():
             _xlsx_dash(p.category), _xlsx_dash(p.condition), int(p.stock or 0), _xlsx_dash(p.status),
             p.cost_price, p.sale_price, p.rent_price, _xlsx_dash(p.rent_period),
             "Yes" if p.is_refillable else "No",
+            _xlsx_dash(p.description), _xlsx_dash(p.transaction_type), p.refill_cost, p.primegas_cost,
+            "Yes" if p.is_active else "No", _xlsx_dash(p.image),
         ])
     _xlsx_write_table(wb.create_sheet("Products"), "Products & Inventory", prod_headers, prod_rows,
-                      currency_cols={9, 10, 11}, center_cols={5, 6, 7, 8, 12, 13})
+                      currency_cols={9, 10, 11, 16, 17}, center_cols={5, 6, 7, 8, 12, 13, 14, 18, 19})
 
     # ── Customers ──
     cust_headers = ["Full Name", "Gender", "Contact Number", "Secondary Contact", "Address",
-                    "ID Verified", "Active", "Created"]
+                    "ID Verified", "Active", "Created", "Primary ID Type", "Secondary ID Type", "Created By"]
     cust_rows = []
     for c in customers:
         cust_rows.append([
@@ -4487,14 +4503,17 @@ def export_transactions():
             _xlsx_dash(c.secondary_contact_number), _xlsx_dash(c.home_address),
             "Yes" if c.is_id_verified else "No", "Yes" if c.is_active else "No",
             _xlsx_date(c.created_at),
+            _xlsx_dash(c.primary_id_type), _xlsx_dash(c.secondary_id_type),
+            c.creator.full_name if c.creator else "—",
         ])
     _xlsx_write_table(wb.create_sheet("Customers"), "Customers", cust_headers, cust_rows,
-                      center_cols={2, 3, 4, 6, 7, 8})
+                      center_cols={2, 3, 4, 6, 7, 8, 9, 10, 11})
 
     # ── Rentals ──
     rent_headers = ["Reference No", "Customer", "Product", "Start Date", "Expected Return",
                     "Actual Return", "Monthly Rate", "Qty", "Qty Returned", "Deposit",
-                    "Deposit Status", "Late Fees", "Status"]
+                    "Deposit Status", "Late Fees", "Status", "Delivery Fee", "Is Open Duration",
+                    "Return Condition Notes", "Is Deposit Refunded", "Return Condition Image"]
     rent_rows = []
     for r in rentals:
         ref = r.transaction.reference_no if r.transaction else "—"
@@ -4504,13 +4523,15 @@ def export_transactions():
             _xlsx_date(r.start_date), _xlsx_date(r.expected_return_date), _xlsx_date(r.actual_return_date),
             r.monthly_rate, int(r.quantity or 0), int(r.quantity_returned or 0), r.deposit_amount,
             _xlsx_dash(r.deposit_status), r.late_fees_incurred, _xlsx_dash(r.status),
+            r.delivery_fee, "Yes" if r.is_open_duration else "No", _xlsx_dash(r.return_condition_notes),
+            "Yes" if r.is_deposit_refunded else "No", _xlsx_dash(r.return_condition_img),
         ])
     _xlsx_write_table(wb.create_sheet("Rentals"), "Rentals", rent_headers, rent_rows,
-                      currency_cols={7, 10, 12}, center_cols={4, 5, 6, 8, 9, 11, 13})
+                      currency_cols={7, 10, 12, 14}, center_cols={4, 5, 6, 8, 9, 11, 13, 15, 16, 17, 18})
 
     # ── Payments ──
     pay_headers = ["Reference No", "Payment Type", "Amount", "Method", "Reference Number",
-                   "Status", "Created", "Verified At"]
+                   "Status", "Created", "Verified At", "Invoice ID", "Receipt Image Path", "Verified By"]
     pay_rows = []
     for p in payments:
         ref = p.transaction.reference_no if p.transaction else "—"
@@ -4518,13 +4539,15 @@ def export_transactions():
             ref, _xlsx_dash(p.payment_type), p.amount, _xlsx_dash(p.payment_method),
             _xlsx_dash(p.reference_number), _xlsx_dash(p.status),
             _xlsx_date(p.created_at), _xlsx_date(p.verified_at),
+            p.invoice_id, _xlsx_dash(p.receipt_image_path),
+            p.verified_by.full_name if p.verified_by else "—",
         ])
     _xlsx_write_table(wb.create_sheet("Payments"), "Payments", pay_headers, pay_rows,
-                      currency_cols={3}, center_cols={2, 4, 6, 7, 8})
+                      currency_cols={3}, center_cols={2, 4, 6, 7, 8, 10, 11})
 
     # ── Expenses ──
     exp_headers = ["Category", "Title", "Amount", "Description", "Product", "Recorded By",
-                   "Date Incurred", "Created"]
+                   "Date Incurred", "Created", "Attachment Path"]
     exp_rows = []
     for e in expenses:
         recorded_by = e.recorded_by.full_name if e.recorded_by else "—"
@@ -4532,13 +4555,14 @@ def export_transactions():
             _xlsx_dash(e.category), _xlsx_dash(e.expense_title), e.amount, _xlsx_dash(e.description),
             e.product.name if e.product else "—", recorded_by,
             _xlsx_date(e.date_incurred), _xlsx_date(e.created_at),
+            _xlsx_dash(e.attachment_path),
         ])
     _xlsx_write_table(wb.create_sheet("Expenses"), "Expenses", exp_headers, exp_rows,
-                      currency_cols={3}, center_cols={1, 7, 8})
+                      currency_cols={3}, center_cols={1, 7, 8, 9})
 
     # ── Rental Invoices ──
     inv_headers = ["Reference No", "Customer", "Period Start", "Period End", "Amount Due",
-                   "Late Fee", "Total", "Amount Paid", "Remaining", "Status"]
+                   "Late Fee", "Total", "Amount Paid", "Remaining", "Status", "Collection Notes"]
     inv_rows = []
     for inv in invoices:
         rental = inv.rental
@@ -4553,9 +4577,10 @@ def export_transactions():
             ref, cust, _xlsx_date(inv.service_period_start), _xlsx_date(inv.service_period_end),
             inv.amount_due, inv.late_fee, inv.total_invoice_value, inv.amount_paid,
             inv.remaining_balance, _xlsx_dash(inv.status),
+            _xlsx_dash(inv.collection_notes),
         ])
     _xlsx_write_table(wb.create_sheet("Rental Invoices"), "Rental Invoices", inv_headers, inv_rows,
-                      currency_cols={5, 6, 7, 8, 9}, center_cols={3, 4, 10})
+                      currency_cols={5, 6, 7, 8, 9}, center_cols={3, 4, 10, 11})
 
     # Tab colors + save to an in-memory buffer
     for sheet in wb.worksheets:
@@ -4570,6 +4595,7 @@ def export_transactions():
     response.headers["Content-Disposition"] = f"attachment; filename={filename}"
     response.headers["Content-type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     return response
+
 
 
 @admin_bp.route('/transaction_details/<int:id>') 
