@@ -123,6 +123,24 @@ class Purchase(db.Model, BranchScoped):
     product = db.relationship("Product", back_populates="purchases")
 
     customer = db.relationship("Customer", back_populates="purchases")
+    @property
+    def display_product_name(self):
+        if self.product:
+            return self.product.name
+        return self.product_name or "Unknown Product (Deleted)"
+
+    @property
+    def display_asset_tag(self):
+        if self.product:
+            return self.product.asset_tag
+        return self.product_asset_tag or "N/A"
+
+    @property
+    def display_category(self):
+        if self.product:
+            return self.product.category
+        return self.product_category or "N/A"
+
 
 class Transaction(db.Model, BranchScoped):
     __tablename__ = "transaction"
@@ -463,9 +481,19 @@ class Rental(db.Model, BranchScoped):
 
     id = db.Column(db.Integer, primary_key=True)
     transaction_id = db.Column(db.Integer, db.ForeignKey("transaction.id"), nullable=False, index=True)
-    product_id = db.Column(db.Integer, db.ForeignKey("product.id"), index=True)
+    product_id = db.Column(db.Integer, db.ForeignKey("product.id", ondelete="SET NULL"), nullable=True, index=True)
     customer_id = db.Column(db.Integer, db.ForeignKey("customer.id"), index=True)
     
+    # --- Product snapshot columns (preserve order history when product is permanently deleted) ---
+    product_name = db.Column(db.String(100), nullable=True)
+    product_type = db.Column(db.String(100), nullable=True)
+    product_asset_tag = db.Column(db.String(20), nullable=True)
+    product_condition = db.Column(db.String(50), nullable=True)
+    product_description = db.Column(db.Text, nullable=True)
+    product_image = db.Column(db.String(255), nullable=True)
+    product_category = db.Column(db.String(50), nullable=True)
+    # -------------------------------------------------------------------------
+
     start_date = db.Column(db.Date, nullable=False)
     expected_return_date = db.Column(db.Date, nullable=False) 
     actual_return_date = db.Column(db.Date, nullable=True) 
@@ -495,6 +523,36 @@ class Rental(db.Model, BranchScoped):
     @property
     def remaining_to_return(self):
         return max(0, self.quantity - self.quantity_returned)
+
+    @property
+    def display_product_name(self):
+        if self.product:
+            return self.product.name
+        return self.product_name or "Unknown Product (Deleted)"
+
+    @property
+    def display_product_type(self):
+        if self.product:
+            return self.product.equipment_type
+        return self.product_type or "—"
+
+    @property
+    def display_asset_tag(self):
+        if self.product:
+            return self.product.asset_tag
+        return self.product_asset_tag or "N/A"
+
+    @property
+    def display_condition(self):
+        if self.product:
+            return self.product.condition
+        return self.product_condition or "N/A"
+
+    @property
+    def display_category(self):
+        if self.product:
+            return self.product.category
+        return self.product_category or "N/A"
 
     def get_latest_invoice(self):
         """Returns the invoice with the furthest service period end date."""

@@ -343,17 +343,17 @@
                 {% set tank_serials = rental.tanks | map(attribute='serial_number') | list if rental.tanks else [] %}
                 {% set serial_display = tank_serials | join(', ') if tank_serials else (txn.serial_numbers if txn and txn.serial_numbers else '') %}
 
-                <tr data-search="{{ customer_name|lower }} {{ rental.product.equipment_type|lower if rental.product and rental.product.equipment_type else '' }} {{ rental.product.name|lower if rental.product and rental.product.name else '' }} {{ serial_display|lower }}">
+                <tr data-search="{{ customer_name|lower }} {{ (rental.product.equipment_type if rental.product else rental.product_type)|lower }} {{ (rental.product.name if rental.product else rental.product_name)|lower }} {{ serial_display|lower }}">
                     <td>
                         <strong>{{ customer_name }}</strong>
                     </td>
 
                     <td>
-                        {{ rental.product.equipment_type if rental.product and rental.product.equipment_type else '—' }}
+                        {{ (rental.product.equipment_type if rental.product else rental.product_type) or '—' }}
                     </td>
 
                     <td>
-                        {{ rental.product.name if rental.product and rental.product.name else '—' }}
+                        {{ (rental.product.name if rental.product else rental.product_name) or '—' }}
                     </td>
 
                     <td>

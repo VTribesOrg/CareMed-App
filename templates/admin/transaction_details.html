@@ -103,7 +103,7 @@
                                 <tr style="border-bottom: 1px solid #e2e8f0; background-color: #ffffff;">
                                     <td style="padding: 12px; vertical-align: middle;">
                                         <div class="item-title" style="color: #0f172a; font-weight: 600; font-size: 0.9rem;">
-                                            {{ item.product.name }}
+                                            {{ item.product.name if item.product else (item.product_name or 'Deleted Product') }}
                                             {% if item.tanks %}
                                                 <span class="text-muted font-monospace" style="font-size: 0.85rem; color: #64748b;">
                                                     (SN: {% for tank in item.tanks %}{{ tank.serial_number }}{% if not loop.last %}, {% endif %}{% endfor %})
@@ -126,7 +126,7 @@
                                 <tr style="border-bottom: 1px solid #e2e8f0; background-color: #ffffff;">
                                     <td style="padding: 12px; vertical-align: middle;">
                                         <div class="item-title" style="color: #0f172a; font-weight: 600; font-size: 0.9rem;">
-                                            {{ item.product.name }}
+                                            {{ item.product.name if item.product else (item.product_name or 'Deleted Product') }}
                                             {% if item.serial_number %}
                                                 <span class="text-muted font-monospace" style="font-size: 0.85rem; color: #64748b;">(SN: {{ item.serial_number }})</span>
                                             {% endif %}
@@ -318,7 +318,7 @@
                         
                         <div class="product-billing-header mb-3" style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #cbd5e1; padding-bottom: 10px;">
                             <span class="fw-bold" style="color: #0f172a; font-size: 1.05rem;">
-                                {{ rental.product.name }}
+                                {{ rental.product.name if rental.product else (rental.product_name or 'Deleted Product') }}
                                 <span style="color: #64748b; font-weight: 500; font-size: 0.9rem;">(Qty: {{ rental.quantity }})</span>
                             </span>
 
@@ -473,7 +473,7 @@
                                                                     data-type="Rental"
                                                                     data-monthly-rate="{{ rental.monthly_rate }}"
                                                                     data-unpaid-count="{{ rental.invoices|selectattr('status', 'ne', 'Paid')|list|length }}"
-                                                                    data-invoice-id="{{ invoice.id }}" data-product-id="{{ rental.product.id if rental.product else '' }}" data-product-name="{{ rental.product.name if rental.product else '' }}">
+                                                                    data-invoice-id="{{ invoice.id }}" data-product-id="{{ rental.product.id if rental.product else '' }}" data-product-name="{{ rental.product.name if rental.product else (rental.product_name or '') }}">
                                                                 <i class="material-symbols-rounded">payments</i>
                                                                 <span>Pay Now</span>
                                                             </button>
@@ -541,7 +541,7 @@
                                 </td>
                                 <td style="padding: 10px; vertical-align: middle;">
                                     <div>
-                                        {{ item.product.name }}
+                                        {{ item.product.name if item.product else (item.product_name or 'Deleted Product') }}
                                         {% if item.serial_number %}
                                             <span class="text-muted font-monospace" style="font-size: 0.85rem;">(SN: {{ item.serial_number }})</span>
                                         {% endif %}

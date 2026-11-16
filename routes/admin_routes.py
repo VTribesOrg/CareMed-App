@@ -2164,35 +2164,44 @@ def delete_product(product_id):
         ).first()
 
         if has_active_rentals:
-            flash(f"Cannot archive '{product.name}' due to active rentals.", "warning")
+            flash(f"Cannot delete '{product.name}' because it has active rentals. Return or close those rentals first.", "warning")
             return redirect(url_for('admin.products'))
 
-        product.status = "Archived"
-        product.stock = 0
+        product_name = product.name
 
-        if hasattr(product, "is_active"):
-            product.is_active = False
-
-        if hasattr(product, "archived_at"):
-            product.archived_at = datetime.utcnow()
-
+        # Log the deletion before the product row is removed. Related
+        # Purchase/Rental/InventoryLog/Expense rows use ondelete="SET NULL" on
+        # product_id, so they keep their history (with the saved product snapshots)
+        # even after the product is permanently deleted.
         db.session.add(InventoryLog(
             product_id=product.id,
-            action="ARCHIVE",
+            action="DELETE",
             quantity=0,
-            note=f"Archived by {current_user.full_name}",
+            note=f"Product permanently deleted by {current_user.full_name}",
             user_id=current_user.id,
             user_name=current_user.full_name
         ))
 
+        # Dissociate the product from related history rows so it can be permanently
+        # deleted while those rows (and their saved product snapshots) remain intact.
+        # Declared ondelete="SET NULL" handles this on fresh schemas; this also covers
+        # existing databases where the rental.product_id FK may not yet have ON DELETE.
+        Rental.query.filter_by(product_id=product.id).update(
+            {Rental.product_id: None}, synchronize_session=False
+        )
+        Purchase.query.filter_by(product_id=product.id).update(
+            {Purchase.product_id: None}, synchronize_session=False
+        )
+
+        db.session.delete(product)
         db.session.commit()
 
-        flash(f"Product '{product.name}' archived successfully.", "success")
+        flash(f"Product '{product_name}' permanently deleted. Past orders still show the product details.", "success")
 
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"ARCHIVE_ERROR: {str(e)}")
-        flash("Failed to archive product.", "danger")
+        current_app.logger.error(f"DELETE_PRODUCT_ERROR: {str(e)}")
+        flash("Failed to delete product. It may be referenced by records that do not allow deletion.", "danger")
 
     return redirect(url_for('admin.products'))
 
@@ -2731,7 +2740,17 @@ def process_rental():
                 monthly_rate=price,
                 quantity=qty,
                 status="Active",
-                is_open_duration=is_open_duration 
+                is_open_duration=is_open_duration,
+
+                # Save product snapshots so order history stays visible
+                # even if the product is permanently deleted later.
+                product_name=product.name,
+                product_type=getattr(product, 'equipment_type', None),
+                product_asset_tag=product.asset_tag,
+                product_condition=product.condition,
+                product_description=product.description,
+                product_image=product.image,
+                product_category=product.category
             )
 
             db.session.add(rental)

@@ -1015,6 +1015,8 @@
                                 <td>
                                     {% if invoice.rental and invoice.rental.product %}
                                         {{ invoice.rental.product.name }}{% if invoice.rental.product.size %} ({{ invoice.rental.product.size }}){% endif %}
+                                    {% elif invoice.rental and invoice.rental.product_name %}
+                                        {{ invoice.rental.product_name }}
                                     {% else %}
                                         <span class="text-muted" style="font-style:italic;">N/A</span>
                                     {% endif %}
