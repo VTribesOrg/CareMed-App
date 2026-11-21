@@ -484,7 +484,6 @@ class Rental(db.Model, BranchScoped):
     product_id = db.Column(db.Integer, db.ForeignKey("product.id", ondelete="SET NULL"), nullable=True, index=True)
     customer_id = db.Column(db.Integer, db.ForeignKey("customer.id"), index=True)
     
-    # --- Product snapshot columns (preserve order history when product is permanently deleted) ---
     product_name = db.Column(db.String(100), nullable=True)
     product_type = db.Column(db.String(100), nullable=True)
     product_asset_tag = db.Column(db.String(20), nullable=True)
@@ -492,7 +491,6 @@ class Rental(db.Model, BranchScoped):
     product_description = db.Column(db.Text, nullable=True)
     product_image = db.Column(db.String(255), nullable=True)
     product_category = db.Column(db.String(50), nullable=True)
-    # -------------------------------------------------------------------------
 
     start_date = db.Column(db.Date, nullable=False)
     expected_return_date = db.Column(db.Date, nullable=False) 

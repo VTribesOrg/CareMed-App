@@ -108,6 +108,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const quantityInput = document.getElementById('refill-quantity');
     const dynamicRowsContainer = document.getElementById('refill-dynamic-rows-container');
     const refillAmountInput = document.getElementById('refill-amount-cost');
+    const refillVoucherInput = document.getElementById('refill-voucher-amount');
+    const refillNetTotalDisplay = document.getElementById('refill-net-total');
 
     let activeOxygenRentals = [];
     try {
@@ -127,6 +129,38 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     } catch (e) {
         refillableProducts = [];
+    }
+
+    /*============= REFILL HELPER CALCULATIONS UTILITIES =============*/
+    function cleanFloat(val) {
+        if (typeof val === 'number') return isNaN(val) ? 0 : val;
+        if (!val) return 0;
+        const cleaned = val.toString().replace(/[^0-9.-]/g, '');
+        const parsed = parseFloat(cleaned);
+        return isNaN(parsed) ? 0 : parsed;
+    }
+
+    function cleanInt(val) {
+        if (typeof val === 'number') return isNaN(val) ? 0 : Math.floor(val);
+        if (!val) return 0;
+        const cleaned = val.toString().replace(/[^0-9-]/g, '');
+        const parsed = parseInt(cleaned, 10);
+        return isNaN(parsed) ? 0 : parsed;
+    }
+
+    // Helper function to sum up costs directly from active rentals or selected option data-cost attributes
+    function updateRefillNetTotal() {
+    // Expose to window for cross-block accessibility
+    window.updateRefillNetTotal = updateRefillNetTotal;
+
+    if (!refillAmountInput || !refillVoucherInput || !refillNetTotalDisplay) return;
+        if (!refillAmountInput || !refillVoucherInput || !refillNetTotalDisplay) return;
+
+        const amount = cleanFloat(refillAmountInput.value);
+        const voucher = cleanFloat(refillVoucherInput.value);
+        const net = Math.max(0, amount - voucher);
+
+        refillNetTotalDisplay.innerText = '\u20b1' + net.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
     // Helper function to sum up costs directly from active rentals or selected option data-cost attributes
@@ -174,6 +208,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         refillAmountInput.value = totalCost > 0 ? totalCost.toFixed(2) : '';
+        updateRefillNetTotal();
     }
 
     function renderDynamicRows() {
@@ -199,7 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!isRegistered) {
             let productOptionsHtml = '<option value="">Select tank size...</option>';
             refillableProducts.forEach(prod => {
-                productOptionsHtml += `<option value="${prod.id}" data-cost="${prod.refill_cost || 0.00}">${prod.name} ${prod.size ? '(' + prod.size + ')' : ''}₱${parseFloat(prod.refill_cost || 0).toFixed(2)}</option>`;
+                productOptionsHtml += `<option value="${prod.id}" data-cost="${prod.refill_cost || 0.00}">${prod.name} ${prod.size ? '(' + prod.size + ')' : ''}\u20b1${parseFloat(prod.refill_cost || 0).toFixed(2)}</option>`;
             });
 
             for (let i = 1; i <= qty; i++) {
@@ -347,6 +382,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    if (refillAmountInput) {
+        refillAmountInput.addEventListener('input', updateRefillNetTotal);
+        refillAmountInput.addEventListener('change', updateRefillNetTotal);
+    }
+    if (refillVoucherInput) {
+        refillVoucherInput.addEventListener('input', updateRefillNetTotal);
+        refillVoucherInput.addEventListener('change', updateRefillNetTotal);
+    }
+
     document.addEventListener('click', (event) => {
         if (refillSearchInput && refillDropdown && !refillSearchInput.contains(event.target) && !refillDropdown.contains(event.target)) {
             refillDropdown.classList.add('hidden');
@@ -357,6 +401,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (refillForm) refillForm.reset();
         if (dynamicRowsContainer) dynamicRowsContainer.innerHTML = '';
         if (refillAmountInput) refillAmountInput.value = '';
+        if (refillNetTotalDisplay) refillNetTotalDisplay.textContent = '\u20b10.00';
         if (quantityInput) quantityInput.value = '1';
         if (refillSearchInput) refillSearchInput.value = '';
         if (refillIdInput) refillIdInput.value = '';
@@ -460,6 +505,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (serialInput) serialInput.value = "";
                     
                     refillModal.classList.remove('hidden');
+
+                    // Recompute net total after modal opens (amount may have been auto-filled by tank selection)
+                    updateRefillNetTotal();
                 }
             }
 
@@ -760,7 +808,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 itemRow.innerHTML = `
                     <div style="flex: 1; display: flex; flex-direction: column; gap: 6px; padding: 4px 0;">
                         <strong style="font-size: 13px; color: #1e293b; display: block; line-height: 1.6; letter-spacing: 0.04em; word-spacing: 0.1em;">${item.name}</strong>
-                        <span style="font-size: 11px; color: #64748b; letter-spacing: 0.04em; word-spacing: 0.08em;">₱${item.price.toFixed(2)} each</span>
+                        <span style="font-size: 11px; color: #64748b; letter-spacing: 0.04em; word-spacing: 0.08em;">\u20b1${item.price.toFixed(2)} each</span>
                     </div>
 
                     <div style="display: flex; align-items: center; gap: 12px; margin-left: 16px;">
@@ -837,15 +885,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 const breakdownRow = document.createElement('div');
                 breakdownRow.style = 'display: flex; justify-content: space-between; font-size: 12px; color: #64748b;';
                 breakdownRow.innerHTML = `
-                    <span>• ${item.name} <small>(${itemQty} × ₱${itemPrice.toLocaleString('en-US', {minimumFractionDigits: 2})})</small></span>
-                    <span>₱${itemTotalCost.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
+                    <span>• ${item.name} <small>(${itemQty} × \u20b1${itemPrice.toLocaleString('en-US', {minimumFractionDigits: 2})})</small></span>
+                    <span>\u20b1${itemTotalCost.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
                 `;
                 breakdownContainer.appendChild(breakdownRow);
             }
         });
 
         if (countText) countText.innerText = `${totalItemsCount} Item(s) Selected`;
-        if (grossBillDisplay) grossBillDisplay.innerText = `₱${grossTotalContract.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        if (grossBillDisplay) grossBillDisplay.innerText = `\u20b1${grossTotalContract.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
         // 1. Get and handle Voucher / Discount amount display
         let voucherAmount = cleanFloat(voucherInput?.value);
@@ -856,7 +904,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (voucherAmount > 0) {
                 voucherSummaryRow.style.display = 'flex';
                 if (voucherSummaryVal) {
-                    voucherSummaryVal.innerText = `- ₱${voucherAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                    voucherSummaryVal.innerText = `- \u20b1${voucherAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                 }
             } else {
                 voucherSummaryRow.style.display = 'none';
@@ -875,14 +923,14 @@ document.addEventListener('DOMContentLoaded', function() {
             amountPaidInput.dataset.autoFilled = "true";
         }
 
-        if (summaryPaidDisplay) summaryPaidDisplay.innerText = `- ₱${amountPaid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        if (summaryPaidDisplay) summaryPaidDisplay.innerText = `- \u20b1${amountPaid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
         // 4. Calculate Remaining Balance using Net Total minus Amount Paid
         const remainingBalance = Math.max(0, netTotal - amountPaid);
         const balanceSubText = document.getElementById('purchase-balance-label');
         
         if (totalDisplay) {
-            totalDisplay.innerText = `₱${remainingBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            totalDisplay.innerText = `\u20b1${remainingBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
             if (remainingBalance <= 0 && netTotal > 0) {
                 totalDisplay.className = "total-amount-display status-paid";
@@ -1206,7 +1254,7 @@ function renderProductBasket() {
             <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
                 <div style="display: flex; flex-direction: column; gap: 2px; flex: 1;">
                     <span style="font-weight: 600; font-size: 13px; color: #1e293b;">${item.name}</span>
-                    <span style="font-size: 11px; color: #64748b;">₱${parseFloat(item.rentPrice).toLocaleString('en-US', {minimumFractionDigits: 2})}/month</span>
+                    <span style="font-size: 11px; color: #64748b;">\u20b1${parseFloat(item.rentPrice).toLocaleString('en-US', {minimumFractionDigits: 2})}/month</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 12px;">
                     <input type="hidden" name="product_ids" value="${item.id}">
@@ -1368,8 +1416,8 @@ function calculateRentalTotals() {
             const breakdownRow = document.createElement('div');
             breakdownRow.style = 'display: flex; justify-content: space-between; font-size: 12px; color: #64748b;';
             breakdownRow.innerHTML = `
-              <span>• ${item.name} <small>(${itemQty} × ₱${itemMonthlyPrice.toLocaleString('en-US', {minimumFractionDigits: 2})}/mo)</small></span>
-              <span>₱${itemTotalCost.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
+              <span>• ${item.name} <small>(${itemQty} × \u20b1${itemMonthlyPrice.toLocaleString('en-US', {minimumFractionDigits: 2})}/mo)</small></span>
+              <span>\u20b1${itemTotalCost.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
           `;
             breakdownContainer.appendChild(breakdownRow);
         }
@@ -1383,14 +1431,14 @@ function calculateRentalTotals() {
 
     if (effectiveFillCost > 0) {
         if (summaryFillRow) summaryFillRow.style.display = 'flex';
-        if (summaryFillVal) summaryFillVal.textContent = `₱${fillCost.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+        if (summaryFillVal) summaryFillVal.textContent = `\u20b1${fillCost.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
         
         if (breakdownContainer) {
             const fillRow = document.createElement('div');
             fillRow.style = 'display: flex; justify-content: space-between; font-size: 12px; color: #0284c7; font-weight: 500;';
             fillRow.innerHTML = `
               <span>• Initial Oxygen Tank Content Fill</span>
-              <span>₱${fillCost.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
+              <span>\u20b1${fillCost.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
           `;
             breakdownContainer.appendChild(fillRow);
         }
@@ -1403,7 +1451,7 @@ function calculateRentalTotals() {
         deliveryRow.style = 'display: flex; justify-content: space-between; font-size: 12px; color: #0284c7; font-weight: 500;';
         deliveryRow.innerHTML = `
           <span>• Delivery Service Fee</span>
-          <span>₱${deliveryFee.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
+          <span>\u20b1${deliveryFee.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
         `;
         breakdownContainer.appendChild(deliveryRow);
     }
@@ -1464,7 +1512,7 @@ function calculateRentalTotals() {
 
     const totalBillText = document.getElementById('rent-total-bill');
     if (totalBillText) {
-        totalBillText.textContent = `₱${totalContract.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+        totalBillText.textContent = `\u20b1${totalContract.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
     }
 
     const voucherRow = document.getElementById('summary-voucher-row');
@@ -1472,7 +1520,7 @@ function calculateRentalTotals() {
     if (voucherRow && summaryVoucherValText) {
         if (finalVoucher > 0) {
             voucherRow.style.display = 'flex';
-            summaryVoucherValText.textContent = `- ₱${finalVoucher.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+            summaryVoucherValText.textContent = `- \u20b1${finalVoucher.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
         } else {
             voucherRow.style.display = 'none';
         }
@@ -1480,9 +1528,9 @@ function calculateRentalTotals() {
 
     const summaryPaidValText = document.getElementById('summary-paid-val');
     if (summaryPaidValText) {
-        summaryPaidValText.textContent = `- ₱${totalAmountPaid.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+        summaryPaidValText.textContent = `- \u20b1${totalAmountPaid.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
         if (effectiveFillCost > 0) {
-            summaryPaidValText.title = `Allocated: ₱${paidTowardFill.toFixed(2)} to Fill, ₱${paidTowardEquipment.toFixed(2)} to Equipment`;
+            summaryPaidValText.title = `Allocated: \u20b1${paidTowardFill.toFixed(2)} to Fill, \u20b1${paidTowardEquipment.toFixed(2)} to Equipment`;
         }
     }
 
@@ -1490,7 +1538,7 @@ function calculateRentalTotals() {
     const balanceSubText = document.getElementById('balance-label');
 
     if (totalDisplay) {
-        totalDisplay.textContent = `₱${Math.max(balance, 0).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+        totalDisplay.textContent = `\u20b1${Math.max(balance, 0).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
 
         if (balance <= 0 && totalContract > 0) {
             totalDisplay.className = "total-amount-display status-paid";
@@ -1620,11 +1668,11 @@ if (rentForm) {
         if (amountPaidInput && totalBillText) {
             const paidVal = parseFloat(amountPaidInput.value) || 0;
             // Parse total contract text value dynamically
-            const totalContractVal = parseFloat(totalBillText.textContent.replace('₱', '').replace(/,/g, '')) || 0;
+            const totalContractVal = parseFloat(totalBillText.textContent.replace('\u20b1', '').replace(/,/g, '')) || 0;
 
             if (paidVal > totalContractVal) {
                 e.preventDefault();
-                alert(`Amount paid (₱${paidVal.toFixed(2)}) cannot exceed the total contract bill (₱${totalContractVal.toFixed(2)}).`);
+                alert(`Amount paid (\u20b1${paidVal.toFixed(2)}) cannot exceed the total contract bill (\u20b1${totalContractVal.toFixed(2)}).`);
                 amountPaidInput.focus();
                 return false;
             }
@@ -1985,7 +2033,7 @@ const primegasUpdateTotal = () => {
     primegasItemsWrap.querySelectorAll('.primegas-amount').forEach(input => {
         total += parseFloat(input.value) || 0;
     });
-    primegasTotalSpan.textContent = '₱' + total.toLocaleString(undefined, {
+    primegasTotalSpan.textContent = '\u20b1' + total.toLocaleString(undefined, {
         minimumFractionDigits: 2, maximumFractionDigits: 2
     });
 };
@@ -2169,7 +2217,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (invoiceIdInput) invoiceIdInput.value = invoiceId;
         summaryRef.innerText = refNo || 'N/A';
         summaryType.innerText = currentType;
-        summaryBalance.innerText = `₱${currentBalance.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+        summaryBalance.innerText = `\u20b1${currentBalance.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
         amountInput.value = currentBalance.toFixed(2);
         
         amountError.style.display = 'none';
@@ -2195,7 +2243,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 };
                 quickPayContainer.appendChild(pill);
             }
-            amountInput.placeholder = `Monthly Rate: ₱${currentMonthlyRate.toFixed(2)}`;
+            amountInput.placeholder = `Monthly Rate: \u20b1${currentMonthlyRate.toFixed(2)}`;
         } else {
             rentalQuickPay.style.display = 'none';
         }

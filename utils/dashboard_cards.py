@@ -29,7 +29,7 @@ DASHBOARD_CARDS = (
     {
         "key": "rentals_income",
         "label": "Total Rentals Income",
-        "hint": "Gross rental income for the selected range.",
+        "hint": "Rental payments collected in the selected range (excludes deposits).",
         "fields": ("total_rentals",),
     },
     {

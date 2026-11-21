@@ -275,12 +275,15 @@ def dashboard_data():
         sales_payments_query = apply_date_filter(sales_payments_query, Payment.created_at)
         total_sales = float(sales_payments_query.scalar() or 0.0)
 
-        # 2. Total Rentals collections from completed payments tied to Rental transactions (excluding InitialFill)
+        # 2. Total Rentals collections from completed payments tied to Rental transactions.
+        #    Excludes InitialFill, Deposit and Deposit Refund so rental deposits are not
+        #    counted as rental income. Matches the Rentals Income Summary modal and the
+        #    Transaction.initial_fill_paid business rule.
         rental_payments_query = db.session.query(
             func.coalesce(func.sum(Payment.amount), Decimal("0.00"))
         ).join(Transaction, Payment.transaction_id == Transaction.id).filter(
             Transaction.transaction_type == "Rental",
-            Payment.payment_type != "InitialFill",
+            ~Payment.payment_type.in_(["InitialFill", "Deposit", "Deposit Refund"]),
             Payment.status == "Completed"
         )
         rental_payments_query = apply_date_filter(rental_payments_query, Payment.created_at)
@@ -974,6 +977,10 @@ def process_refill_transaction():
         flash("Invalid numeric input for voucher amount.", "danger")
         return redirect(request.referrer or url_for('admin.dashboard'))
 
+    if voucher_amount < 0:
+        flash("Voucher or discount amount cannot be negative.", "danger")
+        return redirect(request.referrer or url_for('admin.dashboard'))
+
     try:
         raw_delivery = request.form.get('delivery_fee', '0')
         if isinstance(raw_delivery, list):
@@ -987,9 +994,14 @@ def process_refill_transaction():
         raw_amount_paid = request.form.get('amount_paid')
         if isinstance(raw_amount_paid, list):
             raw_amount_paid = raw_amount_paid[0]
-        amount_paid = Decimal(str(raw_amount_paid or form_amount).replace(',', '') or '0')
+        # Default to 0; the authoritative net owed (net_total) is applied below
+        # when no explicit amount paid is submitted (e.g. the refill modal has
+        # no amount-paid field), so a discount never inflates the recorded payment.
+        amount_paid_provided = bool(raw_amount_paid)
+        amount_paid = Decimal(str(raw_amount_paid or '0').replace(',', '') or '0')
     except (ValueError, TypeError, InvalidOperation):
-        amount_paid = form_amount
+        amount_paid_provided = False
+        amount_paid = Decimal("0.00")
 
     if not form_amount or not quantity or quantity <= 0:
         flash("Transaction failed: Please ensure all fields are filled correctly.", "danger")
@@ -1001,6 +1013,12 @@ def process_refill_transaction():
 
     refill_unit_cost = form_amount / Decimal(str(quantity))
     net_total = max((form_amount + delivery_fee) - voucher_amount, Decimal("0.00"))
+
+    # When no explicit amount paid was submitted, the amount paid equals the net
+    # owed (after voucher discount). This keeps the recorded payment and revenue
+    # consistent with the charge instead of defaulting to the gross cost.
+    if not amount_paid_provided:
+        amount_paid = net_total
 
     try:
         customer_id = None
@@ -3851,7 +3869,7 @@ def export_transactions():
         func.coalesce(func.sum(Payment.amount), Decimal("0.00"))
     ).join(Transaction, Payment.transaction_id == Transaction.id).filter(
         Transaction.transaction_type == "Rental",
-        Payment.payment_type != "InitialFill",
+        ~Payment.payment_type.in_(["InitialFill", "Deposit", "Deposit Refund"]),
         Payment.status == "Completed",
     )
     if start_date:
@@ -4614,6 +4632,643 @@ def export_transactions():
     response.headers["Content-Disposition"] = f"attachment; filename={filename}"
     response.headers["Content-type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     return response
+
+# ── Import helpers (mirror the export column layout) ──
+def _imp_str(value):
+    """Return a cleaned string or None (treats '—' / empty as None)."""
+    if value is None:
+        return None
+    s = str(value).strip()
+    return s if s and s != "—" else None
+
+
+def _imp_decimal(value):
+    """Return a Decimal (0.00 default) handling None, '—', '₱1,234.56' etc."""
+    if value is None:
+        return Decimal("0.00")
+    if isinstance(value, Decimal):
+        return value
+    if isinstance(value, (int, float)):
+        return Decimal(str(value))
+    s = str(value).strip()
+    if not s or s == "—":
+        return Decimal("0.00")
+    s = s.replace("₱", "").replace(",", "").strip()
+    try:
+        return Decimal(s)
+    except (InvalidOperation, ValueError):
+        return Decimal("0.00")
+
+
+def _imp_date(value):
+    """Parse a datetime / date / string into a datetime, or None."""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, date):
+        return datetime.combine(value, datetime.min.time())
+    s = _imp_str(value)
+    if not s:
+        return None
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y",
+                "%B %d, %Y %I:%M %p", "%b %d, %Y"):
+        try:
+            return datetime.strptime(s, fmt)
+        except ValueError:
+            continue
+    return None
+
+
+def _imp_bool(value):
+    if value is None:
+        return False
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in ("yes", "true", "1", "y", "t")
+
+
+def _split_name(full_name):
+    """Split 'First Last' into (first, last)."""
+    if not full_name:
+        return ("", "")
+    parts = str(full_name).strip().split(None, 1)
+    return (parts[0], parts[1]) if len(parts) > 1 else (parts[0], "")
+
+
+@admin_bp.route('/transactions/import', methods=['POST'])
+@login_required
+@admin_or_staff_required
+@permission_required('can_process_transactions')
+def import_transactions():
+    """Import transactions (and related customers, products, purchases,
+    rentals, payments and rental invoices) from a CareMed export workbook."""
+    if 'file' not in request.files:
+        flash("No file selected for import.", "danger")
+        return redirect(request.referrer or url_for('admin.transactions'))
+
+    file = request.files['file']
+    if not file.filename or not file.filename.lower().endswith(('.xlsx', '.xls')):
+        flash("Please upload a valid Excel (.xlsx/.xls) file.", "danger")
+        return redirect(request.referrer or url_for('admin.transactions'))
+
+    try:
+        wb = load_workbook(file, data_only=True)
+    except Exception as exc:
+        flash(f"Failed to read Excel file: {exc}", "danger")
+        return redirect(request.referrer or url_for('admin.transactions'))
+
+    sheet_names = set(wb.sheetnames)
+    branch_id = get_active_branch_id()
+
+    counts = {"customers": 0, "products": 0, "transactions": 0,
+              "purchases": 0, "rentals": 0, "payments": 0, "invoices": 0,
+              "skipped": 0}
+    customer_by_name = {}
+    product_by_name = {}
+    product_by_tag = {}
+    transaction_by_ref = {}
+
+    def get_customer(full_name):
+        key = _imp_str(full_name)
+        if not key:
+            return None
+        if key in customer_by_name:
+            return customer_by_name[key]
+        first, last = _split_name(key)
+        cust = (Customer.query
+                .filter(db.func.lower(Customer.first_name) == first.lower(),
+                        db.func.lower(Customer.last_name) == last.lower())
+                .first())
+        if not cust:
+            cust = Customer(first_name=first or "Walk-In",
+                            last_name=last or "Customer",
+                            branch_id=branch_id,
+                            created_by_id=current_user.id,
+                            is_active=True)
+            db.session.add(cust)
+            db.session.flush()
+            counts["customers"] += 1
+        customer_by_name[key] = cust
+        return cust
+
+    def get_product(name, asset_tag=None):
+        key = _imp_str(name)
+        tag = _imp_str(asset_tag)
+        if key and key in product_by_name:
+            return product_by_name[key]
+        if tag and tag in product_by_tag:
+            return product_by_tag[tag]
+        prod = None
+        if key:
+            prod = Product.query.filter(db.func.lower(Product.name) == key.lower()).first()
+        if not prod and tag:
+            prod = Product.query.filter_by(asset_tag=tag).first()
+        if not prod and key:
+            prod = Product(name=key, asset_tag=tag,
+                           equipment_type="Sale", condition="Brand New",
+                           branch_id=branch_id, is_active=True)
+            db.session.add(prod)
+            db.session.flush()
+            counts["products"] += 1
+        if key:
+            product_by_name[key] = prod
+        if tag:
+            product_by_tag[tag] = prod
+        return prod
+
+    def get_processed_by(raw_name):
+        key = _imp_str(raw_name)
+        if not key:
+            return current_user.id
+        parts = key.split(None, 1)
+        first = parts[0] if parts else ""
+        last = parts[1] if len(parts) > 1 else ""
+        user = (User.query
+                .filter(db.func.lower(User.first_name) == first.lower(),
+                        db.func.lower(User.last_name) == last.lower())
+                .first())
+        return user.id if user else current_user.id
+    try:
+        # ── 1. Customers ──
+        if "Customers" in sheet_names:
+            ws = wb["Customers"]
+            rows = list(ws.iter_rows(values_only=True))
+            if len(rows) > 1:
+                headers = [str(h or "").strip() for h in rows[0]]
+
+                def ccol(name):
+                    try:
+                        return headers.index(name)
+                    except ValueError:
+                        return -1
+
+                ci_full = ccol("Full Name")
+                ci_gender = ccol("Gender")
+                ci_phone = ccol("Contact Number")
+                ci_phone2 = ccol("Secondary Contact")
+                ci_addr = ccol("Address")
+                ci_active = ccol("Active")
+                for row in rows[1:]:
+                    if not any(cell is not None for cell in row):
+                        continue
+                    full = row[ci_full] if ci_full >= 0 else None
+                    cust = get_customer(full)
+                    if not cust:
+                        continue
+                    if ci_gender >= 0:
+                        cust.gender = _imp_str(row[ci_gender])
+                    if ci_phone >= 0:
+                        cust.contact_number = _imp_str(row[ci_phone])
+                    if ci_phone2 >= 0:
+                        cust.secondary_contact_number = _imp_str(row[ci_phone2])
+                    if ci_addr >= 0:
+                        cust.home_address = _imp_str(row[ci_addr])
+                    if ci_active >= 0:
+                        cust.is_active = _imp_bool(row[ci_active])
+                    db.session.add(cust)
+
+        # ── 2. Products & Inventory ──
+        if "Products & Inventory" in sheet_names:
+            ws = wb["Products & Inventory"]
+            rows = list(ws.iter_rows(values_only=True))
+            if len(rows) > 1:
+                headers = [str(h or "").strip() for h in rows[0]]
+
+                def pcol(name):
+                    try:
+                        return headers.index(name)
+                    except ValueError:
+                        return -1
+
+                ci_tag = pcol("Asset Tag")
+                ci_name = pcol("Name")
+                ci_type = pcol("Equipment Type")
+                ci_size = pcol("Size")
+                ci_cat = pcol("Category")
+                ci_cond = pcol("Condition")
+                ci_stock = pcol("Stock")
+                ci_status = pcol("Status")
+                ci_cost = pcol("Cost Price")
+                ci_sale = pcol("Sale Price")
+                ci_rent = pcol("Rent Price")
+                ci_rentp = pcol("Rent Period")
+                ci_refill = pcol("Refillable")
+                ci_desc = pcol("Description")
+                ci_ttype = pcol("Transaction Type")
+                ci_rcost = pcol("Refill Cost")
+                ci_pgcost = pcol("Primegas Cost")
+                ci_active = pcol("Is Active")
+                for row in rows[1:]:
+                    if not any(cell is not None for cell in row):
+                        continue
+                    name = row[ci_name] if ci_name >= 0 else None
+                    tag = row[ci_tag] if ci_tag >= 0 else None
+                    prod = get_product(name, tag)
+                    if not prod:
+                        continue
+                    if ci_type >= 0:
+                        prod.equipment_type = _imp_str(row[ci_type]) or prod.equipment_type
+                    if ci_size >= 0:
+                        prod.size = _imp_str(row[ci_size])
+                    if ci_cat >= 0:
+                        prod.category = _imp_str(row[ci_cat])
+                    if ci_cond >= 0:
+                        prod.condition = _imp_str(row[ci_cond])
+                    if ci_stock >= 0:
+                        try:
+                            prod.stock = int(row[ci_stock] or 0)
+                        except (TypeError, ValueError):
+                            pass
+                    if ci_status >= 0:
+                        prod.status = _imp_str(row[ci_status]) or prod.status
+                    if ci_cost >= 0:
+                        prod.cost_price = _imp_decimal(row[ci_cost])
+                    if ci_sale >= 0:
+                        prod.sale_price = _imp_decimal(row[ci_sale])
+                    if ci_rent >= 0:
+                        prod.rent_price = _imp_decimal(row[ci_rent])
+                    if ci_rentp >= 0:
+                        prod.rent_period = _imp_str(row[ci_rentp])
+                    if ci_refill >= 0:
+                        prod.is_refillable = _imp_bool(row[ci_refill])
+                    if ci_desc >= 0:
+                        prod.description = _imp_str(row[ci_desc])
+                    if ci_ttype >= 0:
+                        prod.transaction_type = _imp_str(row[ci_ttype])
+                    if ci_rcost >= 0:
+                        prod.refill_cost = _imp_decimal(row[ci_rcost])
+                    if ci_pgcost >= 0:
+                        prod.primegas_cost = _imp_decimal(row[ci_pgcost])
+                    if ci_active >= 0:
+                        prod.is_active = _imp_bool(row[ci_active])
+                    db.session.add(prod)
+
+        db.session.flush()
+        # ── 3. Transactions + line items (Purchases / Rentals) ──
+        if "Transactions" in sheet_names:
+            ws = wb["Transactions"]
+            rows = list(ws.iter_rows(values_only=True))
+            if len(rows) > 1:
+                headers = [str(h or "").strip() for h in rows[0]]
+
+                def tcol(name):
+                    try:
+                        return headers.index(name)
+                    except ValueError:
+                        return -1
+
+                ci_ref = tcol("Reference No")
+                ci_date = tcol("Date")
+                ci_cust = tcol("Customer Name")
+                ci_type = tcol("Type")
+                ci_fulf = tcol("Fulfillment")
+                ci_pmeth = tcol("Payment Method")
+                ci_total = tcol("Total Amount")
+                ci_paid = tcol("Amount Paid")
+                ci_due = tcol("Balance Due")
+                ci_pstat = tcol("Payment Status")
+                ci_stat = tcol("Status")
+                ci_proc = tcol("Processed By")
+                ci_land = tcol("Landmark / Address")
+                ci_vouch = tcol("Voucher Amount")
+                ci_dfee = tcol("Delivery Fee")
+                ci_dep = tcol("Deposit Amount")
+                ci_prod = tcol("Product")
+                ci_qty = tcol("Quantity")
+                ci_cancel = tcol("Cancellation Reason")
+                ci_dstat = tcol("Delivery Status")
+                ci_wsize = tcol("Walk-in Tank Size")
+                ci_serial = tcol("Serial Numbers")
+
+                for row in rows[1:]:
+                    if not any(cell is not None for cell in row):
+                        continue
+                    ref = _imp_str(row[ci_ref] if ci_ref >= 0 else None)
+                    if not ref:
+                        continue
+                    # Skip duplicates (by reference_no, in-file or already in DB)
+                    if Transaction.query.filter_by(reference_no=ref).first():
+                        counts["skipped"] += 1
+                        continue
+                    if ref in transaction_by_ref:
+                        counts["skipped"] += 1
+                        continue
+                    cust = get_customer(row[ci_cust] if ci_cust >= 0 else None)
+                    cust_name = (cust.full_name if cust else
+                                 _imp_str(row[ci_cust] if ci_cust >= 0 else None) or
+                                 "Walk-In Customer")
+
+                    txn_type = _imp_str(row[ci_type] if ci_type >= 0 else None) or "Sale"
+                    created_at = _imp_date(row[ci_date] if ci_date >= 0 else None) or datetime.now()
+
+                    txn = Transaction(
+                        reference_no=ref,
+                        customer_id=cust.id if cust else None,
+                        customer_name=cust_name,
+                        processed_by=get_processed_by(row[ci_proc] if ci_proc >= 0 else None),
+                        transaction_type=txn_type,
+                        total_amount=_imp_decimal(row[ci_total] if ci_total >= 0 else None),
+                        voucher_amount=_imp_decimal(row[ci_vouch] if ci_vouch >= 0 else None),
+                        delivery_fee=_imp_decimal(row[ci_dfee] if ci_dfee >= 0 else None),
+                        amount_paid=_imp_decimal(row[ci_paid] if ci_paid >= 0 else None),
+                        balance_due=_imp_decimal(row[ci_due] if ci_due >= 0 else None),
+                        payment_method=_imp_str(row[ci_pmeth] if ci_pmeth >= 0 else None),
+                        payment_status=_imp_str(row[ci_pstat] if ci_pstat >= 0 else None) or "Unpaid",
+                        status=_imp_str(row[ci_stat] if ci_stat >= 0 else None) or "Open",
+                        cancellation_reason=_imp_str(row[ci_cancel] if ci_cancel >= 0 else None),
+                        created_at=created_at,
+                        fulfillment_type=_imp_str(row[ci_fulf] if ci_fulf >= 0 else None),
+                        landmark=_imp_str(row[ci_land] if ci_land >= 0 else None),
+                        deposit_amount=_imp_decimal(row[ci_dep] if ci_dep >= 0 else None),
+                        branch_id=branch_id,
+                    )
+                    db.session.add(txn)
+                    db.session.flush()
+                    transaction_by_ref[ref] = txn
+                    counts["transactions"] += 1
+                    # Line item from the Product / Quantity columns
+                    prod = (get_product(row[ci_prod] if ci_prod >= 0 else None)
+                            if ci_prod >= 0 else None)
+                    qty = 1
+                    if ci_qty >= 0 and row[ci_qty] is not None:
+                        try:
+                            qty = int(row[ci_qty])
+                        except (TypeError, ValueError):
+                            qty = 1
+
+                    if txn_type == "Sale" and prod:
+                        total = _imp_decimal(row[ci_total] if ci_total >= 0 else None)
+                        unit_price = (total / qty) if qty > 0 else total
+                        purchase = Purchase(
+                            transaction_id=txn.id,
+                            product_id=prod.id,
+                            customer_id=cust.id if cust else None,
+                            product_name=prod.name,
+                            product_type=prod.equipment_type,
+                            product_asset_tag=prod.asset_tag,
+                            product_condition=prod.condition,
+                            product_category=prod.category,
+                            product_description=prod.description,
+                            product_image=prod.image,
+                            product_cost_price=prod.cost_price,
+                            product_sale_price=prod.sale_price,
+                            product_rent_price=prod.rent_price,
+                            product_rent_period=prod.rent_period,
+                            quantity=qty,
+                            unit_price=unit_price,
+                            total_price=total,
+                            warranty_or_notes=_imp_str(row[ci_cancel] if ci_cancel >= 0 else None),
+                        )
+                        db.session.add(purchase)
+                        counts["purchases"] += 1
+
+                    elif txn_type == "Rental" and prod:
+                        start_dt = created_at
+                        expected_dt = (start_dt + timedelta(days=30)).date()
+                        rental = Rental(
+                            transaction_id=txn.id,
+                            product_id=prod.id,
+                            customer_id=cust.id if cust else None,
+                            start_date=start_dt.date(),
+                            expected_return_date=expected_dt,
+                            monthly_rate=_imp_decimal(row[ci_total] if ci_total >= 0 else None),
+                            quantity=qty,
+                            quantity_returned=0,
+                            status="Active",
+                            branch_id=branch_id,
+                        )
+                        db.session.add(rental)
+                        db.session.flush()
+        # ── 4. Rentals detail (enrich from Rentals sheet) ──
+        if "Rentals" in sheet_names:
+            ws = wb["Rentals"]
+            rows = list(ws.iter_rows(values_only=True))
+            if len(rows) > 1:
+                headers = [str(h or "").strip() for h in rows[0]]
+
+                def rcol(name):
+                    try:
+                        return headers.index(name)
+                    except ValueError:
+                        return -1
+
+                ci_ref = rcol("Reference No")
+                ci_start = rcol("Start Date")
+                ci_exp = rcol("Expected Return")
+                ci_act = rcol("Actual Return")
+                ci_rate = rcol("Monthly Rate")
+                ci_qty = rcol("Qty")
+                ci_qret = rcol("Qty Returned")
+                ci_dep = rcol("Deposit")
+                ci_depstat = rcol("Deposit Status")
+                ci_late = rcol("Late Fees")
+                ci_stat = rcol("Status")
+                ci_dfee = rcol("Delivery Fee")
+                ci_opendur = rcol("Is Open Duration")
+                ci_retcond = rcol("Return Condition Notes")
+                ci_depref = rcol("Is Deposit Refunded")
+                ci_retimg = rcol("Return Condition Image")
+                for row in rows[1:]:
+                    if not any(cell is not None for cell in row):
+                        continue
+                    ref = _imp_str(row[ci_ref] if ci_ref >= 0 else None)
+                    if not ref:
+                        continue
+                    txn = transaction_by_ref.get(ref)
+                    if not txn:
+                        txn = Transaction.query.filter_by(reference_no=ref).first()
+                        if txn:
+                            transaction_by_ref[ref] = txn
+                    if not txn:
+                        continue
+                    rental = (Rental.query
+                              .filter_by(transaction_id=txn.id)
+                              .order_by(Rental.id.desc())
+                              .first())
+                    if not rental:
+                        continue
+                    if ci_start >= 0:
+                        sd = _imp_date(row[ci_start])
+                        if sd:
+                            rental.start_date = sd.date() if hasattr(sd, 'date') else sd
+                    if ci_exp >= 0:
+                        ed = _imp_date(row[ci_exp])
+                        if ed:
+                            rental.expected_return_date = ed.date() if hasattr(ed, 'date') else ed
+                    if ci_act >= 0:
+                        ad = _imp_date(row[ci_act])
+                        if ad:
+                            rental.actual_return_date = ad.date() if hasattr(ad, 'date') else ad
+                    if ci_rate >= 0:
+                        rental.monthly_rate = _imp_decimal(row[ci_rate])
+                    if ci_qty >= 0:
+                        try:
+                            rental.quantity = int(row[ci_qty])
+                        except (TypeError, ValueError):
+                            pass
+                    if ci_qret >= 0:
+                        try:
+                            rental.quantity_returned = int(row[ci_qret])
+                        except (TypeError, ValueError):
+                            pass
+                    if ci_dep >= 0:
+                        rental.deposit_amount = _imp_decimal(row[ci_dep])
+                    if ci_depstat >= 0:
+                        rental.deposit_status = _imp_str(row[ci_depstat])
+                    if ci_late >= 0:
+                        rental.late_fees_incurred = _imp_decimal(row[ci_late])
+                    if ci_stat >= 0:
+                        rental.status = _imp_str(row[ci_stat]) or rental.status
+                    if ci_dfee >= 0:
+                        rental.delivery_fee = _imp_decimal(row[ci_dfee])
+                    if ci_opendur >= 0:
+                        rental.is_open_duration = _imp_bool(row[ci_opendur])
+                    if ci_retcond >= 0:
+                        rental.return_condition_notes = _imp_str(row[ci_retcond])
+                    if ci_depref >= 0:
+                        rental.is_deposit_refunded = _imp_bool(row[ci_depref])
+                    if ci_retimg >= 0:
+                        rental.return_condition_img = _imp_str(row[ci_retimg])
+                    db.session.add(rental)
+
+        # ── 5. Payments ──
+        if "Payments" in sheet_names:
+            ws = wb["Payments"]
+            rows = list(ws.iter_rows(values_only=True))
+            if len(rows) > 1:
+                headers = [str(h or "").strip() for h in rows[0]]
+
+                def pcol(name):
+                    try:
+                        return headers.index(name)
+                    except ValueError:
+                        return -1
+
+                ci_ref = pcol("Reference No")
+                ci_ptype = pcol("Payment Type")
+                ci_amount = pcol("Amount")
+                ci_pmeth = pcol("Method")
+                ci_refnum = pcol("Reference Number")
+                ci_pstat = pcol("Status")
+                ci_created = pcol("Created")
+                ci_verified = pcol("Verified At")
+                ci_receipt = pcol("Receipt Image Path")
+                ci_verified_by = pcol("Verified By")
+                for row in rows[1:]:
+                    if not any(cell is not None for cell in row):
+                        continue
+                    ref = _imp_str(row[ci_ref] if ci_ref >= 0 else None)
+                    if not ref:
+                        continue
+                    txn = transaction_by_ref.get(ref)
+                    if not txn:
+                        txn = Transaction.query.filter_by(reference_no=ref).first()
+                        if txn:
+                            transaction_by_ref[ref] = txn
+                    if not txn:
+                        continue
+                    payment = Payment(
+                        transaction_id=txn.id,
+                        payment_type=_imp_str(row[ci_ptype] if ci_ptype >= 0 else None) or
+                        "Rental Invoice",
+                        amount=_imp_decimal(row[ci_amount] if ci_amount >= 0 else None),
+                        payment_method=_imp_str(row[ci_pmeth] if ci_pmeth >= 0 else None) or
+                        "Cash",
+                        reference_number=_imp_str(row[ci_refnum] if ci_refnum >= 0 else None),
+                        status=_imp_str(row[ci_pstat] if ci_pstat >= 0 else None) or "Pending",
+                        created_at=_imp_date(row[ci_created] if ci_created >= 0 else None) or
+                        datetime.now(),
+                        verified_at=_imp_date(row[ci_verified] if ci_verified >= 0 else None),
+                        receipt_image_path=_imp_str(row[ci_receipt] if ci_receipt >= 0 else None),
+                    )
+                    vname = _imp_str(row[ci_verified_by] if ci_verified_by >= 0 else None)
+                    if vname:
+                        parts = vname.split(None, 1)
+                        f = parts[0] if parts else ""
+                        l = parts[1] if len(parts) > 1 else ""
+                        vuser = (User.query
+                                 .filter(db.func.lower(User.first_name) == f.lower(),
+                                         db.func.lower(User.last_name) == l.lower())
+                                 .first())
+                        if vuser:
+                            payment.verified_by_id = vuser.id
+                    db.session.add(payment)
+                    counts["payments"] += 1
+        # ── 6. Rental Invoices ──
+        if "Rental Invoices" in sheet_names:
+            ws = wb["Rental Invoices"]
+            rows = list(ws.iter_rows(values_only=True))
+            if len(rows) > 1:
+                headers = [str(h or "").strip() for h in rows[0]]
+
+                def icol(name):
+                    try:
+                        return headers.index(name)
+                    except ValueError:
+                        return -1
+
+                ci_ref = icol("Reference No")
+                ci_ps = icol("Period Start")
+                ci_pe = icol("Period End")
+                ci_due = icol("Amount Due")
+                ci_late = icol("Late Fee")
+                ci_stat = icol("Status")
+                ci_notes = icol("Collection Notes")
+                for row in rows[1:]:
+                    if not any(cell is not None for cell in row):
+                        continue
+                    ref = _imp_str(row[ci_ref] if ci_ref >= 0 else None)
+                    if not ref:
+                        continue
+                    txn = transaction_by_ref.get(ref)
+                    if not txn:
+                        txn = Transaction.query.filter_by(reference_no=ref).first()
+                        if txn:
+                            transaction_by_ref[ref] = txn
+                    if not txn:
+                        continue
+                    rental = (Rental.query
+                              .filter_by(transaction_id=txn.id)
+                              .order_by(Rental.id.desc())
+                              .first())
+                    if not rental:
+                        continue
+                    inv = RentalInvoice(
+                        rental_id=rental.id,
+                        service_period_start=_imp_date(row[ci_ps] if ci_ps >= 0 else None),
+                        service_period_end=_imp_date(row[ci_pe] if ci_pe >= 0 else None),
+                        amount_due=_imp_decimal(row[ci_due] if ci_due >= 0 else None),
+                        late_fee=_imp_decimal(row[ci_late] if ci_late >= 0 else None),
+                        status=_imp_str(row[ci_stat] if ci_stat >= 0 else None) or "Unpaid",
+                        collection_notes=_imp_str(row[ci_notes] if ci_notes >= 0 else None),
+                    )
+                    db.session.add(inv)
+                    counts["invoices"] += 1
+
+        db.session.commit()
+        flash(
+            f"Import complete — {counts['transactions']} transactions, "
+            f"{counts['purchases']} purchases, {counts['rentals']} rentals, "
+            f"{counts['payments']} payments, {counts['invoices']} invoices, "
+            f"{counts['customers']} customers, {counts['products']} products. "
+            f"{counts['skipped']} duplicate transactions skipped.",
+            "success",
+        )
+    except Exception as exc:
+        db.session.rollback()
+        current_app.logger.exception("IMPORT_TRANSACTIONS_ERROR")
+        flash(f"Import failed and was rolled back: {exc}", "danger")
+
+    return redirect(request.referrer or url_for('admin.transactions'))
+
+
+
+
+
+
+
+
 
 
 
