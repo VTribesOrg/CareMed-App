@@ -663,7 +663,16 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             fetch(fetchUrl)
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Server returned ${response.status}`);
+                    }
+                    const contentType = response.headers.get('content-type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        throw new Error('Invalid response format');
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     const expenses = data.expenses || [];
                     if (expensesModalCount) {

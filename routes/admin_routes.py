@@ -947,6 +947,43 @@ def dashboard_freight_transactions():
     except Exception:
         current_app.logger.exception("Critical error encountered while fetching freight expense transactions.")
         return jsonify({"error": "Failed to load freight transactions."}), 500
+
+@admin_bp.route("/dashboard/expense-transactions")
+@login_required
+@admin_or_staff_required
+def dashboard_expense_transactions():
+    try:
+        period = request.args.get('period', 'this_month')
+        custom_start = request.args.get('start_date')
+        custom_end = request.args.get('end_date')
+
+        start_date, end_date = get_date_boundaries(period, custom_start, custom_end)
+
+        def apply_date_filter(query, date_column=Expense.date_incurred):
+            if start_date:
+                query = query.filter(date_column >= start_date)
+            if end_date:
+                query = query.filter(date_column < end_date)
+            return query
+
+        query = Expense.query
+        query = apply_date_filter(query)
+        expenses = query.order_by(Expense.date_incurred.desc()).all()
+
+        expense_list = []
+        for exp in expenses:
+            expense_list.append({
+                "date": exp.date_incurred.strftime('%b %d, %Y') if exp.date_incurred else (exp.created_at.strftime('%b %d, %Y') if exp.created_at else ""),
+                "expense_title": exp.expense_title or exp.category or 'Expense',
+                "description": exp.description or '—',
+                "amount": float(exp.amount or 0)
+            })
+
+        return jsonify({"expenses": expense_list})
+
+    except Exception:
+        current_app.logger.exception("Critical error encountered while fetching expense transactions.")
+        return jsonify({"error": "Failed to load expense transactions."}), 500
             
 @admin_bp.route('/process-refill-transaction', methods=['POST'])
 @login_required
